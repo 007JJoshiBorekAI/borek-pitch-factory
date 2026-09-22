@@ -47,6 +47,12 @@ EXPECTED_COLUMNS = {
         "pii_redaction_enabled",
         "additional_client_information",
         "followup_statics",
+        "client_web_page",
+        "poc_name",
+        "poc_position",
+        "sales_topic_description",
+        "about_company",
+        "voice_recording_artifact_id",
         "demo_marker",
     ),
     "generation_jobs": (

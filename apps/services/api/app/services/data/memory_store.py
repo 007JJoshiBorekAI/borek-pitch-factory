@@ -21,6 +21,12 @@ from app.services.stage_b_orchestration import (
     plan_json_from_confirmed_framework,
     planned_slides_with_generators,
 )
+from app.services.stage1_intake_store import (
+    STAGE1_DB_COLUMNS,
+    apply_intake_columns,
+    expand_opportunity_updates,
+    present_opportunity,
+)
 
 ALLOWED_TRANSCRIPT_EXTENSIONS = {".txt", ".vtt", ".srt", ".docx"}
 ALLOWED_TRANSCRIPT_MIME_TYPES = {
@@ -321,6 +327,7 @@ class MemoryDataStore:
         pii_redaction_enabled: bool = True,
         additional_client_information: dict[str, Any] | None = None,
         followup_statics: dict[str, Any] | None = None,
+        stage1_intake: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         opportunity_id = uuid.uuid4()
         now = _now()
@@ -337,13 +344,18 @@ class MemoryDataStore:
             "created_by": user_id,
             "created_at": now,
             "updated_at": now,
+            **{key: None for key in STAGE1_DB_COLUMNS},
         }
+        apply_intake_columns(row, stage1_intake)
         self.opportunities[opportunity_id] = row
-        return row
+        return present_opportunity(row)
 
     def list_opportunities(self, *, user_id: UUID) -> list[dict[str, Any]]:
         rows = [row for row in self.opportunities.values() if row["created_by"] == user_id]
-        return sorted(rows, key=lambda row: row["created_at"], reverse=True)
+        return [
+            present_opportunity(row)
+            for row in sorted(rows, key=lambda row: row["created_at"], reverse=True)
+        ]
 
     def load_recent_work_index(
         self,
@@ -430,7 +442,7 @@ class MemoryDataStore:
         row = self.opportunities.get(opportunity_id)
         if row is None or row["created_by"] != user_id:
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
-        return row
+        return present_opportunity(row)
 
     def update_opportunity(
         self,
@@ -439,12 +451,19 @@ class MemoryDataStore:
         user_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
-        row = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
-        for key, value in updates.items():
-            if value is not None or key in {"additional_client_information", "followup_statics"}:
+        row = self.opportunities.get(opportunity_id)
+        if row is None or row["created_by"] != user_id:
+            raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
+        expanded = expand_opportunity_updates(dict(updates))
+        for key, value in expanded.items():
+            if value is not None or key in {
+                "additional_client_information",
+                "followup_statics",
+                *STAGE1_DB_COLUMNS,
+            }:
                 row[key] = value
         row["updated_at"] = _now()
-        return row
+        return present_opportunity(row)
 
     def upsert_client_logo(
         self,

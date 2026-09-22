@@ -33,6 +33,56 @@ _SUPERLATIVE = re.compile(
     re.I,
 )
 _NUMBER_RE = re.compile(r"(?<![A-Za-z0-9.,-])(\d+(?:[.,]\d+)?)(?![A-Za-z0-9.,-])")
+_ENGLISH_THOUSANDS_COMMA_RE = re.compile(r"^\d{1,3}(,\d{3})+$")
+_EU_DOT_THOUSANDS_RE = re.compile(r"^\d{1,3}(\.\d{3})+$")
+_GERMAN_DECIMAL_COMMA_RE = re.compile(r"^\d+,\d{1,2}$")
+
+
+def semantic_numeric_values_in_text(
+    text: str,
+    *,
+    pattern: re.Pattern[str] | None = None,
+) -> set[float]:
+    """Collect semantic values for every digit token matched in ``text``."""
+    regex = pattern or _NUMBER_RE
+    values: set[float] = set()
+    for match in regex.finditer(text):
+        token = match.group(1) if match.lastindex else match.group(0)
+        try:
+            values.add(_numeric_token(token.rstrip("%")))
+        except ValueError:
+            continue
+    return values
+
+
+def _numeric_token(raw: str) -> float:
+    text = raw.strip()
+    if not text:
+        raise ValueError("empty numeric token")
+
+    has_comma = "," in text
+    has_dot = "." in text
+
+    if has_comma and has_dot:
+        if text.rfind(",") > text.rfind("."):
+            normalized = text.replace(".", "").replace(",", ".")
+        else:
+            normalized = text.replace(",", "")
+        return float(normalized)
+
+    if has_comma:
+        if _ENGLISH_THOUSANDS_COMMA_RE.match(text):
+            return float(text.replace(",", ""))
+        if _GERMAN_DECIMAL_COMMA_RE.match(text):
+            return float(text.replace(",", "."))
+        return float(text.replace(",", ""))
+
+    if has_dot:
+        if _EU_DOT_THOUSANDS_RE.match(text):
+            return float(text.replace(".", ""))
+        return float(text)
+
+    return float(text)
 
 
 class GuardrailError(ValueError):

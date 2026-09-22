@@ -132,16 +132,21 @@ def _parse_timestamp(value: str | datetime) -> datetime:
 
 
 def _normalize_opportunity(row: dict[str, Any]) -> dict[str, Any]:
-    return {
-        **row,
-        "id": UUID(str(row["id"])),
-        "created_by": UUID(str(row["created_by"])),
-        "created_at": _parse_timestamp(row["created_at"]),
-        "updated_at": _parse_timestamp(row["updated_at"]),
-        "pii_redaction_enabled": bool(row.get("pii_redaction_enabled", True)),
-        "additional_client_information": row.get("additional_client_information"),
-        "followup_statics": row.get("followup_statics"),
-    }
+    from app.services.stage1_intake_store import legacy_row_without_intake_columns, present_opportunity
+
+    normalized = legacy_row_without_intake_columns(row)
+    return present_opportunity(
+        {
+            **normalized,
+            "id": UUID(str(normalized["id"])),
+            "created_by": UUID(str(normalized["created_by"])),
+            "created_at": _parse_timestamp(normalized["created_at"]),
+            "updated_at": _parse_timestamp(normalized["updated_at"]),
+            "pii_redaction_enabled": bool(normalized.get("pii_redaction_enabled", True)),
+            "additional_client_information": normalized.get("additional_client_information"),
+            "followup_statics": normalized.get("followup_statics"),
+        }
+    )
 
 
 def _normalize_client_logo(row: dict[str, Any]) -> dict[str, Any]:
@@ -401,7 +406,10 @@ class SupabaseDataStore:
         pii_redaction_enabled: bool = True,
         additional_client_information: dict[str, Any] | None = None,
         followup_statics: dict[str, Any] | None = None,
+        stage1_intake: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        from app.services.stage1_intake_store import apply_intake_columns
+
         payload = {
             "client_name": client_name,
             "opportunity_name": opportunity_name,
@@ -413,6 +421,7 @@ class SupabaseDataStore:
             "followup_statics": followup_statics,
             "created_by": str(user_id),
         }
+        apply_intake_columns(payload, stage1_intake)
         response = self._request("POST", "opportunities", json_body=payload)
         if response.status_code not in (200, 201):
             raise bad_request("OPPORTUNITY_CREATE_FAILED", response.text)
@@ -598,10 +607,14 @@ class SupabaseDataStore:
         user_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
+        from app.services.stage1_intake_store import STAGE1_DB_COLUMNS, expand_opportunity_updates
+
+        expanded = expand_opportunity_updates(dict(updates))
         payload = {
             key: value
-            for key, value in updates.items()
-            if value is not None or key in {"additional_client_information", "followup_statics"}
+            for key, value in expanded.items()
+            if value is not None
+            or key in {"additional_client_information", "followup_statics", *STAGE1_DB_COLUMNS}
         }
         payload["updated_at"] = datetime.now(UTC).isoformat()
         response = self._request(

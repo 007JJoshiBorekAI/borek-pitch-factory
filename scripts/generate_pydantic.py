@@ -46,6 +46,7 @@ SCHEMAS = [
         "slide_spec_group_c_open_questions_01.py",
     ),
     ("slide_spec/group_c/next_steps_01.schema.json", "slide_spec_group_c_next_steps_01.py"),
+    ("stage1_research.schema.json", "stage1_research.py"),
 ]
 
 
