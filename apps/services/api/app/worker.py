@@ -1,0 +1,771 @@
+"""Celery worker application (AT-35)."""
+
+from __future__ import annotations
+
+import logging
+
+from celery import Celery
+
+from app.config import settings
+from app.services.job_retry import run_with_transient_retry
+
+logger = logging.getLogger(__name__)
+
+celery_app = Celery(
+    "borek_worker",
+    broker=settings.REDIS_URL,
+    backend=settings.REDIS_URL,
+)
+
+celery_app.conf.task_serializer = "json"
+celery_app.conf.result_serializer = "json"
+celery_app.conf.accept_content = ["json"]
+celery_app.conf.task_always_eager = settings.API_DATA_BACKEND == "memory"
+celery_app.conf.task_eager_propagates = False
+
+
+def _celery_task_error(exc: Exception) -> Exception:
+    """Celery cannot serialize FastAPI HTTPException into the result backend."""
+    from fastapi import HTTPException
+
+    from app.services.api_errors import error_fields_from_exception
+
+    if isinstance(exc, HTTPException):
+        code, message, _retryable = error_fields_from_exception(exc)
+        wrapped = RuntimeError(message)
+        wrapped.code = code  # type: ignore[attr-defined]
+        return wrapped
+    return exc
+
+
+def _is_retryable_error(exc: Exception) -> bool:
+    """Validation failures are not retryable by the user; provider/network errors are."""
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if getattr(current, "retryable", None) is False:
+            return False
+        if str(getattr(current, "code", "") or "") == "EGRESS_BLOCKED":
+            return False
+        current = current.__cause__
+    if hasattr(exc, "retryable"):
+        return bool(exc.retryable)
+
+    non_retryable = {
+        "VALIDATION_FAILED",
+        "SLIDE_VALIDATION_FAILED",
+        "SCHEMA_VALIDATION_ERROR",
+        "CONTENT_CONSTRAINT_EXCEEDED",
+        "PRESENTATION_PLAN_VALIDATION_FAILED",
+        "UNGROUNDED_CONTENT_ERROR",
+        "EGRESS_BLOCKED",
+    }
+    error_code = (
+        getattr(exc, "code", "")
+        or getattr(exc, "error_code", "")
+        or type(exc).__name__
+    )
+
+    if any(
+        keyword in type(exc).__name__
+        for keyword in (
+            "Validation",
+            "Constraint",
+            "Ungrounded",
+            "Schema",
+            "SlideGenerationError",
+        )
+    ):
+        return False
+
+    return error_code not in non_retryable
+
+
+@celery_app.on_after_configure.connect
+def _log_worker_runtime_profile(**_kwargs) -> None:
+    from app.runtime_profile import log_runtime_profile
+
+    log_runtime_profile(component="worker")
+
+
+def _llm_observability_scope(store, job_id, opportunity_id=None):
+    from services.observability.llm_logger import llm_observability_scope
+    from app.services import job_service
+
+    parsed_opportunity = opportunity_id
+    if parsed_opportunity is None:
+        job = job_service.get_job(job_id, repository=store)
+        parsed_opportunity = job.opportunity_id if job is not None else None
+    return llm_observability_scope(
+        job_id=job_id,
+        opportunity_id=parsed_opportunity,
+        store=store,
+    )
+
+
+def _stage_should_run(current_stage, target_stage) -> bool:
+    """Return whether a resumed job still needs to execute target_stage."""
+    from app.schemas.jobs import JOB_PIPELINE_STAGES
+
+    return JOB_PIPELINE_STAGES.index(current_stage) <= JOB_PIPELINE_STAGES.index(
+        target_stage
+    )
+
+
+def _engine_render_stage():
+    """Stage the current PRESENTATION_ENGINE will actually enter."""
+    from app.schemas.jobs import JobStage
+    from app.services.gamma_stage import require_presentation_engine
+
+    if require_presentation_engine() == "internal":
+        return JobStage.PPTX_RENDERING
+    return JobStage.GAMMA_RENDERING
+
+
+def _run_configured_rendering(
+    *,
+    parsed_job_id,
+    resume_stage,
+    store,
+    version,
+    plan,
+    presentation_id: str,
+    user_id: str,
+    current_result_json: dict | None,
+    record_metrics: bool,
+):
+    """BT-28: one engine decision. Configuration fallback only — never silent switch."""
+    from time import monotonic
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service, presentation_generation
+    from app.services.gamma_stage import (
+        mark_version_ready_after_gamma,
+        require_presentation_engine,
+        run_gamma_stage_for_presentation,
+    )
+
+    engine = require_presentation_engine()
+    if engine == "internal":
+        stage = JobStage.PPTX_RENDERING
+        if _stage_should_run(resume_stage, stage):
+            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+            render_started = monotonic()
+            version = presentation_generation.render_presentation_version(
+                store,
+                version=version,
+                plan=plan,
+            )
+            if record_metrics:
+                job_service.record_metrics(
+                    parsed_job_id,
+                    repository=store,
+                    render_duration_ms=int((monotonic() - render_started) * 1000),
+                    storage_size_bytes=int(version.get("storage_size_bytes") or 0),
+                )
+        return stage, version, {"skipped": True, "engine": "internal"}
+
+    stage = JobStage.GAMMA_RENDERING
+    if _stage_should_run(resume_stage, stage):
+        job_service.ensure_stage(parsed_job_id, stage, repository=store)
+        gamma_result = run_gamma_stage_for_presentation(
+            store,
+            job_id=parsed_job_id,
+            presentation_id=presentation_id,
+            user_id=user_id,
+            presentation_version_id=version["id"],
+        )
+        version = mark_version_ready_after_gamma(store, version, gamma_result)
+        job_service.record_result_checkpoint(
+            parsed_job_id,
+            {"gamma": gamma_result},
+            repository=store,
+        )
+    else:
+        gamma_result = dict((current_result_json or {}).get("gamma") or {})
+    return stage, version, gamma_result
+
+
+@celery_app.task(name="tasks.health_check")
+def health_check_task() -> dict[str, str]:
+    """Wiring test task — replaced by real jobs in AT-36+."""
+    return {"status": "ok", "worker": "alive"}
+
+
+@celery_app.task(name="tasks.advance_job_stage")
+def advance_job_stage_task(job_id: str, next_stage: str) -> dict[str, str]:
+    """Advance a generation job to the next pipeline stage (AT-36)."""
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service
+
+    job = job_service.advance_stage(UUID(job_id), JobStage(next_stage))
+    return {"job_id": str(job.id), "current_stage": job.current_stage.value}
+
+
+@celery_app.task(name="tasks.run_presentation_planning")
+def run_presentation_planning_task(
+    job_id: str,
+    framework_version_id: str,
+    user_id: str,
+    presentation_plan_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service, presentation_generation
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.PRESENTATION_PLANNING
+    try:
+        def _run() -> dict[str, str]:
+            with _llm_observability_scope(store, parsed_job_id):
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                plan = presentation_generation.execute_presentation_planning(
+                    store,
+                    framework_version_id=UUID(framework_version_id),
+                    user_id=UUID(user_id),
+                    presentation_plan_id=UUID(presentation_plan_id),
+                )
+                job_service.complete_job(
+                    parsed_job_id,
+                    repository=store,
+                    result_json={"presentation_plan_id": str(plan["id"])},
+                )
+                return {"job_id": job_id, "presentation_plan_id": str(plan["id"])}
+
+        result = run_with_transient_retry(_run)
+    except Exception as exc:
+        from app.services.planning_job_errors import format_presentation_planning_failure
+
+        error_code, message, retryable = format_presentation_planning_failure(exc)
+        job_service.fail_job(
+            parsed_job_id,
+            error_code,
+            message,
+            stage,
+            retryable,
+            repository=store,
+        )
+        raise _celery_task_error(exc) from exc
+    from app.services.presentation_pipeline import continue_after_planning
+
+    # Re-read durable auto_continue after COMPLETED so a concurrent upgrade cannot
+    # land between the worker's stale snapshot and continuation.
+    try:
+        continue_after_planning(store, planning_job_id=parsed_job_id)
+    except Exception:
+        # Planning is already COMPLETED. Continuation records a FAILED generation
+        # job when it can; re-raising would only confuse Celery after success.
+        logger.exception(
+            "Presentation generation did not start after planning job %s completed",
+            job_id,
+        )
+    return result
+
+
+@celery_app.task(name="tasks.run_framework_generation")
+def run_framework_generation_task(
+    job_id: str,
+    opportunity_id: str,
+    user_id: str,
+    framework_version_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import framework_generation, job_service
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.TRANSCRIPT_PROCESSING
+    try:
+        def _run() -> dict[str, str]:
+            nonlocal stage
+            with _llm_observability_scope(store, parsed_job_id, UUID(opportunity_id)):
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+
+                def advance(target: str) -> None:
+                    nonlocal stage
+                    target_stage = {
+                        "knowledge": JobStage.KNOWLEDGE_EXTRACTING,
+                        "synthesis": JobStage.FRAMEWORK_SYNTHESIZING,
+                        "validation": JobStage.FRAMEWORK_VALIDATING,
+                    }[target]
+                    if target_stage == stage:
+                        return
+                    stage = target_stage
+                    job_service.ensure_stage(parsed_job_id, stage, repository=store)
+
+                loaded_job = job_service.get_job(parsed_job_id, repository=store)
+                if loaded_job is None:
+                    raise RuntimeError(f"Job not found: {job_id}")
+                enqueue = dict((loaded_job.result_json or {}).get("_enqueue") or {})
+                frozen_transcripts = enqueue.get("transcript_ids")
+                framework = framework_generation.execute_framework_generate(
+                    store,
+                    opportunity_id=UUID(opportunity_id),
+                    user_id=UUID(user_id),
+                    framework_version_id=UUID(framework_version_id),
+                    job_id=parsed_job_id,
+                    transcript_ids=(
+                        [str(item) for item in frozen_transcripts]
+                        if isinstance(frozen_transcripts, list)
+                        else None
+                    ),
+                    stage_callback=advance,
+                )
+                loaded_job = job_service.get_job(parsed_job_id, repository=store)
+                if loaded_job is None:
+                    raise RuntimeError(f"Job not found: {job_id}")
+                observability = framework_generation.persist_framework_generation_observability(
+                    loaded_job,
+                    framework_json=framework["framework_json"],
+                    opportunity_id=UUID(opportunity_id),
+                    framework_version_id=UUID(framework_version_id),
+                    repository=store,
+                )
+                job_service.complete_job(
+                    parsed_job_id,
+                    repository=store,
+                    result_json=observability,
+                )
+                return {"job_id": job_id, "framework_version_id": str(framework["id"])}
+
+        return run_with_transient_retry(_run)
+    except Exception as exc:
+        from fastapi import HTTPException
+
+        from app.services.api_errors import error_fields_from_exception
+
+        if isinstance(exc, HTTPException):
+            code, message, retryable = error_fields_from_exception(exc)
+            if code == "JOB_FAILED":
+                code = "FRAMEWORK_GENERATION_FAILED"
+        else:
+            code = getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED")
+            message = str(exc)
+            retryable = _is_retryable_error(exc)
+        job_service.fail_job(
+            parsed_job_id,
+            code,
+            message,
+            stage,
+            retryable,
+            repository=store,
+        )
+        raise _celery_task_error(exc) from exc
+
+
+@celery_app.task(name="tasks.run_framework_render")
+def run_framework_render_task(
+    job_id: str,
+    framework_version_id: str,
+    user_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import framework_generation, job_service
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.PREVIEW_RENDERING
+    try:
+        def _run() -> dict[str, str]:
+            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+            path = framework_generation.execute_framework_render(
+                store,
+                framework_version_id=UUID(framework_version_id),
+                user_id=UUID(user_id),
+            )
+            job_service.record_metrics(
+                parsed_job_id,
+                repository=store,
+                storage_size_bytes=path.stat().st_size,
+            )
+            job_service.complete_job(
+                parsed_job_id,
+                repository=store,
+                result_json={
+                    "framework_version_id": framework_version_id,
+                    "pdf_download_url": (
+                        f"/frameworks/{framework_version_id}/render?format=pdf"
+                    ),
+                },
+            )
+            return {"job_id": job_id, "framework_version_id": framework_version_id}
+
+        return run_with_transient_retry(_run)
+    except Exception as exc:
+        job_service.fail_job(
+            parsed_job_id,
+            "FRAMEWORK_RENDER_FAILED",
+            str(exc),
+            stage,
+            True,
+            repository=store,
+        )
+        raise
+
+
+@celery_app.task(name="tasks.run_framework_regenerate_chapter")
+def run_framework_regenerate_chapter_task(
+    job_id: str,
+    framework_version_id: str,
+    chapter_id: str,
+    opportunity_id: str | None = None,
+    user_id: str | None = None,
+    source_framework_version_id: str | None = None,
+    source_revision: str | None = None,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import framework_generation, job_service
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.TRANSCRIPT_PROCESSING
+    try:
+        if not all((opportunity_id, user_id, source_framework_version_id, source_revision)):
+            outdated = RuntimeError(
+                "This chapter-regeneration job predates the append-only contract. Start regeneration again."
+            )
+            outdated.code = "FRAMEWORK_REGENERATION_JOB_OUTDATED"  # type: ignore[attr-defined]
+            outdated.retryable = False  # type: ignore[attr-defined]
+            raise outdated
+
+        def _run() -> dict[str, str]:
+            nonlocal stage
+            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+
+            def advance(target: str) -> None:
+                nonlocal stage
+                stage = {
+                    "knowledge": JobStage.KNOWLEDGE_EXTRACTING,
+                    "synthesis": JobStage.FRAMEWORK_SYNTHESIZING,
+                    "validation": JobStage.FRAMEWORK_VALIDATING,
+                }[target]
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+
+            framework_generation.execute_framework_regenerate_chapter(
+                store,
+                opportunity_id=UUID(opportunity_id),
+                user_id=UUID(user_id),
+                source_framework_version_id=UUID(source_framework_version_id),
+                framework_version_id=UUID(framework_version_id),
+                chapter_id=chapter_id,
+                source_revision=source_revision,
+                stage_callback=advance,
+            )
+            job_service.complete_job(
+                parsed_job_id,
+                repository=store,
+                result_json={
+                    "source_framework_version_id": source_framework_version_id,
+                    "framework_version_id": framework_version_id,
+                    "chapter_id": chapter_id,
+                },
+            )
+            return {
+                "job_id": job_id,
+                "framework_version_id": framework_version_id,
+                "chapter_id": chapter_id,
+            }
+
+        return run_with_transient_retry(_run)
+    except Exception as exc:
+        from app.services.api_errors import error_fields_from_exception
+
+        code, message, retryable = error_fields_from_exception(exc)
+        if code == "JOB_FAILED":
+            code = "FRAMEWORK_REGENERATE_FAILED"
+            retryable = _is_retryable_error(exc)
+        job_service.fail_job(
+            parsed_job_id,
+            code,
+            message,
+            stage,
+            retryable,
+            repository=store,
+        )
+        raise _celery_task_error(exc) from exc
+
+
+@celery_app.task(name="tasks.run_presentation_generation")
+def run_presentation_generation_task(
+    job_id: str,
+    presentation_id: str,
+    user_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service, presentation_generation
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.SLIDE_GENERATING
+    try:
+        def _run() -> dict[str, str]:
+            nonlocal stage
+            stage = JobStage.SLIDE_GENERATING
+            with _llm_observability_scope(store, parsed_job_id):
+                current = job_service.get_job(parsed_job_id, repository=store)
+                if current is None:
+                    raise RuntimeError(f"Job not found: {job_id}")
+                resume_stage = current.current_stage
+
+                if _stage_should_run(resume_stage, stage):
+                    job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                    enqueue = dict((current.result_json or {}).get("_enqueue") or {})
+                    prior_id = enqueue.get("prior_stage_presentation_version_id")
+                    version, plan = presentation_generation.execute_presentation_generation(
+                        store,
+                        presentation_id=UUID(presentation_id),
+                        user_id=UUID(user_id),
+                        journey_stage=enqueue.get("journey_stage"),
+                        prior_stage_presentation_version_id=(
+                            UUID(str(prior_id)) if prior_id else None
+                        ),
+                    )
+                    job_service.record_result_checkpoint(
+                        parsed_job_id,
+                        {"presentation_version_id": str(version["id"])},
+                        repository=store,
+                    )
+                else:
+                    stage = resume_stage
+                    version, plan = (
+                        presentation_generation.load_presentation_generation_checkpoint(
+                            store,
+                            presentation_id=UUID(presentation_id),
+                            user_id=UUID(user_id),
+                        )
+                    )
+                stage = JobStage.SLIDE_VALIDATING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                stage = _engine_render_stage()
+                stage, version, gamma_result = _run_configured_rendering(
+                    parsed_job_id=parsed_job_id,
+                    resume_stage=resume_stage,
+                    store=store,
+                    version=version,
+                    plan=plan,
+                    presentation_id=presentation_id,
+                    user_id=user_id,
+                    current_result_json=current.result_json,
+                    record_metrics=True,
+                )
+                stage = JobStage.ARTIFACT_FILING
+                if _stage_should_run(resume_stage, stage):
+                    job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                    from app.services.artifact_filing_stage import (
+                        run_artifact_filing_for_presentation,
+                    )
+
+                    filing_result = run_artifact_filing_for_presentation(
+                        store,
+                        presentation_id=presentation_id,
+                        user_id=user_id,
+                        version=version,
+                        gamma_result=gamma_result,
+                    )
+                    job_service.record_result_checkpoint(
+                        parsed_job_id,
+                        {"filing": filing_result},
+                        repository=store,
+                    )
+                stage = JobStage.PREVIEW_RENDERING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                from app.services.gamma_preview import apply_gamma_preview_raster
+
+                apply_gamma_preview_raster(
+                    store,
+                    presentation_id=presentation_id,
+                    user_id=user_id,
+                    version=version,
+                )
+                job_service.complete_job(
+                    parsed_job_id,
+                    repository=store,
+                    result_json={
+                        "presentation_id": presentation_id,
+                        "presentation_version_id": str(version["id"]),
+                    },
+                )
+                return {
+                    "job_id": job_id,
+                    "presentation_id": presentation_id,
+                    "presentation_version_id": str(version["id"]),
+                }
+
+        return run_with_transient_retry(_run)
+    except Exception as exc:
+        job_service.fail_job(
+            parsed_job_id,
+            getattr(exc, "code", "PRESENTATION_GENERATION_FAILED"),
+            str(exc),
+            stage,
+            _is_retryable_error(exc),
+            repository=store,
+        )
+        raise
+
+
+def _run_slide_task(
+    *,
+    job_id: str,
+    presentation_id: str,
+    slide_id: str,
+    user_id: str,
+    layout_id: str | None,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service, presentation_generation
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.SLIDE_GENERATING
+    try:
+        def _run() -> dict[str, str]:
+            nonlocal stage
+            with _llm_observability_scope(store, parsed_job_id):
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                if layout_id is None:
+                    slide = presentation_generation.execute_slide_regenerate(
+                        store,
+                        presentation_id=UUID(presentation_id),
+                        slide_id=UUID(slide_id),
+                        user_id=UUID(user_id),
+                    )
+                else:
+                    slide = presentation_generation.execute_slide_change_layout(
+                        store,
+                        presentation_id=UUID(presentation_id),
+                        slide_id=UUID(slide_id),
+                        user_id=UUID(user_id),
+                        layout_id=layout_id,
+                    )
+                stage = JobStage.SLIDE_VALIDATING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                version = store.get_latest_presentation_version(
+                    presentation_id=UUID(presentation_id),
+                    user_id=UUID(user_id),
+                )
+                presentation = store.get_presentation(
+                    presentation_id=UUID(presentation_id),
+                    user_id=UUID(user_id),
+                )
+                plan = store.get_presentation_plan(
+                    presentation_plan_id=presentation["presentation_plan_id"],
+                    user_id=UUID(user_id),
+                )
+                stage = _engine_render_stage()
+                stage, version, gamma_result = _run_configured_rendering(
+                    parsed_job_id=parsed_job_id,
+                    resume_stage=stage,
+                    store=store,
+                    version=version,
+                    plan=plan,
+                    presentation_id=presentation_id,
+                    user_id=user_id,
+                    current_result_json=None,
+                    record_metrics=False,
+                )
+                stage = JobStage.ARTIFACT_FILING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                from app.services.artifact_filing_stage import (
+                    run_artifact_filing_for_presentation,
+                )
+
+                job_service.record_result_checkpoint(
+                    parsed_job_id,
+                    {
+                        "filing": run_artifact_filing_for_presentation(
+                            store,
+                            presentation_id=presentation_id,
+                            user_id=user_id,
+                            version=version,
+                            gamma_result=gamma_result,
+                        )
+                    },
+                    repository=store,
+                )
+                stage = JobStage.PREVIEW_RENDERING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                from app.services.gamma_preview import apply_gamma_preview_raster
+
+                apply_gamma_preview_raster(
+                    store,
+                    presentation_id=presentation_id,
+                    user_id=user_id,
+                    version=version,
+                )
+                job_service.complete_job(
+                    parsed_job_id,
+                    repository=store,
+                    result_json={
+                        "presentation_id": presentation_id,
+                        "presentation_version_id": str(version["id"]),
+                        "slide_id": str(slide["id"]),
+                    },
+                )
+                return {"job_id": job_id, "slide_id": str(slide["id"])}
+
+        return run_with_transient_retry(_run)
+    except Exception as exc:
+        job_service.fail_job(
+            parsed_job_id,
+            getattr(exc, "code", "SLIDE_GENERATION_FAILED"),
+            str(exc),
+            stage,
+            _is_retryable_error(exc),
+            repository=store,
+        )
+        raise
+
+
+@celery_app.task(name="tasks.run_slide_regenerate")
+def run_slide_regenerate_task(
+    job_id: str,
+    presentation_id: str,
+    slide_id: str,
+    user_id: str,
+) -> dict[str, str]:
+    return _run_slide_task(
+        job_id=job_id,
+        presentation_id=presentation_id,
+        slide_id=slide_id,
+        user_id=user_id,
+        layout_id=None,
+    )
+
+
+@celery_app.task(name="tasks.run_slide_change_layout")
+def run_slide_change_layout_task(
+    job_id: str,
+    presentation_id: str,
+    slide_id: str,
+    user_id: str,
+    layout_id: str,
+) -> dict[str, str]:
+    return _run_slide_task(
+        job_id=job_id,
+        presentation_id=presentation_id,
+        slide_id=slide_id,
+        user_id=user_id,
+        layout_id=layout_id,
+    )

@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_04",
+  "layoutId": "PROCESS_FLOW_01",
+  "sectionLabel": "PROCESS",
+  "title": "From mailbox to posting",
+  "subtitle": "Confirmed standard case with human-controlled exceptions",
+  "sourceChapterIds": ["2", "4"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["4"] },
+    { "path": "title", "sourceChapterIds": ["2", "4"] },
+    { "path": "subtitle", "sourceChapterIds": ["4"] },
+    { "path": "phases[0].number", "sourceChapterIds": ["2"] },
+    { "path": "phases[0].name", "sourceChapterIds": ["2"] },
+    { "path": "phases[0].description", "sourceChapterIds": ["2"] },
+    { "path": "phases[1].number", "sourceChapterIds": ["2"] },
+    { "path": "phases[1].name", "sourceChapterIds": ["2"] },
+    { "path": "phases[1].description", "sourceChapterIds": ["2"] },
+    { "path": "phases[2].number", "sourceChapterIds": ["2"] },
+    { "path": "phases[2].name", "sourceChapterIds": ["2"] },
+    { "path": "phases[2].description", "sourceChapterIds": ["2"] },
+    { "path": "phases[3].number", "sourceChapterIds": ["4"] },
+    { "path": "phases[3].name", "sourceChapterIds": ["4"] },
+    { "path": "phases[3].description", "sourceChapterIds": ["4"] },
+    { "path": "phases[4].number", "sourceChapterIds": ["4"] },
+    { "path": "phases[4].name", "sourceChapterIds": ["4"] },
+    { "path": "phases[4].description", "sourceChapterIds": ["4"] }
+  ],
+  "phases": [
+    {
+      "number": 1,
+      "name": "Receive invoice",
+      "description": "Shared mailbox is read-only source of incoming invoices"
+    },
+    {
+      "number": 2,
+      "name": "Extract fields",
+      "description": "Capture supplier, amounts, PO and line items with confidence"
+    },
+    {
+      "number": 3,
+      "name": "Match records",
+      "description": "Compare invoice, purchase-order and goods-receipt data"
+    },
+    {
+      "number": 4,
+      "name": "Route exceptions",
+      "description": "Unmatched or low-confidence cases go to a reasoned queue"
+    },
+    {
+      "number": 5,
+      "name": "Post clean matches",
+      "description": "Confirmed matches post in ERP; humans keep approval control"
+    }
+  ]
+}

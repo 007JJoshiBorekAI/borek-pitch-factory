@@ -1,0 +1,272 @@
+"""ES-39 — Borek company facts only through retrieve; never invent price or headcount."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from services.borek_rag import RetrievalResult, retrieve
+from services.framework.company_facts import (
+    apply_company_facts_to_skeleton,
+    format_company_facts_for_prompt,
+    ground_company_facts,
+)
+from services.framework.pipeline import generate_customer_framework
+
+FIXTURES = Path(__file__).resolve().parents[3] / "packages" / "contracts" / "fixtures"
+
+
+def _invoice_models() -> tuple[list[dict], dict]:
+    model = json.loads((FIXTURES / "knowledge_model.invoice_3way.json").read_text(encoding="utf-8"))
+    overrides = json.loads((FIXTURES / "engine_overrides.invoice_3way.json").read_text(encoding="utf-8"))
+    return [model], overrides
+
+
+def test_invoice_retrieve_answers_dummy_rate_card_with_citations() -> None:
+    grounding = ground_company_facts("Invoice 3-Way Match")
+    by_kind = {item["kind"]: item for item in grounding["lookups"]}
+    pricing = by_kind["pricing"]
+    staffing = by_kind["staffing"]
+    assert pricing["status"] == "answered"
+    assert pricing["payload"]["amount"] == "1250.00"
+    assert pricing["payload"]["currency"] == "EUR"
+    assert pricing["payload"]["unit"] == "day"
+    assert pricing["payload"]["indicative"] is True
+    assert pricing["sources"][0]["corpus_version"] == "2026.09.03"
+    assert pricing["sources"][0]["document_id"] == "RC-2026-Q3"
+    assert pricing["sources"][0]["fact_id"] == "price.invoice-3way.senior-consultant.day-rate"
+    assert staffing["payload"]["headcount"] == 4
+    assert not grounding["unknown"]
+
+
+def test_unknown_retrieve_is_open_question_with_no_invented_number() -> None:
+    grounding = ground_company_facts("Warehouse pallet labeling")
+    assert grounding["answered"] == []
+    assert {item["kind"] for item in grounding["unknown"]} == {
+        "service",
+        "pricing",
+        "staffing",
+        "reference",
+    }
+    assert all(item["reason"] in {"no_supported_fact", "ambiguous_facts"} for item in grounding["unknown"])
+    prompt = format_company_facts_for_prompt(grounding)
+    assert "No number" in prompt
+    assert "1250" not in prompt
+    skeleton = apply_company_facts_to_skeleton({"open_items": []}, grounding)
+    descriptions = " ".join(item["description"] for item in skeleton["open_items"])
+    assert "Do not invent a number" in descriptions
+    assert "1250" not in descriptions
+    assert "headcount" not in json.dumps(grounding["unknown"])
+
+
+def test_unstructured_pricing_reason_stays_unknown() -> None:
+    def retrieve_fn(query, *, corpus=None):
+        if query.kind == "pricing":
+            return RetrievalResult(
+                status="unknown",
+                statement=None,
+                payload=None,
+                sources=(),
+                reason="unstructured_pricing_fact",
+            )
+        return retrieve(query, corpus=corpus)
+
+    grounding = ground_company_facts("Invoice 3-Way Match", retrieve_fn=retrieve_fn)
+    pricing = next(item for item in grounding["lookups"] if item["kind"] == "pricing")
+    assert pricing["status"] == "unknown"
+    assert pricing["reason"] == "unstructured_pricing_fact"
+    assert pricing["payload"] is None
+
+
+def test_generate_framework_cites_answered_company_facts() -> None:
+    models, overrides = _invoice_models()
+    framework = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=False,
+        engine_overrides=overrides,
+    )
+    meta = framework["generation_meta"]["company_facts"]
+    pricing = next(item for item in meta["lookups"] if item["kind"] == "pricing")
+    assert meta["source"] == "borek_rag.retrieve"
+    assert meta["applied"] is True
+    assert pricing["payload"]["amount"] == "1250.00"
+    assert pricing["sources"][0]["corpus_version"] == "2026.09.03"
+    assert pricing["sources"][0]["fact_id"] == "price.invoice-3way.senior-consultant.day-rate"
+    assert not any("Do not invent a number" in item["description"] for item in framework["open_items"])
+    chapter_text = json.dumps(framework["chapters"])
+    assert "1250.00" in chapter_text
+    assert "corpus 2026.09.03" in chapter_text
+    assert "RC-2026-Q3" in chapter_text
+    assert "price.invoice-3way.senior-consultant.day-rate" in chapter_text
+    assert "staff.invoice-3way.core-team" in chapter_text
+    assert "service.invoice-3way.definition" in chapter_text
+    assert "reference.invoice-3way.delivery-pattern" in chapter_text
+    ch9 = json.dumps(next(ch for ch in framework["chapters"] if str(ch["chapter_id"]) == "9"))
+    ch10 = json.dumps(next(ch for ch in framework["chapters"] if str(ch["chapter_id"]) == "10"))
+    ch4 = json.dumps(next(ch for ch in framework["chapters"] if str(ch["chapter_id"]) == "4"))
+    assert "1250.00" in ch9
+    assert "4 people" in ch10
+    assert "Invoice 3-way Match" in ch4
+    view = json.dumps(framework.get("customer_view") or {})
+    assert "1250.00" in view
+    assert "corpus 2026.09.03" in view
+
+
+def test_generate_framework_unknown_company_facts_add_open_items() -> None:
+    models, overrides = _invoice_models()
+    grounding = ground_company_facts("Warehouse pallet labeling")
+    framework = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=False,
+        engine_overrides=overrides,
+        company_facts=grounding,
+    )
+    meta = framework["generation_meta"]["company_facts"]
+    assert meta["applied"] is False
+    assert {item["kind"] for item in meta["unknown"]} == {"service", "pricing", "staffing", "reference"}
+    descriptions = " ".join(item["description"] for item in framework["open_items"])
+    assert "Borek pricing is not uniquely supported" in descriptions
+    assert "Borek staffing is not uniquely supported" in descriptions
+    dumped = json.dumps(framework["generation_meta"]["company_facts"])
+    assert "1250" not in dumped
+    assert '"headcount": 4' not in dumped
+    chapter_text = json.dumps(framework["chapters"])
+    assert "1250" not in chapter_text
+    assert "Borek rate card" not in chapter_text
+
+
+def test_synthesis_prompt_includes_company_facts_and_forbids_invention() -> None:
+    seen: dict[str, str] = {}
+    models, overrides = _invoice_models()
+    base = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=False,
+        engine_overrides=overrides,
+    )
+    draft = {
+        "title": base["title"],
+        "department": base["department"],
+        "cover": {
+            "tagline": str(base["cover"].get("tagline") or "Customer report"),
+            "sources_line": str(base["cover"].get("sources_line") or "C1"),
+            "how_produced": str(base["cover"].get("how_produced") or "deterministic"),
+        },
+        "open_items": base["open_items"],
+        "kpis": base["kpis"],
+        "systems": base["systems"],
+        "rules": base["rules"],
+        "exceptions": base["exceptions"],
+        "access_needs": base["access_needs"],
+        "chapters": base["chapters"],
+    }
+    entry = next(
+        (
+            item
+            for item in (base.get("source_entries") or [])
+            if item.get("entry_id") and item.get("source_refs") and item.get("statement")
+        ),
+        None,
+    )
+    if entry is not None:
+        for chapter in draft["chapters"]:
+            if str(chapter.get("chapter_id")) != "2" or not isinstance(chapter.get("body"), list):
+                continue
+            chapter["body"].append(
+                {
+                    "block": "prose",
+                    "text": entry["statement"],
+                    "source_claims": [
+                        {
+                            "path": "/text",
+                            "claim": entry["statement"],
+                            "knowledge_entry_ids": [entry["entry_id"]],
+                            "source_refs": [],
+                        }
+                    ],
+                }
+            )
+            break
+
+    def capture(system: str, user: str, schema: dict) -> dict:
+        seen["user"] = user
+        return draft
+
+    generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=True,
+        complete=capture,
+        engine_overrides=overrides,
+    )
+    assert "COMPANY_FACTS_BEGIN" in seen["user"]
+    assert "Do not invent a Borek price" in seen["user"]
+    assert "1250.00" in seen["user"]
+    assert "corpus_version=2026.09.03" in seen["user"]
+
+
+def test_answered_price_carries_live_provenance_marker() -> None:
+    from services.borek_rag.identity import live_corpus_id, live_provenance_marker
+    from services.framework.company_facts import grounded_pricing_figures
+
+    grounding = ground_company_facts("Invoice 3-Way Match")
+    pricing = next(item for item in grounding["lookups"] if item["kind"] == "pricing")
+    assert pricing["sources"][0]["corpus_id"] == live_corpus_id()
+    assert pricing["sources"][0]["provenance_marker"] == live_provenance_marker()
+    figures = grounded_pricing_figures(grounding)
+    assert len(figures) == 1
+    assert figures[0]["amount"] == "1250.00"
+    assert figures[0]["indicative"] is True
+    assert figures[0]["provenance"]["marker"] == live_provenance_marker()
+    assert figures[0]["provenance"]["document_id"] == "RC-2026-Q3"
+
+
+def test_ungrounded_price_is_refused_not_softened() -> None:
+    from services.framework.company_facts import UngroundedPriceError, refuse_ungrounded_prices
+
+    grounding = ground_company_facts("Invoice 3-Way Match")
+    try:
+        refuse_ungrounded_prices(
+            text="Offer EUR 9999.00 per day, labelled indicative.",
+            grounding=grounding,
+            allow_prices=True,
+        )
+    except UngroundedPriceError as exc:
+        assert "9999" in str(exc)
+        assert "soft" not in str(exc).lower()
+    else:
+        raise AssertionError("expected UngroundedPriceError")
+
+    refuse_ungrounded_prices(
+        text="Senior Consultant day rate is EUR 1250.00 (indicative).",
+        grounding=grounding,
+        allow_prices=True,
+    )
+
+
+def test_demo_rate_is_not_live_provenance() -> None:
+    from services.borek_rag.identity import demo_corpus_id, demo_provenance_marker
+    from services.framework.company_facts import has_live_provenance, live_answered_lookups
+
+    lookup = {
+        "kind": "pricing",
+        "status": "answered",
+        "payload": {"amount": "50.00", "currency": "EUR", "unit": "day", "indicative": True},
+        "sources": [
+            {
+                "corpus_id": demo_corpus_id(),
+                "corpus_version": "demo.1",
+                "document_id": "RC-DEMO",
+                "fact_id": "price.demo",
+                "provenance_marker": demo_provenance_marker(),
+            }
+        ],
+    }
+    assert has_live_provenance(lookup) is False
+    assert live_answered_lookups({"answered": [lookup]}, kinds={"pricing"}) == []

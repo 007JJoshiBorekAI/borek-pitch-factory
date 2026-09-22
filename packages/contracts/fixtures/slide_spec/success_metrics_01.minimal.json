@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_09",
+  "layoutId": "SUCCESS_METRICS_01",
+  "sectionLabel": "SUCCESS METRICS",
+  "title": "How We Measure Success",
+  "sourceChapterIds": ["3", "9"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["3"] },
+    { "path": "title", "sourceChapterIds": ["3"] },
+    { "path": "criteria[0].title", "sourceChapterIds": ["3"] },
+    { "path": "criteria[0].description", "sourceChapterIds": ["3"] },
+    { "path": "criteria[1].title", "sourceChapterIds": ["9"] },
+    { "path": "criteria[1].description", "sourceChapterIds": ["9"] }
+  ],
+  "criteria": [
+    {
+      "title": "Auto-match rate",
+      "description": "Invoices matched without a manual check"
+    },
+    {
+      "title": "Exception control",
+      "description": "Unmatched invoices stay visible in a human queue"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "name": "borek-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Next.js frontend (AT-46..AT-49)",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:at46": "tsx src/lib/transcriptFormats.test.ts && tsx src/lib/uploadQueue.test.ts && tsx src/lib/authSignUp.test.ts && tsx src/lib/pipelineContext.test.ts",
+    "test:at47": "tsx src/lib/frameworkEdit.test.ts && tsx src/lib/frameworkFieldEdit.test.ts && tsx src/lib/frameworkEvidence.test.ts && tsx src/lib/frameworkNestedEdit.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/lib/frameworkReviewLoad.test.ts",
+    "test:jj24": "tsx src/lib/frameworkReview.test.ts",
+    "test:at48": "tsx src/lib/planPreview.test.ts",
+    "test:at49": "tsx src/lib/deckCenter.test.ts",
+    "test:jj25": "tsx src/lib/presentationReady.test.ts && tsx src/lib/deckCenter.test.ts",
+    "test:at56": "tsx src/lib/jobReconnect.test.ts && tsx src/lib/jobErrors.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/lib/pipelineParallelLoad.test.ts",
+    "test:at57": "tsx src/lib/jobReconnect.test.ts",
+    "test:ms24": "tsx src/lib/recentPresentations.test.ts && tsx src/lib/recentPresentationsIsolation.test.ts",
+    "test:ms25": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx && tsx src/lib/pipelineParallelLoad.test.ts && tsx src/components/FrameworkChapterView.test.tsx",
+    "test:ms26": "tsx src/components/ms26Ui.test.tsx",
+    "test:bt25": "tsx src/lib/presentationPipeline.test.ts",
+    "test:bt26": "tsx src/lib/jobProgress.test.ts && tsx src/components/LiveGenerationProgress.test.tsx",
+    "test:bt27": "tsx src/lib/jobStageContract.test.ts",
+    "test:jj28": "tsx src/lib/readyScreenEngineNeutral.test.ts && tsx src/lib/jobErrors.test.ts && tsx src/lib/jobProgress.test.ts",
+    "test:ms27": "tsx src/lib/clientIntake.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/components/ms27Intake.test.tsx",
+    "test:ms28": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx",
+    "test:ms29": "tsx src/lib/archiveHistory.test.ts && tsx src/components/ArchiveHistoryView.test.tsx",
+    "test:ms31": "tsx src/lib/journeyStageEligibility.test.ts && tsx src/lib/journeyStageSelection.test.ts && tsx src/components/journeyStageSelector.test.tsx",
+    "test:ux": "tsx src/components/frameworkReviewUx.test.tsx && tsx src/components/surfaceConsistency.test.ts && tsx src/components/workflowStepIndicator.test.tsx",
+    "test:ms32": "tsx src/lib/followupReview.test.ts && tsx src/components/FollowupReviewView.test.tsx"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "next": "^15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "playwright": "^1.62.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.0"
+  }
+}
