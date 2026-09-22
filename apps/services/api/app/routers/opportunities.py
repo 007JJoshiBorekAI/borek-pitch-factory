@@ -27,6 +27,7 @@ from app.services.api_errors import not_found
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.client_logos import MAX_CLIENT_LOGO_BYTES, validate_client_logo
 from app.services.api_errors import service_unavailable
+from app.services.first_contact_inputs import require_first_contact_client_documents
 from app.services.knowledge_access import resolve_active_corpus
 from app.services.stage1 import get_company_research_provider
 from services.framework.stage1_research import (
@@ -93,6 +94,11 @@ def generate_company_research(
     provider: CompanyResearchProvider | None = Depends(get_company_research_provider),
 ) -> dict:
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    client_document_sources = require_first_contact_client_documents(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
     record_audit_event(
         store,
         actor_id=user.id,
@@ -107,6 +113,7 @@ def generate_company_research(
                 corpus=resolve_active_corpus(store),
                 provider=provider,
                 use_llm=settings.AI_EXECUTION_MODE == "live",
+                client_document_sources=client_document_sources,
             )
     except Exception as exc:
         raise HTTPException(

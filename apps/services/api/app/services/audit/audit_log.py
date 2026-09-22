@@ -34,6 +34,8 @@ class AuditAction(StrEnum):
     ROLE_ASSIGN = "role.assign"
     STAGE1_RESEARCH_GENERATE = "stage1_research.generate"
     STAGE1_VOICE_REQUEST = "stage1_voice.request"
+    CLIENT_DOCUMENT_UPLOAD = "client_document.upload"
+    CLIENT_DOCUMENT_DELETE = "client_document.delete"
 
 
 class AuditObjectType(StrEnum):
@@ -45,6 +47,7 @@ class AuditObjectType(StrEnum):
     PRESENTATION = "presentation"
     SLIDE = "slide"
     FILED_ARTIFACT = "filed_artifact"
+    CLIENT_DOCUMENT = "client_document"
     EMPLOYEE = "employee"
     SESSION = "session"
 

@@ -13,6 +13,10 @@ from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 from llm.claude.client import sonnet_model, structured_complete
 from services.framework.company_facts import ground_company_facts
 from services.framework.guardrails import semantic_numeric_values_in_text
+from services.framework.client_documents import (
+    format_client_documents_for_prompt,
+    safe_client_document_sources_for_llm,
+)
 from services.framework.stage1_intake import (
     SOURCE_RULE,
     format_stage1_intake_for_prompt,
@@ -133,6 +137,7 @@ def generate_stage1_research(
     provider: CompanyResearchProvider | None = None,
     use_llm: bool = False,
     complete: Callable[[str, str, dict[str, Any]], dict[str, Any]] | None = None,
+    client_document_sources: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     intake = intake_from_opportunity(opportunity) or {
         "client_name": opportunity["client_name"]
@@ -148,12 +153,24 @@ def generate_stage1_research(
     facts = _company_facts(evidence)
     topic = intake.get("sales_topic_description")
     offering = _borek_offering(topic, corpus) if topic else _unknown_fact()
+    document_provenance = [
+        {
+            "document_key": str(source.get("document_key") or ""),
+            "file_name": str(source.get("file_name") or ""),
+            "section_count": len(source.get("sections") or []),
+        }
+        for source in client_document_sources or []
+        if source.get("sections")
+    ]
+    user_statements: dict[str, Any] = {"origin": "USER_INPUT", "fields": intake}
+    if document_provenance:
+        user_statements["client_documents"] = document_provenance
     result = {
         "schema_version": "1.0",
         "opportunity_id": str(opportunity["id"]),
         "client_name": opportunity["client_name"],
         "company_facts": facts,
-        "user_statements": {"origin": "USER_INPUT", "fields": intake},
+        "user_statements": user_statements,
         "borek_offering": offering,
         "hypothesis": _unknown_hypothesis(),
         "product_relevance": _unknown_hypothesis(),
@@ -188,11 +205,15 @@ def generate_stage1_research(
         safe = safe_intake_for_llm(
             intake, redact=opportunity.get("pii_redaction_enabled", True)
         )
-        user = (
-            format_stage1_intake_for_prompt(safe)
-            + "\nBOREK_OFFERING:\n"
-            + json.dumps(offering)
+        safe_documents = safe_client_document_sources_for_llm(
+            client_document_sources or [],
+            redact=opportunity.get("pii_redaction_enabled", True),
         )
+        document_block = format_client_documents_for_prompt(safe_documents)
+        user = format_stage1_intake_for_prompt(safe)
+        if document_block:
+            user += "\n" + document_block
+        user += "\nBOREK_OFFERING:\n" + json.dumps(offering)
         usage: list[Any] = []
 
         def invoke() -> dict[str, Any]:

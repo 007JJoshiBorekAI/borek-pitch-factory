@@ -171,6 +171,28 @@ def _normalize_transcript(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalize_client_document(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **row,
+        "id": UUID(str(row["id"])),
+        "opportunity_id": UUID(str(row["opportunity_id"])),
+        "created_at": _parse_timestamp(row["created_at"]),
+    }
+
+
+def _present_client_document(row: dict[str, Any], *, section_count: int) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "opportunity_id": row["opportunity_id"],
+        "file_name": row["file_name"],
+        "mime_type": row["mime_type"],
+        "document_key": row["document_key"],
+        "processing_status": row["processing_status"],
+        "section_count": section_count,
+        "created_at": row["created_at"],
+    }
+
+
 def _normalize_framework(row: dict[str, Any]) -> dict[str, Any]:
     return {
         **row,
@@ -399,6 +421,43 @@ class SupabaseDataStore:
         if response.status_code not in (200, 204, 404):
             logger.warning(
                 "Transcript storage cleanup failed for %s: HTTP %s",
+                storage_path,
+                response.status_code,
+            )
+
+    def _upload_client_document_content(
+        self,
+        *,
+        storage_path: str,
+        mime_type: str,
+        content: bytes,
+    ) -> None:
+        headers = {
+            **self._storage_auth_headers(),
+            "Content-Type": mime_type,
+            "x-upsert": "false",
+        }
+        response = _request_with_retry(
+            "POST",
+            f"{self._base_url}/storage/v1/object/client_documents/{storage_path}",
+            headers=headers,
+            content=content,
+        )
+        if response.status_code not in (200, 201):
+            raise bad_request("CLIENT_DOCUMENT_STORAGE_FAILED", response.text)
+
+    def _delete_client_document_content(self, *, storage_path: str) -> None:
+        if not storage_path:
+            return
+        headers = self._storage_auth_headers()
+        response = _request_with_retry(
+            "DELETE",
+            f"{self._base_url}/storage/v1/object/client_documents/{storage_path}",
+            headers=headers,
+        )
+        if response.status_code not in (200, 204, 404):
+            logger.warning(
+                "Client document storage cleanup failed for %s: HTTP %s",
                 storage_path,
                 response.status_code,
             )
@@ -1028,6 +1087,198 @@ class SupabaseDataStore:
         if response.status_code != 200 or not response.json():
             raise not_found("TRANSCRIPT_NOT_FOUND", f"Transcript {transcript_id} was not found")
         self._delete_transcript_content(storage_path=storage_path)
+
+    def create_client_document(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        file_name: str,
+        mime_type: str,
+        storage_path: str,
+        document_key: str,
+        content: bytes,
+        sections: list[dict[str, Any]],
+        processing_status: str = "processed",
+        verify_owner: bool = True,
+    ) -> dict[str, Any]:
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        self._upload_client_document_content(
+            storage_path=storage_path,
+            mime_type=mime_type,
+            content=content,
+        )
+        payload = {
+            "opportunity_id": str(opportunity_id),
+            "file_name": file_name,
+            "mime_type": mime_type,
+            "storage_path": storage_path,
+            "document_key": document_key,
+            "processing_status": processing_status,
+        }
+        response = self._request("POST", "client_documents", json_body=payload)
+        if response.status_code not in (200, 201):
+            raise bad_request("CLIENT_DOCUMENT_UPLOAD_FAILED", response.text)
+        document = _normalize_client_document(response.json()[0])
+        section_payloads = [
+            {
+                "client_document_id": str(document["id"]),
+                "section_index": int(section["section_index"]),
+                "content": str(section["content"]),
+                "metadata": copy.deepcopy(section.get("metadata") or {}),
+            }
+            for section in sections
+        ]
+        section_response = self._request(
+            "POST",
+            "client_document_sections",
+            json_body=section_payloads,
+        )
+        if section_response.status_code not in (200, 201):
+            raise bad_request("CLIENT_DOCUMENT_SECTIONS_CREATE_FAILED", section_response.text)
+        return _present_client_document(document, section_count=len(sections))
+
+    def list_client_documents(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        verify_owner: bool = True,
+    ) -> list[dict[str, Any]]:
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "client_documents",
+            params={
+                "select": "*",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "order": "created_at.asc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("CLIENT_DOCUMENT_LIST_FAILED", response.text)
+        rows = [_normalize_client_document(row) for row in response.json()]
+        presented: list[dict[str, Any]] = []
+        for row in rows:
+            section_response = self._request(
+                "GET",
+                "client_document_sections",
+                params={
+                    "select": "section_index",
+                    "client_document_id": f"eq.{row['id']}",
+                },
+            )
+            if section_response.status_code != 200:
+                raise bad_request("CLIENT_DOCUMENT_SECTIONS_LIST_FAILED", section_response.text)
+            presented.append(
+                _present_client_document(
+                    row,
+                    section_count=len(section_response.json()),
+                )
+            )
+        return presented
+
+    def list_client_document_sources(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        documents = self.list_client_documents(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+        )
+        sources: list[dict[str, Any]] = []
+        for document in documents:
+            response = self._request(
+                "GET",
+                "client_document_sections",
+                params={
+                    "select": "section_index,content,metadata",
+                    "client_document_id": f"eq.{document['id']}",
+                    "order": "section_index.asc",
+                },
+            )
+            if response.status_code != 200:
+                raise bad_request("CLIENT_DOCUMENT_SECTIONS_LIST_FAILED", response.text)
+            sources.append(
+                {
+                    "id": document["id"],
+                    "file_name": document["file_name"],
+                    "document_key": document["document_key"],
+                    "processing_status": document["processing_status"],
+                    "sections": response.json(),
+                }
+            )
+        return sources
+
+    def get_client_document(
+        self,
+        *,
+        opportunity_id: UUID,
+        document_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "client_documents",
+            params={
+                "select": "*",
+                "id": f"eq.{document_id}",
+                "opportunity_id": f"eq.{opportunity_id}",
+            },
+        )
+        if response.status_code != 200 or not response.json():
+            raise not_found("CLIENT_DOCUMENT_NOT_FOUND", f"Client document {document_id} was not found")
+        row = _normalize_client_document(response.json()[0])
+        section_response = self._request(
+            "GET",
+            "client_document_sections",
+            params={
+                "select": "section_index",
+                "client_document_id": f"eq.{document_id}",
+            },
+        )
+        if section_response.status_code != 200:
+            raise bad_request("CLIENT_DOCUMENT_SECTIONS_LIST_FAILED", section_response.text)
+        return _present_client_document(row, section_count=len(section_response.json()))
+
+    def delete_client_document(
+        self,
+        *,
+        opportunity_id: UUID,
+        document_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        response = self._request(
+            "GET",
+            "client_documents",
+            params={
+                "select": "storage_path",
+                "id": f"eq.{document_id}",
+                "opportunity_id": f"eq.{opportunity_id}",
+            },
+        )
+        if response.status_code != 200 or not response.json():
+            raise not_found("CLIENT_DOCUMENT_NOT_FOUND", f"Client document {document_id} was not found")
+        storage_path = str(response.json()[0].get("storage_path") or "").strip()
+        delete_response = self._request(
+            "DELETE",
+            "client_documents",
+            params={
+                "id": f"eq.{document_id}",
+                "opportunity_id": f"eq.{opportunity_id}",
+            },
+        )
+        if delete_response.status_code == 204:
+            self._delete_client_document_content(storage_path=storage_path)
+            return
+        if delete_response.status_code != 200 or not delete_response.json():
+            raise not_found("CLIENT_DOCUMENT_NOT_FOUND", f"Client document {document_id} was not found")
+        self._delete_client_document_content(storage_path=storage_path)
 
     def create_framework_version(
         self,
