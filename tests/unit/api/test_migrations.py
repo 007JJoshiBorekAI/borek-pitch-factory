@@ -246,6 +246,15 @@ def test_knowledge_model_checkpoints_are_job_scoped_and_owner_protected() -> Non
     assert "GRANT ALL ON public.knowledge_model_checkpoints TO service_role" in content
 
 
+def test_bt35_client_documents_tables_and_storage() -> None:
+    content = (MIGRATIONS_DIR / "029_client_documents.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS client_documents" in content
+    assert "CREATE TABLE IF NOT EXISTS client_document_sections" in content
+    assert "document_key TEXT NOT NULL" in content
+    assert "bucket_id = 'client_documents'" in content
+    assert "ENABLE ROW LEVEL SECURITY" in content
+
+
 def test_d3_employee_roles_and_activity_document_id() -> None:
     content = (MIGRATIONS_DIR / "027_employee_roles_and_activity.sql").read_text(
         encoding="utf-8"

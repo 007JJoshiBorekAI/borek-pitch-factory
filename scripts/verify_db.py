@@ -25,6 +25,8 @@ EXPECTED_TABLES = [
     "opportunities",
     "transcripts",
     "transcript_sections",
+    "client_documents",
+    "client_document_sections",
     "framework_versions",
     "presentation_plans",
     "presentations",

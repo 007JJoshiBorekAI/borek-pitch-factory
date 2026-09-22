@@ -119,6 +119,7 @@ def _load_framework_template(opportunity_id: UUID) -> dict[str, Any]:
 class MemoryDataStore:
     opportunities: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     transcripts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    client_documents: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     client_logos: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     framework_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentation_plans: dict[UUID, dict[str, Any]] = field(default_factory=dict)
@@ -675,6 +676,113 @@ class MemoryDataStore:
             user_id=user_id,
         )
         del self.transcripts[transcript_id]
+
+    def create_client_document(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        file_name: str,
+        mime_type: str,
+        storage_path: str,
+        document_key: str,
+        content: bytes,
+        sections: list[dict[str, Any]],
+        processing_status: str = "processed",
+        verify_owner: bool = True,
+    ) -> dict[str, Any]:
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        document_id = uuid.uuid4()
+        row = {
+            "id": document_id,
+            "opportunity_id": opportunity_id,
+            "file_name": file_name,
+            "mime_type": mime_type,
+            "storage_path": storage_path,
+            "document_key": document_key,
+            "content": bytes(content),
+            "sections": copy.deepcopy(sections),
+            "processing_status": processing_status,
+            "created_at": _now(),
+        }
+        self.client_documents[document_id] = row
+        return self._present_client_document(row)
+
+    def list_client_documents(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        verify_owner: bool = True,
+    ) -> list[dict[str, Any]]:
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        rows = [
+            row
+            for row in self.client_documents.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+        return [self._present_client_document(row) for row in sorted(rows, key=lambda item: item["created_at"])]
+
+    def list_client_document_sources(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": row["id"],
+                "file_name": row["file_name"],
+                "document_key": row["document_key"],
+                "processing_status": row["processing_status"],
+                "sections": copy.deepcopy(row["sections"]),
+            }
+            for row in self.client_documents.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+
+    def get_client_document(
+        self,
+        *,
+        opportunity_id: UUID,
+        document_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        row = self.client_documents.get(document_id)
+        if row is None or row["opportunity_id"] != opportunity_id:
+            raise not_found("CLIENT_DOCUMENT_NOT_FOUND", f"Client document {document_id} was not found")
+        return self._present_client_document(row)
+
+    def delete_client_document(
+        self,
+        *,
+        opportunity_id: UUID,
+        document_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        self.get_client_document(
+            opportunity_id=opportunity_id,
+            document_id=document_id,
+            user_id=user_id,
+        )
+        del self.client_documents[document_id]
+
+    @staticmethod
+    def _present_client_document(row: dict[str, Any]) -> dict[str, Any]:
+        sections = row.get("sections") or []
+        return {
+            "id": row["id"],
+            "opportunity_id": row["opportunity_id"],
+            "file_name": row["file_name"],
+            "mime_type": row["mime_type"],
+            "document_key": row["document_key"],
+            "processing_status": row["processing_status"],
+            "section_count": len(sections),
+            "created_at": row["created_at"],
+        }
 
     def create_framework_version(
         self,
