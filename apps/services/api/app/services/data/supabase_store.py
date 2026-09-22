@@ -349,9 +349,17 @@ class SupabaseDataStore:
         resource: str,
         *,
         json_body: dict[str, Any] | list[dict[str, Any]] | None = None,
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         service_store = SupabaseDataStore(settings.SUPABASE_SERVICE_ROLE_KEY)
-        return service_store._request(method, resource, json_body=json_body)
+        return service_store._request(
+            method,
+            resource,
+            json_body=json_body,
+            params=params,
+            headers=headers,
+        )
 
     def _upload_transcript_content(
         self,
@@ -2176,12 +2184,16 @@ class SupabaseDataStore:
         action: str,
         object_type: str,
         object_id: UUID,
+        document_id: str | None = None,
+        actor_email: str | None = None,
     ) -> dict[str, Any]:
         payload = {
             "actor_id": str(actor_id),
             "action": action,
             "object_type": object_type,
             "object_id": str(object_id),
+            "document_id": document_id or str(object_id),
+            "actor_email": actor_email,
         }
         response = self._request("POST", "audit_log", json_body=payload)
         if response.status_code not in (200, 201):
@@ -2190,10 +2202,149 @@ class SupabaseDataStore:
         return {
             "id": UUID(str(row["id"])),
             "actor_id": UUID(str(row["actor_id"])),
+            "actor_email": row.get("actor_email"),
             "action": row["action"],
             "object_type": row["object_type"],
             "object_id": UUID(str(row["object_id"])),
+            "document_id": row.get("document_id") or str(row["object_id"]),
             "timestamp": _parse_timestamp(row["timestamp"]),
+        }
+
+    def list_audit_logs(
+        self,
+        *,
+        actor_id: UUID | None = None,
+        object_id: UUID | None = None,
+        document_id: str | None = None,
+        privileged: bool = False,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, str] = {
+            "select": "*",
+            "order": "timestamp.desc",
+        }
+        if actor_id is not None and not privileged:
+            params["actor_id"] = f"eq.{actor_id}"
+        if object_id is not None:
+            params["object_id"] = f"eq.{object_id}"
+        if document_id:
+            params["document_id"] = f"eq.{document_id}"
+        if privileged:
+            response = self._service_role_request("GET", "audit_log", params=params)
+        else:
+            response = self._request("GET", "audit_log", params=params)
+        if response.status_code != 200:
+            raise bad_request("AUDIT_LOG_LIST_FAILED", response.text)
+        rows = []
+        for row in response.json():
+            rows.append(
+                {
+                    "id": UUID(str(row["id"])),
+                    "actor_id": UUID(str(row["actor_id"])),
+                    "actor_email": row.get("actor_email"),
+                    "action": row["action"],
+                    "object_type": row["object_type"],
+                    "object_id": UUID(str(row["object_id"])),
+                    "document_id": row.get("document_id") or str(row["object_id"]),
+                    "timestamp": _parse_timestamp(row["timestamp"]),
+                }
+            )
+        return rows
+
+    def get_or_create_user_role(self, *, user_id: UUID, email: str) -> dict[str, Any]:
+        lookup = self._service_role_request(
+            "GET",
+            "user_roles",
+            params={"select": "*", "user_id": f"eq.{user_id}"},
+        )
+        if lookup.status_code == 200 and lookup.json():
+            row = lookup.json()[0]
+            if email and row.get("email") != email:
+                updated = self._service_role_request(
+                    "PATCH",
+                    "user_roles",
+                    params={"user_id": f"eq.{user_id}"},
+                    json_body={"email": email},
+                )
+                if updated.status_code in (200, 204) and updated.json():
+                    row = updated.json()[0]
+                else:
+                    row["email"] = email
+            return self._normalize_user_role(row)
+
+        admins = self._service_role_request(
+            "GET",
+            "user_roles",
+            params={"select": "user_id", "role": "eq.admin", "limit": "1"},
+        )
+        role = "admin"
+        if admins.status_code == 200 and admins.json():
+            role = settings.DEFAULT_EMPLOYEE_ROLE
+        created = self._service_role_request(
+            "POST",
+            "user_roles",
+            json_body={
+                "user_id": str(user_id),
+                "email": email,
+                "role": role,
+            },
+        )
+        if created.status_code not in (200, 201):
+            raise bad_request("USER_ROLE_WRITE_FAILED", created.text)
+        return self._normalize_user_role(created.json()[0])
+
+    def set_user_role(
+        self,
+        *,
+        user_id: UUID,
+        email: str,
+        role: str,
+    ) -> dict[str, Any]:
+        existing = self._service_role_request(
+            "GET",
+            "user_roles",
+            params={"select": "*", "user_id": f"eq.{user_id}"},
+        )
+        payload = {
+            "user_id": str(user_id),
+            "email": email,
+            "role": role,
+        }
+        if existing.status_code == 200 and existing.json():
+            payload["email"] = email or existing.json()[0].get("email") or ""
+            updated = self._service_role_request(
+                "PATCH",
+                "user_roles",
+                params={"user_id": f"eq.{user_id}"},
+                json_body={"email": payload["email"], "role": role},
+            )
+            if updated.status_code not in (200, 204):
+                raise bad_request("USER_ROLE_WRITE_FAILED", updated.text)
+            body = updated.json()
+            if body:
+                return self._normalize_user_role(body[0])
+            return self._normalize_user_role({**existing.json()[0], **payload})
+        created = self._service_role_request("POST", "user_roles", json_body=payload)
+        if created.status_code not in (200, 201):
+            raise bad_request("USER_ROLE_WRITE_FAILED", created.text)
+        return self._normalize_user_role(created.json()[0])
+
+    def list_user_roles(self) -> list[dict[str, Any]]:
+        response = self._service_role_request(
+            "GET",
+            "user_roles",
+            params={"select": "*", "order": "email.asc"},
+        )
+        if response.status_code != 200:
+            raise bad_request("USER_ROLE_LIST_FAILED", response.text)
+        return [self._normalize_user_role(row) for row in response.json()]
+
+    def _normalize_user_role(self, row: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "user_id": UUID(str(row["user_id"])),
+            "email": str(row.get("email") or ""),
+            "role": str(row["role"]),
+            "created_at": _parse_timestamp(row["created_at"]) if row.get("created_at") else None,
+            "updated_at": _parse_timestamp(row["updated_at"]) if row.get("updated_at") else None,
         }
 
     def append_egress_audit(

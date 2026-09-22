@@ -15,6 +15,12 @@ import type {
   PresentationResponse,
 } from "./deckTypes";
 import type { FollowupProjectStatics } from "./followupReview";
+import type {
+  ActivityLogEntry,
+  EmployeeMe,
+  EmployeeRole,
+  EmployeeRoleRow,
+} from "./employeeRoles";
 
 export function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || DEFAULT_API_URL;
@@ -781,4 +787,43 @@ export async function changePresentationSlideLayout(
       body: JSON.stringify({ layout_id: layoutId }),
     },
   );
+}
+
+export async function getEmployeeMe(accessToken: string): Promise<EmployeeMe> {
+  return apiFetch("/employees/me", accessToken);
+}
+
+export async function recordEmployeeSession(accessToken: string): Promise<EmployeeMe> {
+  return apiFetch("/employees/session", accessToken, { method: "POST" });
+}
+
+export async function listActivityLog(
+  accessToken: string,
+  filters?: { objectId?: string; documentId?: string },
+): Promise<ActivityLogEntry[]> {
+  const params = new URLSearchParams();
+  if (filters?.objectId) {
+    params.set("object_id", filters.objectId);
+  }
+  if (filters?.documentId) {
+    params.set("document_id", filters.documentId);
+  }
+  const query = params.toString();
+  return apiFetch(`/employees/activity${query ? `?${query}` : ""}`, accessToken);
+}
+
+export async function listEmployees(accessToken: string): Promise<EmployeeRoleRow[]> {
+  return apiFetch("/employees", accessToken);
+}
+
+export async function assignEmployeeRole(
+  accessToken: string,
+  userId: string,
+  role: EmployeeRole,
+  email?: string,
+): Promise<EmployeeRoleRow> {
+  return apiFetch(`/employees/${userId}/role`, accessToken, {
+    method: "PATCH",
+    body: JSON.stringify({ role, email }),
+  });
 }

@@ -40,6 +40,7 @@ EXPECTED_TABLES = [
     "knowledge_facts",
     "egress_audit",
     "knowledge_model_checkpoints",
+    "user_roles",
 ]
 
 EXPECTED_COLUMNS = {
@@ -107,6 +108,8 @@ EXPECTED_COLUMNS = {
         "prompt_version",
         "knowledge_model_json",
     ),
+    "user_roles": ("user_id", "email", "role"),
+    "audit_log": ("actor_id", "action", "object_type", "object_id", "document_id", "actor_email"),
 }
 
 EXPECTED_FOREIGN_KEYS = {

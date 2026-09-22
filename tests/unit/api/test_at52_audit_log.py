@@ -19,6 +19,10 @@ USER_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 ROUTERS_DIR = Path(__file__).resolve().parents[3] / "apps" / "services" / "api" / "app" / "routers"
 
 CANONICAL_AUDIT_ACTIONS = frozenset(action.value for action in AuditAction)
+PIPELINE_AUDIT_ACTIONS = CANONICAL_AUDIT_ACTIONS - {
+    AuditAction.AUTH_LOGIN.value,
+    AuditAction.ROLE_ASSIGN.value,
+}
 
 STATE_CHANGING_ROUTER_FILES = (
     "opportunities.py",
@@ -71,6 +75,7 @@ def test_record_audit_event_persists_actor_action_and_timestamp() -> None:
     assert entry["action"] == AuditAction.OPPORTUNITY_CREATE.value
     assert entry["object_type"] == "opportunity"
     assert entry["object_id"] == opportunity_id
+    assert entry["document_id"] == str(opportunity_id)
     assert entry["timestamp"] is not None
 
 
@@ -216,7 +221,7 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
     assert delete_logo.status_code == 204
 
     recorded = set(_audit_actions())
-    assert CANONICAL_AUDIT_ACTIONS.issubset(recorded)
+    assert PIPELINE_AUDIT_ACTIONS.issubset(recorded)
 
 
 def test_backlog_highlighted_actions_are_covered() -> None:

@@ -11,6 +11,7 @@ import {
   resolveSignUpErrorMessage,
 } from "@/lib/authSignUp";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
+import { isEmployeeSsoOnly } from "@/lib/employeeRoles";
 
 export type AuthMode = "sign-in" | "sign-up";
 
@@ -38,6 +39,7 @@ export function AuthCard({ mode: initialMode }: AuthCardProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const ssoOnly = isEmployeeSsoOnly();
 
   useEffect(() => {
     setMode(initialMode);
@@ -100,6 +102,29 @@ export function AuthCard({ mode: initialMode }: AuthCardProps) {
     setMode("sign-in");
   }
 
+  async function handleMicrosoftSignIn() {
+    const client = getSupabaseBrowserClient();
+    if (!client) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    const redirectTo = `${window.location.origin}/login`;
+    const { error: oauthError } = await client.auth.signInWithOAuth({
+      provider: "azure",
+      options: {
+        redirectTo,
+        scopes: "email",
+        queryParams: { prompt: "select_account" },
+      },
+    });
+    setBusy(false);
+    if (oauthError) {
+      setError(oauthError.message);
+    }
+  }
+
   if (session) {
     return (
       <div className="auth-card">
@@ -113,72 +138,92 @@ export function AuthCard({ mode: initialMode }: AuthCardProps) {
 
   return (
     <div className="auth-card">
-      <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-        <Link
-          href="/login"
-          className={`auth-tab${mode === "sign-in" ? " auth-tab-active" : ""}`}
-          role="tab"
-          aria-selected={mode === "sign-in"}
-        >
-          Sign in
-        </Link>
-        <Link
-          href="/register"
-          className={`auth-tab${mode === "sign-up" ? " auth-tab-active" : ""}`}
-          role="tab"
-          aria-selected={mode === "sign-up"}
-        >
-          Register
-        </Link>
-      </div>
-
-      <form className="auth-form" onSubmit={handleSubmit}>
-        {error ? <div className="alert alert-error">{error}</div> : null}
-        {info ? <div className="alert alert-info">{info}</div> : null}
-
-        <div className="form-field">
-          <label htmlFor="email">Work email</label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="username"
-            placeholder="you@company.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
+      {ssoOnly ? null : (
+        <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+          <Link
+            href="/login"
+            className={`auth-tab${mode === "sign-in" ? " auth-tab-active" : ""}`}
+            role="tab"
+            aria-selected={mode === "sign-in"}
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/register"
+            className={`auth-tab${mode === "sign-up" ? " auth-tab-active" : ""}`}
+            role="tab"
+            aria-selected={mode === "sign-up"}
+          >
+            Register
+          </Link>
         </div>
+      )}
 
-        <div className="form-field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-            placeholder={mode === "sign-in" ? "Enter your password" : "At least 6 characters"}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            minLength={6}
-          />
-        </div>
+      {error ? <div className="alert alert-error">{error}</div> : null}
+      {info ? <div className="alert alert-info">{info}</div> : null}
 
-        <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-          {busy ? "Please wait…" : mode === "sign-in" ? "Sign in" : "Create account"}
-        </button>
-      </form>
+      <button
+        type="button"
+        className="btn btn-primary btn-block auth-microsoft"
+        disabled={busy}
+        onClick={() => void handleMicrosoftSignIn()}
+      >
+        {busy ? "Please wait…" : "Sign in with Microsoft 365"}
+      </button>
 
-      <p className="auth-footer-note">
-        {mode === "sign-in" ? (
-          <>
-            No account yet? <Link href="/register">Register</Link>
-          </>
-        ) : (
-          <>
-            Already have an account? <Link href="/login">Sign in</Link>
-          </>
-        )}
-      </p>
+      {ssoOnly ? (
+        <p className="auth-footer-note">Use your work Microsoft account. Password sign-in is disabled.</p>
+      ) : (
+        <>
+          <div className="auth-divider" role="separator">
+            <span>or use email</span>
+          </div>
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <div className="form-field">
+              <label htmlFor="email">Work email</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="username"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-field">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+                placeholder={mode === "sign-in" ? "Enter your password" : "At least 6 characters"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+
+            <button type="submit" className="btn btn-secondary btn-block" disabled={busy}>
+              {busy ? "Please wait…" : mode === "sign-in" ? "Sign in with email" : "Create account"}
+            </button>
+          </form>
+
+          <p className="auth-footer-note">
+            {mode === "sign-in" ? (
+              <>
+                No account yet? <Link href="/register">Register</Link>
+              </>
+            ) : (
+              <>
+                Already have an account? <Link href="/login">Sign in</Link>
+              </>
+            )}
+          </p>
+        </>
+      )}
     </div>
   );
 }

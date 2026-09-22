@@ -134,6 +134,10 @@ class Settings(BaseSettings):
         default="supabase",
         description="memory for unit tests; supabase for PostgREST with caller JWT",
     )
+    DEFAULT_EMPLOYEE_ROLE: Literal["consultant", "reviewer", "releaser", "admin"] = Field(
+        default="consultant",
+        description="Role assigned on first employee login when an admin already exists",
+    )
     AI_EXECUTION_MODE: Literal["fixture", "live"] = Field(
         default="fixture",
         description="fixture for deterministic local/test runs; live invokes configured LLM providers",

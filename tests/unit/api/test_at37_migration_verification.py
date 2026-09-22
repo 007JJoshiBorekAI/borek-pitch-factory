@@ -131,9 +131,11 @@ def test_verify_db_covers_llm_calls_table() -> None:
     assert "EXPECTED_FOREIGN_KEYS" in content
     assert "EXPECTED_INDEXES" in content
     assert '"egress_audit"' in content
+    assert '"user_roles"' in content
+    assert "document_id" in content
 
 
-def test_apply_migrations_script_covers_001_through_026() -> None:
+def test_apply_migrations_script_covers_001_through_027() -> None:
     assert APPLY_MIGRATIONS.is_file()
     content = APPLY_MIGRATIONS.read_text(encoding="utf-8")
     compile(content, str(APPLY_MIGRATIONS), "exec")
@@ -144,7 +146,7 @@ def test_apply_migrations_script_covers_001_through_026() -> None:
         for name in names
         if re.match(r"^\d{3}_", name)
     )
-    assert numbers == list(range(1, 27)), f"expected 001-026 with no gaps, got {numbers}"
+    assert numbers == list(range(1, 28)), f"expected 001-027 with no gaps, got {numbers}"
     assert names == sorted(names)
 
 

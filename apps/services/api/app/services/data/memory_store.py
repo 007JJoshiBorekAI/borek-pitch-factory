@@ -128,6 +128,7 @@ class MemoryDataStore:
     knowledge_documents: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     knowledge_facts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     knowledge_model_checkpoints: dict[tuple[UUID, UUID], dict[str, Any]] = field(default_factory=dict)
+    user_roles: dict[UUID, dict[str, Any]] = field(default_factory=dict)
 
     def list_job_knowledge_models(
         self,
@@ -1451,25 +1452,88 @@ class MemoryDataStore:
         action: str,
         object_type: str,
         object_id: UUID,
+        document_id: str | None = None,
+        actor_email: str | None = None,
     ) -> dict[str, Any]:
+        if not actor_email:
+            profile = self.user_roles.get(actor_id)
+            if profile:
+                actor_email = profile.get("email")
         entry_id = uuid.uuid4()
         now = _now()
         row = {
             "id": entry_id,
             "actor_id": actor_id,
+            "actor_email": actor_email,
             "action": action,
             "object_type": object_type,
             "object_id": object_id,
+            "document_id": document_id or str(object_id),
             "timestamp": now,
         }
         self.audit_logs[entry_id] = row
         return row
 
-    def list_audit_logs(self, *, actor_id: UUID | None = None) -> list[dict[str, Any]]:
+    def list_audit_logs(
+        self,
+        *,
+        actor_id: UUID | None = None,
+        object_id: UUID | None = None,
+        document_id: str | None = None,
+        privileged: bool = False,
+    ) -> list[dict[str, Any]]:
         rows = list(self.audit_logs.values())
-        if actor_id is not None:
+        if actor_id is not None and not privileged:
             rows = [row for row in rows if row["actor_id"] == actor_id]
+        if object_id is not None:
+            rows = [row for row in rows if row["object_id"] == object_id]
+        if document_id:
+            rows = [row for row in rows if str(row.get("document_id") or "") == document_id]
         return sorted(rows, key=lambda row: row["timestamp"])
+
+    def get_or_create_user_role(self, *, user_id: UUID, email: str) -> dict[str, Any]:
+        existing = self.user_roles.get(user_id)
+        if existing is not None:
+            if email and existing.get("email") != email:
+                existing["email"] = email
+            return dict(existing)
+        now = _now()
+        # Memory/unit tests keep full pipeline access unless a test assigns a lower role.
+        role = "admin"
+        row = {
+            "user_id": user_id,
+            "email": email,
+            "role": role,
+            "created_at": now,
+            "updated_at": now,
+        }
+        self.user_roles[user_id] = row
+        return dict(row)
+
+    def set_user_role(
+        self,
+        *,
+        user_id: UUID,
+        email: str,
+        role: str,
+    ) -> dict[str, Any]:
+        now = _now()
+        existing = self.user_roles.get(user_id)
+        row = {
+            "user_id": user_id,
+            "email": email or (existing.get("email") if existing else ""),
+            "role": role,
+            "created_at": existing["created_at"] if existing else now,
+            "updated_at": now,
+        }
+        self.user_roles[user_id] = row
+        return dict(row)
+
+    def list_user_roles(self) -> list[dict[str, Any]]:
+        return [
+            dict(row)
+            for row in sorted(self.user_roles.values(), key=lambda item: str(item.get("email") or ""))
+        ]
 
     def append_egress_audit(
         self,

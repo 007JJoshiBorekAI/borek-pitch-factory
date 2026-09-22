@@ -30,6 +30,8 @@ class AuditAction(StrEnum):
     SLIDE_REGENERATE = "slide.regenerate"
     SLIDE_CHANGE_LAYOUT = "slide.change_layout"
     ARTIFACT_FILE = "artifact.file"
+    AUTH_LOGIN = "auth.login"
+    ROLE_ASSIGN = "role.assign"
 
 
 class AuditObjectType(StrEnum):
@@ -41,6 +43,8 @@ class AuditObjectType(StrEnum):
     PRESENTATION = "presentation"
     SLIDE = "slide"
     FILED_ARTIFACT = "filed_artifact"
+    EMPLOYEE = "employee"
+    SESSION = "session"
 
 
 def record_audit_event(
@@ -50,6 +54,8 @@ def record_audit_event(
     action: AuditAction | str,
     object_type: AuditObjectType | str,
     object_id: UUID,
+    document_id: str | None = None,
+    actor_email: str | None = None,
 ) -> None:
     """Persist actor, action, object reference, and timestamp for a state change.
 
@@ -63,6 +69,8 @@ def record_audit_event(
             action=str(action),
             object_type=str(object_type),
             object_id=object_id,
+            document_id=document_id or str(object_id),
+            actor_email=actor_email,
         )
     except Exception:
         logger.warning(

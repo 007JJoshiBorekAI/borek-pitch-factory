@@ -1,8 +1,10 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
+import { getEmployeeMe, recordEmployeeSession } from "@/lib/api";
+import { EMPTY_CAPABILITIES, type EmployeeMe } from "@/lib/employeeRoles";
 import { syncPipelineOwner } from "@/lib/pipelineContext";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
@@ -11,6 +13,8 @@ interface AuthContextValue {
   accessToken: string | null;
   loading: boolean;
   isAuthenticated: boolean;
+  employee: EmployeeMe | null;
+  capabilities: EmployeeMe["capabilities"];
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -18,11 +22,15 @@ const AuthContext = createContext<AuthContextValue>({
   accessToken: null,
   loading: true,
   isAuthenticated: false,
+  employee: null,
+  capabilities: EMPTY_CAPABILITIES,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [employee, setEmployee] = useState<EmployeeMe | null>(null);
+  const loginRecorded = useRef<string | null>(null);
 
   useEffect(() => {
     const client = getSupabaseBrowserClient();
@@ -49,16 +57,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const devToken = process.env.NEXT_PUBLIC_DEV_ACCESS_TOKEN?.trim() || null;
+  const accessToken = session?.access_token ?? devToken;
+
+  useEffect(() => {
+    if (!accessToken) {
+      setEmployee(null);
+      loginRecorded.current = null;
+      return;
+    }
+    let cancelled = false;
+    void getEmployeeMe(accessToken)
+      .then((profile) => {
+        if (!cancelled) {
+          setEmployee(profile);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEmployee(null);
+        }
+      });
+    const ownerKey = session?.user.id ?? "dev";
+    if (loginRecorded.current !== ownerKey) {
+      loginRecorded.current = ownerKey;
+      void recordEmployeeSession(accessToken).catch(() => undefined);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, session?.user.id]);
 
   const value = useMemo<AuthContextValue>(() => {
-    const accessToken = session?.access_token ?? devToken;
     return {
       session,
       accessToken,
       loading,
       isAuthenticated: Boolean(accessToken),
+      employee,
+      capabilities: employee?.capabilities ?? EMPTY_CAPABILITIES,
     };
-  }, [devToken, loading, session]);
+  }, [accessToken, employee, loading, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

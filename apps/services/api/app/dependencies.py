@@ -8,7 +8,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth import AuthUser, get_current_user, get_optional_auth_user
+from app.services.api_errors import forbidden
 from app.services.data import DataStore, build_data_store
+from app.services.employees import EmployeeRole, parse_employee_role, role_satisfies
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -24,6 +26,7 @@ __all__ = [
     "get_data_store",
     "get_optional_auth_user",
     "get_db_session",
+    "require_role",
 ]
 
 
@@ -47,6 +50,25 @@ async def get_db_session() -> Any:
 
 
 get_auth_user = get_current_user
+
+
+def require_role(minimum: EmployeeRole):
+    """Reject the request unless the employee role meets the minimum rank."""
+
+    def _check(
+        user: AuthUser = Depends(get_current_user),
+        store: DataStore = Depends(get_data_store),
+    ) -> EmployeeRole:
+        row = store.get_or_create_user_role(user_id=user.id, email=user.email)
+        actual = parse_employee_role(row["role"])
+        if not role_satisfies(actual, minimum):
+            raise forbidden(
+                "INSUFFICIENT_ROLE",
+                f"This action requires the {minimum.value} role or higher.",
+            )
+        return actual
+
+    return _check
 
 DataStoreDep = Annotated[DataStore, Depends(get_data_store)]
 DbSessionDep = Annotated[Any, Depends(get_db_session)]
