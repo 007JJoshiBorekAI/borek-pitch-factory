@@ -13,8 +13,9 @@ interface SiteHeaderProps {
 }
 
 export function SiteHeader({ signedInEmail, onNewPresentation }: SiteHeaderProps) {
-  const { session } = useAuth();
-  const email = signedInEmail ?? session?.user.email ?? null;
+  const { session, employee } = useAuth();
+  const email = signedInEmail ?? session?.user.email ?? employee?.email ?? null;
+  const ssoOnly = process.env.NEXT_PUBLIC_EMPLOYEE_SSO_ONLY === "true";
 
   return (
     <header className="site-header">
@@ -25,6 +26,7 @@ export function SiteHeader({ signedInEmail, onNewPresentation }: SiteHeaderProps
             <>
               <Link href="/" className="site-nav-recent">Recent</Link>
               <Link href="/archive" className="site-nav-archive">Archive</Link>
+              <Link href="/activity" className="site-nav-activity">Activity</Link>
               <Link
                 href="/?new=1"
                 className="site-nav-new"
@@ -42,15 +44,18 @@ export function SiteHeader({ signedInEmail, onNewPresentation }: SiteHeaderProps
               </Link>
               <span className="site-user" title={email}>
                 {email}
+                {employee?.role ? <span className="site-user-role">{employee.role}</span> : null}
               </span>
               <SignOutButton />
             </>
           ) : (
             <>
               <Link href="/login">Sign in</Link>
-              <Link href="/register" className="site-nav-cta">
-                Register
-              </Link>
+              {ssoOnly ? null : (
+                <Link href="/register" className="site-nav-cta">
+                  Register
+                </Link>
+              )}
             </>
           )}
         </nav>

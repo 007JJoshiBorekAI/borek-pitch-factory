@@ -10,7 +10,8 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse, Response
 
 from app.auth import get_current_user
-from app.dependencies import AuthUserDep, DataStoreDep
+from app.dependencies import AuthUserDep, DataStoreDep, require_role
+from app.services.employees import EmployeeRole
 from app.schemas.frameworks import (
     ConfirmFrameworkRequest,
     FrameworkGenerateResponse,
@@ -201,6 +202,7 @@ def regenerate_chapter(
 @opportunity_router.post(
     "/{opportunity_id}/framework/confirm",
     response_model=FrameworkVersionResponse,
+    dependencies=[Depends(require_role(EmployeeRole.REVIEWER))],
 )
 def confirm_framework(
     opportunity_id: UUID,

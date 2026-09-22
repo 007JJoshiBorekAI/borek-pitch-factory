@@ -13,7 +13,7 @@
 
 ## Transferred functionality
 
-1. Nested `stage1_intake` API with flat DB columns (`027_bt34_stage1_intake.sql`).
+1. Nested `stage1_intake` API with flat DB columns (`028_bt34_stage1_intake.sql`).
 2. Canonical field **`client_web_page`** (replaces old `client_website`).
 3. `STAGE1_INTAKE` prompt block in extraction, synthesis, and research paths.
 4. `stage1_research.schema.json` v1.0 + unknown fixture + codegen registration.

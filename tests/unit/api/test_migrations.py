@@ -244,3 +244,15 @@ def test_knowledge_model_checkpoints_are_job_scoped_and_owner_protected() -> Non
     assert "ENABLE ROW LEVEL SECURITY" in content
     assert "REVOKE ALL ON public.knowledge_model_checkpoints FROM PUBLIC, anon, authenticated" in content
     assert "GRANT ALL ON public.knowledge_model_checkpoints TO service_role" in content
+
+
+def test_d3_employee_roles_and_activity_document_id() -> None:
+    content = (MIGRATIONS_DIR / "027_employee_roles_and_activity.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "CREATE TABLE IF NOT EXISTS user_roles" in content
+    assert "CHECK (role IN ('consultant', 'reviewer', 'releaser', 'admin'))" in content
+    assert "users_read_own_role" in content
+    assert "ADD COLUMN IF NOT EXISTS document_id TEXT" in content
+    assert "ADD COLUMN IF NOT EXISTS actor_email TEXT" in content
+    assert "GRANT ALL ON public.user_roles TO service_role" in content

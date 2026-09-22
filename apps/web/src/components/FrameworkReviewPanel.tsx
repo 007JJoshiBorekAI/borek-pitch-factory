@@ -101,7 +101,7 @@ interface FrameworkReviewPanelProps {
 
 export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProps) {
   const router = useRouter();
-  const { accessToken, isAuthenticated, loading, session } = useAuth();
+  const { accessToken, isAuthenticated, loading, session, capabilities } = useAuth();
   const [frameworkVersion, setFrameworkVersion] = useState<FrameworkVersionResponse | null>(null);
   const [frameworkJson, setFrameworkJson] = useState<FrameworkObject | null>(null);
   const [review, setReview] = useState<FrameworkReviewPayload | null>(null);
@@ -996,7 +996,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     confirmed: frameworkConfirmed,
     humanConfirmed,
     blocked: approvalBlocked,
-  });
+  }) && capabilities.confirm;
   const workflowBusy = Boolean(busy || downloadingFormat || progressSurfaceVisible);
   const workflowPrimaryDisabled = Boolean(
     workflowBusy || (notice && surfacePrecedence.showRecovery),
@@ -1078,16 +1078,20 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               >
                 Make a small correction
               </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={workflowPrimaryDisabled}
-                onClick={() => void handleBuildConfirmedFramework()}
-              >
-                {pipelineActive ? "Building presentation..." : "Build presentation"}
-              </button>
+              {capabilities.release ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={workflowPrimaryDisabled}
+                  onClick={() => void handleBuildConfirmedFramework()}
+                >
+                  {pipelineActive ? "Building presentation..." : "Build presentation"}
+                </button>
+              ) : (
+                <p className="workflow-role-hint">A reviewer must build the presentation.</p>
+              )}
             </>
-          ) : (
+          ) : capabilities.confirm ? (
             <button
               type="button"
               className="btn btn-primary"
@@ -1097,6 +1101,8 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
             >
               Approve &amp; build presentation
             </button>
+          ) : (
+            <p className="workflow-role-hint">Your role can edit this story. A reviewer must approve it.</p>
           )}
         </WorkflowActionBar>
         <WorkflowStepIndicator currentStep={2} />

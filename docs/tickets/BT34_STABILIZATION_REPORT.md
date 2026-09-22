@@ -7,7 +7,7 @@
 | Check | Result |
 | --- | --- |
 | BT-34 unit/integration + migration + audit + orchestration | **60 passed** |
-| Migration static chain 001–027 | **passed** (`test_at37_migration_verification`) |
+| Migration static chain 001–028 | **passed** (`test_at37_migration_verification`) |
 | `test_migrations.py` | **18 passed** |
 | Web typecheck | **passed** |
 | Codegen (Python + TypeScript) | **19 modules each** |
@@ -17,7 +17,7 @@
 ## Contract freeze
 
 - API: nested `stage1_intake` with `client_web_page`.
-- DB: flat nullable columns via `027_bt34_stage1_intake.sql`.
+- DB: flat nullable columns via `028_bt34_stage1_intake.sql`.
 - PATCH: omit preserves; object replaces; null clears (verified in tests).
 
 ## MS-33 readiness

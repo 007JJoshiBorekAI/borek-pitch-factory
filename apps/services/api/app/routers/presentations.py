@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from app.auth import get_current_user
-from app.dependencies import AuthUserDep, DataStoreDep
+from app.dependencies import AuthUserDep, DataStoreDep, require_role
+from app.services.employees import EmployeeRole
 from app.schemas.journey_stage import JourneyStageEligibilityResponse
 from app.schemas.presentations import (
     ChangeSlideLayoutRequest,
@@ -162,6 +163,7 @@ def generate_presentation_plan(
     "/{opportunity_id}/presentation/generate",
     response_model=PresentationGenerateResponse,
     status_code=202,
+    dependencies=[Depends(require_role(EmployeeRole.REVIEWER))],
 )
 def generate_presentation(
     opportunity_id: UUID,

@@ -38,7 +38,7 @@ All fields optional. Empty/whitespace-only strings normalize to null. NUL (`\u00
 | `{"stage1_intake":null}` | All intake columns cleared |
 | `{"stage1_intake":{}}` | Empty intake; all five fields read as null |
 
-Migration: `027_bt34_stage1_intake.sql`.
+Migration: `028_bt34_stage1_intake.sql`.
 
 ## Research resource
 
