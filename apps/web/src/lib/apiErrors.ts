@@ -115,6 +115,51 @@ export function stage1IntakeErrorMessage(error: unknown): string {
   return "Pre-meeting information could not be saved. Try again or contact support if this continues.";
 }
 
+export function isMissingClientDocumentError(error: unknown): boolean {
+  return (
+    error instanceof ApiRequestError &&
+    (error.status === 404 || error.code === "CLIENT_DOCUMENT_NOT_FOUND")
+  );
+}
+
+export function isClientDocumentEndpointUnavailable(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) {
+    return false;
+  }
+  if (error.status === 503) {
+    return true;
+  }
+  // Route missing (BT-35 not deployed) vs a single document that no longer exists.
+  return error.status === 404 && error.code !== "CLIENT_DOCUMENT_NOT_FOUND";
+}
+
+export function clientDocumentErrorMessage(error: unknown): string {
+  if (isNetworkError(error)) {
+    return "Upload interrupted. Check your connection and try again.";
+  }
+  if (error instanceof ApiRequestError) {
+    if (error.status === 401 || error.status === 403) {
+      return "Your session could not be verified. Sign in again before uploading documents.";
+    }
+    if (error.code === "INVALID_CLIENT_DOCUMENT_FORMAT") {
+      return "Use a PDF, DOCX, or TXT client document.";
+    }
+    if (error.code === "INVALID_CLIENT_DOCUMENT_CONTENT") {
+      return "This document is empty or could not be read. Choose another file.";
+    }
+    if (error.code === "CLIENT_DOCUMENT_TOO_LARGE") {
+      return "Each client document must be 10 MB or smaller.";
+    }
+    if (error.code === "CLIENT_DOCUMENT_NOT_FOUND") {
+      return "This document is no longer available. Refresh the list and try again.";
+    }
+    if (error.status === 404 || error.status === 503) {
+      return "Client document upload is not available on this server yet.";
+    }
+  }
+  return "This client document could not be uploaded. Remove it and try again.";
+}
+
 export function stage1VoiceErrorMessage(error: unknown): string {
   if (isStage1VoiceUnavailableError(error)) {
     return "Voice transcription is not available yet. Save your text description instead.";

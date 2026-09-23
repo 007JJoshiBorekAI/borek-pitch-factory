@@ -6,6 +6,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
+import {
+  ClientDocumentUploadPanel,
+  countProcessedClientDocuments,
+} from "@/components/ClientDocumentUploadPanel";
 import { ClientLogoUpload } from "@/components/ClientLogoUpload";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneyStageSelector";
@@ -25,6 +29,7 @@ import {
   type JourneyStageEligibilityResponse,
   type JourneyStageName,
   type OpportunityCreatePayload,
+  type ClientDocument,
   type OpportunityResponse,
   type Stage1Intake,
 } from "@/lib/api";
@@ -133,8 +138,13 @@ export function TranscriptUploadPanel({
   const [eligibilityReloadKey, setEligibilityReloadKey] = useState(0);
   const [stage1Draft, setStage1Draft] = useState<Stage1IntakeFormValues>(EMPTY_STAGE1_FORM);
   const [stage1CreateError, setStage1CreateError] = useState<string | null>(null);
+  const [clientDocuments, setClientDocuments] = useState<ClientDocument[]>([]);
 
   const isFirstContact = journeyStage === "first_contact";
+  const processedDocumentCount = useMemo(
+    () => countProcessedClientDocuments(clientDocuments),
+    [clientDocuments],
+  );
   const contextMatchesRequest = !initialOpportunityId || opportunityId === initialOpportunityId;
   const canUpload =
     isAuthenticated && !startFresh && Boolean(opportunityId) && contextMatchesRequest;
@@ -444,11 +454,13 @@ export function TranscriptUploadPanel({
             <div className="stage1-workflow-status" role="status">
               <strong>Next step not available yet</strong>
               <p>
-                {opportunityId
-                  ? hasStage1IntakeContent(opportunity?.stage1_intake)
-                    ? "Pre-meeting intake is saved. Company brief and meeting preparation generation will arrive in a later release."
-                    : "Save pre-meeting information below. Generation is not available in this build yet."
-                  : "Create the opportunity and save pre-meeting information. Generation is not available in this build yet."}
+                {!opportunityId
+                  ? "Create the opportunity, save pre-meeting information, and upload at least one client document."
+                  : processedDocumentCount > 0
+                    ? `${processedDocumentCount} client document${processedDocumentCount === 1 ? "" : "s"} ready. Company brief generation will arrive in a later release.`
+                    : hasStage1IntakeContent(opportunity?.stage1_intake)
+                      ? "Upload at least one client document (.pdf, .docx, .txt) before research can run."
+                      : "Save pre-meeting information and upload client documents below."}
               </p>
             </div>
           ) : opportunityId &&
@@ -569,16 +581,24 @@ export function TranscriptUploadPanel({
             </section>
 
             {isFirstContact ? (
-              <Stage1IntakePanel
-                disabled={!isAuthenticated || loading}
-                existingIntake={opportunity?.stage1_intake ?? null}
-                draftValues={opportunity ? undefined : stage1Draft}
-                onDraftChange={opportunity ? undefined : setStage1Draft}
-                accessToken={accessToken}
-                opportunityId={opportunityId}
-                showSaveAction={Boolean(opportunityId)}
-                onSave={handleSaveStage1Intake}
-              />
+              <>
+                <Stage1IntakePanel
+                  disabled={!isAuthenticated || loading}
+                  existingIntake={opportunity?.stage1_intake ?? null}
+                  draftValues={opportunity ? undefined : stage1Draft}
+                  onDraftChange={opportunity ? undefined : setStage1Draft}
+                  accessToken={accessToken}
+                  opportunityId={opportunityId}
+                  showSaveAction={Boolean(opportunityId)}
+                  onSave={handleSaveStage1Intake}
+                />
+                <ClientDocumentUploadPanel
+                  accessToken={accessToken}
+                  opportunityId={opportunityId}
+                  disabled={!isAuthenticated || loading}
+                  onDocumentsChange={setClientDocuments}
+                />
+              </>
             ) : null}
 
             {!isFirstContact ? (

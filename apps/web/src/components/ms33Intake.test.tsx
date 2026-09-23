@@ -34,9 +34,8 @@ assert.match(firstContactHtml, /Sales topic description/);
 assert.match(firstContactHtml, /About company/);
 assert.match(firstContactHtml, /4,000 recommended/);
 assert.match(firstContactHtml, /Save pre-meeting information/);
-assert.match(firstContactHtml, /Coming soon/);
-assert.match(firstContactHtml, /MS-34/);
 assert.match(firstContactHtml, /Upload recording/);
+assert.doesNotMatch(firstContactHtml, /Coming soon/i);
 assert.doesNotMatch(firstContactHtml, /Upload or drag files here/i);
 
 const draftHtml = renderToStaticMarkup(

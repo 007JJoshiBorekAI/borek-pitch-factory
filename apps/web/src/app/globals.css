@@ -995,6 +995,61 @@ samp {
   margin-top: 0.85rem;
 }
 
+.stage1-context-cards-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.client-document-panel {
+  margin-top: 0;
+}
+
+.client-document-notice {
+  margin: 0 0 0.75rem;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+}
+
+.client-document-upload-rows {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.client-document-upload-rows li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--borek-primary-soft);
+  font-size: 0.88rem;
+}
+
+.client-document-delete-dialog {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #fff8f5;
+}
+
+.client-document-delete-dialog p {
+  margin: 0.35rem 0 0.75rem;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+.client-document-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .stage1-context-card {
   padding: 0.85rem 0.95rem;
   border: 1px solid var(--color-border);

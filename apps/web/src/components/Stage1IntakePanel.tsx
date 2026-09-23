@@ -185,7 +185,7 @@ export function Stage1IntakePanel({
 
         <div className="stage1-additional-context">
           <p className="stage1-section-kicker">Additional information</p>
-          <div className="stage1-context-cards">
+          <div className="stage1-context-cards stage1-context-cards-single">
             {canUseVoice ? (
               <Stage1VoiceNote
                 accessToken={accessToken!}
@@ -212,20 +212,6 @@ export function Stage1IntakePanel({
               </div>
             )}
 
-            <div
-              className="stage1-context-card stage1-document-card stage1-context-card-disabled"
-              aria-disabled="true"
-            >
-              <div className="stage1-context-card-header">
-                <strong>Add client documents</strong>
-                <span className="optional-label">Coming soon</span>
-              </div>
-              <p className="stage1-context-card-lead">PDF, DOCX, PPTX or logo</p>
-              <p className="stage1-context-card-deferred">
-                Client document upload arrives in MS-34. Meeting transcripts are added after the first
-                call on Deepening.
-              </p>
-            </div>
           </div>
         </div>
 

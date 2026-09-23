@@ -25,6 +25,7 @@
     "test:jj28": "tsx src/lib/readyScreenEngineNeutral.test.ts && tsx src/lib/jobErrors.test.ts && tsx src/lib/jobProgress.test.ts",
     "test:ms27": "tsx src/lib/clientIntake.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/components/ms27Intake.test.tsx",
     "test:ms33": "tsx src/lib/stage1Intake.test.ts && tsx src/lib/stage1Intake.patch.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/components/ms33Intake.test.tsx",
+    "test:ms34": "tsx src/lib/clientDocuments.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/components/ms34DocumentUpload.test.tsx && tsx src/components/ms33Intake.test.tsx",
     "test:ms28": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx",
     "test:ms29": "tsx src/lib/archiveHistory.test.ts && tsx src/components/ArchiveHistoryView.test.tsx",
     "test:ms31": "tsx src/lib/journeyStageEligibility.test.ts && tsx src/lib/journeyStageSelection.test.ts && tsx src/components/journeyStageSelector.test.tsx",

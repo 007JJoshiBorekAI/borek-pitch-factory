@@ -404,6 +404,69 @@ export async function uploadStage1Voice(
   );
 }
 
+export interface ClientDocument {
+  id: string;
+  opportunity_id: string;
+  file_name: string;
+  mime_type: string;
+  document_key: string;
+  processing_status: string;
+  section_count: number;
+  created_at: string;
+}
+
+export interface ClientDocumentUploadResponse {
+  document: ClientDocument;
+  processing_status: string;
+}
+
+export async function uploadClientDocument(
+  accessToken: string,
+  opportunityId: string,
+  file: File,
+): Promise<ClientDocumentUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  return apiFetch<ClientDocumentUploadResponse>(
+    `/opportunities/${opportunityId}/client-documents`,
+    accessToken,
+    { method: "POST", body: formData },
+  );
+}
+
+export async function listClientDocuments(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientDocument[]> {
+  return apiFetch<ClientDocument[]>(
+    `/opportunities/${opportunityId}/client-documents`,
+    accessToken,
+  );
+}
+
+export async function getClientDocument(
+  accessToken: string,
+  opportunityId: string,
+  documentId: string,
+): Promise<ClientDocument> {
+  return apiFetch<ClientDocument>(
+    `/opportunities/${opportunityId}/client-documents/${documentId}`,
+    accessToken,
+  );
+}
+
+export async function deleteClientDocument(
+  accessToken: string,
+  opportunityId: string,
+  documentId: string,
+): Promise<void> {
+  await apiFetch<void>(
+    `/opportunities/${opportunityId}/client-documents/${documentId}`,
+    accessToken,
+    { method: "DELETE" },
+  );
+}
+
 export async function getClientLogoMetadata(
   accessToken: string,
   opportunityId: string,
