@@ -21,6 +21,15 @@ import type {
   EmployeeRole,
   EmployeeRoleRow,
 } from "./employeeRoles";
+import type {
+  EmailDraftConfirmRequest,
+  EmailDraftEnvelope,
+  EmailDraftGenerateRequest,
+  MeetingFeedbackResponse,
+  MeetingFeedbackUpdateRequest,
+  Stage1OutputsEnvelope,
+  Stage2OutputsEnvelope,
+} from "./journeyOutputsContracts";
 
 export function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || DEFAULT_API_URL;
@@ -930,4 +939,133 @@ export async function assignEmployeeRole(
     method: "PATCH",
     body: JSON.stringify({ role, email }),
   });
+}
+
+export type {
+  EmailDraftConfirmRequest,
+  EmailDraftEnvelope,
+  EmailDraftGenerateRequest,
+  EmailDraftLength,
+  EmailDraftRecord,
+  EmailLengthBody,
+  JourneyOutputsErrorCode,
+  MeetingFeedbackResponse,
+  MeetingFeedbackUpdateRequest,
+  Stage1OutputsEnvelope,
+  Stage2OutputsEnvelope,
+} from "./journeyOutputsContracts";
+
+function opportunityPath(opportunityId: string): string {
+  return `/opportunities/${opportunityId}`;
+}
+
+export async function getStage1Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch<Stage1OutputsEnvelope>(
+    `${opportunityPath(opportunityId)}/stage1-outputs`,
+    accessToken,
+  );
+}
+
+export async function generateStage1Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch<Stage1OutputsEnvelope>(
+    `${opportunityPath(opportunityId)}/stage1-outputs/generate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function getStage2Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage2OutputsEnvelope> {
+  return apiFetch<Stage2OutputsEnvelope>(
+    `${opportunityPath(opportunityId)}/stage2-outputs`,
+    accessToken,
+  );
+}
+
+export async function generateStage2Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage2OutputsEnvelope> {
+  return apiFetch<Stage2OutputsEnvelope>(
+    `${opportunityPath(opportunityId)}/stage2-outputs/generate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function getMeetingFeedback(
+  accessToken: string,
+  opportunityId: string,
+): Promise<MeetingFeedbackResponse> {
+  return apiFetch<MeetingFeedbackResponse>(
+    `${opportunityPath(opportunityId)}/meeting-feedback`,
+    accessToken,
+  );
+}
+
+export async function updateMeetingFeedback(
+  accessToken: string,
+  opportunityId: string,
+  payload: MeetingFeedbackUpdateRequest,
+): Promise<MeetingFeedbackResponse> {
+  return apiFetch<MeetingFeedbackResponse>(
+    `${opportunityPath(opportunityId)}/meeting-feedback`,
+    accessToken,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function getEmailDraft(
+  accessToken: string,
+  opportunityId: string,
+  journeyStage: JourneyStageName,
+): Promise<EmailDraftEnvelope> {
+  const query = `?journey_stage=${encodeURIComponent(journeyStage)}`;
+  return apiFetch<EmailDraftEnvelope>(
+    `${opportunityPath(opportunityId)}/email-drafts${query}`,
+    accessToken,
+  );
+}
+
+export async function generateEmailDraft(
+  accessToken: string,
+  opportunityId: string,
+  payload: EmailDraftGenerateRequest,
+): Promise<EmailDraftEnvelope> {
+  return apiFetch<EmailDraftEnvelope>(
+    `${opportunityPath(opportunityId)}/email-drafts/generate`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+/** Persist reviewed length only — never sends mail (send endpoint is forbidden). */
+export async function confirmEmailDraft(
+  accessToken: string,
+  opportunityId: string,
+  draftId: string,
+  payload: EmailDraftConfirmRequest,
+): Promise<EmailDraftEnvelope> {
+  return apiFetch<EmailDraftEnvelope>(
+    `${opportunityPath(opportunityId)}/email-drafts/${draftId}/confirm`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }

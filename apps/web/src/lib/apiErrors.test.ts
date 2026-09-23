@@ -19,6 +19,10 @@ import {
   clientDocumentErrorMessage,
   isClientDocumentEndpointUnavailable,
   isMissingClientDocumentError,
+  isDocumentedJourneyOutputsError,
+  isJourneyOutputsEndpointUnavailable,
+  isMissingEmailDraftError,
+  journeyOutputsErrorMessage,
 } from "./apiErrors.js";
 
 assert.equal(
@@ -148,6 +152,42 @@ assert.match(
     new ApiRequestError("Missing document", 404, "CLIENT_DOCUMENT_NOT_FOUND"),
   ),
   /no longer available/i,
+);
+
+assert.equal(
+  isDocumentedJourneyOutputsError(
+    new ApiRequestError("Need docs", 400, "CLIENT_DOCUMENT_REQUIRED"),
+  ),
+  true,
+);
+assert.match(
+  journeyOutputsErrorMessage(
+    new ApiRequestError("Need docs", 400, "CLIENT_DOCUMENT_REQUIRED"),
+  ),
+  /client document/i,
+);
+assert.match(
+  journeyOutputsErrorMessage(
+    new ApiRequestError("Need transcript", 400, "TRANSCRIPT_REQUIRED"),
+  ),
+  /transcript/i,
+);
+assert.match(
+  journeyOutputsErrorMessage(
+    new ApiRequestError("Forbidden", 400, "EMAIL_SEND_FORBIDDEN"),
+  ),
+  /not permitted/i,
+);
+assert.equal(isMissingEmailDraftError(new ApiRequestError("Missing", 404, "EMAIL_DRAFT_NOT_FOUND")), true);
+assert.equal(
+  isJourneyOutputsEndpointUnavailable(new ApiRequestError("Route missing", 404)),
+  true,
+);
+assert.equal(
+  isJourneyOutputsEndpointUnavailable(
+    new ApiRequestError("Need docs", 400, "CLIENT_DOCUMENT_REQUIRED"),
+  ),
+  false,
 );
 
 console.log("apiErrors tests passed");
