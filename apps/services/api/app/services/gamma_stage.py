@@ -25,6 +25,7 @@ from services.gamma.contract import (
 from services.gamma.signed_logo import mint_signed_client_logo_url
 from services.gamma.provider import build_gamma_provider
 from services.gamma.input_text import align_slots_with_planned_slides
+from services.gamma.design_compliance import validate_gamma_design_compliance
 from services.gamma.payload import build_gamma_content_payload, slots_from_payload
 from services.gamma.slot_mapping import resolve_journey_stage, slot_chapter_provenance
 from services.gamma.template import load_gamma_template
@@ -91,6 +92,15 @@ def _signed_logo_ref(
     return minter(opportunity_id=parsed_id, ttl_seconds=ttl)
 
 
+def _framework_company_facts(framework: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(framework, dict):
+        return None
+    inner = framework.get("framework_json")
+    if isinstance(inner, dict) and inner.get("generation_meta") is not None:
+        return (inner.get("generation_meta") or {}).get("company_facts")
+    return (framework.get("generation_meta") or {}).get("company_facts")
+
+
 def client_logo_decision_for_opportunity(
     store: Any,
     *,
@@ -144,6 +154,10 @@ def build_gamma_request(
         stage=resolved_stage,
         client_logo_ref=signed_ref,
         prior_stage_context=prior_stage_context or opportunity.get("prior_stage_context"),
+    )
+    validate_gamma_design_compliance(
+        content,
+        grounding=_framework_company_facts(framework),
     )
     planned = tuple(spec for spec in (planned_slide_specs or []) if isinstance(spec, dict))
     slots = align_slots_with_planned_slides(
