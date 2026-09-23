@@ -35,7 +35,8 @@ assert.match(firstContactContext.sourceBadgeLabel ?? "", /demonstration email/i)
 
 const deepeningLive = getStageEmailReviewContext("deepening", false);
 assert.equal(deepeningLive.sourceBadgeLabel, null);
-assert.match(deepeningLive.draftUnavailableMessage, /BT-36/);
+assert.match(deepeningLive.draftUnavailableMessage, /generate a draft/i);
+assert.match(deepeningLive.confirmReviewedMessageLive, /not sent/i);
 
 const concretisationContext = getStageEmailReviewContext("concretisation", true);
 assert.match(concretisationContext.title, /proposal follow-up/i);

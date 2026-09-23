@@ -1,13 +1,24 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { FollowupReviewView } from "@/components/FollowupReviewView";
 import { StageReviewLayout } from "@/components/StageReviewLayout";
 import type { JourneyStageName } from "@/lib/api";
 import { updateOpportunity } from "@/lib/api";
+import {
+  emailDraftErrorMessage,
+  fetchAdaptedEmailDraft,
+  generateAdaptedEmailDraft,
+  confirmAdaptedEmailDraft,
+  applyPreferredEmailLength,
+  hasLiveEmailDraft,
+  panelDraftForAdaptedEmail,
+} from "@/lib/emailDraftLive";
+import type { EmailDraftLength } from "@/lib/journeyOutputsContracts";
+import type { AdaptedEmailDraftReview } from "@/lib/stageOutputsApiAdapter";
 import {
   canConfirmFollowupReview,
   emptyFollowupChecklist,
@@ -33,7 +44,7 @@ export function FollowupReviewPanel({
   opportunityId: string;
   journeyStage: JourneyStageName;
 }) {
-  const { accessToken, session, loading: authLoading } = useAuth();
+  const { accessToken, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const demoMode = isStageOutputDemoMode(searchParams);
   const stageContext = useMemo(
@@ -51,11 +62,59 @@ export function FollowupReviewPanel({
   const [statics, setStatics] = useState<FollowupProjectStatics>(emptyFollowupProjectStatics);
   const [staticsSaved, setStaticsSaved] = useState(false);
   const [draft, setDraft] = useState<FollowupDraft | null>(null);
+  const [adaptedEmail, setAdaptedEmail] = useState<AdaptedEmailDraftReview | null>(null);
+  const [selectedLength, setSelectedLength] = useState<EmailDraftLength>("medium");
   const [checklist, setChecklist] = useState(emptyFollowupChecklist);
   const [acknowledgedFlags, setAcknowledgedFlags] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [generatingDraft, setGeneratingDraft] = useState(false);
+  const [confirmingDraft, setConfirmingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailLoadError, setEmailLoadError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  const applyAdaptedEmail = useCallback(
+    (adapted: AdaptedEmailDraftReview, length?: EmailDraftLength) => {
+      const nextLength = length ?? adapted.selectedLength ?? "medium";
+      const applied = applyPreferredEmailLength(adapted, nextLength);
+      setAdaptedEmail(applied);
+      setSelectedLength(nextLength);
+      setDraft(applied.panelDraft);
+      setChecklist(emptyFollowupChecklist());
+      setAcknowledgedFlags(new Set());
+    },
+    [],
+  );
+
+  const loadLiveEmailDraft = useCallback(
+    async (preferredLength?: EmailDraftLength) => {
+      if (!accessToken || demoMode) {
+        setAdaptedEmail(null);
+        setEmailLoadError(null);
+        return;
+      }
+      try {
+        const adapted = await fetchAdaptedEmailDraft(
+          accessToken,
+          opportunityId,
+          journeyStage,
+          preferredLength,
+        );
+        setEmailLoadError(null);
+        if (hasLiveEmailDraft(adapted)) {
+          applyAdaptedEmail(adapted, preferredLength);
+        } else {
+          setAdaptedEmail(adapted);
+          setDraft(null);
+        }
+      } catch (loadError) {
+        setAdaptedEmail(null);
+        setDraft(null);
+        setEmailLoadError(emailDraftErrorMessage(loadError));
+      }
+    },
+    [accessToken, applyAdaptedEmail, demoMode, journeyStage, opportunityId],
+  );
 
   useEffect(() => {
     let active = true;
@@ -67,7 +126,9 @@ export function FollowupReviewPanel({
       setContextError(null);
       setError(null);
       setInfo(null);
+      setEmailLoadError(null);
       setDraft(null);
+      setAdaptedEmail(null);
       setChecklist(emptyFollowupChecklist());
       setAcknowledgedFlags(new Set());
 
@@ -116,11 +177,19 @@ export function FollowupReviewPanel({
     };
   }, [accessToken, demoMode, journeyStage, opportunityId]);
 
+  useEffect(() => {
+    if (!accessToken || demoMode || contextLoading || !staticsSaved) {
+      return;
+    }
+    void loadLiveEmailDraft();
+  }, [accessToken, contextLoading, demoMode, loadLiveEmailDraft, staticsSaved]);
+
   function handleStaticsChange(value: FollowupProjectStatics) {
     setStatics(value);
     setStaticsSaved(false);
     setInfo(null);
     setDraft(null);
+    setAdaptedEmail(null);
     setChecklist(emptyFollowupChecklist());
     setAcknowledgedFlags(new Set());
   }
@@ -152,7 +221,9 @@ export function FollowupReviewPanel({
         setInfo(stageContext.staticsSavedInfoDemo);
       } else {
         setDraft(null);
+        setAdaptedEmail(null);
         setInfo(stageContext.staticsSavedInfoLive);
+        await loadLiveEmailDraft();
       }
     } catch {
       setError("Project email settings could not be saved. Check the values and try again.");
@@ -174,18 +245,88 @@ export function FollowupReviewPanel({
   }
 
   function handleDraftChange(value: FollowupDraft) {
+    if (!demoMode) {
+      return;
+    }
     setDraft(value);
     setChecklist(emptyFollowupChecklist());
     setAcknowledgedFlags(new Set());
     setInfo(null);
   }
 
-  function handleConfirm() {
+  function handleLengthChange(length: EmailDraftLength) {
+    if (!adaptedEmail?.lengths) {
+      return;
+    }
+    setSelectedLength(length);
+    setDraft(panelDraftForAdaptedEmail(adaptedEmail, length));
+    setChecklist(emptyFollowupChecklist());
+    setAcknowledgedFlags(new Set());
+    setInfo(null);
+  }
+
+  async function handleGenerateDraft() {
+    if (!accessToken || demoMode || generatingDraft) {
+      return;
+    }
+    setGeneratingDraft(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const adapted = await generateAdaptedEmailDraft(
+        accessToken,
+        opportunityId,
+        journeyStage,
+        selectedLength,
+      );
+      setEmailLoadError(null);
+      if (!hasLiveEmailDraft(adapted)) {
+        setAdaptedEmail(adapted);
+        setDraft(null);
+        setError("The server returned no email draft after generation.");
+        return;
+      }
+      applyAdaptedEmail(adapted);
+      setInfo("Email draft generated. Choose a length and confirm review when ready.");
+    } catch (generateError) {
+      setError(emailDraftErrorMessage(generateError));
+    } finally {
+      setGeneratingDraft(false);
+    }
+  }
+
+  async function handleConfirm() {
     if (!canConfirmFollowupReview(draft, statics, checklist, acknowledgedFlags, staticsSaved)) {
       return;
     }
-    setDraft((current) => (current ? { ...current, status: "reviewed" } : current));
-    setInfo(stageContext.confirmReviewedMessage);
+
+    if (demoMode) {
+      setDraft((current) => (current ? { ...current, status: "reviewed" } : current));
+      setInfo(stageContext.confirmReviewedMessage);
+      return;
+    }
+
+    if (!accessToken || !adaptedEmail?.draftId || confirmingDraft) {
+      return;
+    }
+
+    setConfirmingDraft(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const confirmed = await confirmAdaptedEmailDraft(
+        accessToken,
+        opportunityId,
+        adaptedEmail.draftId,
+        selectedLength,
+      );
+      applyAdaptedEmail(confirmed, selectedLength);
+      setInfo(stageContext.confirmReviewedMessageLive);
+    } catch (confirmError) {
+      setError(emailDraftErrorMessage(confirmError));
+    } finally {
+      setConfirmingDraft(false);
+    }
   }
 
   const canConfirm = canConfirmFollowupReview(
@@ -195,10 +336,13 @@ export function FollowupReviewPanel({
     acknowledgedFlags,
     staticsSaved,
   );
-
-  const draftUnavailable = staticsSaved && !draft && !demoMode;
-  const combinedError = contextError ?? error;
+  const serverConfirmed = Boolean(!demoMode && adaptedEmail?.serverConfirmed);
+  const draftNotGenerated =
+    !demoMode && staticsSaved && !draft && !generatingDraft && !contextLoading;
+  const combinedError = contextError ?? error ?? emailLoadError;
   const showReview = !authLoading && accessToken;
+  const liveDraftReadOnly = !demoMode && Boolean(adaptedEmail?.draftId);
+  const panelBusy = busy || generatingDraft || confirmingDraft;
 
   return (
     <StageReviewLayout
@@ -227,21 +371,29 @@ export function FollowupReviewPanel({
           statics={statics}
           staticsSaved={staticsSaved}
           draft={draft}
-          draftUnavailable={draftUnavailable}
+          draftNotGenerated={draftNotGenerated}
+          draftUnavailable={false}
+          selectedLength={selectedLength}
+          liveDraftReadOnly={liveDraftReadOnly}
+          serverConfirmed={serverConfirmed}
           checklist={checklist}
           acknowledgedFlags={acknowledgedFlags}
           canConfirm={canConfirm}
-          busy={busy}
+          busy={panelBusy}
+          generatingDraft={generatingDraft}
+          confirmingDraft={confirmingDraft}
           error={null}
           info={info}
           onStaticsChange={handleStaticsChange}
           onSaveStatics={() => void handleSaveStatics()}
           onDraftChange={handleDraftChange}
+          onLengthChange={handleLengthChange}
+          onGenerateDraft={() => void handleGenerateDraft()}
           onChecklistChange={(id: FollowupChecklistId, checked: boolean) =>
             setChecklist((current) => ({ ...current, [id]: checked }))
           }
           onFlagChange={handleFlagChange}
-          onConfirm={handleConfirm}
+          onConfirm={() => void handleConfirm()}
         />
       )}
     </StageReviewLayout>
