@@ -88,6 +88,13 @@ export function journeyStageForEmailArtifact(artifactId: StageOutputArtifactId):
   }
 }
 
+export function shouldShowConcretisationEmailReviewLink(
+  journeyStage: JourneyStageName | undefined,
+  presentationReady: boolean,
+): boolean {
+  return presentationReady && journeyStage === "concretisation";
+}
+
 export function followupReviewHref(
   opportunityId: string,
   journeyStage: JourneyStageName,

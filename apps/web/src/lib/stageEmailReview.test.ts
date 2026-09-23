@@ -9,6 +9,7 @@ import {
   getStageEmailReviewContext,
   journeyStageForEmailArtifact,
   parseEmailReviewJourneyStage,
+  shouldShowConcretisationEmailReviewLink,
 } from "./stageEmailReview.js";
 import { buildStageOutputHubItems } from "./stageOutputReview.js";
 
@@ -62,6 +63,15 @@ const demoHub = buildStageOutputHubItems(
 const emailHubItem = demoHub.find((item) => item.id === "draft_email");
 assert.match(emailHubItem?.reviewHref ?? "", /journeyStage=deepening/);
 
+assert.equal(shouldShowConcretisationEmailReviewLink("concretisation", true), true);
+assert.equal(shouldShowConcretisationEmailReviewLink("concretisation", false), false);
+assert.equal(shouldShowConcretisationEmailReviewLink("deepening", true), false);
+assert.equal(shouldShowConcretisationEmailReviewLink(undefined, true), false);
+
+const concretisationDeckEmailHref = followupReviewHref("opp-deck", "concretisation", true);
+assert.match(concretisationDeckEmailHref, /journeyStage=concretisation/);
+assert.match(concretisationDeckEmailHref, /demo=1/);
+
 const panelSource = readFileSync(
   fileURLToPath(new URL("../components/FollowupReviewPanel.tsx", import.meta.url)),
   "utf8",
@@ -78,5 +88,11 @@ const deckCenterSource = readFileSync(
 );
 assert.match(deckCenterSource, /PipelineStepper|WorkflowStepIndicator/);
 assert.doesNotMatch(deckCenterSource, /JourneyOutputStepper/);
+assert.match(deckCenterSource, /Review follow-up email/);
+assert.match(deckCenterSource, /shouldShowConcretisationEmailReviewLink/);
+assert.match(deckCenterSource, /followupReviewHref\(\s*opportunityId,\s*"concretisation"/);
+assert.match(deckCenterSource, /data-testid="concretisation-email-review"/);
+assert.match(deckCenterSource, /isStageOutputDemoMode/);
+assert.doesNotMatch(deckCenterSource, /email has been generated|generated email/i);
 
 console.log("MS-35 stage email review tests passed");

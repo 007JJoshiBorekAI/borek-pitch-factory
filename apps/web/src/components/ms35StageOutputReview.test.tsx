@@ -81,6 +81,9 @@ const deckCenterSource = readFileSync(
 );
 assert.match(deckCenterSource, /PipelineStepper|WorkflowStepIndicator/);
 assert.doesNotMatch(deckCenterSource, /JourneyOutputStepper/);
+assert.match(deckCenterSource, /concretisation-email-review/);
+assert.match(deckCenterSource, /followupReviewHref/);
+assert.match(deckCenterSource, /"concretisation"/);
 
 const uploadSource = readFileSync(
   fileURLToPath(new URL("./TranscriptUploadPanel.tsx", import.meta.url)),
