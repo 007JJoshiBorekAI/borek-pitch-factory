@@ -88,6 +88,10 @@ const materialsPanelSource = readFileSync(
   fileURLToPath(new URL("./FirstContactMaterialsPanel.tsx", import.meta.url)),
   "utf8",
 );
+const deepeningReviewSource = readFileSync(
+  fileURLToPath(new URL("./DeepeningReviewPanel.tsx", import.meta.url)),
+  "utf8",
+);
 const reviewPanelSource = readFileSync(
   fileURLToPath(new URL("./FirstContactReviewPanel.tsx", import.meta.url)),
   "utf8",
@@ -101,6 +105,9 @@ assert.match(materialsPanelSource, /MeetingAgendaPanel/);
 assert.match(materialsPanelSource, /FirstMeetingPresentationPanel/);
 assert.match(reviewPanelSource, /Stage1ResearchReviewPanel/);
 assert.match(reviewPanelSource, /DiscoveryQuestionsPanel/);
+assert.match(deepeningReviewSource, /CallSummaryPanel/);
+assert.match(deepeningReviewSource, /AdjustedPresentationPanel/);
+assert.match(deepeningReviewSource, /Demonstration data/);
 assert.match(demoFixtureSource, /first_meeting_3_slide/);
 assert.equal(FIRST_CONTACT_SLIDE_COUNT, 3);
 assert.equal(demoFirstMeetingDeckProfile(), "first_meeting_3_slide");

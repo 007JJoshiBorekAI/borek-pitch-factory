@@ -1,61 +1,59 @@
 import Link from "next/link";
 import React from "react";
 
-import type { PresentationRef } from "@/lib/stage1Contracts";
+import type { Stage2PresentationRef } from "@/lib/stage2Contracts";
 import type { VerifiedStagePresentation } from "@/lib/presentationStageVerification";
 import { pipelineHref } from "@/lib/pipelineContext";
-import { FIRST_CONTACT_SLIDE_COUNT } from "@/lib/stageOutputArtifacts";
-import { presentationUnavailableMessage } from "@/lib/stage1OutputsView";
+import { adjustedPresentationUnavailableMessage } from "@/lib/stage2OutputsView";
 
-export function FirstMeetingPresentationPanel({
+export function AdjustedPresentationPanel({
   presentationRef,
   dependencies = [],
   opportunityId,
   verifiedPresentation,
   demoMode,
 }: {
-  presentationRef: PresentationRef | null;
+  presentationRef: Stage2PresentationRef | null;
   dependencies?: string[];
   opportunityId: string;
   verifiedPresentation?: VerifiedStagePresentation | null;
   demoMode: boolean;
 }) {
-  const profile = presentationRef?.profile ?? "first_meeting_3_slide";
+  const profile = presentationRef?.profile ?? "deepening_adjusted";
   const canOpenDeckCenter = Boolean(verifiedPresentation?.presentationId) && !demoMode;
 
   return (
     <section className="upload-panel stage-review-section">
-      <h2>First-meeting presentation</h2>
+      <h2>Adjusted presentation</h2>
       <p className="stage-review-profile-note">
-        Profile: <code>{profile}</code> · {FIRST_CONTACT_SLIDE_COUNT} slides
+        Profile: <code>{profile}</code>
       </p>
 
       {canOpenDeckCenter && verifiedPresentation ? (
         <>
           <p>
-            A verified First Contact presentation ({verifiedPresentation.profile}) is available
-            for this opportunity. Open the authorized deck center to preview slides and download
-            artifacts.
+            A verified Deepening presentation is available for this opportunity. Open the
+            authorized deck center to preview slides and download artifacts.
           </p>
           <Link
             href={`${pipelineHref("/deck-center", opportunityId)}&presentationId=${encodeURIComponent(verifiedPresentation.presentationId)}`}
             className="btn btn-primary"
           >
-            Open presentation review
+            Open adjusted presentation
           </Link>
         </>
       ) : (
         <div className="stage-review-unavailable">
-          <strong>Presentation unavailable</strong>
+          <strong>Adjusted presentation unavailable</strong>
           <p>
             {presentationRef
-              ? presentationUnavailableMessage(presentationRef, dependencies)
-              : "First-meeting presentation has not been generated yet."}
+              ? adjustedPresentationUnavailableMessage(presentationRef.status, dependencies)
+              : "Adjusted presentation has not been generated yet."}
           </p>
           {!demoMode ? (
             <p className="upload-hint">
-              A deck link requires archive metadata confirming both this opportunity and the First
-              Contact journey stage ({profile}). Slide count alone is not used for verification.
+              A deck link requires archive metadata confirming both this opportunity and the
+              Deepening journey stage. First Contact or Concretisation decks are not linked here.
             </p>
           ) : null}
           {demoMode && presentationRef?.status === "generated" ? (

@@ -1361,6 +1361,52 @@ samp {
   font-size: 0.78rem;
 }
 
+.stage-review-mom-sections article {
+  margin-bottom: 0.85rem;
+}
+
+.stage-review-mom-sections h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.stage-stated-item-list,
+.stage-action-item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stage-stated-item-list > li,
+.stage-action-item-list > li {
+  margin-bottom: 0.85rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.stage-action-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.65rem;
+  margin: 0.45rem 0;
+}
+
+.stage-action-meta dt {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.stage-action-meta dd {
+  margin: 0.1rem 0 0;
+}
+
+.stage-confidence-label {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
 .stage-review-footer {
   margin-top: 1rem;
 }

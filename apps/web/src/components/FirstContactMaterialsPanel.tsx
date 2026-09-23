@@ -8,9 +8,9 @@ import { FirstMeetingPresentationPanel } from "@/components/FirstMeetingPresenta
 import { MeetingAgendaPanel } from "@/components/MeetingAgendaPanel";
 import { StageReviewLayout } from "@/components/StageReviewLayout";
 import {
-  resolveVerifiedFirstMeetingPresentation,
-  type VerifiedFirstMeetingPresentation,
-} from "@/lib/firstMeetingPresentationReview";
+  resolveVerifiedStagePresentation,
+  type VerifiedStagePresentation,
+} from "@/lib/presentationStageVerification";
 import { stage1OutputsDemo } from "@/lib/stageOutputDemoFixtures";
 import { FIRST_CONTACT_SLIDE_COUNT } from "@/lib/stageOutputArtifacts";
 import { isStageOutputDemoMode } from "@/lib/stageOutputReview";
@@ -28,7 +28,7 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
   const [hubItems, setHubItems] = useState<StageOutputHubItem[]>([]);
   const [eligibilityLockCopy, setEligibilityLockCopy] = useState<string | null>(null);
   const [verifiedPresentation, setVerifiedPresentation] =
-    useState<VerifiedFirstMeetingPresentation | null>(null);
+    useState<VerifiedStagePresentation | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -75,7 +75,11 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
         setVerifiedPresentation(null);
         return;
       }
-      const verified = await resolveVerifiedFirstMeetingPresentation(accessToken, opportunityId);
+      const verified = await resolveVerifiedStagePresentation(
+        accessToken,
+        opportunityId,
+        "first_meeting_3_slide",
+      );
       if (active) {
         setVerifiedPresentation(verified);
       }

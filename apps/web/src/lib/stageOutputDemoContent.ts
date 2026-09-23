@@ -71,7 +71,7 @@ export function demoFirstMeetingSlideCount(): number {
 }
 
 export function demoDeepeningSummary(): string {
-  return stage2OutputsDemo.call_summary.text;
+  return stage2OutputsDemo.call_summary.text ?? "";
 }
 
 export function demoDeepeningMomSections(): Array<{ heading: string; body: string }> {

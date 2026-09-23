@@ -9,13 +9,13 @@ import { FirstMeetingPresentationPanel } from "../components/FirstMeetingPresent
 import { MeetingAgendaPanel } from "../components/MeetingAgendaPanel.js";
 import { Stage1ResearchReviewPanel } from "../components/Stage1ResearchReviewPanel.js";
 import { UseCaseListPanel } from "../components/UseCaseListPanel.js";
+import { journeyStageForProfile } from "./presentationStageVerification.js";
 import { stage1OutputsDemo, stage1ResearchDemo } from "./stageOutputDemoFixtures.js";
 import {
   allDiscoveryQuestionsCopyText,
   discoveryQuestionCount,
   sortedAgendaItems,
 } from "./stage1OutputsView.js";
-import { matchesFirstMeetingSlideProfile } from "./firstMeetingPresentationReview.js";
 import {
   companyFactRows,
   factDisplayValue,
@@ -111,20 +111,21 @@ const verifiedPresentationHtml = renderToStaticMarkup(
   <FirstMeetingPresentationPanel
     presentationRef={stage1OutputsDemo.presentation_ref}
     dependencies={[]}
-    opportunityId="opp-1"
+    opportunityId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
     demoMode={false}
     verifiedPresentation={{
       presentationId: "11111111-1111-4111-8111-111111111111",
-      slideCount: 3,
+      presentationVersionId: null,
       profile: "first_meeting_3_slide",
+      journeyStage: "first_contact",
+      opportunityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      verificationSource: "archive_artifact",
     }}
   />,
 );
 assert.match(verifiedPresentationHtml, /Open presentation review/);
 assert.match(verifiedPresentationHtml, /first_meeting_3_slide/);
-
-assert.equal(matchesFirstMeetingSlideProfile(3), true);
-assert.equal(matchesFirstMeetingSlideProfile(8), false);
+assert.equal(journeyStageForProfile("first_meeting_3_slide"), "first_contact");
 
 const reviewPanelSource = readFileSync(
   fileURLToPath(new URL("../components/FirstContactReviewPanel.tsx", import.meta.url)),
@@ -150,7 +151,8 @@ const materialsSource = readFileSync(
   fileURLToPath(new URL("../components/FirstContactMaterialsPanel.tsx", import.meta.url)),
   "utf8",
 );
-assert.match(materialsSource, /resolveVerifiedFirstMeetingPresentation/);
-assert.doesNotMatch(materialsSource, /setLivePresentation/);
+assert.match(materialsSource, /resolveVerifiedStagePresentation/);
+assert.doesNotMatch(materialsSource, /getLatestPresentation/);
+assert.doesNotMatch(materialsSource, /slides\.length/);
 
 console.log("MS-35 stage1 output review tests passed");
