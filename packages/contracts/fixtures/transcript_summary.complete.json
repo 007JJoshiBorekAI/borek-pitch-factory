@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "transcript_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "conversation_id": "C1",
+  "opportunity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "prompt_version": "transcript-summary:v1",
+  "participants": [
+    {
+      "name": "Anna Keller",
+      "role": "Head of Finance",
+      "organisation": "Acme GmbH"
+    },
+    {
+      "name": "Jonas Meier",
+      "role": "Account Executive",
+      "organisation": "Borek"
+    }
+  ],
+  "meeting_facts": [
+    {
+      "text": "Acme uses SAP as the system of record for finance.",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "client",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "confidence": "high"
+    },
+    {
+      "text": "Month-end reconciliation still relies on shared Excel workbooks.",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "client",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Proceed with a six-week discovery for finance close automation.",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "client",
+          "excerpt_pointer": "turn:12"
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Share sample reconciliation workbook",
+      "owner": "Anna Keller",
+      "due": "TBD",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "client",
+          "excerpt_pointer": "turn:15"
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "open_questions": [
+    {
+      "text": "Which SAP modules export the reconciliation data?",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "borek",
+          "excerpt_pointer": "turn:18"
+        }
+      ],
+      "confidence": "medium"
+    }
+  ],
+  "requirements_and_constraints": [
+    {
+      "text": "All automation artifacts must remain in EU-hosted infrastructure.",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "client",
+          "excerpt_pointer": "turn:8"
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "metadata": {
+    "summary_truncated": false,
+    "uncertainty_notes": [],
+    "source_turn_count": 22,
+    "summarized_turn_count": 22
+  }
+}

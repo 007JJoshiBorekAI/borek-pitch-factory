@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "opportunity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "journey_stage": "deepening",
+  "prompt_version": "stage2-outputs:v1",
+  "transcript_summary_ref": {
+    "artifact_kind": "transcript_summary",
+    "schema_version": "1.0",
+    "transcript_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    "conversation_id": "C1"
+  },
+  "call_summary": {
+    "status": "unknown",
+    "origin": "UNKNOWN",
+    "text": null,
+    "source_refs": []
+  },
+  "minutes_of_meeting": {
+    "status": "unknown",
+    "origin": "UNKNOWN",
+    "sections": [],
+    "source_refs": []
+  },
+  "decisions": [],
+  "action_items": [],
+  "open_questions": [],
+  "presentation_ref": {
+    "status": "unknown",
+    "profile": "deepening_adjusted",
+    "presentation_id": null,
+    "presentation_version_id": null
+  },
+  "dependencies": [
+    "TRANSCRIPT_SUMMARY_UNAVAILABLE",
+    "CALL_SUMMARY_NOT_RUN",
+    "MOM_NOT_RUN"
+  ]
+}

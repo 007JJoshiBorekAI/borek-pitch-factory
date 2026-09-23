@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/transcript_summary.schema.json",
+  "title": "TranscriptSummary",
+  "description": "BT-36 v1: Structured meeting transcript summary. Raw turns remain in storage for audit; only this object may be injected into downstream LLM prompts. Stated facts only — never inferred or embellished.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transcript_id",
+    "conversation_id",
+    "opportunity_id",
+    "prompt_version",
+    "participants",
+    "meeting_facts",
+    "decisions",
+    "action_items",
+    "open_questions",
+    "requirements_and_constraints",
+    "metadata"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "transcript_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "conversation_id": {
+      "type": "string",
+      "pattern": "^C\\d+$"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "e.g. transcript-summary:v1. Persisted on the summarization call."
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Participant"
+      }
+    },
+    "meeting_facts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StatedFact"
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StatedFact"
+      }
+    },
+    "action_items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ActionItem"
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StatedFact"
+      }
+    },
+    "requirements_and_constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StatedFact"
+      }
+    },
+    "metadata": {
+      "$ref": "#/$defs/SummaryMetadata"
+    }
+  },
+  "$defs": {
+    "TranscriptTurnRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conversation_id",
+        "speaker_role",
+        "excerpt_pointer"
+      ],
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "pattern": "^C\\d+$"
+        },
+        "speaker_role": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "excerpt_pointer": {
+          "type": "string",
+          "pattern": "^turn:\\d+$"
+        }
+      }
+    },
+    "Participant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "role",
+        "organisation"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "role": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "organisation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "StatedFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "origin",
+        "source_refs",
+        "confidence"
+      ],
+      "properties": {
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "origin": {
+          "enum": [
+            "SOURCE_FACT",
+            "UNKNOWN"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TranscriptTurnRef"
+          }
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "unknown"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "origin": {
+                "const": "SOURCE_FACT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "source_refs": {
+                "minItems": 1
+              },
+              "confidence": {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "origin": {
+                "const": "UNKNOWN"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "null"
+              },
+              "source_refs": {
+                "maxItems": 0
+              },
+              "confidence": {
+                "const": "unknown"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ActionItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "owner",
+        "due",
+        "origin",
+        "source_refs",
+        "confidence"
+      ],
+      "properties": {
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "owner": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "due": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "DD.MM.YYYY or TBD when stated in the transcript."
+        },
+        "origin": {
+          "enum": [
+            "SOURCE_FACT",
+            "UNKNOWN"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TranscriptTurnRef"
+          }
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "unknown"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "origin": {
+                "const": "SOURCE_FACT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source_refs": {
+                "minItems": 1
+              },
+              "confidence": {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              },
+              "due": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]{2}\\.[0-9]{2}\\.[0-9]{4}$"
+                  },
+                  {
+                    "const": "TBD"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SummaryMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary_truncated",
+        "uncertainty_notes",
+        "source_turn_count",
+        "summarized_turn_count"
+      ],
+      "properties": {
+        "summary_truncated": {
+          "type": "boolean",
+          "description": "True when output was clipped to fit the model token budget."
+        },
+        "uncertainty_notes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "description": "Explicit notes where speaker attribution, dates, or facts were unclear."
+        },
+        "source_turn_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of parsed speaker turns in the raw transcript."
+        },
+        "summarized_turn_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of turns represented in this summary (may be less when truncated)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "summary_truncated": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "summarized_turn_count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

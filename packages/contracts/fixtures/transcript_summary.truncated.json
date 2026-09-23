@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "transcript_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "conversation_id": "C1",
+  "opportunity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "prompt_version": "transcript-summary:v1",
+  "participants": [
+    {
+      "name": "Unknown speaker",
+      "role": null,
+      "organisation": null
+    }
+  ],
+  "meeting_facts": [
+    {
+      "text": "Long workshop covered multiple workstreams; only the first hour is summarized here.",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "client",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "confidence": "medium"
+    }
+  ],
+  "decisions": [],
+  "action_items": [],
+  "open_questions": [
+    {
+      "text": "Speaker attribution unclear for budget approval comment in turn 87.",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "unknown",
+          "excerpt_pointer": "turn:87"
+        }
+      ],
+      "confidence": "low"
+    }
+  ],
+  "requirements_and_constraints": [],
+  "metadata": {
+    "summary_truncated": true,
+    "uncertainty_notes": [
+      "Summary clipped at token budget; turns 41–120 omitted.",
+      "Participant names for two speakers could not be confirmed."
+    ],
+    "source_turn_count": 120,
+    "summarized_turn_count": 40
+  }
+}

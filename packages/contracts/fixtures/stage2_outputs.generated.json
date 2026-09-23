@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "opportunity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "journey_stage": "deepening",
+  "prompt_version": "stage2-outputs:v1",
+  "transcript_summary_ref": {
+    "artifact_kind": "transcript_summary",
+    "schema_version": "1.0",
+    "transcript_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    "conversation_id": "C1",
+    "generated_at": "2026-09-22T14:30:00Z"
+  },
+  "call_summary": {
+    "status": "generated",
+    "origin": "SOURCE_FACT",
+    "text": "Acme confirmed finance close automation as the pilot scope. SAP remains the system of record. EU data residency is mandatory.",
+    "source_refs": [
+      {
+        "conversation_id": "C1",
+        "speaker_role": "client",
+        "excerpt_pointer": "turn:4"
+      }
+    ]
+  },
+  "minutes_of_meeting": {
+    "status": "generated",
+    "origin": "SOURCE_FACT",
+    "sections": [
+      {
+        "heading": "Scope confirmation",
+        "body": "Pilot limited to month-end reconciliation between SAP and shared Excel workbooks.",
+        "source_refs": [
+          {
+            "conversation_id": "C1",
+            "speaker_role": "client",
+            "excerpt_pointer": "turn:6"
+          }
+        ]
+      },
+      {
+        "heading": "Compliance",
+        "body": "All automation artifacts must remain in EU-hosted infrastructure.",
+        "source_refs": [
+          {
+            "conversation_id": "C1",
+            "speaker_role": "client",
+            "excerpt_pointer": "turn:8"
+          }
+        ]
+      }
+    ],
+    "source_refs": [
+      {
+        "conversation_id": "C1",
+        "speaker_role": "client",
+        "excerpt_pointer": "turn:6"
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "text": "Proceed with a six-week discovery for finance close automation.",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "client",
+          "excerpt_pointer": "turn:12"
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Share sample reconciliation workbook",
+      "owner": "Anna Keller",
+      "due": "TBD",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "client",
+          "excerpt_pointer": "turn:15"
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "open_questions": [
+    {
+      "text": "Which SAP modules export the reconciliation data?",
+      "origin": "SOURCE_FACT",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "borek",
+          "excerpt_pointer": "turn:18"
+        }
+      ],
+      "confidence": "medium"
+    }
+  ],
+  "presentation_ref": {
+    "status": "pending",
+    "profile": "deepening_adjusted",
+    "presentation_id": null,
+    "presentation_version_id": null
+  },
+  "email_draft": {
+    "status": "pending",
+    "followup_extraction_id": null
+  },
+  "dependencies": []
+}

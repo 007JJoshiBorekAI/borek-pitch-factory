@@ -1,0 +1,715 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/stage1_outputs.schema.json",
+  "title": "Stage1Outputs",
+  "description": "BT-36 v1: First-contact expected outputs — discovery questions, use-case matches, first-meeting agenda, and references to BT-34 research and first-meeting presentation artifacts. Source-backed facts are separate from AI hypotheses.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "journey_stage",
+    "prompt_version",
+    "research_ref",
+    "discovery_questions",
+    "use_cases",
+    "meeting_agenda",
+    "presentation_ref",
+    "dependencies"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "journey_stage": {
+      "const": "first_contact"
+    },
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "e.g. stage1-outputs:v1. Persisted on the generation call."
+    },
+    "research_ref": {
+      "$ref": "#/$defs/ResearchRef"
+    },
+    "discovery_questions": {
+      "$ref": "#/$defs/DiscoveryQuestionCollection"
+    },
+    "use_cases": {
+      "$ref": "#/$defs/UseCaseCollection"
+    },
+    "meeting_agenda": {
+      "$ref": "#/$defs/MeetingAgenda"
+    },
+    "presentation_ref": {
+      "$ref": "#/$defs/PresentationRef"
+    },
+    "email_draft": {
+      "$ref": "#/$defs/OptionalEmailDraft"
+    },
+    "dependencies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "STAGE1_RESEARCH_UNAVAILABLE",
+          "CLIENT_DOCUMENTS_UNAVAILABLE",
+          "USE_CASE_CORPUS_UNAVAILABLE",
+          "DISCOVERY_QUESTIONS_NOT_RUN",
+          "AGENDA_NOT_RUN",
+          "PRESENTATION_NOT_RUN"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "SourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "locator",
+        "excerpt"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "excerpt": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "CorpusSourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "title",
+        "excerpt"
+      ],
+      "properties": {
+        "entry_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Stable id from knowledge_corpus.json / AT-59."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "excerpt": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "ResearchRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_kind",
+        "schema_version",
+        "opportunity_id"
+      ],
+      "properties": {
+        "artifact_kind": {
+          "const": "stage1_research"
+        },
+        "schema_version": {
+          "const": "1.0"
+        },
+        "opportunity_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "PresentationRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "profile",
+        "presentation_id",
+        "presentation_version_id"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pending",
+            "generated",
+            "unknown"
+          ]
+        },
+        "profile": {
+          "const": "first_meeting_3_slide"
+        },
+        "presentation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "presentation_version_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "generated"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "presentation_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "presentation_version_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "OptionalEmailDraft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_requested",
+            "pending",
+            "generated",
+            "unknown"
+          ]
+        },
+        "followup_extraction_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        }
+      }
+    },
+    "DiscoveryQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_id",
+        "text",
+        "origin",
+        "status"
+      ],
+      "properties": {
+        "question_id": {
+          "type": "string",
+          "pattern": "^Q\\d+$"
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "origin": {
+          "enum": [
+            "SOURCE_FACT",
+            "AI_INFERENCE"
+          ]
+        },
+        "status": {
+          "enum": [
+            "generated",
+            "unknown"
+          ]
+        },
+        "basis": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "generated"
+              },
+              "origin": {
+                "const": "AI_INFERENCE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "basis": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "generated"
+              },
+              "origin": {
+                "const": "SOURCE_FACT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "source_refs": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "null"
+              },
+              "basis": {
+                "maxItems": 0
+              },
+              "source_refs": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "DiscoveryQuestionCollection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "items"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "generated",
+            "unknown"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DiscoveryQuestion"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "generated"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "minItems": 10,
+                "maxItems": 15
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "UseCaseMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "use_case_id",
+        "title",
+        "relevance_summary",
+        "origin",
+        "status"
+      ],
+      "properties": {
+        "use_case_id": {
+          "type": "string",
+          "pattern": "^UC\\d+$"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "relevance_summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "origin": {
+          "enum": [
+            "SOURCE_FACT",
+            "AI_INFERENCE"
+          ]
+        },
+        "status": {
+          "enum": [
+            "matched",
+            "none_found",
+            "unknown"
+          ]
+        },
+        "basis": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CorpusSourceRef"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "matched"
+              },
+              "origin": {
+                "const": "SOURCE_FACT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "relevance_summary": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "source_refs": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "matched"
+              },
+              "origin": {
+                "const": "AI_INFERENCE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "relevance_summary": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "basis": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "none_found",
+                  "unknown"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "title": {
+                "type": "null"
+              },
+              "relevance_summary": {
+                "type": "null"
+              },
+              "basis": {
+                "maxItems": 0
+              },
+              "source_refs": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "UseCaseCollection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "items"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "generated",
+            "unknown"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UseCaseMatch"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AgendaItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order",
+        "topic"
+      ],
+      "properties": {
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "duration_minutes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "MeetingAgenda": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "origin",
+        "items",
+        "source_refs"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "generated",
+            "unknown"
+          ]
+        },
+        "origin": {
+          "enum": [
+            "AI_INFERENCE",
+            "SOURCE_FACT"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AgendaItem"
+          }
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "generated"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "maxItems": 0
+              },
+              "source_refs": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

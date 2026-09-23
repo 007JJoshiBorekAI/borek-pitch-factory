@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "opportunity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "journey_stage": "first_contact",
+  "prompt_version": "stage1-outputs:v1",
+  "research_ref": {
+    "artifact_kind": "stage1_research",
+    "schema_version": "1.0",
+    "opportunity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+  },
+  "discovery_questions": {
+    "status": "unknown",
+    "items": []
+  },
+  "use_cases": {
+    "status": "unknown",
+    "items": []
+  },
+  "meeting_agenda": {
+    "status": "unknown",
+    "origin": "AI_INFERENCE",
+    "items": [],
+    "source_refs": []
+  },
+  "presentation_ref": {
+    "status": "unknown",
+    "profile": "first_meeting_3_slide",
+    "presentation_id": null,
+    "presentation_version_id": null
+  },
+  "dependencies": [
+    "STAGE1_RESEARCH_UNAVAILABLE",
+    "DISCOVERY_QUESTIONS_NOT_RUN",
+    "AGENDA_NOT_RUN",
+    "PRESENTATION_NOT_RUN"
+  ]
+}

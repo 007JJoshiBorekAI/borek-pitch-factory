@@ -1,0 +1,602 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/stage2_outputs.schema.json",
+  "title": "Stage2Outputs",
+  "description": "BT-36 v1: Deepening expected outputs — call summary, minutes of meeting, decisions, action items, open questions, and adjusted presentation references. Downstream prompts consume transcript_summary only, never raw turns.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "journey_stage",
+    "prompt_version",
+    "transcript_summary_ref",
+    "call_summary",
+    "minutes_of_meeting",
+    "decisions",
+    "action_items",
+    "open_questions",
+    "presentation_ref",
+    "dependencies"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "journey_stage": {
+      "const": "deepening"
+    },
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "e.g. stage2-outputs:v1. Persisted on the generation call."
+    },
+    "transcript_summary_ref": {
+      "$ref": "#/$defs/TranscriptSummaryRef"
+    },
+    "call_summary": {
+      "$ref": "#/$defs/SummaryBlock"
+    },
+    "minutes_of_meeting": {
+      "$ref": "#/$defs/MinutesOfMeeting"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StatedItem"
+      }
+    },
+    "action_items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ActionItem"
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StatedItem"
+      }
+    },
+    "presentation_ref": {
+      "$ref": "#/$defs/PresentationRef"
+    },
+    "email_draft": {
+      "$ref": "#/$defs/OptionalEmailDraft"
+    },
+    "dependencies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "TRANSCRIPT_SUMMARY_UNAVAILABLE",
+          "MEETING_FEEDBACK_UNAVAILABLE",
+          "CALL_SUMMARY_NOT_RUN",
+          "MOM_NOT_RUN",
+          "PRESENTATION_NOT_RUN"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "TranscriptTurnRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conversation_id",
+        "speaker_role",
+        "excerpt_pointer"
+      ],
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "pattern": "^C\\d+$"
+        },
+        "speaker_role": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "excerpt_pointer": {
+          "type": "string",
+          "pattern": "^turn:\\d+$"
+        }
+      }
+    },
+    "TranscriptSummaryRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_kind",
+        "schema_version",
+        "transcript_id",
+        "conversation_id"
+      ],
+      "properties": {
+        "artifact_kind": {
+          "const": "transcript_summary"
+        },
+        "schema_version": {
+          "const": "1.0"
+        },
+        "transcript_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "conversation_id": {
+          "type": "string",
+          "pattern": "^C\\d+$"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "SummaryBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "origin",
+        "text",
+        "source_refs"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "generated",
+            "unknown"
+          ]
+        },
+        "origin": {
+          "enum": [
+            "SOURCE_FACT",
+            "UNKNOWN"
+          ]
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 8000,
+          "pattern": "\\S"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TranscriptTurnRef"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "generated"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origin": {
+                "const": "SOURCE_FACT"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "source_refs": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origin": {
+                "const": "UNKNOWN"
+              },
+              "text": {
+                "type": "null"
+              },
+              "source_refs": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "MomSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "heading",
+        "body",
+        "source_refs"
+      ],
+      "properties": {
+        "heading": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TranscriptTurnRef"
+          }
+        }
+      }
+    },
+    "MinutesOfMeeting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "origin",
+        "sections",
+        "source_refs"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "generated",
+            "unknown"
+          ]
+        },
+        "origin": {
+          "enum": [
+            "SOURCE_FACT",
+            "UNKNOWN"
+          ]
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MomSection"
+          }
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TranscriptTurnRef"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "generated"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origin": {
+                "const": "SOURCE_FACT"
+              },
+              "sections": {
+                "minItems": 1
+              },
+              "source_refs": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origin": {
+                "const": "UNKNOWN"
+              },
+              "sections": {
+                "maxItems": 0
+              },
+              "source_refs": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "StatedItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "origin",
+        "source_refs",
+        "confidence"
+      ],
+      "properties": {
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "origin": {
+          "enum": [
+            "SOURCE_FACT",
+            "UNKNOWN"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TranscriptTurnRef"
+          }
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "unknown"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "origin": {
+                "const": "SOURCE_FACT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "source_refs": {
+                "minItems": 1
+              },
+              "confidence": {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "origin": {
+                "const": "UNKNOWN"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "null"
+              },
+              "source_refs": {
+                "maxItems": 0
+              },
+              "confidence": {
+                "const": "unknown"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ActionItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "owner",
+        "due",
+        "origin",
+        "source_refs",
+        "confidence"
+      ],
+      "properties": {
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "owner": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "due": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "DD.MM.YYYY or TBD when stated in the transcript summary."
+        },
+        "origin": {
+          "enum": [
+            "SOURCE_FACT",
+            "UNKNOWN"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TranscriptTurnRef"
+          }
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "unknown"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "origin": {
+                "const": "SOURCE_FACT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source_refs": {
+                "minItems": 1
+              },
+              "confidence": {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              },
+              "due": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]{2}\\.[0-9]{2}\\.[0-9]{4}$"
+                  },
+                  {
+                    "const": "TBD"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "PresentationRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "profile",
+        "presentation_id",
+        "presentation_version_id"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pending",
+            "generated",
+            "unknown"
+          ]
+        },
+        "profile": {
+          "const": "deepening_adjusted"
+        },
+        "presentation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "presentation_version_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "generated"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "presentation_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "presentation_version_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "OptionalEmailDraft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_requested",
+            "pending",
+            "generated",
+            "unknown"
+          ]
+        },
+        "followup_extraction_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        }
+      }
+    }
+  }
+}
