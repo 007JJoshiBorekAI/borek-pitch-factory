@@ -246,18 +246,30 @@ def test_knowledge_model_checkpoints_are_job_scoped_and_owner_protected() -> Non
     assert "GRANT ALL ON public.knowledge_model_checkpoints TO service_role" in content
 
 
-def test_bt36_stage_outputs_columns() -> None:
-    content = (MIGRATIONS_DIR / "030_bt36_stage_outputs.sql").read_text(encoding="utf-8")
-    assert "ADD COLUMN IF NOT EXISTS meeting_feedback_text" in content
-    assert "ADD COLUMN IF NOT EXISTS stage1_outputs JSONB" in content
-    assert "ADD COLUMN IF NOT EXISTS stage2_outputs JSONB" in content
-    assert "ADD COLUMN IF NOT EXISTS email_drafts JSONB" in content
+def test_bt35_client_documents_tables_and_storage() -> None:
     content = (MIGRATIONS_DIR / "029_client_documents.sql").read_text(encoding="utf-8")
     assert "CREATE TABLE IF NOT EXISTS client_documents" in content
     assert "CREATE TABLE IF NOT EXISTS client_document_sections" in content
     assert "document_key TEXT NOT NULL" in content
     assert "bucket_id = 'client_documents'" in content
     assert "ENABLE ROW LEVEL SECURITY" in content
+
+
+def test_bt36_stage_outputs_columns() -> None:
+    content = (MIGRATIONS_DIR / "030_bt36_stage_outputs.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS meeting_feedback_text" in content
+    assert "ADD COLUMN IF NOT EXISTS stage1_outputs JSONB" in content
+    assert "ADD COLUMN IF NOT EXISTS stage2_outputs JSONB" in content
+    assert "ADD COLUMN IF NOT EXISTS email_drafts JSONB" in content
+
+
+def test_bt36_transcript_summaries_are_numbered_031() -> None:
+    names = sorted(path.name for path in MIGRATIONS_DIR.glob("030_*.sql"))
+    assert names == ["030_bt36_stage_outputs.sql"]
+    content = (MIGRATIONS_DIR / "031_transcript_summaries.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS public.transcript_summaries" in content
+    assert "ENABLE ROW LEVEL SECURITY" in content
+    assert "GRANT ALL ON public.transcript_summaries TO service_role" in content
 
 
 def test_d3_employee_roles_and_activity_document_id() -> None:

@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from app.auth import create_test_access_token
 from app.config import settings
 from app.main import create_app
-from app.services.data.memory_store import reset_memory_store
+from app.services.data.memory_store import get_memory_store, reset_memory_store
 
 OWNER = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 
@@ -166,3 +166,60 @@ def test_email_drafts_three_lengths_confirm_never_sends() -> None:
     assert confirmed.json()["draft"]["status"] == "confirmed"
     assert confirmed.json()["draft"]["send_status"] == "not_sent"
     assert confirmed.json()["draft"]["selected_length"] == "short"
+
+
+def test_stage1_outputs_unlock_deepening_without_first_contact_deck() -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    locked = client.get(
+        f"/opportunities/{opportunity_id}/journey-stage-eligibility",
+        headers=headers(),
+        params={"journey_stage": "deepening"},
+    )
+    assert locked.status_code == 200
+    assert locked.json()["startable"] is False
+    client.post(
+        f"/opportunities/{opportunity_id}/client-documents",
+        headers=headers(),
+        files={"file": ("brief.txt", b"Client background material.", "text/plain")},
+    )
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        headers=headers(),
+    )
+    assert generated.status_code == 200, generated.text
+    opened = client.get(
+        f"/opportunities/{opportunity_id}/journey-stage-eligibility",
+        headers=headers(),
+        params={"journey_stage": "deepening"},
+    )
+    assert opened.json()["startable"] is True
+    assert opened.json()["next_action"] is None
+
+
+def test_stage2_generate_persists_transcript_summary_row() -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    client.post(
+        f"/opportunities/{opportunity_id}/transcripts",
+        headers=headers(),
+        files={
+            "file": (
+                "call.txt",
+                b"Ada: We agreed REST.\nBob: I will send the protocol.\n",
+                "text/plain",
+            )
+        },
+    )
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/stage2-outputs/generate",
+        headers=headers(),
+    )
+    assert generated.status_code == 200, generated.text
+    store = get_memory_store()
+    assert len(store.transcript_summaries) == 1
+    row = next(iter(store.transcript_summaries.values()))
+    assert row["prompt_version"] == "transcript-summarizing:v1"
+    assert row["summary_json"]["schema_version"] == "1.0"

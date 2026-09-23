@@ -17,6 +17,7 @@ from app.services.knowledge_access import resolve_active_corpus
 from app.services.stage1 import get_company_research_provider
 from services.framework.stage1_research import generate_stage1_research
 from services.transcript.summarize import (
+    PROMPT_VERSION as TRANSCRIPT_SUMMARY_PROMPT_VERSION,
     format_transcript_summary_for_prompt,
     summarize_speaker_sections,
 )
@@ -228,6 +229,16 @@ def generate_stage2_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) 
         user_id=user_id,
         updates={"stage2_outputs": payload},
     )
+    upsert = getattr(store, "upsert_transcript_summary", None)
+    if callable(upsert):
+        upsert(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            transcript_id=UUID(str(source["id"])),
+            conversation_id=str(source.get("conversation_id") or ""),
+            summary_json=summary,
+            prompt_version=TRANSCRIPT_SUMMARY_PROMPT_VERSION,
+        )
     return payload
 
 

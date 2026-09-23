@@ -22,7 +22,9 @@ Stage 2 `outputs.transcript_summary` is the contract object. Call summary / MOM 
 
 Existing `POST /stage1-research` still works; Stage 1 generate also embeds `outputs.research`.
 
-Contracts: `packages/contracts/stage1_outputs.schema.json`, `stage2_outputs.schema.json`, `transcript_summary.schema.json`.
+Contracts for **MS-35 GET/POST retrieve**: `packages/contracts/stage1_outputs.schema.json` and `stage2_outputs.schema.json` on **`main`** (envelope `{ status, outputs }`). Do not wire against `origin/bt/bt36-stage-outputs` generation schemas even though the filenames match.
+
+`030_bt36_stage_outputs.sql` is the live retrieve migration. Transcript summary **table** is `031_transcript_summaries.sql` (never a second `030`).
 
 ## Deepening meeting feedback and optional documents
 
