@@ -1,6 +1,5 @@
 import React from "react";
 
-import { AppPageHeader } from "@/components/AppPageHeader";
 import {
   FOLLOWUP_CHECKLIST,
   followupContentWordCount,
@@ -12,13 +11,15 @@ import {
   type FollowupProjectStatics,
   type FollowupRecipient,
 } from "@/lib/followupReview";
+import type { StageEmailReviewContext } from "@/lib/stageEmailReview";
 
 export interface FollowupReviewViewProps {
-  clientName: string;
-  opportunityName: string;
+  stageContext: StageEmailReviewContext;
+  demoMode: boolean;
   statics: FollowupProjectStatics;
   staticsSaved: boolean;
   draft: FollowupDraft | null;
+  draftUnavailable: boolean;
   checklist: FollowupChecklistState;
   acknowledgedFlags: ReadonlySet<string>;
   canConfirm: boolean;
@@ -34,11 +35,12 @@ export interface FollowupReviewViewProps {
 }
 
 export function FollowupReviewView({
-  clientName,
-  opportunityName,
+  stageContext,
+  demoMode,
   statics,
   staticsSaved,
   draft,
+  draftUnavailable,
   checklist,
   acknowledgedFlags,
   canConfirm,
@@ -86,20 +88,14 @@ export function FollowupReviewView({
 
   return (
     <div className="followup-review-page">
-      <AppPageHeader
-        kicker="Meeting follow-up"
-        title="Review the client email"
-        lead="Check the exact subject, wording, names, dates, and intended recipient before anything reaches Outlook."
-      />
-
-      <div className="followup-context" aria-label="Opportunity">
-        <span>{clientName}</span>
-        <strong>{opportunityName}</strong>
-        <span className="followup-fixture-badge">JJ-32 fixture review</span>
-      </div>
+      {stageContext.sourceBadgeLabel ? (
+        <div className="followup-source-badge-row">
+          <span className="followup-fixture-badge">{stageContext.sourceBadgeLabel}</span>
+        </div>
+      ) : null}
 
       <div className="alert alert-info followup-unsent-note">
-        This is a review fixture only. No Outlook draft or client email has been created or sent.
+        {stageContext.unsentNote}
       </div>
       {error ? <p className="alert alert-error" role="alert">{error}</p> : null}
       {info ? <p className="alert alert-info" role="status">{info}</p> : null}
@@ -205,6 +201,11 @@ export function FollowupReviewView({
 
       {draft ? (
         <>
+          {demoMode ? (
+            <div className="alert alert-info followup-demo-draft-note" role="status">
+              Demonstration email content only — not a live client draft from the backend.
+            </div>
+          ) : null}
           <section className="upload-panel followup-draft-panel">
             <header className="upload-panel-header">
               <div>
@@ -241,7 +242,7 @@ export function FollowupReviewView({
             <header className="upload-panel-header">
               <div>
                 <h2>Required review</h2>
-                <p>Confirm each statement against the meeting before marking this fixture reviewed.</p>
+                <p>{stageContext.checklistIntro}</p>
               </div>
             </header>
             <div className="followup-checklist">
@@ -267,13 +268,18 @@ export function FollowupReviewView({
               <button type="button" className="btn btn-primary" data-testid="followup-confirm-review" onClick={onConfirm} disabled={!canConfirm || busy || locked}>
                 {draft.status === "reviewed" ? "Reviewed - not sent" : draft.status === "sent" ? "Sent" : "Confirm review"}
               </button>
-              <p>Confirmation never sends an email. BT-33 must persist an Outlook draft before this fixture can become a live review.</p>
+              <p>{stageContext.confirmHint}</p>
             </div>
           </section>
         </>
+      ) : draftUnavailable ? (
+        <section className="stage-review-unavailable followup-draft-unavailable">
+          <strong>{stageContext.draftUnavailableTitle}</strong>
+          <p>{stageContext.draftUnavailableMessage}</p>
+        </section>
       ) : (
         <section className="recent-state-card">
-          <p>Save valid project email settings to prepare the JJ-32 fixture for review.</p>
+          <p>Save valid project email settings to prepare email review for this stage.</p>
         </section>
       )}
     </div>

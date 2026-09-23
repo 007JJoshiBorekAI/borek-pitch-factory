@@ -12,6 +12,7 @@ import {
   type FollowupExtraction,
   type FollowupProjectStatics,
 } from "../lib/followupReview.js";
+import { getStageEmailReviewContext } from "../lib/stageEmailReview.js";
 
 const statics: FollowupProjectStatics = {
   project_name: "Acme Invoice Pilot",
@@ -35,15 +36,21 @@ const statics: FollowupProjectStatics = {
 };
 const draft = renderFollowupDraft(workshopClear as FollowupExtraction, statics);
 const checks = emptyFollowupChecklist();
+const deepeningContext = getStageEmailReviewContext("deepening", false);
+const demoContext = getStageEmailReviewContext("deepening", true);
 
-function render(status: "draft" | "reviewed" | "sent" = "draft") {
+function render(
+  status: "draft" | "reviewed" | "sent" = "draft",
+  overrides: Partial<React.ComponentProps<typeof FollowupReviewView>> = {},
+) {
   return renderToStaticMarkup(
     <FollowupReviewView
-      clientName="Acme"
-      opportunityName="Invoice Pilot"
+      stageContext={deepeningContext}
+      demoMode={false}
       statics={statics}
       staticsSaved
       draft={{ ...draft, status }}
+      draftUnavailable={false}
       checklist={checks}
       acknowledgedFlags={new Set()}
       canConfirm={false}
@@ -56,15 +63,14 @@ function render(status: "draft" | "reviewed" | "sent" = "draft") {
       onChecklistChange={() => undefined}
       onFlagChange={() => undefined}
       onConfirm={() => undefined}
+      {...overrides}
     />,
   );
 }
 
 const html = render();
-assert.match(html, /Review the client email/);
-assert.match(html, /JJ-32 fixture review/);
-assert.match(html, /No Outlook draft or client email has been created or sent/);
-assert.match(html, /Acme Invoice Pilot/);
+assert.equal(deepeningContext.title, "Review the client email");
+assert.match(html, /Review only — no Outlook draft or client email has been created or sent/);
 assert.match(html, /Requirements Workshop/);
 assert.match(html, /Interface will be REST, not SOAP/);
 assert.match(html, /Provide test invoices/);
@@ -74,6 +80,36 @@ assert.match(html, /No attachment is referenced, or every referenced attachment 
 assert.match(html, /No extraction flags require acknowledgement/);
 assert.match(html, /Confirm review/);
 assert.doesNotMatch(html, />Send</);
+
+const demoHtml = render("draft", { stageContext: demoContext, demoMode: true });
+assert.match(demoHtml, /MS-35 demonstration email/);
+assert.match(demoHtml, /Demonstration email content only/);
+
+const unavailableHtml = renderToStaticMarkup(
+  <FollowupReviewView
+    stageContext={deepeningContext}
+    demoMode={false}
+    statics={statics}
+    staticsSaved
+    draft={null}
+    draftUnavailable
+    checklist={checks}
+    acknowledgedFlags={new Set()}
+    canConfirm={false}
+    busy={false}
+    error={null}
+    info={null}
+    onStaticsChange={() => undefined}
+    onSaveStatics={() => undefined}
+    onDraftChange={() => undefined}
+    onChecklistChange={() => undefined}
+    onFlagChange={() => undefined}
+    onConfirm={() => undefined}
+  />,
+);
+assert.match(unavailableHtml, /No live email draft yet/);
+assert.match(unavailableHtml, /BT-36 Stage 2 output GET endpoints/);
+assert.doesNotMatch(unavailableHtml, /Requirements Workshop/);
 
 const withCc = structuredClone(statics);
 withCc.standard_recipients.push({
@@ -86,11 +122,12 @@ withCc.standard_recipients.push({
 });
 const recipientsHtml = renderToStaticMarkup(
   <FollowupReviewView
-    clientName="Acme"
-    opportunityName="Invoice Pilot"
+    stageContext={deepeningContext}
+    demoMode={false}
     statics={withCc}
     staticsSaved
     draft={renderFollowupDraft(workshopClear as FollowupExtraction, withCc)}
+    draftUnavailable={false}
     checklist={checks}
     acknowledgedFlags={new Set()}
     canConfirm={false}
@@ -111,11 +148,12 @@ assert.match(recipientsHtml, /Remove/);
 
 const setupHtml = renderToStaticMarkup(
   <FollowupReviewView
-    clientName="Acme"
-    opportunityName="Invoice Pilot"
+    stageContext={deepeningContext}
+    demoMode={false}
     statics={statics}
     staticsSaved={false}
     draft={null}
+    draftUnavailable={false}
     checklist={checks}
     acknowledgedFlags={new Set()}
     canConfirm={false}
@@ -146,7 +184,7 @@ const panelSource = readFileSync(
   "utf8",
 );
 assert.doesNotMatch(panelSource, /\/send\b|sendEmail|sendFollowup/);
-assert.match(panelSource, /Fixture reviewed - not sent/);
+assert.match(panelSource, /confirmReviewedMessage/);
 assert.match(panelSource, /setChecklist\(emptyFollowupChecklist\(\)\)/);
 
 const css = readFileSync(fileURLToPath(new URL("../app/globals.css", import.meta.url)), "utf8");

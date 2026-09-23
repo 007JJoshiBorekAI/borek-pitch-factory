@@ -1,27 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
-import { FollowupReviewView } from "@/components/FollowupReviewView";
-import { SiteHeader } from "@/components/SiteHeader";
 import { useAuth } from "@/components/AuthProvider";
-import { getOpportunity, updateOpportunity, type OpportunityResponse } from "@/lib/api";
-import workshopClear from "../../../../packages/contracts/fixtures/followup_extraction/workshop_clear.json";
+import { FollowupReviewView } from "@/components/FollowupReviewView";
+import { StageReviewLayout } from "@/components/StageReviewLayout";
+import type { JourneyStageName } from "@/lib/api";
+import { updateOpportunity } from "@/lib/api";
 import {
   canConfirmFollowupReview,
   emptyFollowupChecklist,
   emptyFollowupProjectStatics,
-  renderFollowupDraft,
   validateFollowupProjectStatics,
   type FollowupChecklistId,
   type FollowupDraft,
-  type FollowupExtraction,
   type FollowupProjectStatics,
 } from "@/lib/followupReview";
+import {
+  demoEmailDraftForStage,
+  demoFollowupProjectStatics,
+  getStageEmailReviewContext,
+} from "@/lib/stageEmailReview";
+import { isStageOutputDemoMode } from "@/lib/stageOutputReview";
+import { loadStageReviewContext } from "@/lib/stageOutputReviewLoad";
+import type { StageOutputHubItem } from "@/lib/stageOutputReview";
 
-export function FollowupReviewPanel({ opportunityId }: { opportunityId: string }) {
+export function FollowupReviewPanel({
+  opportunityId,
+  journeyStage,
+}: {
+  opportunityId: string;
+  journeyStage: JourneyStageName;
+}) {
   const { accessToken, session, loading: authLoading } = useAuth();
-  const [opportunity, setOpportunity] = useState<OpportunityResponse | null>(null);
+  const searchParams = useSearchParams();
+  const demoMode = isStageOutputDemoMode(searchParams);
+  const stageContext = useMemo(
+    () => getStageEmailReviewContext(journeyStage, demoMode),
+    [journeyStage, demoMode],
+  );
+
+  const [clientName, setClientName] = useState("");
+  const [opportunityName, setOpportunityName] = useState("");
+  const [hubItems, setHubItems] = useState<StageOutputHubItem[]>([]);
+  const [eligibilityLockCopy, setEligibilityLockCopy] = useState<string | null>(null);
+  const [contextLoading, setContextLoading] = useState(true);
+  const [contextError, setContextError] = useState<string | null>(null);
+
   const [statics, setStatics] = useState<FollowupProjectStatics>(emptyFollowupProjectStatics);
   const [staticsSaved, setStaticsSaved] = useState(false);
   const [draft, setDraft] = useState<FollowupDraft | null>(null);
@@ -34,36 +60,61 @@ export function FollowupReviewPanel({ opportunityId }: { opportunityId: string }
   useEffect(() => {
     let active = true;
     async function load() {
-      if (!accessToken) return;
-      setOpportunity(null);
-      setStatics(emptyFollowupProjectStatics());
-      setStaticsSaved(false);
+      if (!accessToken) {
+        return;
+      }
+      setContextLoading(true);
+      setContextError(null);
+      setError(null);
+      setInfo(null);
       setDraft(null);
       setChecklist(emptyFollowupChecklist());
       setAcknowledgedFlags(new Set());
-      setInfo(null);
-      setBusy(true);
-      setError(null);
+
       try {
-        const loaded = await getOpportunity(accessToken, opportunityId);
-        if (!active) return;
-        setOpportunity(loaded);
-        if (loaded.followup_statics) {
-          setStatics(loaded.followup_statics);
+        const loaded = await loadStageReviewContext(
+          accessToken,
+          opportunityId,
+          journeyStage,
+          demoMode,
+        );
+        if (!active) {
+          return;
+        }
+
+        setClientName(loaded.opportunity.client_name);
+        setOpportunityName(loaded.opportunity.opportunity_name);
+        setHubItems(loaded.hubItems);
+        setEligibilityLockCopy(loaded.eligibilityLockCopy);
+
+        const savedStatics = loaded.opportunity.followup_statics;
+        if (demoMode) {
+          const demoStatics = savedStatics ?? demoFollowupProjectStatics();
+          setStatics(demoStatics);
           setStaticsSaved(true);
-          setDraft(renderFollowupDraft(workshopClear as FollowupExtraction, loaded.followup_statics));
+          setDraft(demoEmailDraftForStage(journeyStage, demoStatics));
+        } else if (savedStatics) {
+          setStatics(savedStatics);
+          setStaticsSaved(true);
+        } else {
+          setStatics(emptyFollowupProjectStatics());
+          setStaticsSaved(false);
         }
       } catch {
-        if (active) setError("This opportunity's follow-up review could not be loaded.");
+        if (active) {
+          setContextError("This opportunity's email review context could not be loaded.");
+        }
       } finally {
-        if (active) setBusy(false);
+        if (active) {
+          setContextLoading(false);
+        }
       }
     }
     void load();
     return () => {
       active = false;
     };
-  }, [accessToken, opportunityId]);
+  }, [accessToken, demoMode, journeyStage, opportunityId]);
 
   function handleStaticsChange(value: FollowupProjectStatics) {
     setStatics(value);
@@ -75,7 +126,9 @@ export function FollowupReviewPanel({ opportunityId }: { opportunityId: string }
   }
 
   async function handleSaveStatics() {
-    if (!accessToken) return;
+    if (!accessToken) {
+      return;
+    }
     const validation = validateFollowupProjectStatics(statics);
     if (validation.length) {
       setError(validation[0]);
@@ -86,14 +139,21 @@ export function FollowupReviewPanel({ opportunityId }: { opportunityId: string }
     setInfo(null);
     try {
       const saved = await updateOpportunity(accessToken, opportunityId, { followup_statics: statics });
-      if (!saved.followup_statics) throw new Error("Missing saved project statics");
-      setOpportunity(saved);
+      if (!saved.followup_statics) {
+        throw new Error("Missing saved project statics");
+      }
       setStatics(saved.followup_statics);
       setStaticsSaved(true);
-      setDraft(renderFollowupDraft(workshopClear as FollowupExtraction, saved.followup_statics));
       setChecklist(emptyFollowupChecklist());
       setAcknowledgedFlags(new Set());
-      setInfo("Project email settings saved. Review the fixture draft below.");
+
+      if (demoMode) {
+        setDraft(demoEmailDraftForStage(journeyStage, saved.followup_statics));
+        setInfo(stageContext.staticsSavedInfoDemo);
+      } else {
+        setDraft(null);
+        setInfo(stageContext.staticsSavedInfoLive);
+      }
     } catch {
       setError("Project email settings could not be saved. Check the values and try again.");
     } finally {
@@ -104,8 +164,11 @@ export function FollowupReviewPanel({ opportunityId }: { opportunityId: string }
   function handleFlagChange(flag: string, checked: boolean) {
     setAcknowledgedFlags((current) => {
       const next = new Set(current);
-      if (checked) next.add(flag);
-      else next.delete(flag);
+      if (checked) {
+        next.add(flag);
+      } else {
+        next.delete(flag);
+      }
       return next;
     });
   }
@@ -121,8 +184,8 @@ export function FollowupReviewPanel({ opportunityId }: { opportunityId: string }
     if (!canConfirmFollowupReview(draft, statics, checklist, acknowledgedFlags, staticsSaved)) {
       return;
     }
-    setDraft((current) => current ? { ...current, status: "reviewed" } : current);
-    setInfo("Fixture reviewed - not sent. No Outlook or send API was called.");
+    setDraft((current) => (current ? { ...current, status: "reviewed" } : current));
+    setInfo(stageContext.confirmReviewedMessage);
   }
 
   const canConfirm = canConfirmFollowupReview(
@@ -133,34 +196,54 @@ export function FollowupReviewPanel({ opportunityId }: { opportunityId: string }
     staticsSaved,
   );
 
+  const draftUnavailable = staticsSaved && !draft && !demoMode;
+  const combinedError = contextError ?? error;
+  const showReview = !authLoading && accessToken;
+
   return (
-    <div className="app-workspace">
-      <SiteHeader signedInEmail={session?.user.email} />
-      <main className="app-shell app-workspace-body">
-        {authLoading ? <p className="recent-state-card">Loading follow-up review...</p> : null}
-        {!authLoading && !accessToken ? <p className="alert alert-info">Sign in to review this follow-up.</p> : null}
-        {!authLoading && accessToken ? (
-          <FollowupReviewView
-            clientName={opportunity?.client_name ?? "Client"}
-            opportunityName={opportunity?.opportunity_name ?? "Opportunity"}
-            statics={statics}
-            staticsSaved={staticsSaved}
-            draft={draft}
-            checklist={checklist}
-            acknowledgedFlags={acknowledgedFlags}
-            canConfirm={canConfirm}
-            busy={busy}
-            error={error}
-            info={info}
-            onStaticsChange={handleStaticsChange}
-            onSaveStatics={() => void handleSaveStatics()}
-            onDraftChange={handleDraftChange}
-            onChecklistChange={(id: FollowupChecklistId, checked: boolean) => setChecklist((current) => ({ ...current, [id]: checked }))}
-            onFlagChange={handleFlagChange}
-            onConfirm={handleConfirm}
-          />
-        ) : null}
-      </main>
-    </div>
+    <StageReviewLayout
+      journeyStage={journeyStage}
+      currentStep="email"
+      opportunityId={opportunityId}
+      clientName={clientName || "Client"}
+      opportunityName={opportunityName || "Opportunity"}
+      kicker={stageContext.kicker}
+      title={stageContext.title}
+      lead={stageContext.lead}
+      demoMode={demoMode}
+      loading={authLoading || contextLoading}
+      error={combinedError}
+      hubItems={hubItems}
+      eligibilityLockCopy={eligibilityLockCopy}
+    >
+      {!showReview ? (
+        authLoading ? null : (
+          <p className="alert alert-info">Sign in to review this email.</p>
+        )
+      ) : (
+        <FollowupReviewView
+          stageContext={stageContext}
+          demoMode={demoMode}
+          statics={statics}
+          staticsSaved={staticsSaved}
+          draft={draft}
+          draftUnavailable={draftUnavailable}
+          checklist={checklist}
+          acknowledgedFlags={acknowledgedFlags}
+          canConfirm={canConfirm}
+          busy={busy}
+          error={null}
+          info={info}
+          onStaticsChange={handleStaticsChange}
+          onSaveStatics={() => void handleSaveStatics()}
+          onDraftChange={handleDraftChange}
+          onChecklistChange={(id: FollowupChecklistId, checked: boolean) =>
+            setChecklist((current) => ({ ...current, [id]: checked }))
+          }
+          onFlagChange={handleFlagChange}
+          onConfirm={handleConfirm}
+        />
+      )}
+    </StageReviewLayout>
   );
 }

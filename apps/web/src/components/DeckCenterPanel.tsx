@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
@@ -51,6 +52,11 @@ import { startPipelineParallelLoad } from "@/lib/pipelineParallelLoad";
 import { journeyStageForGenerate } from "@/lib/journeyStageSelection";
 import { opportunityLabel, pipelineHref } from "@/lib/pipelineContext";
 import {
+  followupReviewHref,
+  shouldShowConcretisationEmailReviewLink,
+} from "@/lib/stageEmailReview";
+import { isStageOutputDemoMode } from "@/lib/stageOutputReview";
+import {
   ARTIFACTS_PARTIAL_LABEL,
   DOWNLOAD_PDF_LABEL,
   DOWNLOAD_POWERPOINT_LABEL,
@@ -80,6 +86,8 @@ export function DeckCenterPanel({
   presentationId: requestedPresentationId,
 }: DeckCenterPanelProps) {
   const { accessToken, isAuthenticated, loading, session } = useAuth();
+  const searchParams = useSearchParams();
+  const demoMode = isStageOutputDemoMode(searchParams);
   const [presentation, setPresentation] = useState<PresentationResponse | null>(null);
   const [deck, setDeck] = useState<DeckCenterResponse | null>(null);
   const [opportunityName, setOpportunityName] = useState<string | null>(null);
@@ -112,6 +120,16 @@ export function DeckCenterPanel({
   const featuredSlide =
     slideTiles.find((slide) => slide.slideId === featuredSlideId) ?? slideTiles[0] ?? null;
   const ready = Boolean(deck && presentation);
+  const activeJourneyStage = journeyStageForGenerate(opportunityId);
+  const showConcretisationEmailReview = shouldShowConcretisationEmailReviewLink(
+    activeJourneyStage,
+    ready,
+  );
+  const concretisationEmailReviewHref = followupReviewHref(
+    opportunityId,
+    "concretisation",
+    demoMode,
+  );
   const generatedAt = formatGeneratedAt(presentation?.created_at);
   const version = versionLabel(deck?.version_number);
 
@@ -554,6 +572,15 @@ export function DeckCenterPanel({
               >
                 {DOWNLOAD_PDF_LABEL}
               </button>
+              {showConcretisationEmailReview ? (
+                <Link
+                  href={concretisationEmailReviewHref}
+                  className="btn btn-secondary"
+                  data-testid="concretisation-email-review"
+                >
+                  Review follow-up email
+                </Link>
+              ) : null}
             </>
           ) : (
             <button

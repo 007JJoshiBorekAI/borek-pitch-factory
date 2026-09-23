@@ -376,6 +376,17 @@ export async function getOpportunity(
   return apiFetch<OpportunityResponse>(`/opportunities/${opportunityId}`, accessToken);
 }
 
+export async function generateStage1Research(
+  accessToken: string,
+  opportunityId: string,
+): Promise<import("./stage1Contracts").Stage1Research> {
+  return apiFetch<import("./stage1Contracts").Stage1Research>(
+    `/opportunities/${opportunityId}/stage1-research`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
 export async function uploadClientLogo(
   accessToken: string,
   opportunityId: string,
