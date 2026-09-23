@@ -10,6 +10,7 @@ import { ClientLogoUpload } from "@/components/ClientLogoUpload";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneyStageSelector";
 import { OpportunityForm } from "@/components/OpportunityForm";
+import { Stage1IntakePanel } from "@/components/Stage1IntakePanel";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
 import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
@@ -25,6 +26,7 @@ import {
   type JourneyStageName,
   type OpportunityCreatePayload,
   type OpportunityResponse,
+  type Stage1Intake,
 } from "@/lib/api";
 import { isMissingOpportunityError, uploadErrorMessage } from "@/lib/apiErrors";
 import {
@@ -53,6 +55,14 @@ import {
 import { countByStatus } from "@/lib/uploadQueue";
 import type { TranscriptQueueItem } from "@/lib/uploadQueue";
 import { createRestoredQueueItem, updateQueueItem } from "@/lib/uploadQueue";
+import {
+  EMPTY_STAGE1_FORM,
+  buildStage1IntakePayload,
+  hasStage1IntakeContent,
+  stage1IntakeToFormValues,
+  validateStage1IntakeForm,
+  type Stage1IntakeFormValues,
+} from "@/lib/stage1Intake";
 
 interface TranscriptUploadPanelProps {
   initialOpportunityId?: string | null;
@@ -68,6 +78,7 @@ function storedFromResponse(opportunity: OpportunityResponse) {
     language: opportunity.language,
     pii_redaction_enabled: opportunity.pii_redaction_enabled !== false,
     additional_client_information: opportunity.additional_client_information ?? null,
+    stage1_intake: opportunity.stage1_intake ?? null,
   };
 }
 
@@ -120,7 +131,10 @@ export function TranscriptUploadPanel({
   const [eligibilityLoading, setEligibilityLoading] = useState(false);
   const [eligibilityError, setEligibilityError] = useState<string | null>(null);
   const [eligibilityReloadKey, setEligibilityReloadKey] = useState(0);
+  const [stage1Draft, setStage1Draft] = useState<Stage1IntakeFormValues>(EMPTY_STAGE1_FORM);
+  const [stage1CreateError, setStage1CreateError] = useState<string | null>(null);
 
+  const isFirstContact = journeyStage === "first_contact";
   const contextMatchesRequest = !initialOpportunityId || opportunityId === initialOpportunityId;
   const canUpload =
     isAuthenticated && !startFresh && Boolean(opportunityId) && contextMatchesRequest;
@@ -242,6 +256,7 @@ export function TranscriptUploadPanel({
         const stored = storedFromResponse(loaded);
         setOpportunity(loaded);
         setOpportunityId(loaded.id);
+        setStage1Draft(stage1IntakeToFormValues(loaded.stage1_intake));
         saveActiveOpportunity(stored);
         clearOpportunityDraft();
         router.replace(pipelineHref("/upload", loaded.id));
@@ -289,10 +304,25 @@ export function TranscriptUploadPanel({
     if (!accessToken) {
       throw new Error("Sign in is required before creating an opportunity.");
     }
-    const created = await createOpportunity(accessToken, values);
+    setStage1CreateError(null);
+    let payload = values;
+    if (isFirstContact) {
+      const validationError = validateStage1IntakeForm(stage1Draft);
+      if (validationError) {
+        setStage1CreateError(validationError);
+        throw new Error(validationError);
+      }
+      const stage1Payload = buildStage1IntakePayload(stage1Draft);
+      payload = {
+        ...values,
+        ...(hasStage1IntakeContent(stage1Payload) ? { stage1_intake: stage1Payload } : {}),
+      };
+    }
+    const created = await createOpportunity(accessToken, payload);
     const stored = storedFromResponse(created);
     setOpportunity(created);
     setOpportunityId(created.id);
+    setStage1Draft(stage1IntakeToFormValues(created.stage1_intake));
     setUploadSummary(null);
     saveActiveOpportunity(stored);
     bindSelectedJourneyStage(created.id);
@@ -306,6 +336,24 @@ export function TranscriptUploadPanel({
       summary: null,
     });
     router.replace(pipelineHref("/upload", created.id));
+  }
+
+  async function handleSaveStage1Intake(stage1Intake: Stage1Intake) {
+    if (!accessToken || !opportunityId) {
+      throw new Error("Create an opportunity before saving pre-meeting information.");
+    }
+    const updated = await updateOpportunity(accessToken, opportunityId, {
+      stage1_intake: stage1Intake,
+    });
+    const stored = storedFromResponse(updated);
+    setOpportunity(updated);
+    setStage1Draft(stage1IntakeToFormValues(updated.stage1_intake));
+    saveActiveOpportunity(stored);
+    rememberUploadSession({
+      opportunity: stored,
+      queue: queueItems,
+      summary: uploadSummary,
+    });
   }
 
   async function handleUpdateClientInformation(
@@ -392,10 +440,21 @@ export function TranscriptUploadPanel({
             </>
           }
         >
-          {opportunityId &&
-          statusCounts.success > 0 &&
-          statusCounts.pending === 0 &&
-          statusCounts.uploading === 0 ? (
+          {isFirstContact ? (
+            <div className="stage1-workflow-status" role="status">
+              <strong>Next step not available yet</strong>
+              <p>
+                {opportunityId
+                  ? hasStage1IntakeContent(opportunity?.stage1_intake)
+                    ? "Pre-meeting intake is saved. Company brief and meeting preparation generation will arrive in a later release."
+                    : "Save pre-meeting information below. Generation is not available in this build yet."
+                  : "Create the opportunity and save pre-meeting information. Generation is not available in this build yet."}
+              </p>
+            </div>
+          ) : opportunityId &&
+            statusCounts.success > 0 &&
+            statusCounts.pending === 0 &&
+            statusCounts.uploading === 0 ? (
             <Link
               href={pipelineHref("/framework-review", opportunityId)}
               className="btn btn-primary"
@@ -411,9 +470,13 @@ export function TranscriptUploadPanel({
         <WorkflowStepIndicator currentStep={1} />
 
         <AppPageHeader
-          kicker="Presentation intake"
-          title="Create a presentation"
-          lead="Confirm the client, add discovery transcripts, and continue to the customer story."
+          kicker={isFirstContact ? "First contact intake" : "Presentation intake"}
+          title={isFirstContact ? "Start a new pitch" : "Create a presentation"}
+          lead={
+            isFirstContact
+              ? "Give us the client. Prepare for the first meeting — no meeting transcript needed at this stage."
+              : "Confirm the client, add discovery transcripts, and continue to the customer story."
+          }
         />
 
         <div className="intake-main">
@@ -453,7 +516,11 @@ export function TranscriptUploadPanel({
               <header className="upload-panel-header">
                 <div>
                   <h2>Client and opportunity</h2>
-                  <p>Create the workspace that will hold the transcripts and presentation.</p>
+                  <p>
+                    {isFirstContact
+                      ? "Create the workspace for this First contact pitch."
+                      : "Create the workspace that will hold the transcripts and presentation."}
+                  </p>
                 </div>
               </header>
               <OpportunityForm
@@ -472,6 +539,7 @@ export function TranscriptUploadPanel({
                 }
                 onSubmit={handleCreateOpportunity}
                 onUpdateClientInformation={handleUpdateClientInformation}
+                hidePersonalisation={isFirstContact}
                 personalisationHint={
                   journeyStage === "first_contact"
                     ? "Save confirmed context for later. First contact stays generic and will not use client-specific references or branding."
@@ -495,49 +563,66 @@ export function TranscriptUploadPanel({
                   )
                 }
               />
-            </section>
-
-            <section
-              className={`upload-panel${
-                statusCounts.success > 0 && statusCounts.pending === 0 ? " upload-panel-settled" : ""
-              }`}
-            >
-              <header className="upload-panel-header">
-                <div>
-                  <h2>Transcript files</h2>
-                  <p>
-                    {uploadSummary
-                      ? uploadSummary
-                      : "Select or drop multiple files. Each file is validated and tracked individually."}
-                  </p>
-                </div>
-                {queueItems.length > 0 && statusCounts.pending > 0 ? (
-                  <div className="upload-stat-strip" aria-label="File queue summary">
-                    {statusCounts.pending > 0 ? <span>{statusCounts.pending} ready</span> : null}
-                    {statusCounts.rejected > 0 ? <span>{statusCounts.rejected} rejected</span> : null}
-                    {statusCounts.success > 0 ? <span>{statusCounts.success} uploaded</span> : null}
-                    {statusCounts.error > 0 ? <span>{statusCounts.error} failed</span> : null}
-                  </div>
-                ) : null}
-              </header>
-
-              {!canUpload && isAuthenticated ? (
-                <p className="upload-hint">
-                  You may queue files now. Upload is enabled once an opportunity is created above.
-                </p>
+              {stage1CreateError ? (
+                <div className="alert alert-error">{stage1CreateError}</div>
               ) : null}
-
-              <FileUploadQueue
-                items={queueItems}
-                uploadDisabled={!canUpload || loading}
-                onItemsChange={(items) => {
-                  setQueueItems(items);
-                  setUploadSummary(null);
-                }}
-                onUpload={handleUploadBatch}
-              />
-
             </section>
+
+            {isFirstContact ? (
+              <Stage1IntakePanel
+                disabled={!isAuthenticated || loading}
+                existingIntake={opportunity?.stage1_intake ?? null}
+                draftValues={opportunity ? undefined : stage1Draft}
+                onDraftChange={opportunity ? undefined : setStage1Draft}
+                accessToken={accessToken}
+                opportunityId={opportunityId}
+                showSaveAction={Boolean(opportunityId)}
+                onSave={handleSaveStage1Intake}
+              />
+            ) : null}
+
+            {!isFirstContact ? (
+              <section
+                className={`upload-panel${
+                  statusCounts.success > 0 && statusCounts.pending === 0 ? " upload-panel-settled" : ""
+                }`}
+              >
+                <header className="upload-panel-header">
+                  <div>
+                    <h2>Transcript files</h2>
+                    <p>
+                      {uploadSummary
+                        ? uploadSummary
+                        : "Select or drop multiple files. Each file is validated and tracked individually."}
+                    </p>
+                  </div>
+                  {queueItems.length > 0 && statusCounts.pending > 0 ? (
+                    <div className="upload-stat-strip" aria-label="File queue summary">
+                      {statusCounts.pending > 0 ? <span>{statusCounts.pending} ready</span> : null}
+                      {statusCounts.rejected > 0 ? <span>{statusCounts.rejected} rejected</span> : null}
+                      {statusCounts.success > 0 ? <span>{statusCounts.success} uploaded</span> : null}
+                      {statusCounts.error > 0 ? <span>{statusCounts.error} failed</span> : null}
+                    </div>
+                  ) : null}
+                </header>
+
+                {!canUpload && isAuthenticated ? (
+                  <p className="upload-hint">
+                    You may queue files now. Upload is enabled once an opportunity is created above.
+                  </p>
+                ) : null}
+
+                <FileUploadQueue
+                  items={queueItems}
+                  uploadDisabled={!canUpload || loading}
+                  onItemsChange={(items) => {
+                    setQueueItems(items);
+                    setUploadSummary(null);
+                  }}
+                  onUpload={handleUploadBatch}
+                />
+              </section>
+            ) : null}
         </div>
       </div>
     </div>

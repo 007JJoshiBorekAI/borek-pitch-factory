@@ -930,6 +930,232 @@ samp {
   font-size: 0.88rem;
 }
 
+.stage1-intake-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 328px);
+  gap: var(--workspace-card-gap);
+  align-items: start;
+}
+
+.stage1-intake-panel {
+  margin: 0;
+}
+
+.stage1-intake-header h2 {
+  margin: 0.35rem 0 0.5rem;
+}
+
+.stage1-section-kicker {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stage1-intake-notice {
+  margin: 0 0 0.75rem;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+}
+
+.stage1-intake-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.stage1-field-span {
+  grid-column: 1 / -1;
+}
+
+.stage1-field-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stage1-char-counter {
+  margin: 0.35rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.stage1-additional-context {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.stage1-context-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 0.85rem;
+}
+
+.stage1-context-card {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--borek-primary-soft);
+}
+
+.stage1-context-card-disabled {
+  opacity: 0.92;
+}
+
+.stage1-context-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.stage1-context-card-lead {
+  margin: 0.35rem 0 0.75rem;
+  color: var(--color-muted);
+  font-size: 0.84rem;
+}
+
+.stage1-context-card-deferred {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
+.stage1-voice-text-field {
+  margin-bottom: 0.75rem;
+}
+
+.stage1-voice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.stage1-voice-file-name,
+.stage1-voice-file-hint {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.stage1-voice-notice {
+  margin: 0.75rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
+.stage1-voice-transcript {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.86rem;
+}
+
+.stage1-voice-transcript p {
+  margin: 0.35rem 0 0;
+  color: var(--color-text);
+}
+
+.stage1-next-steps {
+  padding: 1.25rem 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--workspace-card-radius);
+  background: var(--color-surface);
+  box-shadow: var(--workspace-card-shadow);
+}
+
+.stage1-next-steps h2 {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.stage1-next-steps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.1rem;
+}
+
+.stage1-next-steps-list li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.stage1-next-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--borek-primary-soft);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.stage1-next-steps-list p {
+  margin: 0.15rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
+.stage1-next-steps-footer {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.stage1-next-steps-footer p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.stage1-next-steps-footer p + p {
+  margin-top: 0.35rem;
+}
+
+.stage1-workflow-status {
+  max-width: 22rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--borek-primary-soft);
+  text-align: right;
+}
+
+.stage1-workflow-status strong {
+  display: block;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.stage1-workflow-status p {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 960px) {
+  .stage1-intake-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .stage1-intake-grid,
+  .stage1-context-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
 .journey-start-kicker {
   margin: 0;
   color: var(--color-accent);

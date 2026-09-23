@@ -13,6 +13,9 @@ import {
   uploadErrorMessage,
   clientLogoErrorMessage,
   isMissingClientLogoError,
+  isStage1VoiceUnavailableError,
+  stage1IntakeErrorMessage,
+  stage1VoiceErrorMessage,
 } from "./apiErrors.js";
 
 assert.equal(
@@ -88,6 +91,22 @@ assert.equal(isPresentationNotReadyError(new ApiRequestError("Missing presentati
 assert.equal(
   isDeckFileMissingError(new ApiRequestError("Deck pptx file is not available", 404, "DECK_FILE_NOT_FOUND")),
   true,
+);
+assert.equal(
+  isStage1VoiceUnavailableError(
+    new ApiRequestError("Voice unavailable", 503, "STAGE1_VOICE_UNAVAILABLE"),
+  ),
+  true,
+);
+assert.match(
+  stage1VoiceErrorMessage(
+    new ApiRequestError("Voice unavailable", 503, "STAGE1_VOICE_UNAVAILABLE"),
+  ),
+  /text description/i,
+);
+assert.match(
+  stage1IntakeErrorMessage(new ApiRequestError("Invalid intake", 422, "VALIDATION_ERROR")),
+  /pre-meeting fields/i,
 );
 
 console.log("apiErrors tests passed");
