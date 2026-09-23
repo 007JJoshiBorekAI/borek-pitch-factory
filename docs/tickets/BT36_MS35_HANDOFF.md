@@ -2,6 +2,8 @@
 
 **READY for wiring (fixture path).** Confirm never sends mail. First-meeting PPT stays `unfrozen` until JJ-31.
 
+Deploy checklist (migrations 028–031): `docs/tickets/PHASE1_DEPLOY.md`
+
 Base path: `/opportunities/{opportunity_id}`  
 Auth: same bearer token as intake/documents.
 
