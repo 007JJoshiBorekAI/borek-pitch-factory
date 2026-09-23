@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard · Borek AI Pitch</title>
+<style>
+:root{
+  --navy:#12224a; --navy-dark:#0e1a38; --blue:#2f5fd1; --blue-light:#eaf0ff;
+  --gray-25:#fafbfc; --gray-50:#f6f7f9; --gray-100:#eef0f3; --gray-200:#e3e5ea;
+  --gray-400:#9aa1ae; --gray-500:#767e8c; --gray-600:#5b6472; --gray-800:#333c4d;
+  --orange:#e08a2b; --red:#d3452b; --teal:#14a394;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--navy);background:#fff;font-size:15px;line-height:1.5;}
+a{color:var(--blue);text-decoration:none;font-weight:600;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;border-right:1px solid var(--gray-200);padding:32px 24px;}
+.logo{display:flex;align-items:center;gap:8px;margin-bottom:2px;}
+.logo-name{font-size:19px;font-weight:800;letter-spacing:.2px;color:var(--navy);}
+.logo-sub{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--blue);margin:6px 0 28px 28px;}
+.btn-new{display:block;width:100%;background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 16px;font-size:14px;font-weight:600;text-align:left;cursor:pointer;margin-bottom:20px;}
+nav ul{list-style:none;margin:0;padding:0;}
+nav li{padding:11px 14px;font-size:15px;color:var(--gray-600);border-left:3px solid transparent;cursor:pointer;border-radius:0 4px 4px 0;}
+nav li.active{color:var(--navy);font-weight:600;background:var(--gray-50);border-left-color:var(--blue);}
+.main{flex:1;padding:36px 48px 60px;max-width:1500px;}
+.topline{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;}
+h1.page-title{font-size:32px;font-weight:700;margin:4px 0 0;color:var(--navy);}
+.header-actions{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+.lang-toggle{display:flex;border:1px solid var(--gray-200);border-radius:6px;overflow:hidden;}
+.lang-toggle span{padding:6px 11px;font-size:13px;font-weight:700;color:var(--gray-500);}
+.lang-toggle span.active{background:var(--blue-light);color:var(--blue);}
+.icon-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--gray-500);position:relative;}
+.icon-btn .dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--red);border-radius:50%;}
+.user{display:flex;align-items:center;gap:8px;cursor:pointer;}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--navy);}
+.user-name{font-size:14px;font-weight:600;color:var(--navy);}
+.progress-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;margin:22px 0 34px;}
+.progress-bar span{display:block;height:100%;}
+.btn-primary{background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.greet-row{display:flex;justify-content:space-between;align-items:flex-start;margin-top:8px;}
+h2.greet{font-size:36px;font-weight:400;margin:0 0 6px;color:var(--navy);}
+.subtle{color:var(--gray-500);font-size:15px;margin:0;}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--gray-500);text-transform:uppercase;}
+.attn-list{margin:16px 0 40px;border-top:1px solid var(--gray-100);}
+.attn-row{display:flex;align-items:center;gap:16px;padding:20px 0;border-bottom:1px solid var(--gray-100);}
+.status-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
+.attn-client{font-weight:700;color:var(--navy);width:170px;flex-shrink:0;}
+.attn-desc{color:var(--gray-600);flex:1;}
+.attn-date{color:var(--gray-500);width:70px;flex-shrink:0;}
+.section-head{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;}
+h2.section-title{font-size:26px;font-weight:700;margin:6px 0 22px;color:var(--navy);}
+.search-link{color:var(--gray-500);font-weight:400;font-size:14px;}
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:12px;font-weight:700;letter-spacing:.3px;color:var(--gray-500);text-transform:uppercase;padding:10px 8px;border-bottom:1px solid var(--gray-200);}
+td{padding:18px 8px;border-bottom:1px solid var(--gray-100);font-size:14px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+td.client-name{font-weight:700;color:var(--navy);}
+.footnote{color:var(--gray-500);font-size:13px;margin-top:22px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <svg class="logo-dots" width="20" height="20" viewBox="0 0 20 20"><circle cx="4" cy="6" r="2" fill="#12224a"/><circle cx="10" cy="3" r="2" fill="#12224a"/><circle cx="16" cy="6" r="2" fill="#12224a"/><circle cx="4" cy="14" r="2" fill="#12224a"/><circle cx="10" cy="17" r="2" fill="#12224a"/><circle cx="16" cy="14" r="2" fill="#12224a"/><circle cx="10" cy="10" r="2" fill="#12224a"/></svg>
+      <span class="logo-name">BOREK</span>
+    </div>
+    <div class="logo-sub">AI PITCH</div>
+    <button class="btn-new">+ New pitch</button>
+    <nav><ul>
+      <li class="active">Overview</li>
+      <li>Clients</li>
+      <li>Approvals</li>
+      <li>Library</li>
+    </ul></nav>
+  </aside>
+  <main class="main">
+    <div class="topline">
+      <h1 class="page-title">Dashboard</h1>
+      <div class="header-actions">
+        <div class="lang-toggle"><span>DE</span><span class="active">EN</span></div>
+        <div class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="dot"></span></div>
+        <div class="user"><div class="avatar">EK</div><span class="user-name">Elena Manovska</span></div>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <span style="width:14%;background:var(--orange)"></span>
+      <span style="width:16%;background:var(--red)"></span>
+      <span style="width:45%;background:var(--navy)"></span>
+      <span style="width:25%;background:var(--teal)"></span>
+    </div>
+
+    <div class="greet-row">
+      <div>
+        <h2 class="greet">Good morning, Elena.</h2>
+        <p class="subtle">Here is the work that needs your attention.</p>
+      </div>
+      <button class="btn-primary">Add New Client</button>
+    </div>
+
+    <div class="eyebrow" style="margin-top:36px;">Needs attention</div>
+    <div class="attn-list">
+      <div class="attn-row">
+        <span class="status-dot" style="background:var(--navy)"></span>
+        <span class="attn-client">Acme GmbH</span>
+        <span class="attn-desc">Follow-up draft needs your review</span>
+        <span class="attn-date">Today</span>
+        <a href="#">Review follow-up →</a>
+      </div>
+      <div class="attn-row">
+        <span class="status-dot" style="background:var(--gray-400)"></span>
+        <span class="attn-client">NordWerk AG</span>
+        <span class="attn-desc">Pitch is waiting for Managing Partner approval</span>
+        <span class="attn-date">18 Sep</span>
+        <a href="#">Open approval →</a>
+      </div>
+    </div>
+
+    <div class="eyebrow" style="margin-top:44px;">Client workspaces</div>
+    <div class="section-head">
+      <h2 class="section-title">All clients</h2>
+      <span class="search-link">Search clients</span>
+    </div>
+    <table>
+      <thead><tr><th>Client</th><th>Stage</th><th>Owner</th><th>Updated</th><th>Next action</th></tr></thead>
+      <tbody>
+        <tr><td class="client-name">Acme GmbH</td><td>Follow-up review</td><td>Elena</td><td>Today</td><td><a href="#">Review email →</a></td></tr>
+        <tr><td class="client-name">NordWerk AG</td><td>Approval</td><td>Arbios</td><td>18 Sep</td><td><a href="#">Await decision →</a></td></tr>
+        <tr><td class="client-name">Helio Mobility</td><td>First meeting prep</td><td>Elena</td><td>16 Sep</td><td><a href="#">Open meeting brief →</a></td></tr>
+        <tr><td class="client-name">Rhein Logistics</td><td>Research complete</td><td>Jamie</td><td>14 Sep</td><td><a href="#">Review hypothesis →</a></td></tr>
+      </tbody>
+    </table>
+    <p class="footnote">4 active workspaces · 1 awaiting approval</p>
+  </main>
+</div>
+</body>
+</html>

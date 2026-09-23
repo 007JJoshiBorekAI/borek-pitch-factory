@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Library · Borek AI Pitch</title>
+<style>
+:root{--navy:#12224a;--navy-dark:#0e1a38;--blue:#2f5fd1;--gray-50:#f6f7f9;--gray-200:#e3e5ea;--gray-500:#767e8c;--gray-600:#5b6472;--orange:#e08a2b;--red:#d3452b;--teal:#14a394;}
+*{box-sizing:border-box;}html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--navy);font-size:15px;line-height:1.5;}
+a{color:var(--blue);text-decoration:none;font-weight:600;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:270px;border-right:1px solid var(--gray-200);padding:32px 24px;}
+.btn-new{display:block;background:var(--navy-dark);color:#fff;padding:13px 16px;border-radius:6px;font-weight:600;text-decoration:none;margin-bottom:20px;}
+nav ul{list-style:none;margin:0;padding:0;}
+nav a{display:block;padding:11px 14px;color:var(--gray-600);border-left:3px solid transparent;text-decoration:none;}
+nav a.active{background:var(--gray-50);border-left-color:var(--blue);font-weight:600;color:var(--navy);}
+.main{flex:1;padding:36px 48px 60px;}
+.topline{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;}
+h1.page-title{font-size:32px;margin:0;}
+.search{border:1px solid var(--gray-200);border-radius:6px;padding:12px 16px;width:280px;color:var(--gray-500);}
+.progress-bar{display:flex;height:5px;margin:22px 0;border-radius:3px;overflow:hidden;}
+.progress-bar span{display:block;height:100%;}
+.title-block{margin-bottom:24px;}
+h2.big{font-size:34px;font-weight:400;margin:0 0 6px;}
+.tabs{display:flex;gap:28px;border-bottom:1px solid var(--gray-200);margin-bottom:28px;}
+.tabs a{padding-bottom:12px;color:var(--gray-600);font-weight:600;text-decoration:none;}
+.tabs a.active{color:var(--navy);border-bottom:3px solid var(--navy);}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--gray-500);text-transform:uppercase;margin-bottom:16px;}
+.template{display:flex;align-items:center;gap:16px;padding:18px 0;border-bottom:1px solid var(--gray-200);}
+.thumb{width:56px;height:40px;border-radius:4px;background:var(--navy);flex-shrink:0;position:relative;overflow:hidden;}
+.thumb::after{content:"";position:absolute;bottom:8px;left:8px;right:8px;height:4px;background:var(--orange);}
+.thumb.plain{background:var(--gray-200);}
+.template-info{flex:1;}
+.template-meta{color:var(--gray-500);font-size:13px;margin-top:4px;}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px;}
+.card{background:var(--gray-50);border-radius:8px;padding:20px;}
+.card h4{margin:0 0 8px;}
+.card p{color:var(--gray-600);font-size:14px;margin:0 0 12px;}
+.footnote{color:var(--gray-500);font-size:13px;margin-top:36px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <strong>BOREK</strong><div style="font-size:12px;color:var(--blue);font-weight:700;margin:6px 0 28px;">AI PITCH</div>
+    <a href="new-pitch.html" class="btn-new">+ New pitch</a>
+    <nav><ul>
+      <li><a href="dashboard.html">Overview</a></li>
+      <li><a href="clients.html">Clients</a></li>
+      <li><a href="approvals.html">Approvals</a></li>
+      <li><a href="library.html" class="active">Library</a></li>
+    </ul></nav>
+  </aside>
+  <main class="main">
+    <div class="topline">
+      <h1 class="page-title">Library</h1>
+      <input class="search" type="search" placeholder="Search library" aria-label="Search library">
+    </div>
+    <div class="progress-bar"><span style="width:33%;background:var(--orange)"></span><span style="width:33%;background:var(--teal)"></span><span style="width:34%;background:var(--navy)"></span></div>
+    <div class="title-block">
+      <h2 class="big">Library</h2>
+      <p style="color:var(--gray-500);margin:0;">Released content for consistent, traceable pitches.</p>
+    </div>
+    <div class="tabs">
+      <a href="#" class="active">Templates</a>
+      <a href="#">Use cases</a>
+      <a href="#">Rate card</a>
+    </div>
+    <div class="eyebrow">Presentation templates · Released masters</div>
+    <div class="template">
+      <div class="thumb"></div>
+      <div class="template-info"><strong>First meeting master</strong><div class="template-meta">v2.4 · EN · DE · Released 12 Sep 2026</div></div>
+      <a href="#">Open →</a>
+    </div>
+    <div class="template">
+      <div class="thumb plain"></div>
+      <div class="template-info"><strong>Capabilities overview</strong><div class="template-meta">v3.1 · EN · DE · Released 04 Sep 2026</div></div>
+      <a href="#">Open →</a>
+    </div>
+    <div class="template">
+      <div class="thumb plain"></div>
+      <div class="template-info"><strong>Proposal &amp; project plan</strong><div class="template-meta">v1.8 · EN · DE · Released 26 Aug 2026</div></div>
+      <a href="#">Open →</a>
+    </div>
+    <div class="eyebrow" style="margin-top:40px;">Governed sources</div>
+    <div class="cards">
+      <div class="card"><h4>Use cases</h4><p>18 released cases<br>Matched by sector, problem and capability</p><a href="#">Browse →</a></div>
+      <div class="card"><h4>Rate card</h4><p>v0.2 · dummy MVP rates<br>Owner: Fiona Oldenburg · last released only</p><a href="#">Browse →</a></div>
+      <div class="card"><h4>Brand master</h4><p>v2.0<br>Logo, type, colour and presentation rules</p><a href="#">Browse →</a></div>
+    </div>
+    <p class="footnote">Only released material can be used in client-facing generation.<br>Updates and access are recorded in the activity log.</p>
+  </main>
+</div>
+</body>
+</html>
