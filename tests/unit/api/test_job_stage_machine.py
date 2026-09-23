@@ -24,6 +24,7 @@ def test_job_stage_enum_values_in_order() -> None:
     expected = [
         "QUEUED",
         "TRANSCRIPT_PROCESSING",
+        "TRANSCRIPT_SUMMARIZING",
         "KNOWLEDGE_EXTRACTING",
         "FRAMEWORK_SYNTHESIZING",
         "FRAMEWORK_VALIDATING",
@@ -38,7 +39,7 @@ def test_job_stage_enum_values_in_order() -> None:
         "FAILED",
     ]
     assert [stage.value for stage in JobStage] == expected
-    assert len(JobStage) == 14
+    assert len(JobStage) == 15
     assert list(JOB_PIPELINE_STAGES) == [JobStage.QUEUED, *expected[1:-2]]
 
 

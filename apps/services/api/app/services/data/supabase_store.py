@@ -1610,6 +1610,106 @@ class SupabaseDataStore:
             raise bad_request("KNOWLEDGE_CHECKPOINT_WRITE_FAILED", response.text)
         return dict(response.json()[0])
 
+    def get_transcript_summary(
+        self,
+        *,
+        opportunity_id: UUID,
+        transcript_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        response = self._request(
+            "GET",
+            "transcript_summaries",
+            params={
+                "select": "*",
+                "transcript_id": f"eq.{transcript_id}",
+                "opportunity_id": f"eq.{opportunity_id}",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("TRANSCRIPT_SUMMARY_READ_FAILED", response.text)
+        rows = list(response.json() or [])
+        return dict(rows[0]) if rows else None
+
+    def list_job_transcript_summaries(
+        self,
+        *,
+        job_id: UUID,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        job = self.get_generation_job(job_id)
+        if job is None or job["opportunity_id"] != opportunity_id:
+            raise bad_request(
+                "TRANSCRIPT_SUMMARY_CHECKPOINT_INVALID",
+                "Generation job does not belong to this opportunity",
+            )
+        response = self._request(
+            "GET",
+            "transcript_summaries",
+            params={
+                "select": "*",
+                "generation_job_id": f"eq.{job_id}",
+                "opportunity_id": f"eq.{opportunity_id}",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("TRANSCRIPT_SUMMARY_READ_FAILED", response.text)
+        return list(response.json() or [])
+
+    def upsert_transcript_summary(
+        self,
+        *,
+        job_id: UUID | None,
+        transcript_id: UUID,
+        opportunity_id: UUID,
+        user_id: UUID,
+        conversation_id: str,
+        summary_json: dict[str, Any],
+        schema_version: str,
+        prompt_version: str,
+        processing_status: str = "completed",
+    ) -> dict[str, Any]:
+        if job_id is not None:
+            job = self.get_generation_job(job_id)
+            if job is None or job["opportunity_id"] != opportunity_id:
+                raise bad_request(
+                    "TRANSCRIPT_SUMMARY_CHECKPOINT_INVALID",
+                    "Generation job does not belong to this opportunity",
+                )
+        self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        payload = {
+            "transcript_id": str(transcript_id),
+            "opportunity_id": str(opportunity_id),
+            "conversation_id": conversation_id,
+            "generation_job_id": str(job_id) if job_id is not None else None,
+            "schema_version": schema_version,
+            "prompt_version": prompt_version,
+            "processing_status": processing_status,
+            "summary_json": summary_json,
+        }
+        response = self._request(
+            "POST",
+            "transcript_summaries",
+            params={"on_conflict": "transcript_id"},
+            json_body=payload,
+            headers={"Prefer": "resolution=merge-duplicates,return=representation"},
+        )
+        if response.status_code not in (200, 201) or not response.json():
+            raise bad_request("TRANSCRIPT_SUMMARY_WRITE_FAILED", response.text)
+        return dict(response.json()[0])
+
     def generate_framework_stub(
         self,
         *,

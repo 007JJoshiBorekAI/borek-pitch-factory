@@ -34,10 +34,17 @@ from services.knowledge_model.extraction import PROMPT_VERSION as EXTRACTION_PRO
 from services.knowledge_model.extraction import extract_knowledge_model
 from services.transcript.conversation_ids import TranscriptIdentity
 from services.transcript.speaker_turns import SpeakerTurn
+from services.transcript.summarization import (
+    PROMPT_VERSION as SUMMARY_PROMPT_VERSION,
+    SCHEMA_VERSION as SUMMARY_SCHEMA_VERSION,
+    TranscriptSummarizationError,
+    summarize_transcript,
+)
 
 ExtractFn = Callable[..., dict[str, Any]]
 GenerateFn = Callable[..., dict[str, Any]]
 ChapterFn = Callable[..., dict[str, Any]]
+SummarizeFn = Callable[..., dict[str, Any]]
 
 
 def generate_framework_from_transcripts(
@@ -47,6 +54,7 @@ def generate_framework_from_transcripts(
     user_id: UUID,
     execution_mode: str | None = None,
     extract_fn: ExtractFn = extract_knowledge_model,
+    summarize_fn: SummarizeFn = summarize_transcript,
     generate_fn: GenerateFn = generate_customer_framework,
     job_id: UUID | None = None,
     transcript_ids: list[str] | None = None,
@@ -80,6 +88,7 @@ def generate_framework_from_transcripts(
     )
     if mode != "live":
         if stage_callback is not None:
+            stage_callback("summarizing")
             stage_callback("knowledge")
             stage_callback("synthesis")
         payload = load_framework_stub_template(opportunity_id)
@@ -101,6 +110,16 @@ def generate_framework_from_transcripts(
         )
 
     redact = opportunity_pii_redaction_enabled(opportunity)
+    _ensure_transcript_summaries(
+        store,
+        sources=sources,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        job_id=job_id,
+        redact=redact,
+        stage_callback=stage_callback,
+        summarize_fn=summarize_fn,
+    )
     checkpoints: dict[str, dict[str, Any]] = {}
     if job_id is not None and hasattr(store, "list_job_knowledge_models"):
         checkpoints = {
@@ -194,6 +213,7 @@ def regenerate_framework_chapter_from_transcripts(
     chapter_id: str,
     execution_mode: str | None = None,
     extract_fn: ExtractFn = extract_knowledge_model,
+    summarize_fn: SummarizeFn = summarize_transcript,
     chapter_fn: ChapterFn = synthesize_customer_chapter,
     stage_callback: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
@@ -228,6 +248,16 @@ def regenerate_framework_chapter_from_transcripts(
     )
     client_pack = normalize_client_pack(opportunity.get("additional_client_information"))
     redact = opportunity_pii_redaction_enabled(opportunity)
+    _ensure_transcript_summaries(
+        store,
+        sources=sources,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        job_id=None,
+        redact=redact,
+        stage_callback=stage_callback,
+        summarize_fn=summarize_fn,
+    )
     if stage_callback is not None:
         stage_callback("knowledge")
     knowledge_models: list[dict[str, Any]] = []
@@ -303,6 +333,77 @@ def _call_with_optional_kwargs(fn: Callable[..., Any], *args: Any, **kwargs: Any
         if key in signature.parameters
     }
     return fn(*args, **accepted)
+
+
+def _ensure_transcript_summaries(
+    store: Any,
+    *,
+    sources: list[dict[str, Any]],
+    opportunity_id: UUID,
+    user_id: UUID,
+    job_id: UUID | None,
+    redact: bool,
+    stage_callback: Callable[[str], None] | None,
+    summarize_fn: SummarizeFn,
+) -> None:
+    if stage_callback is not None:
+        stage_callback("summarizing")
+
+    summary_checkpoints: dict[str, dict[str, Any]] = {}
+    if job_id is not None and hasattr(store, "list_job_transcript_summaries"):
+        summary_checkpoints = {
+            str(row["transcript_id"]): row
+            for row in store.list_job_transcript_summaries(
+                job_id=job_id,
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+            )
+        }
+
+    for source in sources:
+        transcript_id = str(source["id"])
+        checkpoint = summary_checkpoints.get(transcript_id)
+        if checkpoint is not None:
+            if (
+                str(checkpoint.get("conversation_id") or "") != str(source["conversation_id"])
+                or str(checkpoint.get("schema_version") or "") != SUMMARY_SCHEMA_VERSION
+                or str(checkpoint.get("prompt_version") or "") != SUMMARY_PROMPT_VERSION
+                or str(checkpoint.get("processing_status") or "") != "completed"
+            ):
+                raise bad_request(
+                    "TRANSCRIPT_SUMMARY_CHECKPOINT_INVALID",
+                    "Stored transcript summary does not match this generation job",
+                )
+            continue
+
+        turns = _speaker_turns(source)
+        identity = TranscriptIdentity(
+            opportunity_id=str(opportunity_id),
+            transcript_id=transcript_id,
+            conversation_id=str(source["conversation_id"]),
+        )
+        try:
+            summary = _call_with_optional_kwargs(
+                summarize_fn,
+                turns,
+                identity,
+                redact=redact,
+            )
+        except TranscriptSummarizationError as exc:
+            raise bad_request(exc.code, exc.user_message) from exc
+
+        if hasattr(store, "upsert_transcript_summary"):
+            store.upsert_transcript_summary(
+                job_id=job_id,
+                transcript_id=source["id"],
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+                conversation_id=str(source["conversation_id"]),
+                summary_json=summary,
+                schema_version=SUMMARY_SCHEMA_VERSION,
+                prompt_version=SUMMARY_PROMPT_VERSION,
+                processing_status="completed",
+            )
 
 
 def _speaker_turns(source: dict[str, Any]) -> list[SpeakerTurn]:

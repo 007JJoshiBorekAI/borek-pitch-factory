@@ -15,11 +15,34 @@ USER_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 TRANSCRIPT_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
 
 
+def _mock_summary(turns: list[Any], identity: Any, *, redact: bool) -> dict[str, Any]:
+    return {
+        "schema_version": "1.0",
+        "transcript_id": identity.transcript_id,
+        "conversation_id": identity.conversation_id,
+        "opportunity_id": identity.opportunity_id,
+        "prompt_version": "transcript-summary:v1",
+        "participants": [],
+        "meeting_facts": [],
+        "decisions": [],
+        "action_items": [],
+        "open_questions": [],
+        "requirements_and_constraints": [],
+        "metadata": {
+            "summary_truncated": False,
+            "uncertainty_notes": [],
+            "source_turn_count": len(turns),
+            "summarized_turn_count": len(turns),
+        },
+    }
+
+
 class SourceStore:
     def __init__(self, *, sources: list[dict[str, Any]]) -> None:
         self.sources = sources
         self.status_updates: list[tuple[uuid.UUID, str]] = []
         self.checkpoints: dict[tuple[uuid.UUID, uuid.UUID], dict[str, Any]] = {}
+        self.summary_checkpoints: dict[uuid.UUID, dict[str, Any]] = {}
 
     def list_transcript_sources(self, **_: Any) -> list[dict[str, Any]]:
         return self.sources
@@ -64,6 +87,37 @@ class SourceStore:
             "prompt_version": prompt_version,
         }
         self.checkpoints[(job_id, transcript_id)] = row
+        return row
+
+    def list_job_transcript_summaries(self, *, job_id: uuid.UUID, **_: Any) -> list[dict[str, Any]]:
+        return [
+            row for row in self.summary_checkpoints.values() if row.get("generation_job_id") == job_id
+        ]
+
+    def upsert_transcript_summary(
+        self,
+        *,
+        job_id: uuid.UUID | None,
+        transcript_id: uuid.UUID,
+        opportunity_id: uuid.UUID,
+        conversation_id: str,
+        summary_json: dict[str, Any],
+        schema_version: str,
+        prompt_version: str,
+        processing_status: str = "completed",
+        **_: Any,
+    ) -> dict[str, Any]:
+        row = {
+            "generation_job_id": job_id,
+            "transcript_id": transcript_id,
+            "opportunity_id": opportunity_id,
+            "conversation_id": conversation_id,
+            "summary_json": summary_json,
+            "schema_version": schema_version,
+            "prompt_version": prompt_version,
+            "processing_status": processing_status,
+        }
+        self.summary_checkpoints[transcript_id] = row
         return row
 
 
@@ -118,6 +172,7 @@ def test_live_mode_invokes_es_extraction_then_framework_pipeline() -> None:
         opportunity_id=OPPORTUNITY_ID,
         user_id=USER_ID,
         execution_mode="live",
+        summarize_fn=_mock_summary,
         extract_fn=extract,
         generate_fn=generate,
     )
@@ -162,6 +217,7 @@ def test_synthesis_retry_reuses_job_scoped_knowledge_checkpoint() -> None:
             opportunity_id=OPPORTUNITY_ID,
             user_id=USER_ID,
             execution_mode="live",
+            summarize_fn=_mock_summary,
             extract_fn=extract,
             generate_fn=fail_synthesis,
             job_id=job_id,
@@ -176,6 +232,7 @@ def test_synthesis_retry_reuses_job_scoped_knowledge_checkpoint() -> None:
         opportunity_id=OPPORTUNITY_ID,
         user_id=USER_ID,
         execution_mode="live",
+        summarize_fn=_mock_summary,
         extract_fn=extract,
         generate_fn=lambda *_args, **_kwargs: {
             "schema_version": "1.0",
@@ -189,8 +246,8 @@ def test_synthesis_retry_reuses_job_scoped_knowledge_checkpoint() -> None:
     stage_runs.append(second_stages)
 
     assert extraction_calls == 1
-    assert stage_runs[0] == ["knowledge", "synthesis"]
-    assert stage_runs[1] == ["synthesis", "validation"]
+    assert stage_runs[0] == ["summarizing", "knowledge", "synthesis"]
+    assert stage_runs[1] == ["summarizing", "synthesis", "validation"]
     assert result["generated_from"] == [str(TRANSCRIPT_ID)]
 
 
@@ -203,9 +260,10 @@ def test_extraction_failure_never_advances_to_synthesis() -> None:
             opportunity_id=OPPORTUNITY_ID,
             user_id=USER_ID,
             execution_mode="live",
+            summarize_fn=_mock_summary,
             extract_fn=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("extraction unavailable")),
             generate_fn=lambda *_args, **_kwargs: pytest.fail("synthesis must not run"),
             stage_callback=stages.append,
         )
 
-    assert stages == ["knowledge"]
+    assert stages == ["summarizing", "knowledge"]

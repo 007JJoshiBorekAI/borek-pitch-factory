@@ -492,6 +492,7 @@ def test_worker_does_not_auto_retry_validation_failure() -> None:
 @pytest.mark.parametrize(
     ("callback_stage", "expected_stage"),
     [
+        ("summarizing", JobStage.TRANSCRIPT_SUMMARIZING),
         ("knowledge", JobStage.KNOWLEDGE_EXTRACTING),
         ("synthesis", JobStage.FRAMEWORK_SYNTHESIZING),
         ("validation", JobStage.FRAMEWORK_VALIDATING),

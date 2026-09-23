@@ -246,6 +246,16 @@ def test_knowledge_model_checkpoints_are_job_scoped_and_owner_protected() -> Non
     assert "GRANT ALL ON public.knowledge_model_checkpoints TO service_role" in content
 
 
+def test_transcript_summaries_are_owner_protected() -> None:
+    content = (MIGRATIONS_DIR / "030_transcript_summaries.sql").read_text(encoding="utf-8")
+    assert "transcript_id UUID NOT NULL PRIMARY KEY REFERENCES public.transcripts(id)" in content
+    assert "generation_job_id UUID REFERENCES public.generation_jobs(id)" in content
+    assert "summary_json JSONB NOT NULL" in content
+    assert "ENABLE ROW LEVEL SECURITY" in content
+    assert "REVOKE ALL ON public.transcript_summaries FROM PUBLIC, anon, authenticated" in content
+    assert "GRANT ALL ON public.transcript_summaries TO service_role" in content
+
+
 def test_bt35_client_documents_tables_and_storage() -> None:
     content = (MIGRATIONS_DIR / "029_client_documents.sql").read_text(encoding="utf-8")
     assert "CREATE TABLE IF NOT EXISTS client_documents" in content

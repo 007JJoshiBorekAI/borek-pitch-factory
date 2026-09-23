@@ -62,6 +62,7 @@ STAGE_SYNTHESIS = "framework_synthesis"
 STAGE_LOCALIZE = "customer_localize"
 STAGE_PROCESS_SCOPE = "process_scope"
 STAGE_FOLLOWUP_EXTRACTION = "followup_extraction"
+STAGE_TRANSCRIPT_SUMMARIZING = "transcript_summarizing"
 
 
 @dataclass(frozen=True)

@@ -293,6 +293,7 @@ def run_framework_generation_task(
                 def advance(target: str) -> None:
                     nonlocal stage
                     target_stage = {
+                        "summarizing": JobStage.TRANSCRIPT_SUMMARIZING,
                         "knowledge": JobStage.KNOWLEDGE_EXTRACTING,
                         "synthesis": JobStage.FRAMEWORK_SYNTHESIZING,
                         "validation": JobStage.FRAMEWORK_VALIDATING,
@@ -450,6 +451,7 @@ def run_framework_regenerate_chapter_task(
             def advance(target: str) -> None:
                 nonlocal stage
                 stage = {
+                    "summarizing": JobStage.TRANSCRIPT_SUMMARIZING,
                     "knowledge": JobStage.KNOWLEDGE_EXTRACTING,
                     "synthesis": JobStage.FRAMEWORK_SYNTHESIZING,
                     "validation": JobStage.FRAMEWORK_VALIDATING,

@@ -20,6 +20,7 @@ class AuditAction(StrEnum):
     TRANSCRIPT_UPLOAD = "transcript.upload"
     TRANSCRIPT_REGENERATE = "transcript.regenerate"
     TRANSCRIPT_DELETE = "transcript.delete"
+    TRANSCRIPT_SUMMARIZE = "transcript.summarize"
     FRAMEWORK_GENERATE = "framework.generate"
     FRAMEWORK_REGENERATE_CHAPTER = "framework.regenerate_chapter"
     FRAMEWORK_CONFIRM = "framework.confirm"

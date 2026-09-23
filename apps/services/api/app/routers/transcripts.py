@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
+from app.schemas.transcript_summary import TranscriptSummaryResponse
 from app.schemas.transcripts import TranscriptResponse, TranscriptUploadResponse
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.api_errors import bad_request
@@ -91,6 +92,49 @@ def list_transcripts(
 ) -> list[TranscriptResponse]:
     rows = store.list_transcripts(opportunity_id=opportunity_id, user_id=user.id)
     return [_to_response(row) for row in rows]
+
+
+def _to_summary_response(row: dict) -> TranscriptSummaryResponse:
+    return TranscriptSummaryResponse(
+        transcript_id=row["transcript_id"],
+        opportunity_id=row["opportunity_id"],
+        conversation_id=str(row["conversation_id"]),
+        schema_version=str(row["schema_version"]),
+        prompt_version=str(row["prompt_version"]),
+        processing_status=str(row["processing_status"]),
+        summary=dict(row["summary_json"]),
+        generation_job_id=row.get("generation_job_id"),
+        created_at=row.get("created_at"),
+        updated_at=row.get("updated_at"),
+    )
+
+
+@router.get(
+    "/{opportunity_id}/transcripts/{transcript_id}/summary",
+    response_model=TranscriptSummaryResponse,
+)
+def get_transcript_summary(
+    opportunity_id: UUID,
+    transcript_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> TranscriptSummaryResponse:
+    if not hasattr(store, "get_transcript_summary"):
+        raise bad_request(
+            "TRANSCRIPT_SUMMARY_UNAVAILABLE",
+            "Transcript summaries are not available in this data backend.",
+        )
+    row = store.get_transcript_summary(
+        opportunity_id=opportunity_id,
+        transcript_id=transcript_id,
+        user_id=user.id,
+    )
+    if row is None:
+        raise bad_request(
+            "TRANSCRIPT_SUMMARY_NOT_FOUND",
+            "No structured summary exists for this transcript yet.",
+        )
+    return _to_summary_response(row)
 
 
 @router.get("/{opportunity_id}/transcripts/{transcript_id}", response_model=TranscriptResponse)

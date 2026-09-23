@@ -42,6 +42,7 @@ EXPECTED_TABLES = [
     "knowledge_facts",
     "egress_audit",
     "knowledge_model_checkpoints",
+    "transcript_summaries",
     "user_roles",
 ]
 

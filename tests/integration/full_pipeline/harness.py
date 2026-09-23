@@ -309,6 +309,16 @@ def create_opportunity_with_transcript(
         raise AssertionError(f"create opportunity failed: {opportunity.status_code} {opportunity.text}")
     opportunity_id = opportunity.json()["id"]
 
+    client_document = client.post(
+        f"/opportunities/{opportunity_id}/client-documents",
+        headers=headers,
+        files={"file": ("client_brief.txt", b"First contact client brief for pipeline harness.", "text/plain")},
+    )
+    if client_document.status_code != 201:
+        raise AssertionError(
+            f"upload client document failed: {client_document.status_code} {client_document.text}"
+        )
+
     upload = client.post(
         f"/opportunities/{opportunity_id}/transcripts",
         headers=headers,

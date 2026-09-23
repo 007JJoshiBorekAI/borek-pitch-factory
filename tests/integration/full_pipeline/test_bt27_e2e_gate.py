@@ -43,6 +43,7 @@ JOB_PROGRESS_TS = ROOT / "apps" / "web" / "src" / "lib" / "jobProgress.ts"
 # The stages the production workers emit for the automated build (v2 §24).
 EXPECTED_FRAMEWORK_STAGES = (
     JobStage.TRANSCRIPT_PROCESSING.value,
+    JobStage.TRANSCRIPT_SUMMARIZING.value,
     JobStage.KNOWLEDGE_EXTRACTING.value,
     JobStage.FRAMEWORK_SYNTHESIZING.value,
     JobStage.FRAMEWORK_VALIDATING.value,

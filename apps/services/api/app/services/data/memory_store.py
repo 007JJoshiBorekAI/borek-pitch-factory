@@ -135,6 +135,7 @@ class MemoryDataStore:
     knowledge_documents: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     knowledge_facts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     knowledge_model_checkpoints: dict[tuple[UUID, UUID], dict[str, Any]] = field(default_factory=dict)
+    transcript_summaries: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     user_roles: dict[UUID, dict[str, Any]] = field(default_factory=dict)
 
     def list_job_knowledge_models(
@@ -184,6 +185,82 @@ class MemoryDataStore:
             "prompt_version": prompt_version,
         }
         self.knowledge_model_checkpoints[(job_id, transcript_id)] = row
+        return copy.deepcopy(row)
+
+    def get_transcript_summary(
+        self,
+        *,
+        opportunity_id: UUID,
+        transcript_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        row = self.transcript_summaries.get(transcript_id)
+        if row is None or row["opportunity_id"] != opportunity_id:
+            return None
+        return copy.deepcopy(row)
+
+    def list_job_transcript_summaries(
+        self,
+        *,
+        job_id: UUID,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        job = self.generation_jobs.get(job_id)
+        if job is None or job["opportunity_id"] != opportunity_id:
+            raise bad_request(
+                "TRANSCRIPT_SUMMARY_CHECKPOINT_INVALID",
+                "Generation job does not belong to this opportunity",
+            )
+        return [
+            copy.deepcopy(row)
+            for row in self.transcript_summaries.values()
+            if row.get("generation_job_id") == job_id and row["opportunity_id"] == opportunity_id
+        ]
+
+    def upsert_transcript_summary(
+        self,
+        *,
+        job_id: UUID | None,
+        transcript_id: UUID,
+        opportunity_id: UUID,
+        user_id: UUID,
+        conversation_id: str,
+        summary_json: dict[str, Any],
+        schema_version: str,
+        prompt_version: str,
+        processing_status: str = "completed",
+    ) -> dict[str, Any]:
+        if job_id is not None:
+            job = self.generation_jobs.get(job_id)
+            if job is None or job["opportunity_id"] != opportunity_id:
+                raise bad_request(
+                    "TRANSCRIPT_SUMMARY_CHECKPOINT_INVALID",
+                    "Generation job does not belong to this opportunity",
+                )
+        self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        row = {
+            "transcript_id": transcript_id,
+            "opportunity_id": opportunity_id,
+            "conversation_id": conversation_id,
+            "generation_job_id": job_id,
+            "schema_version": schema_version,
+            "prompt_version": prompt_version,
+            "processing_status": processing_status,
+            "summary_json": copy.deepcopy(summary_json),
+        }
+        self.transcript_summaries[transcript_id] = row
         return copy.deepcopy(row)
 
     def get_filing_record(self, idempotency_key: str) -> dict[str, Any] | None:
