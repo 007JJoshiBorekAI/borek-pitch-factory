@@ -27,6 +27,8 @@ Single source of truth for all cross-service data contracts.
 | `stage2_outputs.schema.json` | BT-36 | Same: retrieve envelope on `main` |
 | `meeting_feedback.schema.json` | BT-36 | Complete |
 | `email_draft.schema.json` | TSK-013 | Complete |
+| `borek_design_tokens.json` | TSK-010 | Complete |
+| `borek_design_tokens.schema.json` | TSK-010 | Complete |
 
 ## Validation gate
 
