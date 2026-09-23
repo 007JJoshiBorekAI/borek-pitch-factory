@@ -2,6 +2,8 @@
 
 **READY for wiring (fixture path).** Confirm never sends mail. First-meeting PPT stays `unfrozen` until JJ-31.
 
+Deploy checklist (migrations 028–031): `docs/tickets/PHASE1_DEPLOY.md`
+
 Base path: `/opportunities/{opportunity_id}`  
 Auth: same bearer token as intake/documents.
 
@@ -62,8 +64,12 @@ Contract: `packages/contracts/email_draft.schema.json`.
 | `TRANSCRIPT_REQUIRED` | 400 |
 | `INVALID_JOURNEY_STAGE` | 400 |
 | `INVALID_EMAIL_LENGTH` | 400 |
+| `FOLLOWUP_STATICS_REQUIRED` | 400 |
+| `FOLLOWUP_EXTRACTION_FAILED` | 400 |
 | `EMAIL_SEND_FORBIDDEN` | 400 |
 | `EMAIL_DRAFT_NOT_FOUND` | 404 |
+
+Email generate fills the **MS-32 template** (`services/followup/rendering.py`) from JJ-32 extraction + `opportunity.followup_statics`. Set statics before generate.
 
 ## Not ready
 

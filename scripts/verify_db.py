@@ -43,6 +43,7 @@ EXPECTED_TABLES = [
     "egress_audit",
     "knowledge_model_checkpoints",
     "user_roles",
+    "transcript_summaries",
 ]
 
 EXPECTED_COLUMNS = {
@@ -56,7 +57,22 @@ EXPECTED_COLUMNS = {
         "sales_topic_description",
         "about_company",
         "voice_recording_artifact_id",
+        "meeting_feedback_text",
+        "meeting_feedback_updated_at",
+        "stage1_outputs",
+        "stage2_outputs",
+        "email_drafts",
         "demo_marker",
+    ),
+    "transcript_summaries": (
+        "transcript_id",
+        "opportunity_id",
+        "conversation_id",
+        "generation_job_id",
+        "schema_version",
+        "prompt_version",
+        "processing_status",
+        "summary_json",
     ),
     "generation_jobs": (
         "llm_cost_eur",
@@ -133,6 +149,7 @@ EXPECTED_FOREIGN_KEYS = {
     "knowledge_facts": "knowledge_documents",
     "egress_audit": "presentation_versions",
     "knowledge_model_checkpoints": "generation_jobs",
+    "transcript_summaries": "transcripts",
 }
 
 EXPECTED_INDEXES = (
@@ -150,6 +167,8 @@ EXPECTED_INDEXES = (
     "egress_audit_opportunity_idx",
     "egress_audit_version_stage_idx",
     "framework_versions_opportunity_version_key",
+    "transcript_summaries_opportunity_id_idx",
+    "transcript_summaries_generation_job_id_idx",
 )
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}
