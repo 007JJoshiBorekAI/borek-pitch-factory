@@ -258,6 +258,70 @@ export async function apiFetchBlob(
   return response.blob();
 }
 
+export interface Stage1Intake {
+  client_web_page?: string | null;
+  poc_name?: string | null;
+  poc_position?: string | null;
+  sales_topic_description?: string | null;
+  about_company?: string | null;
+}
+
+export interface Stage1Fact {
+  status: "verified" | "unknown";
+  origin: string;
+  value: string | null;
+  source_refs: Array<{ source_id: string; locator: string; excerpt: string }>;
+}
+
+export interface Stage1Research {
+  schema_version: string;
+  opportunity_id: string;
+  client_name: string;
+  company_facts: {
+    description: Stage1Fact;
+    headquarters: Stage1Fact;
+    employee_headcount: Stage1Fact;
+    decision_makers: Stage1Fact;
+    revenue: Stage1Fact;
+  };
+  hypothesis: { status: string; text: string | null; basis: string[] };
+  product_relevance: { status: string; text: string | null; basis: string[] };
+  dependencies?: string[];
+}
+
+export interface Stage1OutputsEnvelope {
+  schema_version: string;
+  opportunity_id: string;
+  status: "not_generated" | "ready";
+  outputs: {
+    hypothesis: { statement: string; origin: string };
+    product_relevance: { statement: string; origin: string };
+    discovery_questions: Array<{ id: string; text: string }>;
+    use_cases: Array<{ title: string; rationale: string; availability: string }>;
+    agenda: { title: string; items: Array<{ order: number; label: string }> };
+    presentation: {
+      status: string;
+      profile: string;
+      code: string | null;
+      presentation_id: string | null;
+      download_url: string | null;
+    };
+    research: Stage1Research | null;
+    generated_at: string;
+  } | null;
+}
+
+export interface ClientDocumentResponse {
+  id: string;
+  opportunity_id: string;
+  file_name: string;
+  mime_type: string;
+  document_key: string;
+  processing_status: string;
+  section_count: number;
+  created_at: string;
+}
+
 export interface OpportunityCreatePayload {
   client_name: string;
   opportunity_name: string;
@@ -266,6 +330,7 @@ export interface OpportunityCreatePayload {
   pii_redaction_enabled?: boolean;
   additional_client_information?: AdditionalClientInformation;
   followup_statics?: FollowupProjectStatics;
+  stage1_intake?: Stage1Intake | null;
 }
 
 export interface ClientContact {
@@ -305,6 +370,7 @@ export interface OpportunityResponse {
   pii_redaction_enabled?: boolean;
   additional_client_information?: AdditionalClientInformation | null;
   followup_statics?: FollowupProjectStatics | null;
+  stage1_intake?: Stage1Intake | null;
   demo_marker?: string | null;
 }
 
@@ -330,6 +396,7 @@ export interface TranscriptUploadResponse {
 export interface OpportunityUpdatePayload {
   additional_client_information?: AdditionalClientInformation | null;
   followup_statics?: FollowupProjectStatics | null;
+  stage1_intake?: Stage1Intake | null;
 }
 
 export async function createOpportunity(
@@ -492,6 +559,50 @@ export async function uploadTranscript(
       method: "POST",
       body: formData,
     },
+  );
+}
+
+export async function uploadClientDocument(
+  accessToken: string,
+  opportunityId: string,
+  file: File,
+): Promise<{ document: ClientDocumentResponse; processing_status: string }> {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  return apiFetch(`/opportunities/${opportunityId}/client-documents`, accessToken, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function listClientDocuments(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientDocumentResponse[]> {
+  return apiFetch<ClientDocumentResponse[]>(
+    `/opportunities/${opportunityId}/client-documents`,
+    accessToken,
+  );
+}
+
+export async function getStage1Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch<Stage1OutputsEnvelope>(
+    `/opportunities/${opportunityId}/stage1-outputs`,
+    accessToken,
+  );
+}
+
+export async function generateStage1Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch<Stage1OutputsEnvelope>(
+    `/opportunities/${opportunityId}/stage1-outputs/generate`,
+    accessToken,
+    { method: "POST" },
   );
 }
 

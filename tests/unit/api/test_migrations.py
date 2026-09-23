@@ -258,6 +258,9 @@ def test_bt36_stage_outputs_columns() -> None:
     assert "document_key TEXT NOT NULL" in content
     assert "bucket_id = 'client_documents'" in content
     assert "ENABLE ROW LEVEL SECURITY" in content
+    rls = (MIGRATIONS_DIR / "031_client_documents_rls.sql").read_text(encoding="utf-8")
+    assert "users_own_client_documents" in rls
+    assert "users_own_client_document_sections" in rls
 
 
 def test_d3_employee_roles_and_activity_document_id() -> None:

@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 
-import { NewPitchPanel } from "@/components/NewPitchPanel";
+import { FirstContactPanel } from "@/components/FirstContactPanel";
 import { RequireAuth } from "@/components/RequireAuth";
 
-export default function HomePage() {
+export default function FirstContactPage() {
   return (
     <RequireAuth>
       <Suspense fallback={null}>
-        <NewPitchPanel />
+        <FirstContactPanel />
       </Suspense>
     </RequireAuth>
   );

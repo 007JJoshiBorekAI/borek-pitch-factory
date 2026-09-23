@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 
-import { NewPitchPanel } from "@/components/NewPitchPanel";
+import { CreatePitchPanel } from "@/components/CreatePitchPanel";
 import { RequireAuth } from "@/components/RequireAuth";
 
-export default function HomePage() {
+export default function CreatePitchPage() {
   return (
     <RequireAuth>
       <Suspense fallback={null}>
-        <NewPitchPanel />
+        <CreatePitchPanel />
       </Suspense>
     </RequireAuth>
   );

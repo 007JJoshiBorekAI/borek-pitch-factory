@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AuthProvider } from "@/components/AuthProvider";
 
 import "./globals.css";
+import "./pitch-shell.css";
 
 export const metadata: Metadata = {
   title: "Borek Pitch Factory",

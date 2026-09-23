@@ -64,12 +64,12 @@ export function ActivityLogPanel() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-workspace">
       <SiteHeader />
-      <main className="app-workspace">
+      <main className="app-shell app-workspace-body">
         <AppPageHeader
-          kicker="Governance"
-          title="Activity log"
+          kicker="Workspace"
+          title="Activity"
           lead="Every generation, edit, login, and role change is recorded with the employee, time, and document ID."
         />
 
