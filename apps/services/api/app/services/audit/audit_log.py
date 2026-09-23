@@ -32,6 +32,15 @@ class AuditAction(StrEnum):
     ARTIFACT_FILE = "artifact.file"
     AUTH_LOGIN = "auth.login"
     ROLE_ASSIGN = "role.assign"
+    STAGE1_RESEARCH_GENERATE = "stage1_research.generate"
+    STAGE1_VOICE_REQUEST = "stage1_voice.request"
+    STAGE1_OUTPUTS_GENERATE = "stage1_outputs.generate"
+    STAGE2_OUTPUTS_GENERATE = "stage2_outputs.generate"
+    MEETING_FEEDBACK_UPDATE = "meeting_feedback.update"
+    EMAIL_DRAFT_GENERATE = "email_draft.generate"
+    EMAIL_DRAFT_CONFIRM = "email_draft.confirm"
+    CLIENT_DOCUMENT_UPLOAD = "client_document.upload"
+    CLIENT_DOCUMENT_DELETE = "client_document.delete"
 
 
 class AuditObjectType(StrEnum):
@@ -43,6 +52,7 @@ class AuditObjectType(StrEnum):
     PRESENTATION = "presentation"
     SLIDE = "slide"
     FILED_ARTIFACT = "filed_artifact"
+    CLIENT_DOCUMENT = "client_document"
     EMPLOYEE = "employee"
     SESSION = "session"
 

@@ -22,6 +22,11 @@ Single source of truth for all cross-service data contracts.
 | `gamma_artifact_location.json` | BT-28 | Complete |
 | `journey_stage_eligibility.schema.json` | BT-31 | Complete |
 | `followup_extraction.schema.json` | JJ-32 | Complete |
+| `transcript_summary.schema.json` | BT-36 | Complete |
+| `stage1_outputs.schema.json` | BT-36 | Complete |
+| `stage2_outputs.schema.json` | BT-36 | Complete |
+| `meeting_feedback.schema.json` | BT-36 | Complete |
+| `email_draft.schema.json` | TSK-013 | Complete |
 
 ## Validation gate
 

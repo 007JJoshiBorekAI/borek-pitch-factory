@@ -41,6 +41,12 @@ const SCHEMAS = [
     "slide_spec_group_c_open_questions_01.ts",
   ],
   ["slide_spec/group_c/next_steps_01.schema.json", "slide_spec_group_c_next_steps_01.ts"],
+  ["stage1_research.schema.json", "stage1_research.ts"],
+  ["transcript_summary.schema.json", "transcript_summary.ts"],
+  ["stage1_outputs.schema.json", "stage1_outputs.ts"],
+  ["stage2_outputs.schema.json", "stage2_outputs.ts"],
+  ["email_draft.schema.json", "email_draft.ts"],
+  ["meeting_feedback.schema.json", "meeting_feedback.ts"],
 ];
 
 function loadChapterRegistry() {
@@ -119,6 +125,12 @@ export type { Compliance01SlideSpec } from "./slide_spec_group_c_compliance_01";
 export type { SuccessMetrics01SlideSpec } from "./slide_spec_group_c_success_metrics_01";
 export type { OpenQuestions01SlideSpec } from "./slide_spec_group_c_open_questions_01";
 export type { NextSteps01SlideSpec } from "./slide_spec_group_c_next_steps_01";
+export type { Stage1Research } from "./stage1_research";
+export type { TranscriptSummary } from "./transcript_summary";
+export type { Stage1OutputsEnvelope } from "./stage1_outputs";
+export type { Stage2OutputsEnvelope } from "./stage2_outputs";
+export type { EmailDraftEnvelope } from "./email_draft";
+export type { MeetingFeedback } from "./meeting_feedback";
 `;
   fs.writeFileSync(path.join(OUT_DIR, "index.ts"), `${indexContent}\n`, "utf8");
 }

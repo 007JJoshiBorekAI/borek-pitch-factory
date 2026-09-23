@@ -1,6 +1,6 @@
 # BT-34 — Intake context + company research in main prompts
 
-**Owner:** Mayank Somwani  
+**Owner:** Mayank Somwani
 **Phase:** 3 · **Priority:** P0  
 **Added:** 21 September 2026 — Feature redefinition sprint  
 **Source:** `Pitch Factory input_output.docx` — Stage 1 inputs → research outputs

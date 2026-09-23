@@ -21,6 +21,13 @@ from app.services.stage_b_orchestration import (
     plan_json_from_confirmed_framework,
     planned_slides_with_generators,
 )
+from app.services.journey_outputs_store import JOURNEY_OUTPUT_DB_COLUMNS
+from app.services.stage1_intake_store import (
+    STAGE1_DB_COLUMNS,
+    apply_intake_columns,
+    expand_opportunity_updates,
+    present_opportunity,
+)
 
 ALLOWED_TRANSCRIPT_EXTENSIONS = {".txt", ".vtt", ".srt", ".docx"}
 ALLOWED_TRANSCRIPT_MIME_TYPES = {
@@ -113,6 +120,7 @@ def _load_framework_template(opportunity_id: UUID) -> dict[str, Any]:
 class MemoryDataStore:
     opportunities: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     transcripts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    client_documents: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     client_logos: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     framework_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentation_plans: dict[UUID, dict[str, Any]] = field(default_factory=dict)
@@ -322,6 +330,7 @@ class MemoryDataStore:
         pii_redaction_enabled: bool = True,
         additional_client_information: dict[str, Any] | None = None,
         followup_statics: dict[str, Any] | None = None,
+        stage1_intake: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         opportunity_id = uuid.uuid4()
         now = _now()
@@ -338,13 +347,19 @@ class MemoryDataStore:
             "created_by": user_id,
             "created_at": now,
             "updated_at": now,
+            **{key: None for key in STAGE1_DB_COLUMNS},
+            **{key: None for key in JOURNEY_OUTPUT_DB_COLUMNS},
         }
+        apply_intake_columns(row, stage1_intake)
         self.opportunities[opportunity_id] = row
-        return row
+        return present_opportunity(row)
 
     def list_opportunities(self, *, user_id: UUID) -> list[dict[str, Any]]:
         rows = [row for row in self.opportunities.values() if row["created_by"] == user_id]
-        return sorted(rows, key=lambda row: row["created_at"], reverse=True)
+        return [
+            present_opportunity(row)
+            for row in sorted(rows, key=lambda row: row["created_at"], reverse=True)
+        ]
 
     def load_recent_work_index(
         self,
@@ -431,7 +446,7 @@ class MemoryDataStore:
         row = self.opportunities.get(opportunity_id)
         if row is None or row["created_by"] != user_id:
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
-        return row
+        return present_opportunity(row)
 
     def update_opportunity(
         self,
@@ -440,12 +455,20 @@ class MemoryDataStore:
         user_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
-        row = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
-        for key, value in updates.items():
-            if value is not None or key in {"additional_client_information", "followup_statics"}:
+        row = self.opportunities.get(opportunity_id)
+        if row is None or row["created_by"] != user_id:
+            raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
+        expanded = expand_opportunity_updates(dict(updates))
+        for key, value in expanded.items():
+            if value is not None or key in {
+                "additional_client_information",
+                "followup_statics",
+                *STAGE1_DB_COLUMNS,
+                *JOURNEY_OUTPUT_DB_COLUMNS,
+            }:
                 row[key] = value
         row["updated_at"] = _now()
-        return row
+        return present_opportunity(row)
 
     def upsert_client_logo(
         self,
@@ -656,6 +679,113 @@ class MemoryDataStore:
             user_id=user_id,
         )
         del self.transcripts[transcript_id]
+
+    def create_client_document(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        file_name: str,
+        mime_type: str,
+        storage_path: str,
+        document_key: str,
+        content: bytes,
+        sections: list[dict[str, Any]],
+        processing_status: str = "processed",
+        verify_owner: bool = True,
+    ) -> dict[str, Any]:
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        document_id = uuid.uuid4()
+        row = {
+            "id": document_id,
+            "opportunity_id": opportunity_id,
+            "file_name": file_name,
+            "mime_type": mime_type,
+            "storage_path": storage_path,
+            "document_key": document_key,
+            "content": bytes(content),
+            "sections": copy.deepcopy(sections),
+            "processing_status": processing_status,
+            "created_at": _now(),
+        }
+        self.client_documents[document_id] = row
+        return self._present_client_document(row)
+
+    def list_client_documents(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        verify_owner: bool = True,
+    ) -> list[dict[str, Any]]:
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        rows = [
+            row
+            for row in self.client_documents.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+        return [self._present_client_document(row) for row in sorted(rows, key=lambda item: item["created_at"])]
+
+    def list_client_document_sources(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": row["id"],
+                "file_name": row["file_name"],
+                "document_key": row["document_key"],
+                "processing_status": row["processing_status"],
+                "sections": copy.deepcopy(row["sections"]),
+            }
+            for row in self.client_documents.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+
+    def get_client_document(
+        self,
+        *,
+        opportunity_id: UUID,
+        document_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        row = self.client_documents.get(document_id)
+        if row is None or row["opportunity_id"] != opportunity_id:
+            raise not_found("CLIENT_DOCUMENT_NOT_FOUND", f"Client document {document_id} was not found")
+        return self._present_client_document(row)
+
+    def delete_client_document(
+        self,
+        *,
+        opportunity_id: UUID,
+        document_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        self.get_client_document(
+            opportunity_id=opportunity_id,
+            document_id=document_id,
+            user_id=user_id,
+        )
+        del self.client_documents[document_id]
+
+    @staticmethod
+    def _present_client_document(row: dict[str, Any]) -> dict[str, Any]:
+        sections = row.get("sections") or []
+        return {
+            "id": row["id"],
+            "opportunity_id": row["opportunity_id"],
+            "file_name": row["file_name"],
+            "mime_type": row["mime_type"],
+            "document_key": row["document_key"],
+            "processing_status": row["processing_status"],
+            "section_count": len(sections),
+            "created_at": row["created_at"],
+        }
 
     def create_framework_version(
         self,
@@ -1726,6 +1856,65 @@ class MemoryDataStore:
         target = UUID(str(job_id))
         rows = [row for row in self.llm_calls.values() if row.get("job_id") == target]
         return [copy.deepcopy(row) for row in sorted(rows, key=lambda item: item["created_at"])]
+
+    def upsert_email_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        journey_stage: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        row = self.opportunities.get(opportunity_id)
+        if row is None or row["created_by"] != user_id:
+            raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
+        drafts = copy.deepcopy(row.get("email_drafts") or {})
+        existing = drafts.get(journey_stage)
+        now = _now()
+        stored = {
+            "id": UUID(str(existing["id"])) if existing else uuid.uuid4(),
+            "opportunity_id": opportunity_id,
+            "journey_stage": journey_stage,
+            "status": payload["status"],
+            "send_status": "not_sent",
+            "selected_length": payload.get("selected_length"),
+            "lengths": copy.deepcopy(payload["lengths"]),
+            "confirmed_at": payload.get("confirmed_at"),
+            "created_at": existing["created_at"] if existing else now,
+            "updated_at": now,
+        }
+        drafts[journey_stage] = stored
+        row["email_drafts"] = drafts
+        row["updated_at"] = now
+        return copy.deepcopy(stored)
+
+    def get_email_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        journey_stage: str,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        row = self.opportunities.get(opportunity_id)
+        drafts = (row or {}).get("email_drafts") or {}
+        stored = drafts.get(journey_stage)
+        return copy.deepcopy(stored) if stored is not None else None
+
+    def get_email_draft_by_id(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        draft_id: UUID,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        row = self.opportunities.get(opportunity_id)
+        drafts = (row or {}).get("email_drafts") or {}
+        for stored in drafts.values():
+            if UUID(str(stored["id"])) == draft_id:
+                return copy.deepcopy(stored)
+        raise not_found("EMAIL_DRAFT_NOT_FOUND", "Email draft was not found")
 
 
 _memory_store = MemoryDataStore()

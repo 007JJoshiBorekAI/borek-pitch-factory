@@ -110,6 +110,13 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
     assert transcript.status_code == 201
     transcript_id = transcript.json()["transcript"]["id"]
 
+    client_doc = client.post(
+        f"/opportunities/{opportunity_id}/client-documents",
+        headers=_headers(),
+        files={"file": ("brief.txt", b"Client background material.", "text/plain")},
+    )
+    assert client_doc.status_code == 201
+
     regenerate_transcript = client.post(
         f"/opportunities/{opportunity_id}/transcripts/{transcript_id}/regenerate",
         headers=_headers(),
@@ -219,6 +226,26 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
     assert replace_logo.status_code == 200
     delete_logo = client.delete(logo_path, headers=_headers())
     assert delete_logo.status_code == 204
+
+    extra_doc = client.post(
+        f"/opportunities/{opportunity_id}/client-documents",
+        headers=_headers(),
+        files={"file": ("extra.txt", b"Extra client material.", "text/plain")},
+    )
+    assert extra_doc.status_code == 201
+    delete_doc = client.delete(
+        f"/opportunities/{opportunity_id}/client-documents/{extra_doc.json()['document']['id']}",
+        headers=_headers(),
+    )
+    assert delete_doc.status_code == 204
+    research = client.post(
+        f"/opportunities/{opportunity_id}/stage1-research", headers=_headers(),
+    )
+    assert research.status_code == 200
+    voice = client.post(
+        f"/opportunities/{opportunity_id}/stage1-voice", headers=_headers(),
+    )
+    assert voice.status_code == 200
 
     recorded = set(_audit_actions())
     assert PIPELINE_AUDIT_ACTIONS.issubset(recorded)

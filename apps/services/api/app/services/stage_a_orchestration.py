@@ -29,6 +29,7 @@ from services.framework.company_facts import (
     ground_company_facts,
     query_text_from_opportunity,
 )
+from services.framework.stage1_intake import intake_from_opportunity, safe_intake_for_llm
 from services.knowledge_model.extraction import PROMPT_VERSION as EXTRACTION_PROMPT_VERSION
 from services.knowledge_model.extraction import extract_knowledge_model
 from services.transcript.conversation_ids import TranscriptIdentity
@@ -68,6 +69,10 @@ def generate_framework_from_transcripts(
             raise bad_request("TRANSCRIPT_SET_CHANGED", "A transcript pinned to this generation job is no longer available")
         sources = [by_id[transcript_id] for transcript_id in transcript_ids]
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    stage1_intake = safe_intake_for_llm(
+        intake_from_opportunity(opportunity),
+        redact=opportunity_pii_redaction_enabled(opportunity),
+    )
     client_pack = normalize_client_pack(opportunity.get("additional_client_information"))
     company_facts = ground_company_facts(
         query_text_from_opportunity(opportunity),
@@ -132,6 +137,7 @@ def generate_framework_from_transcripts(
             identity,
             redact=redact,
             client_pack=client_pack,
+            stage1_intake=stage1_intake,
         )
         knowledge_models.append(model)
         if job_id is not None and hasattr(store, "upsert_job_knowledge_model"):
@@ -163,6 +169,7 @@ def generate_framework_from_transcripts(
         use_llm=True,
         client_pack=client_pack,
         company_facts=company_facts,
+        stage1_intake=stage1_intake,
         stage_callback=stage_callback,
     )
     if stage_callback is not None:
@@ -215,6 +222,10 @@ def regenerate_framework_chapter_from_transcripts(
     if not sources:
         raise bad_request("TRANSCRIPT_REQUIRED", "Upload at least one valid transcript before regenerating a chapter")
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    stage1_intake = safe_intake_for_llm(
+        intake_from_opportunity(opportunity),
+        redact=opportunity_pii_redaction_enabled(opportunity),
+    )
     client_pack = normalize_client_pack(opportunity.get("additional_client_information"))
     redact = opportunity_pii_redaction_enabled(opportunity)
     if stage_callback is not None:
@@ -233,6 +244,7 @@ def regenerate_framework_chapter_from_transcripts(
                 identity,
                 redact=redact,
                 client_pack=client_pack,
+                stage1_intake=stage1_intake,
             )
         )
     if stage_callback is not None:

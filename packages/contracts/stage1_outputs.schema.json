@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/stage1_outputs.schema.json",
+  "title": "Stage1OutputsEnvelope",
+  "description": "BT-36 First contact retrieval envelope for MS-35. Research facts stay evidence-bound; PPT stays unfrozen until JJ-31.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "opportunity_id", "status", "outputs"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["not_generated", "ready"]
+    },
+    "outputs": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "hypothesis",
+        "product_relevance",
+        "discovery_questions",
+        "use_cases",
+        "agenda",
+        "presentation",
+        "research",
+        "generated_at"
+      ],
+      "properties": {
+        "hypothesis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["statement", "origin"],
+          "properties": {
+            "statement": { "type": "string" },
+            "origin": { "const": "AI_HYPOTHESIS" }
+          }
+        },
+        "product_relevance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["statement", "origin"],
+          "properties": {
+            "statement": { "type": "string" },
+            "origin": { "const": "AI_HYPOTHESIS" }
+          }
+        },
+        "discovery_questions": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 15,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "text"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "text": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "use_cases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["title", "rationale", "availability"],
+            "properties": {
+              "title": { "type": "string", "minLength": 1 },
+              "rationale": { "type": "string" },
+              "availability": {
+                "type": "string",
+                "enum": ["matched", "unknown"]
+              }
+            }
+          }
+        },
+        "agenda": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title", "items"],
+          "properties": {
+            "title": { "type": "string", "minLength": 1 },
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["order", "label"],
+                "properties": {
+                  "order": { "type": "integer", "minimum": 1 },
+                  "label": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        "presentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "profile", "code", "presentation_id", "download_url"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["unfrozen", "ready"]
+            },
+            "profile": {
+              "const": "first_meeting_3"
+            },
+            "code": {
+              "type": ["string", "null"]
+            },
+            "presentation_id": {
+              "type": ["string", "null"],
+              "format": "uuid"
+            },
+            "download_url": {
+              "type": ["string", "null"]
+            }
+          }
+        },
+        "research": {
+          "type": ["object", "null"]
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

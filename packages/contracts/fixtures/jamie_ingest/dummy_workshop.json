@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "source": "dummy",
+  "jamie_meeting_id": "dummy-meeting-workshop-001",
+  "opportunity_id": "11111111-1111-4111-8111-111111111111",
+  "ended_at": "2026-09-18T14:05:00Z",
+  "title": "Requirements workshop (fixture)",
+  "participants": [
+    {
+      "name": "Lena Hoffmann",
+      "email": "lena.hoffmann@borek.example",
+      "organisation": "BOREK",
+      "role": "consultant"
+    },
+    {
+      "name": "Markus Weber",
+      "email": "markus.weber@acme.example",
+      "organisation": "Acme",
+      "role": "client"
+    }
+  ],
+  "actions": [
+    {
+      "action": "Provide test invoices",
+      "owner": "Markus Weber",
+      "due": "18.09.2026"
+    },
+    {
+      "action": "Deliver interface specification",
+      "owner": "Lena Hoffmann",
+      "due": "25.09.2026"
+    }
+  ],
+  "speaker_turns": [
+    {
+      "turn_index": 0,
+      "speaker": "Lena Hoffmann",
+      "text": "We agreed the interface will be REST, not SOAP."
+    },
+    {
+      "turn_index": 1,
+      "speaker": "Markus Weber",
+      "text": "Pilot starts with invoice matching only. Warehouse labelling stays out of scope."
+    },
+    {
+      "turn_index": 2,
+      "speaker": "Lena Hoffmann",
+      "text": "I will send the interface spec. Markus will provide test invoices."
+    }
+  ]
+}
