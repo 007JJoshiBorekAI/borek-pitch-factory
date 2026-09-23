@@ -25,14 +25,30 @@ export interface StageOutputHubItem {
   isDemo: boolean;
 }
 
+export interface Stage1ArtifactAvailability {
+  company_research_brief: boolean;
+  discovery_questions: boolean;
+  use_case_relevance: boolean;
+  first_meeting_deck: boolean;
+  meeting_agenda: boolean;
+}
+
+export interface Stage2ArtifactAvailability {
+  call_summary: boolean;
+  minutes_of_meeting: boolean;
+  adjusted_deck: boolean;
+}
+
 export interface StageOutputLiveContext {
   journeyStage: JourneyStageName;
   opportunityId: string;
   processedClientDocumentCount: number;
   hasStage1Intake: boolean;
   apiLoadFailed: boolean;
-  /** Session-scoped POST result — not persisted across reload. */
-  hasSessionResearch?: boolean;
+  /** Per-artifact availability derived from live Stage 1 output content. */
+  stage1Availability?: Stage1ArtifactAvailability;
+  /** Per-artifact availability derived from live Stage 2 output content. */
+  stage2Availability?: Stage2ArtifactAvailability;
 }
 
 export type FirstContactReviewStep = "intake" | "research" | "materials" | "email";
@@ -105,14 +121,48 @@ function liveStatusForArtifact(
   }
 
   if (context.journeyStage === "first_contact") {
-    if (artifactId === "company_research_brief" && context.hasSessionResearch) {
-      return "available";
+    const availability = context.stage1Availability;
+    if (availability) {
+      switch (artifactId) {
+        case "company_research_brief":
+          return availability.company_research_brief ? "available" : "backend_unavailable";
+        case "discovery_questions":
+          return availability.discovery_questions ? "available" : "backend_unavailable";
+        case "use_case_relevance":
+          return availability.use_case_relevance ? "available" : "backend_unavailable";
+        case "first_meeting_deck":
+          return availability.first_meeting_deck ? "available" : "backend_unavailable";
+        case "meeting_agenda":
+          return availability.meeting_agenda ? "available" : "backend_unavailable";
+        case "optional_email":
+          return "backend_unavailable";
+        default:
+          break;
+      }
     }
 
     const inputsReady =
       context.hasStage1Intake && context.processedClientDocumentCount > 0;
     if (!inputsReady) {
       return "awaiting_generation";
+    }
+  }
+
+  if (context.journeyStage === "deepening") {
+    const availability = context.stage2Availability;
+    if (availability) {
+      switch (artifactId) {
+        case "call_summary":
+          return availability.call_summary ? "available" : "backend_unavailable";
+        case "minutes_of_meeting":
+          return availability.minutes_of_meeting ? "available" : "backend_unavailable";
+        case "adjusted_deck":
+          return availability.adjusted_deck ? "available" : "backend_unavailable";
+        case "draft_email":
+          return "backend_unavailable";
+        default:
+          break;
+      }
     }
   }
 

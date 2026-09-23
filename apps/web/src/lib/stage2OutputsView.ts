@@ -66,6 +66,10 @@ export function stage2DependencyLabel(code: string): string {
       return "Minutes of meeting not generated";
     case "PRESENTATION_NOT_RUN":
       return "Adjusted presentation not generated";
+    case "STAGE2_OUTPUTS_NOT_GENERATED":
+      return "Deepening outputs have not been generated yet";
+    case "DEEPENING_PRESENTATION_UNFROZEN":
+      return "Deepening presentation is not ready yet";
     default:
       return dependencyLabel(code);
   }
@@ -76,6 +80,10 @@ export function adjustedPresentationUnavailableMessage(
   dependencies: string[] = [],
 ): string {
   if (status === "pending") {
+    const unfrozen = dependencies.find((code) => code.includes("DEEPENING_PRESENTATION_UNFROZEN"));
+    if (unfrozen) {
+      return stage2DependencyLabel(unfrozen);
+    }
     return "Adjusted presentation generation is pending.";
   }
   if (status === "generated") {

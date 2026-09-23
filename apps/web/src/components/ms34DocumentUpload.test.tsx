@@ -66,9 +66,13 @@ assert.match(firstContactBlock, /ClientDocumentUploadPanel/);
 assert.doesNotMatch(firstContactBlock, /FileUploadQueue/);
 
 const deepeningBlock = uploadPanelSource.slice(uploadPanelSource.indexOf("!isFirstContact ? ("));
+assert.match(deepeningBlock, /MeetingFeedbackPanel/);
 assert.match(deepeningBlock, /Transcript files/);
 assert.match(deepeningBlock, /FileUploadQueue/);
-assert.doesNotMatch(deepeningBlock, /ClientDocumentUploadPanel/);
+assert.match(deepeningBlock, /ClientDocumentUploadPanel/);
+assert.match(deepeningBlock, /Optional client documents/);
+assert.match(deepeningBlock, /not meeting transcripts/i);
+assert.match(deepeningBlock, /does not separate uploads by journey stage/i);
 
 const apiSource = readFileSync(
   fileURLToPath(new URL("../lib/api.ts", import.meta.url)),

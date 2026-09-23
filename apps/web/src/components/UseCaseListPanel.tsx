@@ -32,8 +32,11 @@ export function UseCaseListPanel({
     <section className="upload-panel stage-review-section">
       <h2>Use case relevance</h2>
       <ul className="stage-use-case-list">
-        {collection.items.map((useCase) => (
-          <li key={useCase.use_case_id} className={useCaseStatusClassName(useCase.status)}>
+        {collection.items.map((useCase, index) => (
+          <li
+            key={useCase.use_case_id || `use-case-${index}-${useCase.title ?? "untitled"}`}
+            className={useCaseStatusClassName(useCase.status)}
+          >
             <div className="stage-use-case-header">
               <strong>{useCase.title ?? "Untitled use case"}</strong>
               <span className={`stage-use-case-status ${useCaseStatusClassName(useCase.status)}`}>
@@ -43,7 +46,9 @@ export function UseCaseListPanel({
             {useCase.relevance_summary ? <p>{useCase.relevance_summary}</p> : null}
             <div className="stage-fact-meta">
               <OriginBadge origin={useCase.origin} />
-              <span className="stage-item-id">{useCase.use_case_id}</span>
+              {useCase.use_case_id ? (
+                <span className="stage-item-id">{useCase.use_case_id}</span>
+              ) : null}
             </div>
             {useCase.basis && useCase.basis.length > 0 ? (
               <ul className="stage-basis-list">

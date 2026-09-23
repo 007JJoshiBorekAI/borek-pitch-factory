@@ -53,7 +53,7 @@ export interface Stage1Research {
 export interface DiscoveryQuestion {
   question_id: string;
   text: string | null;
-  origin: "SOURCE_FACT" | "AI_INFERENCE";
+  origin: "SOURCE_FACT" | "AI_INFERENCE" | "UNKNOWN";
   status: "generated" | "unknown";
   basis?: string[];
   source_refs?: SourceRef[];
@@ -68,7 +68,7 @@ export interface UseCaseMatch {
   use_case_id: string;
   title: string | null;
   relevance_summary: string | null;
-  origin: "SOURCE_FACT" | "AI_INFERENCE";
+  origin: "SOURCE_FACT" | "AI_INFERENCE" | "UNKNOWN";
   status: "matched" | "none_found" | "unknown";
   basis?: string[];
   source_refs?: CorpusSourceRef[];
@@ -88,7 +88,7 @@ export interface AgendaItem {
 
 export interface MeetingAgenda {
   status: "generated" | "unknown";
-  origin: "AI_INFERENCE" | "SOURCE_FACT";
+  origin: "AI_INFERENCE" | "SOURCE_FACT" | "UNKNOWN";
   items: AgendaItem[];
   source_refs: SourceRef[];
 }

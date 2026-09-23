@@ -22,9 +22,21 @@ export interface StageEmailReviewContext {
   staticsSavedInfoDemo: string;
   staticsSavedInfoLive: string;
   confirmReviewedMessage: string;
+  confirmReviewedMessageLive: string;
 }
 
-const STAGE_EMAIL_CONTEXT: Record<JourneyStageName, Omit<StageEmailReviewContext, "journeyStage" | "sourceBadgeLabel" | "staticsSavedInfoDemo" | "staticsSavedInfoLive" | "confirmReviewedMessage">> = {
+const STAGE_EMAIL_CONTEXT: Record<
+  JourneyStageName,
+  Omit<
+    StageEmailReviewContext,
+    | "journeyStage"
+    | "sourceBadgeLabel"
+    | "staticsSavedInfoDemo"
+    | "staticsSavedInfoLive"
+    | "confirmReviewedMessage"
+    | "confirmReviewedMessageLive"
+  >
+> = {
   first_contact: {
     kicker: "Pre-meeting email",
     title: "Review the optional intro email",
@@ -36,7 +48,7 @@ const STAGE_EMAIL_CONTEXT: Record<JourneyStageName, Omit<StageEmailReviewContext
     checklistIntro: "Confirm each statement before marking this email reviewed.",
     draftUnavailableTitle: "No live email draft yet",
     draftUnavailableMessage:
-      "Stage 1 email drafts require BT-36 Phase 3 GET endpoints and BT-33 draft persistence. Project email settings can be saved now; a generated draft will appear here once the backend is available.",
+      "No email draft has been generated for First Contact yet. Save project settings, then generate a draft.",
   },
   deepening: {
     kicker: "Meeting follow-up",
@@ -49,7 +61,7 @@ const STAGE_EMAIL_CONTEXT: Record<JourneyStageName, Omit<StageEmailReviewContext
     checklistIntro: "Confirm each statement against the meeting before marking this email reviewed.",
     draftUnavailableTitle: "No live email draft yet",
     draftUnavailableMessage:
-      "Post-meeting email drafts require BT-36 Stage 2 output GET endpoints and BT-33 draft persistence. Project email settings can be saved now; a generated draft will appear here once the backend is available.",
+      "No email draft has been generated for Deepening yet. Save project settings, then generate a draft.",
   },
   concretisation: {
     kicker: "Proposal follow-up",
@@ -62,7 +74,7 @@ const STAGE_EMAIL_CONTEXT: Record<JourneyStageName, Omit<StageEmailReviewContext
     checklistIntro: "Confirm each statement before marking this email reviewed.",
     draftUnavailableTitle: "No live email draft yet",
     draftUnavailableMessage:
-      "Proposal follow-up email drafts require BT-36 Concretisation output GET endpoints and BT-33 draft persistence. Project email settings can be saved now; a generated draft will appear here once the backend is available.",
+      "No email draft has been generated for Concretisation yet. Save project settings, then generate a draft.",
   },
 };
 
@@ -114,10 +126,13 @@ export function getStageEmailReviewContext(
     ...base,
     sourceBadgeLabel: demoMode ? "MS-35 demonstration email" : null,
     staticsSavedInfoDemo: "Demonstration project settings applied. Review the labeled demonstration draft below.",
-    staticsSavedInfoLive: "Project email settings saved. A live draft will appear here once BT-36 and BT-33 endpoints are available.",
+    staticsSavedInfoLive:
+      "Project email settings saved. Generate an email draft when you are ready to review.",
     confirmReviewedMessage: demoMode
       ? "Demonstration email reviewed locally — not sent and not persisted on the server."
-      : "Review recorded locally — not sent. Server-side approval requires BT-33 draft persistence.",
+      : "Review recorded locally — not sent.",
+    confirmReviewedMessageLive:
+      "Email review confirmed on the server — not sent. send_status remains not_sent.",
   };
 }
 

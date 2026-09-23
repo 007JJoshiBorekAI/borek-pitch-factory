@@ -92,7 +92,8 @@ const unavailableHtml = renderToStaticMarkup(
     statics={statics}
     staticsSaved
     draft={null}
-    draftUnavailable
+    draftNotGenerated
+    draftUnavailable={false}
     checklist={checks}
     acknowledgedFlags={new Set()}
     canConfirm={false}
@@ -104,11 +105,12 @@ const unavailableHtml = renderToStaticMarkup(
     onDraftChange={() => undefined}
     onChecklistChange={() => undefined}
     onFlagChange={() => undefined}
+    onGenerateDraft={() => undefined}
     onConfirm={() => undefined}
   />,
 );
-assert.match(unavailableHtml, /No live email draft yet/);
-assert.match(unavailableHtml, /BT-36 Stage 2 output GET endpoints/);
+assert.match(unavailableHtml, /No email draft has been generated for Deepening yet/);
+assert.match(unavailableHtml, /Generate email draft/);
 assert.doesNotMatch(unavailableHtml, /Requirements Workshop/);
 
 const withCc = structuredClone(statics);
@@ -172,7 +174,7 @@ assert.match(setupHtml, /Save project settings/);
 assert.doesNotMatch(setupHtml, /id="followup-project-name"[^>]*disabled/);
 
 const reviewed = render("reviewed");
-assert.match(reviewed, /Reviewed - not sent/);
+assert.match(reviewed, /Reviewed — not sent/);
 assert.match(reviewed, /disabled=""/);
 
 const sent = render("sent");
@@ -184,7 +186,9 @@ const panelSource = readFileSync(
   "utf8",
 );
 assert.doesNotMatch(panelSource, /\/send\b|sendEmail|sendFollowup/);
-assert.match(panelSource, /confirmReviewedMessage/);
+assert.match(panelSource, /fetchAdaptedEmailDraft/);
+assert.match(panelSource, /confirmAdaptedEmailDraft/);
+assert.match(panelSource, /confirmReviewedMessageLive/);
 assert.match(panelSource, /setChecklist\(emptyFollowupChecklist\(\)\)/);
 
 const css = readFileSync(fileURLToPath(new URL("../app/globals.css", import.meta.url)), "utf8");

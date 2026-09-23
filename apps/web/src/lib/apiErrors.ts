@@ -175,6 +175,79 @@ export function stage1VoiceErrorMessage(error: unknown): string {
   return "This recording could not be processed. You can continue with text only.";
 }
 
+export function isJourneyOutputsEndpointUnavailable(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) {
+    return false;
+  }
+  if (error.status === 503) {
+    return true;
+  }
+  return error.status === 404 && !isDocumentedJourneyOutputsError(error);
+}
+
+export function isDocumentedJourneyOutputsError(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError) || !error.code) {
+    return false;
+  }
+  return (
+    error.code === "CLIENT_DOCUMENT_REQUIRED" ||
+    error.code === "TRANSCRIPT_REQUIRED" ||
+    error.code === "INVALID_JOURNEY_STAGE" ||
+    error.code === "INVALID_EMAIL_LENGTH" ||
+    error.code === "EMAIL_SEND_FORBIDDEN" ||
+    error.code === "EMAIL_DRAFT_NOT_FOUND"
+  );
+}
+
+export function isMissingEmailDraftError(error: unknown): boolean {
+  return error instanceof ApiRequestError && error.code === "EMAIL_DRAFT_NOT_FOUND";
+}
+
+export function meetingFeedbackErrorMessage(error: unknown): string {
+  if (isNetworkError(error)) {
+    return "The connection was interrupted. Check your network and try saving again.";
+  }
+  if (error instanceof ApiRequestError) {
+    if (error.status === 401 || error.status === 403) {
+      return "Your session could not be verified. Sign in again and retry.";
+    }
+    if (error.status === 404 || error.status === 503) {
+      return "Meeting feedback is not available on this server yet.";
+    }
+  }
+  return "Meeting feedback could not be saved. Try again or contact support if this continues.";
+}
+
+export function journeyOutputsErrorMessage(error: unknown): string {
+  if (isNetworkError(error)) {
+    return "The connection was interrupted. Check your network and try again.";
+  }
+  if (error instanceof ApiRequestError) {
+    if (error.status === 401 || error.status === 403) {
+      return "Your session could not be verified. Sign in again and retry.";
+    }
+    switch (error.code) {
+      case "CLIENT_DOCUMENT_REQUIRED":
+        return "Upload and process at least one client document before generating First Contact outputs.";
+      case "TRANSCRIPT_REQUIRED":
+        return "Upload a meeting transcript before generating Deepening outputs or email drafts.";
+      case "INVALID_JOURNEY_STAGE":
+        return "This journey stage is not supported for that request.";
+      case "INVALID_EMAIL_LENGTH":
+        return "Choose short, medium, or extensive before confirming the email draft.";
+      case "EMAIL_SEND_FORBIDDEN":
+        return "Sending email from this application is not permitted. Confirm review only.";
+      case "EMAIL_DRAFT_NOT_FOUND":
+        return "No email draft exists for this opportunity yet. Generate a draft first.";
+      default:
+        if (error.status === 404 || error.status === 503) {
+          return "Stage output APIs are not available on this server yet.";
+        }
+    }
+  }
+  return "This request could not be completed. Try again or contact support if this continues.";
+}
+
 export function clientLogoErrorMessage(error: unknown): string {
   if (isNetworkError(error)) {
     return "Logo upload was interrupted. Check your connection and try again.";

@@ -86,8 +86,11 @@ assert.match(deepeningSource, /CallSummaryPanel/);
 assert.match(deepeningSource, /MinutesOfMeetingPanel/);
 assert.match(deepeningSource, /ActionItemsPanel/);
 assert.match(deepeningSource, /resolveVerifiedStagePresentation/);
+assert.match(deepeningSource, /fetchAdaptedStage2Outputs/);
+assert.match(deepeningSource, /generateAndFetchAdaptedStage2Outputs/);
 assert.match(deepeningSource, /Demonstration data/);
-assert.doesNotMatch(deepeningSource, /generateStage2/);
+assert.match(deepeningSource, /Generate Stage 2 outputs/);
+assert.match(deepeningSource, /demoMode \? stage2OutputsDemo/);
 
 const verificationSource = readFileSync(
   fileURLToPath(new URL("./presentationStageVerification.ts", import.meta.url)),

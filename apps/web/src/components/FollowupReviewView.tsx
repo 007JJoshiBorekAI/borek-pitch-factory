@@ -11,7 +11,10 @@ import {
   type FollowupProjectStatics,
   type FollowupRecipient,
 } from "@/lib/followupReview";
+import type { EmailDraftLength } from "@/lib/journeyOutputsContracts";
 import type { StageEmailReviewContext } from "@/lib/stageEmailReview";
+
+const EMAIL_LENGTHS: EmailDraftLength[] = ["short", "medium", "extensive"];
 
 export interface FollowupReviewViewProps {
   stageContext: StageEmailReviewContext;
@@ -20,18 +23,37 @@ export interface FollowupReviewViewProps {
   staticsSaved: boolean;
   draft: FollowupDraft | null;
   draftUnavailable: boolean;
+  draftNotGenerated?: boolean;
+  selectedLength?: EmailDraftLength;
+  liveDraftReadOnly?: boolean;
+  serverConfirmed?: boolean;
   checklist: FollowupChecklistState;
   acknowledgedFlags: ReadonlySet<string>;
   canConfirm: boolean;
   busy: boolean;
+  generatingDraft?: boolean;
+  confirmingDraft?: boolean;
   error: string | null;
   info: string | null;
   onStaticsChange: (value: FollowupProjectStatics) => void;
   onSaveStatics: () => void;
   onDraftChange: (value: FollowupDraft) => void;
+  onLengthChange?: (length: EmailDraftLength) => void;
+  onGenerateDraft?: () => void;
   onChecklistChange: (id: FollowupChecklistId, checked: boolean) => void;
   onFlagChange: (flag: string, checked: boolean) => void;
   onConfirm: () => void;
+}
+
+function lengthLabel(length: EmailDraftLength): string {
+  switch (length) {
+    case "short":
+      return "Short";
+    case "medium":
+      return "Medium";
+    case "extensive":
+      return "Extensive";
+  }
 }
 
 export function FollowupReviewView({
@@ -41,15 +63,23 @@ export function FollowupReviewView({
   staticsSaved,
   draft,
   draftUnavailable,
+  draftNotGenerated = false,
+  selectedLength = "medium",
+  liveDraftReadOnly = false,
+  serverConfirmed = false,
   checklist,
   acknowledgedFlags,
   canConfirm,
   busy,
+  generatingDraft = false,
+  confirmingDraft = false,
   error,
   info,
   onStaticsChange,
   onSaveStatics,
   onDraftChange,
+  onLengthChange,
+  onGenerateDraft,
   onChecklistChange,
   onFlagChange,
   onConfirm,
@@ -84,7 +114,9 @@ export function FollowupReviewView({
   };
   const reviewed = draft?.status === "reviewed";
   const locked = draft ? draft.status !== "draft" : false;
+  const staticsLocked = locked || serverConfirmed;
   const draftErrors = draft ? followupDraftErrors(draft) : [];
+  const draftEditable = !liveDraftReadOnly && !busy && !locked;
 
   return (
     <div className="followup-review-page">
@@ -113,46 +145,46 @@ export function FollowupReviewView({
         <div className="followup-form-grid">
           <div className="form-field">
             <label htmlFor="followup-project-name">Project name</label>
-            <input id="followup-project-name" value={statics.project_name} onChange={(event) => onStaticsChange({ ...statics, project_name: event.target.value })} disabled={busy || locked} />
+            <input id="followup-project-name" value={statics.project_name} onChange={(event) => onStaticsChange({ ...statics, project_name: event.target.value })} disabled={busy || staticsLocked} />
           </div>
           <div className="form-field">
             <label htmlFor="followup-client-short">Client short name</label>
-            <input id="followup-client-short" value={statics.client_short} onChange={(event) => onStaticsChange({ ...statics, client_short: event.target.value })} disabled={busy || locked} />
+            <input id="followup-client-short" value={statics.client_short} onChange={(event) => onStaticsChange({ ...statics, client_short: event.target.value })} disabled={busy || staticsLocked} />
           </div>
           <div className="form-field">
             <label htmlFor="followup-tone">Client tone</label>
-            <select id="followup-tone" value={statics.salutation_style} onChange={(event) => onStaticsChange({ ...statics, salutation_style: event.target.value as FollowupProjectStatics["salutation_style"] })} disabled={busy || locked}>
+            <select id="followup-tone" value={statics.salutation_style} onChange={(event) => onStaticsChange({ ...statics, salutation_style: event.target.value as FollowupProjectStatics["salutation_style"] })} disabled={busy || staticsLocked}>
               <option value="informal">Du / informal</option>
               <option value="formal">Sie / formal</option>
             </select>
           </div>
           <div className="form-field">
             <label htmlFor="followup-recipient-email">Primary intended recipient</label>
-            <input id="followup-recipient-email" type="email" value={primary.email} onChange={(event) => updatePrimary({ email: event.target.value })} disabled={busy || locked} />
+            <input id="followup-recipient-email" type="email" value={primary.email} onChange={(event) => updatePrimary({ email: event.target.value })} disabled={busy || staticsLocked} />
           </div>
           <div className="form-field">
             <label htmlFor="followup-recipient-first">Recipient first name</label>
-            <input id="followup-recipient-first" value={primary.first_name ?? ""} onChange={(event) => updatePrimary({ first_name: event.target.value || null })} disabled={busy || locked} />
+            <input id="followup-recipient-first" value={primary.first_name ?? ""} onChange={(event) => updatePrimary({ first_name: event.target.value || null })} disabled={busy || staticsLocked} />
           </div>
           <div className="form-field">
             <label htmlFor="followup-recipient-salutation">Formal salutation</label>
-            <input id="followup-recipient-salutation" value={primary.salutation ?? ""} onChange={(event) => updatePrimary({ salutation: event.target.value || null })} placeholder="Mr, Ms, Dr" disabled={busy || locked} />
+            <input id="followup-recipient-salutation" value={primary.salutation ?? ""} onChange={(event) => updatePrimary({ salutation: event.target.value || null })} placeholder="Mr, Ms, Dr" disabled={busy || staticsLocked} />
           </div>
           <div className="form-field">
             <label htmlFor="followup-recipient-last">Recipient last name</label>
-            <input id="followup-recipient-last" value={primary.last_name ?? ""} onChange={(event) => updatePrimary({ last_name: event.target.value || null })} disabled={busy || locked} />
+            <input id="followup-recipient-last" value={primary.last_name ?? ""} onChange={(event) => updatePrimary({ last_name: event.target.value || null })} disabled={busy || staticsLocked} />
           </div>
           <div className="form-field">
             <label htmlFor="followup-sender-name">Sender name</label>
-            <input id="followup-sender-name" value={statics.sender_profile.name} onChange={(event) => onStaticsChange({ ...statics, sender_profile: { ...statics.sender_profile, name: event.target.value } })} disabled={busy || locked} />
+            <input id="followup-sender-name" value={statics.sender_profile.name} onChange={(event) => onStaticsChange({ ...statics, sender_profile: { ...statics.sender_profile, name: event.target.value } })} disabled={busy || staticsLocked} />
           </div>
           <div className="form-field">
             <label htmlFor="followup-sender-role">Sender role</label>
-            <input id="followup-sender-role" value={statics.sender_profile.role} onChange={(event) => onStaticsChange({ ...statics, sender_profile: { ...statics.sender_profile, role: event.target.value } })} disabled={busy || locked} />
+            <input id="followup-sender-role" value={statics.sender_profile.role} onChange={(event) => onStaticsChange({ ...statics, sender_profile: { ...statics.sender_profile, role: event.target.value } })} disabled={busy || staticsLocked} />
           </div>
           <div className="form-field">
             <label htmlFor="followup-sender-email">Sender email</label>
-            <input id="followup-sender-email" type="email" value={statics.sender_profile.email} onChange={(event) => onStaticsChange({ ...statics, sender_profile: { ...statics.sender_profile, email: event.target.value } })} disabled={busy || locked} />
+            <input id="followup-sender-email" type="email" value={statics.sender_profile.email} onChange={(event) => onStaticsChange({ ...statics, sender_profile: { ...statics.sender_profile, email: event.target.value } })} disabled={busy || staticsLocked} />
           </div>
           <div className="followup-secondary-recipients">
             <h3>Additional intended recipients</h3>
@@ -161,23 +193,23 @@ export function FollowupReviewView({
                 <div className="followup-recipient-row" key={`recipient-${index}`}>
                   <div className="form-field">
                     <label htmlFor={`followup-recipient-${index}-email`}>Recipient email</label>
-                    <input id={`followup-recipient-${index}-email`} type="email" value={recipient.email} onChange={(event) => updateRecipient(index, { email: event.target.value })} disabled={busy || locked} />
+                    <input id={`followup-recipient-${index}-email`} type="email" value={recipient.email} onChange={(event) => updateRecipient(index, { email: event.target.value })} disabled={busy || staticsLocked} />
                   </div>
                   <div className="form-field">
                     <label htmlFor={`followup-recipient-${index}-kind`}>Recipient type</label>
-                    <select id={`followup-recipient-${index}-kind`} value={recipient.kind} onChange={(event) => updateRecipient(index, { kind: event.target.value as FollowupRecipient["kind"] })} disabled={busy || locked}>
+                    <select id={`followup-recipient-${index}-kind`} value={recipient.kind} onChange={(event) => updateRecipient(index, { kind: event.target.value as FollowupRecipient["kind"] })} disabled={busy || staticsLocked}>
                       <option value="to">To</option>
                       <option value="cc">CC</option>
                     </select>
                   </div>
-                  <button type="button" className="btn btn-quiet" onClick={() => removeRecipient(index)} disabled={busy || locked}>Remove</button>
+                  <button type="button" className="btn btn-quiet" onClick={() => removeRecipient(index)} disabled={busy || staticsLocked}>Remove</button>
                 </div>
               ),
             )}
             <button
               type="button"
               className="btn btn-secondary"
-              disabled={busy || locked || statics.standard_recipients.length >= 20}
+              disabled={busy || staticsLocked || statics.standard_recipients.length >= 20}
               onClick={() => onStaticsChange({
                 ...statics,
                 standard_recipients: [
@@ -190,7 +222,7 @@ export function FollowupReviewView({
             </button>
           </div>
         </div>
-        {!locked ? (
+        {!staticsLocked ? (
           <div className="followup-panel-actions">
             <button type="button" className="btn btn-secondary" onClick={onSaveStatics} disabled={busy}>
               {busy ? "Saving..." : "Save project settings"}
@@ -205,24 +237,57 @@ export function FollowupReviewView({
             <div className="alert alert-info followup-demo-draft-note" role="status">
               Demonstration email content only — not a live client draft from the backend.
             </div>
-          ) : null}
+          ) : (
+            <div className="alert alert-info followup-live-draft-note" role="status">
+              Live draft from the server — choose a length below. Content is read-only until confirmed.
+            </div>
+          )}
           <section className="upload-panel followup-draft-panel">
             <header className="upload-panel-header">
               <div>
                 <h2>Email draft</h2>
-                <p>Plain text, short, and editable before review confirmation.</p>
+                <p>
+                  {liveDraftReadOnly
+                    ? "Three generated lengths are available. Select one before confirming review."
+                    : "Plain text, short, and editable before review confirmation."}
+                </p>
               </div>
-              <span className={`recent-status ${reviewed ? "recent-status-filed" : "recent-status-review"}`}>
-                {draft.status === "reviewed" ? "Reviewed - not sent" : draft.status === "sent" ? "Sent" : "Draft"}
+              <span className={`recent-status ${reviewed || serverConfirmed ? "recent-status-filed" : "recent-status-review"}`}>
+                {serverConfirmed
+                  ? "Confirmed — not sent"
+                  : draft.status === "reviewed"
+                    ? "Reviewed — not sent"
+                    : draft.status === "sent"
+                      ? "Sent"
+                      : "Draft"}
               </span>
             </header>
+
+            {liveDraftReadOnly ? (
+              <div className="followup-length-selector" role="tablist" aria-label="Email draft length">
+                {EMAIL_LENGTHS.map((length) => (
+                  <button
+                    key={length}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedLength === length}
+                    className={`btn btn-secondary btn-sm${selectedLength === length ? " is-active" : ""}`}
+                    disabled={busy || locked}
+                    onClick={() => onLengthChange?.(length)}
+                  >
+                    {lengthLabel(length)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
             <div className="form-field">
               <label htmlFor="followup-subject">Subject</label>
-              <input id="followup-subject" value={draft.subject} onChange={(event) => onDraftChange({ ...draft, subject: event.target.value })} disabled={busy || locked} />
+              <input id="followup-subject" value={draft.subject} onChange={(event) => onDraftChange({ ...draft, subject: event.target.value })} disabled={!draftEditable} readOnly={liveDraftReadOnly} />
             </div>
             <div className="form-field">
               <label htmlFor="followup-body">Body</label>
-              <textarea id="followup-body" rows={18} value={draft.body} onChange={(event) => onDraftChange({ ...draft, body: event.target.value })} disabled={busy || locked} />
+              <textarea id="followup-body" rows={18} value={draft.body} onChange={(event) => onDraftChange({ ...draft, body: event.target.value })} disabled={!draftEditable} readOnly={liveDraftReadOnly} />
             </div>
             <div className="followup-draft-meta">
               <span>
@@ -230,6 +295,7 @@ export function FollowupReviewView({
               </span>
               <span>Sender: {statics.sender_profile.name} ({statics.sender_profile.email})</span>
               <span>{followupContentWordCount(draft.body)}/150 body words</span>
+              {liveDraftReadOnly ? <span>Selected length: {lengthLabel(selectedLength)}</span> : null}
             </div>
             {draftErrors.length ? (
               <ul className="alert alert-error followup-validation" role="alert">
@@ -265,17 +331,44 @@ export function FollowupReviewView({
             </div>
 
             <div className="followup-panel-actions">
-              <button type="button" className="btn btn-primary" data-testid="followup-confirm-review" onClick={onConfirm} disabled={!canConfirm || busy || locked}>
-                {draft.status === "reviewed" ? "Reviewed - not sent" : draft.status === "sent" ? "Sent" : "Confirm review"}
+              <button
+                type="button"
+                className="btn btn-primary"
+                data-testid="followup-confirm-review"
+                onClick={onConfirm}
+                disabled={!canConfirm || busy || locked}
+              >
+                {confirmingDraft
+                  ? "Confirming review…"
+                  : serverConfirmed || draft.status === "reviewed"
+                    ? "Confirmed — not sent"
+                    : draft.status === "sent"
+                      ? "Sent"
+                      : "Confirm review"}
               </button>
               <p>{stageContext.confirmHint}</p>
             </div>
           </section>
         </>
-      ) : draftUnavailable ? (
+      ) : draftNotGenerated || draftUnavailable ? (
         <section className="stage-review-unavailable followup-draft-unavailable">
           <strong>{stageContext.draftUnavailableTitle}</strong>
           <p>{stageContext.draftUnavailableMessage}</p>
+          {draftNotGenerated && onGenerateDraft ? (
+            <div className="stage-review-generate-row">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy || generatingDraft || !staticsSaved}
+                onClick={onGenerateDraft}
+              >
+                {generatingDraft ? "Generating email draft…" : "Generate email draft"}
+              </button>
+              {!staticsSaved ? (
+                <p className="upload-hint">Save valid project email settings before generating a draft.</p>
+              ) : null}
+            </div>
+          ) : null}
         </section>
       ) : (
         <section className="recent-state-card">
