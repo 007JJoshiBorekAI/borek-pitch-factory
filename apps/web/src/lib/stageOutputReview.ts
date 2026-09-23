@@ -27,6 +27,8 @@ export interface StageOutputLiveContext {
   processedClientDocumentCount: number;
   hasStage1Intake: boolean;
   apiLoadFailed: boolean;
+  /** Session-scoped POST result — not persisted across reload. */
+  hasSessionResearch?: boolean;
 }
 
 export type FirstContactReviewStep = "intake" | "research" | "materials" | "email";
@@ -97,6 +99,10 @@ function liveStatusForArtifact(
   }
 
   if (context.journeyStage === "first_contact") {
+    if (artifactId === "company_research_brief" && context.hasSessionResearch) {
+      return "available";
+    }
+
     const inputsReady =
       context.hasStage1Intake && context.processedClientDocumentCount > 0;
     if (!inputsReady) {

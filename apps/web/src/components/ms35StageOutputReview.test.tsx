@@ -88,15 +88,23 @@ const materialsPanelSource = readFileSync(
   fileURLToPath(new URL("./FirstContactMaterialsPanel.tsx", import.meta.url)),
   "utf8",
 );
+const reviewPanelSource = readFileSync(
+  fileURLToPath(new URL("./FirstContactReviewPanel.tsx", import.meta.url)),
+  "utf8",
+);
 const demoFixtureSource = readFileSync(
   fileURLToPath(new URL("../lib/stageOutputDemoFixtures.ts", import.meta.url)),
   "utf8",
 );
 assert.match(materialsPanelSource, /FIRST_CONTACT_SLIDE_COUNT/);
-assert.match(materialsPanelSource, /demoFirstMeetingDeckProfile/);
+assert.match(materialsPanelSource, /MeetingAgendaPanel/);
+assert.match(materialsPanelSource, /FirstMeetingPresentationPanel/);
+assert.match(reviewPanelSource, /Stage1ResearchReviewPanel/);
+assert.match(reviewPanelSource, /DiscoveryQuestionsPanel/);
 assert.match(demoFixtureSource, /first_meeting_3_slide/);
 assert.equal(FIRST_CONTACT_SLIDE_COUNT, 3);
 assert.equal(demoFirstMeetingDeckProfile(), "first_meeting_3_slide");
+assert.match(demoFixtureSource, /question_id: "Q10"/);
 
 assert.equal(FIRST_CONTACT_REVIEW_STEPS[0]?.path, "/upload");
 

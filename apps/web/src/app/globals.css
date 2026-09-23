@@ -1210,6 +1210,157 @@ samp {
   font-size: 0.9rem;
 }
 
+.stage-output-session-banner {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #c9daf8;
+  border-radius: 10px;
+  background: #eef4ff;
+  color: #1a3f8b;
+  font-size: 0.88rem;
+}
+
+.stage-origin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.stage-origin-fact {
+  background: #e7f6ea;
+  color: #1f6b34;
+}
+
+.stage-origin-inference {
+  background: #fff3df;
+  color: #8a5a00;
+}
+
+.stage-origin-unknown {
+  background: #f1f1f1;
+  color: #666;
+}
+
+.stage-origin-user {
+  background: #e8f0ff;
+  color: #2a4d9b;
+}
+
+.stage-fact-unknown {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.stage-fact-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.stage-item-id {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.stage-source-ref-list,
+.stage-basis-list,
+.stage-dependency-list,
+.stage-discovery-list,
+.stage-use-case-list {
+  margin: 0.55rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.stage-source-ref-list li span,
+.stage-basis-list li {
+  display: block;
+  color: var(--color-muted);
+  font-size: 0.86rem;
+}
+
+.stage-section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.stage-section-heading-row h2 {
+  margin: 0;
+}
+
+.stage-discovery-list li {
+  margin-bottom: 0.85rem;
+}
+
+.stage-discovery-question-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.stage-discovery-question-row p {
+  margin: 0;
+}
+
+.stage-use-case-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.stage-use-case-list > li {
+  margin-bottom: 0.85rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.stage-use-case-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.stage-use-case-status {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.stage-use-case-matched .stage-use-case-status {
+  color: #1f6b34;
+}
+
+.stage-use-case-none .stage-use-case-status,
+.stage-use-case-unknown .stage-use-case-status {
+  color: var(--color-muted);
+}
+
+.stage-duration-missing {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.stage-review-generate-row {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.btn-compact {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+}
+
 .stage-review-footer {
   margin-top: 1rem;
 }

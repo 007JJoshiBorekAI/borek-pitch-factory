@@ -19,6 +19,7 @@ export interface LoadedStageReviewContext {
   hubItems: StageOutputHubItem[];
   eligibilityLockCopy: string | null;
   processedClientDocumentCount: number;
+  liveContextHasIntake: boolean;
 }
 
 export async function loadStageReviewContext(
@@ -56,5 +57,6 @@ export async function loadStageReviewContext(
     hubItems: buildStageOutputHubItems(liveContext, demoMode),
     eligibilityLockCopy,
     processedClientDocumentCount,
+    liveContextHasIntake: liveContext.hasStage1Intake,
   };
 }

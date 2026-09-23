@@ -4,25 +4,18 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { FirstMeetingPresentationPanel } from "@/components/FirstMeetingPresentationPanel";
+import { MeetingAgendaPanel } from "@/components/MeetingAgendaPanel";
 import { StageReviewLayout } from "@/components/StageReviewLayout";
 import {
-  demoFirstMeetingDeckProfile,
-  demoFirstMeetingSlideCount,
-  demoMeetingAgenda,
-} from "@/lib/stageOutputDemoContent";
+  resolveVerifiedFirstMeetingPresentation,
+  type VerifiedFirstMeetingPresentation,
+} from "@/lib/firstMeetingPresentationReview";
+import { stage1OutputsDemo } from "@/lib/stageOutputDemoFixtures";
 import { FIRST_CONTACT_SLIDE_COUNT } from "@/lib/stageOutputArtifacts";
-import { STAGE_OUTPUT_BACKEND_NOTE, isStageOutputDemoMode } from "@/lib/stageOutputReview";
+import { isStageOutputDemoMode } from "@/lib/stageOutputReview";
 import { loadStageReviewContext } from "@/lib/stageOutputReviewLoad";
 import type { StageOutputHubItem } from "@/lib/stageOutputReview";
-
-function UnavailableReviewState({ message }: { message: string }) {
-  return (
-    <div className="stage-review-unavailable">
-      <strong>Meeting materials not available yet</strong>
-      <p>{message}</p>
-    </div>
-  );
-}
 
 export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: string }) {
   const { accessToken } = useAuth();
@@ -34,6 +27,8 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
   const [opportunityName, setOpportunityName] = useState("");
   const [hubItems, setHubItems] = useState<StageOutputHubItem[]>([]);
   const [eligibilityLockCopy, setEligibilityLockCopy] = useState<string | null>(null);
+  const [verifiedPresentation, setVerifiedPresentation] =
+    useState<VerifiedFirstMeetingPresentation | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -73,6 +68,27 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
     };
   }, [accessToken, demoMode, opportunityId]);
 
+  useEffect(() => {
+    let active = true;
+    async function loadPresentation() {
+      if (!accessToken || demoMode) {
+        setVerifiedPresentation(null);
+        return;
+      }
+      const verified = await resolveVerifiedFirstMeetingPresentation(accessToken, opportunityId);
+      if (active) {
+        setVerifiedPresentation(verified);
+      }
+    }
+    void loadPresentation();
+    return () => {
+      active = false;
+    };
+  }, [accessToken, demoMode, opportunityId]);
+
+  const outputs = demoMode ? stage1OutputsDemo : null;
+  const liveDependencies = ["AGENDA_NOT_RUN", "PRESENTATION_NOT_RUN"];
+
   return (
     <StageReviewLayout
       journeyStage="first_contact"
@@ -90,37 +106,32 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
       eligibilityLockCopy={eligibilityLockCopy}
     >
       {demoMode ? (
-        <>
-          <p className="stage-output-demo-banner" role="note">
-            Demonstration data — sample BT-36 contract fixture. The approved profile uses{" "}
-            {FIRST_CONTACT_SLIDE_COUNT} slides, not the 8-slide Figma reference.
-          </p>
-          <section className="upload-panel stage-review-section">
-            <h2>First-meeting presentation</h2>
-            <p className="stage-review-profile-note">
-              Profile: <code>{demoFirstMeetingDeckProfile()}</code> ·{" "}
-              {demoFirstMeetingSlideCount()} slides
-            </p>
-            <p className="upload-hint">
-              Preview and download will connect to the presentation API in a later MS-35 phase.
-              No download URL is shown in this foundation pass.
-            </p>
-          </section>
-          <section className="upload-panel stage-review-section">
-            <h2>First-meeting agenda</h2>
-            <ol className="stage-review-agenda-list">
-              {demoMeetingAgenda().map((item) => (
-                <li key={item.topic}>
-                  <strong>{item.topic}</strong>
-                  <span>{item.duration} min</span>
-                  {item.notes ? <p>{item.notes}</p> : null}
-                </li>
-              ))}
-            </ol>
-          </section>
-        </>
+        <p className="stage-output-demo-banner" role="note">
+          Demonstration data — sample BT-36 contract fixture. The approved profile uses{" "}
+          {FIRST_CONTACT_SLIDE_COUNT} slides, not the 8-slide Figma reference.
+        </p>
+      ) : null}
+
+      <FirstMeetingPresentationPanel
+        presentationRef={outputs?.presentation_ref ?? null}
+        dependencies={outputs?.dependencies ?? liveDependencies}
+        opportunityId={opportunityId}
+        verifiedPresentation={verifiedPresentation}
+        demoMode={demoMode}
+      />
+
+      {outputs ? (
+        <MeetingAgendaPanel agenda={outputs.meeting_agenda} dependencies={outputs.dependencies} />
       ) : (
-        <UnavailableReviewState message={STAGE_OUTPUT_BACKEND_NOTE} />
+        <MeetingAgendaPanel
+          agenda={{
+            status: "unknown",
+            origin: "AI_INFERENCE",
+            items: [],
+            source_refs: [],
+          }}
+          dependencies={liveDependencies}
+        />
       )}
     </StageReviewLayout>
   );

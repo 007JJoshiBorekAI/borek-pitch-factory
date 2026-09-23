@@ -4,56 +4,57 @@ import {
   stage2OutputsDemo,
 } from "./stageOutputDemoFixtures";
 import { FIRST_CONTACT_SLIDE_COUNT } from "./stageOutputArtifacts";
-
-interface FactLike {
-  status?: string;
-  value?: string | null;
-  text?: string | null;
-}
-
-function displayFact(fact: FactLike | undefined): string {
-  if (!fact) {
-    return "Not available";
-  }
-  if (fact.value) {
-    return fact.value;
-  }
-  if (fact.text) {
-    return fact.text;
-  }
-  return fact.status === "unknown" ? "Unknown — pending research" : "Not available";
-}
+import { factDisplayValue, hypothesisDisplayValue } from "./stage1ResearchView";
 
 export function demoResearchFacts() {
   return [
-    { label: "Description", value: displayFact(stage1ResearchDemo.company_facts.description) },
-    { label: "Headquarters", value: displayFact(stage1ResearchDemo.company_facts.headquarters) },
-    { label: "Headcount", value: displayFact(stage1ResearchDemo.company_facts.employee_headcount) },
-    { label: "Decision makers", value: displayFact(stage1ResearchDemo.company_facts.decision_makers) },
-    { label: "Revenue", value: displayFact(stage1ResearchDemo.company_facts.revenue) },
+    {
+      label: "Description",
+      value: factDisplayValue(stage1ResearchDemo.company_facts.description),
+    },
+    {
+      label: "Headquarters",
+      value: factDisplayValue(stage1ResearchDemo.company_facts.headquarters),
+    },
+    {
+      label: "Headcount",
+      value: factDisplayValue(stage1ResearchDemo.company_facts.employee_headcount),
+    },
+    {
+      label: "Decision makers",
+      value: factDisplayValue(stage1ResearchDemo.company_facts.decision_makers),
+    },
+    {
+      label: "Revenue",
+      value: factDisplayValue(stage1ResearchDemo.company_facts.revenue),
+    },
   ];
 }
 
 export function demoHypothesisText(): string {
-  const hypothesis = displayFact(stage1ResearchDemo.hypothesis);
-  if (hypothesis !== "Unknown — pending research" && hypothesis !== "Not available") {
+  const hypothesis = hypothesisDisplayValue(stage1ResearchDemo.hypothesis);
+  if (hypothesis) {
     return hypothesis;
   }
-  return displayFact(stage1ResearchDemo.borek_offering);
+  return stage1ResearchDemo.borek_offering.value ?? "Unknown — offering not resolved.";
 }
 
 export function demoDiscoveryQuestions(): string[] {
-  return stage1OutputsDemo.discovery_questions.items.map((item) => item.text);
+  return stage1OutputsDemo.discovery_questions.items
+    .filter((item) => item.text)
+    .map((item) => item.text as string);
 }
 
 export function demoUseCases(): Array<{ title: string; summary: string }> {
-  return stage1OutputsDemo.use_cases.items.map((item) => ({
-    title: item.title,
-    summary: item.relevance_summary,
-  }));
+  return stage1OutputsDemo.use_cases.items
+    .filter((item) => item.title && item.relevance_summary)
+    .map((item) => ({
+      title: item.title as string,
+      summary: item.relevance_summary as string,
+    }));
 }
 
-export function demoMeetingAgenda(): Array<{ topic: string; duration: number; notes: string | null }> {
+export function demoMeetingAgenda(): Array<{ topic: string; duration: number | null; notes: string | null }> {
   return stage1OutputsDemo.meeting_agenda.items.map((item) => ({
     topic: item.topic,
     duration: item.duration_minutes,

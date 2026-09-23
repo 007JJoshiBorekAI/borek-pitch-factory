@@ -53,6 +53,21 @@ const liveWithInputs = buildStageOutputHubItems(
 assert.equal(liveWithInputs.every((item) => item.status === "backend_unavailable"), true);
 assert.equal(liveWithInputs.every((item) => item.reviewHref === null), true);
 
+const liveWithSessionResearch = buildStageOutputHubItems(
+  {
+    journeyStage: "first_contact",
+    opportunityId: "opp-1",
+    processedClientDocumentCount: 2,
+    hasStage1Intake: true,
+    apiLoadFailed: false,
+    hasSessionResearch: true,
+  },
+  false,
+);
+const researchHubItem = liveWithSessionResearch.find((item) => item.id === "company_research_brief");
+assert.equal(researchHubItem?.status, "available");
+assert.match(researchHubItem?.reviewHref ?? "", /first-contact\/review/);
+
 const demoHub = buildStageOutputHubItems(
   {
     journeyStage: "first_contact",
