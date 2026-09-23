@@ -79,8 +79,10 @@ assert.doesNotMatch(
 );
 
 const deepeningBlock = uploadPanelSource.slice(uploadPanelSource.indexOf("!isFirstContact ? ("));
+assert.match(deepeningBlock, /MeetingFeedbackPanel/);
 assert.match(deepeningBlock, /Transcript files/);
 assert.match(deepeningBlock, /FileUploadQueue/);
+assert.match(deepeningBlock, /Optional client documents/);
 
 const apiSource = readFileSync(
   fileURLToPath(new URL("../lib/api.ts", import.meta.url)),

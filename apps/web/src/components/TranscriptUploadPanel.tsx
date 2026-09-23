@@ -14,6 +14,7 @@ import { ClientLogoUpload } from "@/components/ClientLogoUpload";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneyStageSelector";
 import { OpportunityForm } from "@/components/OpportunityForm";
+import { MeetingFeedbackPanel } from "@/components/MeetingFeedbackPanel";
 import { Stage1IntakePanel } from "@/components/Stage1IntakePanel";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
@@ -602,14 +603,22 @@ export function TranscriptUploadPanel({
             ) : null}
 
             {!isFirstContact ? (
-              <section
-                className={`upload-panel${
-                  statusCounts.success > 0 && statusCounts.pending === 0 ? " upload-panel-settled" : ""
-                }`}
-              >
-                <header className="upload-panel-header">
-                  <div>
-                    <h2>Transcript files</h2>
+              <>
+                <MeetingFeedbackPanel
+                  accessToken={accessToken}
+                  opportunityId={opportunityId}
+                  disabled={!isAuthenticated || loading}
+                />
+                <section
+                  className={`upload-panel${
+                    statusCounts.success > 0 && statusCounts.pending === 0
+                      ? " upload-panel-settled"
+                      : ""
+                  }`}
+                >
+                  <header className="upload-panel-header">
+                    <div>
+                      <h2>Transcript files</h2>
                     <p>
                       {uploadSummary
                         ? uploadSummary
@@ -632,16 +641,25 @@ export function TranscriptUploadPanel({
                   </p>
                 ) : null}
 
-                <FileUploadQueue
-                  items={queueItems}
-                  uploadDisabled={!canUpload || loading}
-                  onItemsChange={(items) => {
-                    setQueueItems(items);
-                    setUploadSummary(null);
-                  }}
-                  onUpload={handleUploadBatch}
+                  <FileUploadQueue
+                    items={queueItems}
+                    uploadDisabled={!canUpload || loading}
+                    onItemsChange={(items) => {
+                      setQueueItems(items);
+                      setUploadSummary(null);
+                    }}
+                    onUpload={handleUploadBatch}
+                  />
+                </section>
+                <ClientDocumentUploadPanel
+                  accessToken={accessToken}
+                  opportunityId={opportunityId}
+                  disabled={!isAuthenticated || loading}
+                  heading="Optional client documents"
+                  description="Upload optional background material (PDF, DOCX, or TXT). These are client documents, not meeting transcripts."
+                  scopeNote="Documents are listed per opportunity. The API does not separate uploads by journey stage, so files from First contact appear here too."
                 />
-              </section>
+              </>
             ) : null}
         </div>
       </div>

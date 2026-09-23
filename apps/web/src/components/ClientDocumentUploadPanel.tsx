@@ -31,6 +31,9 @@ interface ClientDocumentUploadPanelProps {
   opportunityId: string | null;
   disabled?: boolean;
   onDocumentsChange?: (documents: ClientDocument[]) => void;
+  heading?: string;
+  description?: string;
+  scopeNote?: string;
 }
 
 function statusClassName(status: string): string {
@@ -42,6 +45,9 @@ export function ClientDocumentUploadPanel({
   opportunityId,
   disabled = false,
   onDocumentsChange,
+  heading = "Client documents",
+  description = "Upload background material from the client. Meeting transcripts are added after the first call (Deepening stage).",
+  scopeNote,
 }: ClientDocumentUploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
@@ -215,11 +221,9 @@ export function ClientDocumentUploadPanel({
     <section className="upload-panel client-document-panel" aria-labelledby="client-documents-title">
       <header className="upload-panel-header">
         <div>
-          <h2 id="client-documents-title">Client documents</h2>
-          <p>
-            Upload background material from the client. Meeting transcripts are added after the first
-            call (Deepening stage).
-          </p>
+          <h2 id="client-documents-title">{heading}</h2>
+          <p>{description}</p>
+          {scopeNote ? <p className="upload-hint">{scopeNote}</p> : null}
         </div>
         {processedCount > 0 ? (
           <div className="upload-stat-strip" aria-label="Client document summary">

@@ -203,6 +203,21 @@ export function isMissingEmailDraftError(error: unknown): boolean {
   return error instanceof ApiRequestError && error.code === "EMAIL_DRAFT_NOT_FOUND";
 }
 
+export function meetingFeedbackErrorMessage(error: unknown): string {
+  if (isNetworkError(error)) {
+    return "The connection was interrupted. Check your network and try saving again.";
+  }
+  if (error instanceof ApiRequestError) {
+    if (error.status === 401 || error.status === 403) {
+      return "Your session could not be verified. Sign in again and retry.";
+    }
+    if (error.status === 404 || error.status === 503) {
+      return "Meeting feedback is not available on this server yet.";
+    }
+  }
+  return "Meeting feedback could not be saved. Try again or contact support if this continues.";
+}
+
 export function journeyOutputsErrorMessage(error: unknown): string {
   if (isNetworkError(error)) {
     return "The connection was interrupted. Check your network and try again.";
