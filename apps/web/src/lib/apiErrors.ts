@@ -96,6 +96,40 @@ export function uploadErrorMessage(error: unknown): string {
   return "This transcript could not be uploaded. Remove it and try again.";
 }
 
+export function isStage1VoiceUnavailableError(error: unknown): boolean {
+  return error instanceof ApiRequestError && error.code === "STAGE1_VOICE_UNAVAILABLE";
+}
+
+export function stage1IntakeErrorMessage(error: unknown): string {
+  if (isNetworkError(error)) {
+    return "The connection was interrupted. Check your network and try saving again.";
+  }
+  if (error instanceof ApiRequestError) {
+    if (error.status === 401 || error.status === 403) {
+      return "Your session could not be verified. Sign in again and retry.";
+    }
+    if (error.status === 422) {
+      return "Check the pre-meeting fields and try again.";
+    }
+  }
+  return "Pre-meeting information could not be saved. Try again or contact support if this continues.";
+}
+
+export function stage1VoiceErrorMessage(error: unknown): string {
+  if (isStage1VoiceUnavailableError(error)) {
+    return "Voice transcription is not available yet. Save your text description instead.";
+  }
+  if (isNetworkError(error)) {
+    return "Voice upload was interrupted. Check your connection and try again.";
+  }
+  if (error instanceof ApiRequestError) {
+    if (error.status === 401 || error.status === 403) {
+      return "Your session could not be verified. Sign in again before uploading a recording.";
+    }
+  }
+  return "This recording could not be processed. You can continue with text only.";
+}
+
 export function clientLogoErrorMessage(error: unknown): string {
   if (isNetworkError(error)) {
     return "Logo upload was interrupted. Check your connection and try again.";

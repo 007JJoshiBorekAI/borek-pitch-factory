@@ -49,6 +49,7 @@ interface OpportunityFormProps {
   ) => Promise<void>;
   personalisation?: React.ReactNode;
   personalisationHint?: string;
+  hidePersonalisation?: boolean;
 }
 
 export function OpportunityForm({
@@ -58,6 +59,7 @@ export function OpportunityForm({
   onUpdateClientInformation,
   personalisation,
   personalisationHint = "Add confirmed context or branding when it is useful. You can leave this section empty and continue directly to transcripts.",
+  hidePersonalisation = false,
 }: OpportunityFormProps) {
   const [values, setValues] = useState<OpportunityFormValues>(existing ?? DEFAULT_VALUES);
   const [busy, setBusy] = useState(false);
@@ -316,7 +318,7 @@ export function OpportunityForm({
         <div className="opportunity-personalisation">{personalisation}</div>
       ) : null}
 
-      <details
+      {!hidePersonalisation ? <details
         className="client-information"
         open={Boolean(compactAdditionalClientInformation(values.additional_client_information))}
       >
@@ -484,7 +486,7 @@ export function OpportunityForm({
             </button>
           </div>
         ) : null}
-      </details>
+      </details> : null}
 
       {!identityLocked ? (
         <div className="opportunity-form-actions">

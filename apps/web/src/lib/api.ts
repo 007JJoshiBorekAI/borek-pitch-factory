@@ -258,6 +258,19 @@ export async function apiFetchBlob(
   return response.blob();
 }
 
+export interface Stage1Intake {
+  client_web_page: string | null;
+  poc_name: string | null;
+  poc_position: string | null;
+  sales_topic_description: string | null;
+  about_company: string | null;
+}
+
+export interface Stage1VoiceResponse {
+  status: "not_provided" | "transcribed";
+  transcript: string | null;
+}
+
 export interface OpportunityCreatePayload {
   client_name: string;
   opportunity_name: string;
@@ -266,6 +279,7 @@ export interface OpportunityCreatePayload {
   pii_redaction_enabled?: boolean;
   additional_client_information?: AdditionalClientInformation;
   followup_statics?: FollowupProjectStatics;
+  stage1_intake?: Stage1Intake | null;
 }
 
 export interface ClientContact {
@@ -305,6 +319,7 @@ export interface OpportunityResponse {
   pii_redaction_enabled?: boolean;
   additional_client_information?: AdditionalClientInformation | null;
   followup_statics?: FollowupProjectStatics | null;
+  stage1_intake?: Stage1Intake | null;
   demo_marker?: string | null;
 }
 
@@ -330,6 +345,7 @@ export interface TranscriptUploadResponse {
 export interface OpportunityUpdatePayload {
   additional_client_information?: AdditionalClientInformation | null;
   followup_statics?: FollowupProjectStatics | null;
+  stage1_intake?: Stage1Intake | null;
 }
 
 export async function createOpportunity(
@@ -371,6 +387,20 @@ export async function uploadClientLogo(
     `/opportunities/${opportunityId}/client-logo`,
     accessToken,
     { method: "PUT", body: formData },
+  );
+}
+
+export async function uploadStage1Voice(
+  accessToken: string,
+  opportunityId: string,
+  file: File,
+): Promise<Stage1VoiceResponse> {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  return apiFetch<Stage1VoiceResponse>(
+    `/opportunities/${opportunityId}/stage1-voice`,
+    accessToken,
+    { method: "POST", body: formData },
   );
 }
 
