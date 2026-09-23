@@ -1,5 +1,9 @@
 import type { JourneyStageName } from "./api";
 import {
+  followupReviewHref,
+  journeyStageForEmailArtifact,
+} from "./stageEmailReview";
+import {
   artifactsForJourneyStage,
   stageOutputStatusLabel,
   type StageOutputArtifactDefinition,
@@ -70,11 +74,13 @@ function reviewHrefForArtifact(
       return base("/first-contact/materials");
     case "optional_email":
     case "draft_email":
-    case "proposal_followup_email":
-      return appendDemoQuery(
-        `/followup-review?opportunityId=${encodeURIComponent(opportunityId)}`,
-        demoMode,
-      );
+    case "proposal_followup_email": {
+      const emailStage = journeyStageForEmailArtifact(artifactId);
+      if (!emailStage) {
+        return null;
+      }
+      return followupReviewHref(opportunityId, emailStage, demoMode);
+    }
     case "call_summary":
     case "minutes_of_meeting":
     case "adjusted_deck":
@@ -162,7 +168,7 @@ export const FIRST_CONTACT_REVIEW_STEPS: ReadonlyArray<{
   { id: "intake", label: "Intake", path: "/upload" },
   { id: "research", label: "Research review", path: "/first-contact/review" },
   { id: "materials", label: "Meeting materials", path: "/first-contact/materials" },
-  { id: "email", label: "Optional email", path: "/followup-review" },
+  { id: "email", label: "Optional email", path: "__followup_review__" },
 ];
 
 export const DEEPENING_REVIEW_STEPS: ReadonlyArray<{
@@ -173,7 +179,7 @@ export const DEEPENING_REVIEW_STEPS: ReadonlyArray<{
   { id: "intake", label: "Intake", path: "/upload" },
   { id: "generation", label: "Generation", path: "/framework-review" },
   { id: "review", label: "Post-meeting review", path: "/deepening/review" },
-  { id: "email", label: "Optional email", path: "/followup-review" },
+  { id: "email", label: "Follow-up email", path: "__followup_review__" },
 ];
 
 export const CONCRETISATION_REVIEW_STEPS: ReadonlyArray<{
@@ -182,8 +188,10 @@ export const CONCRETISATION_REVIEW_STEPS: ReadonlyArray<{
   path: string;
 }> = [
   { id: "proposal", label: "Presentation", path: "/deck-center" },
-  { id: "email", label: "Follow-up email", path: "/followup-review" },
+  { id: "email", label: "Follow-up email", path: "__followup_review__" },
 ];
+
+export { followupReviewHref } from "./stageEmailReview";
 
 export function firstContactStepIndex(step: FirstContactReviewStep): number {
   return FIRST_CONTACT_REVIEW_STEPS.findIndex((row) => row.id === step);

@@ -8,6 +8,7 @@ import {
   CONCRETISATION_REVIEW_STEPS,
   DEEPENING_REVIEW_STEPS,
   FIRST_CONTACT_REVIEW_STEPS,
+  followupReviewHref,
   type ConcretisationReviewStep,
   type DeepeningReviewStep,
   type FirstContactReviewStep,
@@ -25,7 +26,11 @@ function stepHref(
   path: string,
   opportunityId: string,
   demoMode: boolean,
+  journeyStage: JourneyStageName,
 ): string {
+  if (path === "__followup_review__") {
+    return followupReviewHref(opportunityId, journeyStage, demoMode);
+  }
   return appendDemoQuery(pipelineHref(path, opportunityId), demoMode);
 }
 
@@ -63,7 +68,7 @@ export function JourneyOutputStepper({
               aria-current={state === "current" ? "step" : undefined}
             >
               {index > 0 ? <span className="journey-output-step-rule" aria-hidden="true" /> : null}
-              <Link href={stepHref(step.path, opportunityId, demoMode)} className="journey-output-step-link">
+              <Link href={stepHref(step.path, opportunityId, demoMode, journeyStage)} className="journey-output-step-link">
                 <span className="journey-output-step-index" aria-hidden="true">
                   {index + 1}
                 </span>

@@ -54,7 +54,19 @@ const stepperHtml = renderToStaticMarkup(
 assert.match(stepperHtml, /Research review/);
 assert.match(stepperHtml, /Meeting materials/);
 assert.match(stepperHtml, /demo=1/);
+assert.match(stepperHtml, /journeyStage=first_contact/);
 assert.doesNotMatch(stepperHtml, /✓/);
+
+const deepeningStepperHtml = renderToStaticMarkup(
+  <JourneyOutputStepper
+    journeyStage="deepening"
+    currentStep="email"
+    opportunityId="opp-2"
+    demoMode
+  />,
+);
+assert.match(deepeningStepperHtml, /journeyStage=deepening/);
+assert.match(deepeningStepperHtml, /Follow-up email/);
 
 const pipelineStepperSource = readFileSync(
   fileURLToPath(new URL("./PipelineStepper.tsx", import.meta.url)),
@@ -114,5 +126,13 @@ assert.equal(demoFirstMeetingDeckProfile(), "first_meeting_3_slide");
 assert.match(demoFixtureSource, /question_id: "Q10"/);
 
 assert.equal(FIRST_CONTACT_REVIEW_STEPS[0]?.path, "/upload");
+assert.equal(FIRST_CONTACT_REVIEW_STEPS[3]?.path, "__followup_review__");
+
+const followupPageSource = readFileSync(
+  fileURLToPath(new URL("../app/followup-review/page.tsx", import.meta.url)),
+  "utf8",
+);
+assert.match(followupPageSource, /journeyStage/);
+assert.match(followupPageSource, /parseEmailReviewJourneyStage/);
 
 console.log("MS-35 stage output review UI tests passed");
