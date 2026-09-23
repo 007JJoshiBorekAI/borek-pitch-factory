@@ -220,6 +220,21 @@ def eligibility_response(payload: dict[str, Any]) -> JourneyStageEligibilityResp
     return JourneyStageEligibilityResponse.model_validate(payload)
 
 
+def _artefact_complete(opportunity: dict[str, Any], stage: str) -> bool:
+    """BT-36 completion markers when the 15-card deck is not the First contact artefact."""
+    if stage == "first_contact":
+        envelope = opportunity.get("stage1_outputs") or {}
+        return str(envelope.get("status") or "") == "ready"
+    if stage == "deepening":
+        envelope = opportunity.get("stage2_outputs") or {}
+        drafts = opportunity.get("email_drafts") or {}
+        deepening = drafts.get("deepening") or {}
+        return str(envelope.get("status") or "") == "ready" and str(
+            deepening.get("status") or ""
+        ) == "confirmed"
+    return False
+
+
 def _evaluate_stage(
     store: DataStore,
     *,
@@ -249,6 +264,16 @@ def _evaluate_stage(
     completed = [row for row in versions if str(row.get("status") or "") == COMPLETED_VERSION_STATUS]
     incomplete = [row for row in versions if str(row.get("status") or "") != COMPLETED_VERSION_STATUS]
     if not completed:
+        opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        if _artefact_complete(opportunity, prerequisite):
+            return {
+                "journey_stage": stage,
+                "startable": True,
+                "prerequisite_stage": prerequisite,
+                "prior_stage_presentation_version_id": None,
+                "reason": None,
+                "next_action": None,
+            }
         reason = "PREREQUISITE_INCOMPLETE" if incomplete else "NO_COMPLETED_PREREQUISITE"
         return {
             "journey_stage": stage,

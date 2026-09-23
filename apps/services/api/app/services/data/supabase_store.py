@@ -761,6 +761,53 @@ class SupabaseDataStore:
                 return dict(row)
         raise not_found("EMAIL_DRAFT_NOT_FOUND", "Email draft was not found")
 
+    def upsert_transcript_summary(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        transcript_id: UUID,
+        conversation_id: str,
+        summary_json: dict[str, Any],
+        prompt_version: str,
+        generation_job_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        now = datetime.now(UTC).isoformat()
+        payload = {
+            "transcript_id": str(transcript_id),
+            "opportunity_id": str(opportunity_id),
+            "conversation_id": conversation_id,
+            "generation_job_id": str(generation_job_id) if generation_job_id else None,
+            "schema_version": str(summary_json.get("schema_version") or "1.0"),
+            "prompt_version": prompt_version,
+            "processing_status": "completed",
+            "summary_json": summary_json,
+            "updated_at": now,
+        }
+        existing = self._request(
+            "GET",
+            "transcript_summaries",
+            params={
+                "select": "transcript_id",
+                "transcript_id": f"eq.{transcript_id}",
+                "limit": "1",
+            },
+        )
+        if existing.status_code == 200 and existing.json():
+            response = self._request(
+                "PATCH",
+                "transcript_summaries",
+                params={"transcript_id": f"eq.{transcript_id}"},
+                json_body=payload,
+            )
+        else:
+            payload["created_at"] = now
+            response = self._request("POST", "transcript_summaries", json_body=payload)
+        if response.status_code not in (200, 201, 204):
+            raise bad_request("TRANSCRIPT_SUMMARY_STORE_FAILED", response.text)
+        return payload
+
     def _upload_client_logo_content(
         self,
         *,

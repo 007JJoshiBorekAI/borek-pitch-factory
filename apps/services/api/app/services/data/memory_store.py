@@ -137,6 +137,7 @@ class MemoryDataStore:
     knowledge_facts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     knowledge_model_checkpoints: dict[tuple[UUID, UUID], dict[str, Any]] = field(default_factory=dict)
     user_roles: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    transcript_summaries: dict[UUID, dict[str, Any]] = field(default_factory=dict)
 
     def list_job_knowledge_models(
         self,
@@ -1915,6 +1916,34 @@ class MemoryDataStore:
             if UUID(str(stored["id"])) == draft_id:
                 return copy.deepcopy(stored)
         raise not_found("EMAIL_DRAFT_NOT_FOUND", "Email draft was not found")
+
+    def upsert_transcript_summary(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        transcript_id: UUID,
+        conversation_id: str,
+        summary_json: dict[str, Any],
+        prompt_version: str,
+        generation_job_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        now = _now()
+        row = {
+            "transcript_id": transcript_id,
+            "opportunity_id": opportunity_id,
+            "conversation_id": conversation_id,
+            "generation_job_id": generation_job_id,
+            "schema_version": str(summary_json.get("schema_version") or "1.0"),
+            "prompt_version": prompt_version,
+            "processing_status": "completed",
+            "summary_json": copy.deepcopy(summary_json),
+            "created_at": now,
+            "updated_at": now,
+        }
+        self.transcript_summaries[transcript_id] = row
+        return copy.deepcopy(row)
 
 
 _memory_store = MemoryDataStore()
