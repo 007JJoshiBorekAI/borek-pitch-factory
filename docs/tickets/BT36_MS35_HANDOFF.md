@@ -2,6 +2,8 @@
 
 **READY for wiring (fixture path).** Confirm never sends mail. First-meeting PPT stays `unfrozen` until JJ-31.
 
+Deploy checklist (migrations 028–031): `docs/tickets/PHASE1_DEPLOY.md`
+
 Base path: `/opportunities/{opportunity_id}`  
 Auth: same bearer token as intake/documents.
 
@@ -22,7 +24,9 @@ Stage 2 `outputs.transcript_summary` is the contract object. Call summary / MOM 
 
 Existing `POST /stage1-research` still works; Stage 1 generate also embeds `outputs.research`.
 
-Contracts: `packages/contracts/stage1_outputs.schema.json`, `stage2_outputs.schema.json`, `transcript_summary.schema.json`.
+Contracts for **MS-35 GET/POST retrieve**: `packages/contracts/stage1_outputs.schema.json` and `stage2_outputs.schema.json` on **`main`** (envelope `{ status, outputs }`). Do not wire against `origin/bt/bt36-stage-outputs` generation schemas even though the filenames match.
+
+`030_bt36_stage_outputs.sql` is the live retrieve migration. Transcript summary **table** is `031_transcript_summaries.sql` (never a second `030`).
 
 ## Deepening meeting feedback and optional documents
 
@@ -60,8 +64,12 @@ Contract: `packages/contracts/email_draft.schema.json`.
 | `TRANSCRIPT_REQUIRED` | 400 |
 | `INVALID_JOURNEY_STAGE` | 400 |
 | `INVALID_EMAIL_LENGTH` | 400 |
+| `FOLLOWUP_STATICS_REQUIRED` | 400 |
+| `FOLLOWUP_EXTRACTION_FAILED` | 400 |
 | `EMAIL_SEND_FORBIDDEN` | 400 |
 | `EMAIL_DRAFT_NOT_FOUND` | 404 |
+
+Email generate fills the **MS-32 template** (`services/followup/rendering.py`) from JJ-32 extraction + `opportunity.followup_statics`. Set statics before generate.
 
 ## Not ready
 

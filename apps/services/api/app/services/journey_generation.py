@@ -16,15 +16,16 @@ from app.services.first_contact_inputs import require_first_contact_client_docum
 from app.services.knowledge_access import resolve_active_corpus
 from app.services.stage1 import get_company_research_provider
 from services.framework.stage1_research import generate_stage1_research
+from services.followup.extraction import FollowupExtractionError, extract_followup
+from services.followup.rendering import render_first_contact_draft, render_three_lengths
+from services.followup.summary_extraction import default_meeting_date, extract_followup_from_summary
 from services.transcript.summarize import (
+    PROMPT_VERSION as TRANSCRIPT_SUMMARY_PROMPT_VERSION,
     format_transcript_summary_for_prompt,
     summarize_speaker_sections,
 )
 
 CONTRACTS = Path(__file__).resolve().parents[5] / "packages" / "contracts"
-SHORT_WORD_CAP = 150
-MEDIUM_WORD_CAP = 300
-EXTENSIVE_WORD_CAP = 500
 JOURNEY_STAGES = ("first_contact", "deepening", "concretisation")
 QUESTION_TEMPLATES = (
     "What problem does {topic} currently create for the operating teams?",
@@ -228,13 +229,69 @@ def generate_stage2_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) 
         user_id=user_id,
         updates={"stage2_outputs": payload},
     )
+    upsert = getattr(store, "upsert_transcript_summary", None)
+    if callable(upsert):
+        upsert(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            transcript_id=UUID(str(source["id"])),
+            conversation_id=str(source.get("conversation_id") or ""),
+            summary_json=summary,
+            prompt_version=TRANSCRIPT_SUMMARY_PROMPT_VERSION,
+        )
     return payload
 
 
-def _clip(text: str, cap: int) -> tuple[str, int]:
-    words = text.split()
-    clipped = " ".join(words[:cap])
-    return clipped, len(clipped.split())
+def _transcript_text(sections: list[dict[str, Any]]) -> str:
+    lines: list[str] = []
+    for section in sections:
+        speaker = str(section.get("speaker_role") or section.get("speaker") or "Speaker").strip()
+        text = str(section.get("content") or section.get("text") or "").strip()
+        if text:
+            lines.append(f"{speaker}: {text}")
+    return "\n".join(lines)
+
+
+def _require_followup_statics(opportunity: dict[str, Any]) -> dict[str, Any]:
+    statics = opportunity.get("followup_statics")
+    if not isinstance(statics, dict) or not statics.get("project_name"):
+        raise bad_request(
+            "FOLLOWUP_STATICS_REQUIRED",
+            "Set opportunity.followup_statics (project_name, recipients, sender) before generating the MS-32 email draft.",
+        )
+    return statics
+
+
+def _extract_followup_payload(
+    *,
+    opportunity_id: UUID,
+    transcript_id: UUID | str,
+    sections: list[dict[str, Any]],
+    meeting_topic: str,
+) -> dict[str, Any]:
+    summary = summarize_speaker_sections(
+        sections,
+        opportunity_id=opportunity_id,
+        transcript_id=transcript_id,
+    )
+    meeting_date = default_meeting_date(summary)
+    if settings.AI_EXECUTION_MODE == "live":
+        transcript = _transcript_text(sections)
+        try:
+            return extract_followup(
+                transcript,
+                calendar_meeting_date=meeting_date,
+                opportunity_id=str(opportunity_id),
+            )
+        except FollowupExtractionError as exc:
+            raise bad_request("FOLLOWUP_EXTRACTION_FAILED", exc.user_message) from exc
+    return extract_followup_from_summary(
+        summary,
+        meeting_topic=meeting_topic,
+        calendar_meeting_date=meeting_date,
+        transcript_haystack=_transcript_text(sections),
+        sections=sections,
+    )
 
 
 def generate_email_draft(
@@ -247,15 +304,12 @@ def generate_email_draft(
     if journey_stage not in JOURNEY_STAGES:
         raise bad_request("INVALID_JOURNEY_STAGE", "journey_stage must be first_contact, deepening, or concretisation")
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
-    client = str(opportunity.get("client_name") or "the client")
     name = str(opportunity.get("opportunity_name") or "this opportunity")
     intake = opportunity.get("stage1_intake") or {}
     topic = str(intake.get("sales_topic_description") or name).strip()
-    facts: list[str] = [
-        f"This note is about {name} with {client}.",
-        f"The stated sales topic is {topic}.",
-        "Confirm stores the chosen length only. This API never sends mail.",
-    ]
+    statics = _require_followup_statics(opportunity)
+    meeting_date = datetime.now(UTC).strftime("%d.%m.%Y")
+
     if journey_stage == "deepening":
         sources = store.list_transcript_sources(opportunity_id=opportunity_id, user_id=user_id)
         if not sources:
@@ -263,38 +317,30 @@ def generate_email_draft(
                 "TRANSCRIPT_REQUIRED",
                 "Upload a meeting transcript before generating the Deepening email draft.",
             )
-        summary = summarize_speaker_sections(
-            sources[-1].get("sections") or [],
+        source = sources[-1]
+        sections = list(source.get("sections") or [])
+        extraction = _extract_followup_payload(
             opportunity_id=opportunity_id,
-            transcript_id=sources[-1]["id"],
+            transcript_id=source["id"],
+            sections=sections,
+            meeting_topic=topic,
         )
-        facts.append("The draft uses TRANSCRIPT_SUMMARY only; raw speaker turns are not included.")
-        for decision in summary.get("decisions") or []:
-            facts.append(str(decision))
-        for item in summary.get("action_items") or []:
-            facts.append(str(item.get("text") or ""))
-        feedback = opportunity.get("meeting_feedback_text")
-        if feedback:
-            facts.append("Meeting feedback: " + str(feedback).strip())
+        lengths = render_three_lengths(extraction, statics)
     elif journey_stage == "first_contact":
-        facts.append("This is an optional pre-meeting note. It does not invent company facts.")
+        lengths = render_first_contact_draft(statics, topic=topic, meeting_date=meeting_date)
     else:
-        facts.append("This is an optional post-proposal note. It does not invent prices or commercial terms.")
-
-    base = " ".join(part.strip() for part in facts if part.strip())
-    subject = f"{name} — {journey_stage.replace('_', ' ')} follow-up"
-    short_body, short_count = _clip(base, SHORT_WORD_CAP)
-    medium_body, medium_count = _clip(base + " We will keep the next conversation aligned to stated facts only.", MEDIUM_WORD_CAP)
-    extensive_body, extensive_count = _clip(
-        base
-        + " Review the checklist before confirm. Confirm does not send. Outlook draft creation is out of this endpoint.",
-        EXTENSIVE_WORD_CAP,
-    )
-    lengths = {
-        "short": {"subject": subject, "body": short_body, "word_count": short_count},
-        "medium": {"subject": subject, "body": medium_body, "word_count": medium_count},
-        "extensive": {"subject": subject, "body": extensive_body, "word_count": extensive_count},
-    }
+        extraction = extract_followup_from_summary(
+            {
+                "narrative": f"Optional post-proposal note for {name}. No prices or commercial terms were invented.",
+                "participants": [],
+                "decisions": [],
+                "action_items": [],
+                "open_questions": [],
+            },
+            meeting_topic=topic,
+            calendar_meeting_date=meeting_date,
+        )
+        lengths = render_three_lengths(extraction, statics)
     existing = store.get_email_draft(
         opportunity_id=opportunity_id,
         user_id=user_id,
