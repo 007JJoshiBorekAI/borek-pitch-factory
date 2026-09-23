@@ -21,6 +21,7 @@ from app.services.stage_b_orchestration import (
     plan_json_from_confirmed_framework,
     planned_slides_with_generators,
 )
+from app.services.journey_outputs_store import JOURNEY_OUTPUT_DB_COLUMNS
 from app.services.stage1_intake_store import (
     STAGE1_DB_COLUMNS,
     apply_intake_columns,
@@ -347,6 +348,7 @@ class MemoryDataStore:
             "created_at": now,
             "updated_at": now,
             **{key: None for key in STAGE1_DB_COLUMNS},
+            **{key: None for key in JOURNEY_OUTPUT_DB_COLUMNS},
         }
         apply_intake_columns(row, stage1_intake)
         self.opportunities[opportunity_id] = row
@@ -462,6 +464,7 @@ class MemoryDataStore:
                 "additional_client_information",
                 "followup_statics",
                 *STAGE1_DB_COLUMNS,
+                *JOURNEY_OUTPUT_DB_COLUMNS,
             }:
                 row[key] = value
         row["updated_at"] = _now()
@@ -1853,6 +1856,65 @@ class MemoryDataStore:
         target = UUID(str(job_id))
         rows = [row for row in self.llm_calls.values() if row.get("job_id") == target]
         return [copy.deepcopy(row) for row in sorted(rows, key=lambda item: item["created_at"])]
+
+    def upsert_email_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        journey_stage: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        row = self.opportunities.get(opportunity_id)
+        if row is None or row["created_by"] != user_id:
+            raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
+        drafts = copy.deepcopy(row.get("email_drafts") or {})
+        existing = drafts.get(journey_stage)
+        now = _now()
+        stored = {
+            "id": UUID(str(existing["id"])) if existing else uuid.uuid4(),
+            "opportunity_id": opportunity_id,
+            "journey_stage": journey_stage,
+            "status": payload["status"],
+            "send_status": "not_sent",
+            "selected_length": payload.get("selected_length"),
+            "lengths": copy.deepcopy(payload["lengths"]),
+            "confirmed_at": payload.get("confirmed_at"),
+            "created_at": existing["created_at"] if existing else now,
+            "updated_at": now,
+        }
+        drafts[journey_stage] = stored
+        row["email_drafts"] = drafts
+        row["updated_at"] = now
+        return copy.deepcopy(stored)
+
+    def get_email_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        journey_stage: str,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        row = self.opportunities.get(opportunity_id)
+        drafts = (row or {}).get("email_drafts") or {}
+        stored = drafts.get(journey_stage)
+        return copy.deepcopy(stored) if stored is not None else None
+
+    def get_email_draft_by_id(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        draft_id: UUID,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        row = self.opportunities.get(opportunity_id)
+        drafts = (row or {}).get("email_drafts") or {}
+        for stored in drafts.values():
+            if UUID(str(stored["id"])) == draft_id:
+                return copy.deepcopy(stored)
+        raise not_found("EMAIL_DRAFT_NOT_FOUND", "Email draft was not found")
 
 
 _memory_store = MemoryDataStore()

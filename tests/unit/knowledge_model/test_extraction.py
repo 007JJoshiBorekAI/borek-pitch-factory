@@ -32,6 +32,8 @@ def _identity() -> TranscriptIdentity:
 def _complete_from_fixture(system: str, user: str, schema: dict) -> dict:
     assert "framework-extraction:v1" in system
     assert "turn:0" in user
+    assert "TRANSCRIPT_SUMMARY_BEGIN" in user
+    assert "UNTRUSTED_TRANSCRIPT_BEGIN" not in user
     return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
 
 

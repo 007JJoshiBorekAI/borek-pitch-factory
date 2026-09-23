@@ -80,18 +80,18 @@ client terminology, and open questions. Same never-invent rules as JJ-32.
 Voice recordings transcribed on intake (MS-33) follow the same rule when their text
 feeds a generation prompt.
 
-**Owner:** BT-36 (Blenard). **Verified by:** QA-03 scenario 13.
+**Owner:** BT-36 (Mayank). **Verified by:** QA-03 scenario 13.
 
 ## Ticket map
 
 | ID | Title | Owner |
 | --- | --- | --- |
-| MS-33 | Stage 1 sales intake (docx fields + About Company + voice) | Mayank |
-| BT-34 | Intake context + company research in main prompts | Blenard |
-| MS-34 | Client document upload for First contact | Mayank |
-| BT-35 | First contact client document pipeline | Blenard |
-| MS-35 | Stage output review UI + email on all 3 stages | Mayank |
-| BT-36 | Stage 1 & 2 output pipelines (research, PPT, agenda, MOM, email) | Blenard |
+| MS-33 | Stage 1 sales intake (docx fields + About Company + voice) | Blenard |
+| BT-34 | Intake context + company research in main prompts | Mayank |
+| MS-34 | Client document upload for First contact | Blenard |
+| BT-35 | First contact client document pipeline | Mayank |
+| MS-35 | Stage output review UI + email on all 3 stages | Blenard |
+| BT-36 | Stage 1 & 2 output pipelines (research, PPT, agenda, MOM, email) | Mayank |
 | QA-01 | Stage 1 intake + research outputs | Jaya |
 | QA-02 | Stage 1 documents + first-meeting PPT/agenda | Jaya |
 | QA-03 | Stage 2 outputs + email all stages + Concretisation | Jaya |

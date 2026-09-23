@@ -10,7 +10,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import HTTPException
@@ -674,6 +674,7 @@ class SupabaseDataStore:
         user_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
+        from app.services.journey_outputs_store import JOURNEY_OUTPUT_DB_COLUMNS
         from app.services.stage1_intake_store import STAGE1_DB_COLUMNS, expand_opportunity_updates
 
         expanded = expand_opportunity_updates(dict(updates))
@@ -681,7 +682,12 @@ class SupabaseDataStore:
             key: value
             for key, value in expanded.items()
             if value is not None
-            or key in {"additional_client_information", "followup_statics", *STAGE1_DB_COLUMNS}
+            or key in {
+                "additional_client_information",
+                "followup_statics",
+                *STAGE1_DB_COLUMNS,
+                *JOURNEY_OUTPUT_DB_COLUMNS,
+            }
         }
         payload["updated_at"] = datetime.now(UTC).isoformat()
         response = self._request(
@@ -696,6 +702,64 @@ class SupabaseDataStore:
         if response.status_code not in (200, 204) or not response.json():
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
         return _normalize_opportunity(response.json()[0])
+
+    def upsert_email_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        journey_stage: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        opportunity = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        drafts = dict(opportunity.get("email_drafts") or {})
+        existing = drafts.get(journey_stage) or {}
+        now = datetime.now(UTC).isoformat()
+        stored = {
+            "id": str(existing.get("id") or uuid4()),
+            "opportunity_id": str(opportunity_id),
+            "journey_stage": journey_stage,
+            "status": payload["status"],
+            "send_status": "not_sent",
+            "selected_length": payload.get("selected_length"),
+            "lengths": payload["lengths"],
+            "confirmed_at": payload.get("confirmed_at"),
+            "created_at": existing.get("created_at") or now,
+            "updated_at": now,
+        }
+        drafts[journey_stage] = stored
+        self.update_opportunity(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            updates={"email_drafts": drafts},
+        )
+        return stored
+
+    def get_email_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        journey_stage: str,
+    ) -> dict[str, Any] | None:
+        opportunity = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        drafts = opportunity.get("email_drafts") or {}
+        row = drafts.get(journey_stage)
+        return dict(row) if row is not None else None
+
+    def get_email_draft_by_id(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        draft_id: UUID,
+    ) -> dict[str, Any]:
+        opportunity = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        drafts = opportunity.get("email_drafts") or {}
+        for row in drafts.values():
+            if str(row.get("id")) == str(draft_id):
+                return dict(row)
+        raise not_found("EMAIL_DRAFT_NOT_FOUND", "Email draft was not found")
 
     def _upload_client_logo_content(
         self,

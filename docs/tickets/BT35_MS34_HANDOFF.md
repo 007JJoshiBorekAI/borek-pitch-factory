@@ -64,7 +64,7 @@ Processing states today:
 | **First contact** | Client documents (this endpoint) | ≥1 processed client document |
 | **Deepening** | Meeting transcripts (`POST …/transcripts`) | ≥1 transcript for framework generation |
 
-Hide `TranscriptUploadPanel` on First contact. Hide client-document panel on Deepening primary flow (optional supplementary docs are MS-35).
+Hide `TranscriptUploadPanel` on First contact. Deepening: transcripts required; optional extra files may use this same client-documents endpoint. Meeting feedback is `PUT /meeting-feedback` (BT-36).
 
 ## Classified errors
 

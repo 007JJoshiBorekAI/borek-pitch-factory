@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/meeting_feedback.schema.json",
+  "title": "MeetingFeedback",
+  "description": "BT-36 Deepening sales-rep learnings. Optional; never treated as a transcript.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "opportunity_id", "text", "updated_at"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "text": {
+      "type": ["string", "null"]
+    },
+    "updated_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  }
+}

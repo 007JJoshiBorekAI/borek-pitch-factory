@@ -47,6 +47,11 @@ SCHEMAS = [
     ),
     ("slide_spec/group_c/next_steps_01.schema.json", "slide_spec_group_c_next_steps_01.py"),
     ("stage1_research.schema.json", "stage1_research.py"),
+    ("transcript_summary.schema.json", "transcript_summary.py"),
+    ("stage1_outputs.schema.json", "stage1_outputs.py"),
+    ("stage2_outputs.schema.json", "stage2_outputs.py"),
+    ("email_draft.schema.json", "email_draft.py"),
+    ("meeting_feedback.schema.json", "meeting_feedback.py"),
 ]
 
 

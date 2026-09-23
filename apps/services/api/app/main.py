@@ -20,6 +20,7 @@ from app.routers import (
     presentations,
     public_logos,
     transcripts,
+    journey_outputs,
 )
 
 
@@ -58,6 +59,11 @@ def create_app() -> FastAPI:
         client_documents.router,
         prefix="/opportunities",
         tags=["client-documents"],
+    )
+    app.include_router(
+        journey_outputs.router,
+        prefix="/opportunities",
+        tags=["journey-outputs"],
     )
     app.include_router(
         frameworks.opportunity_router,
