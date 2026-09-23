@@ -2,7 +2,7 @@
 
 **Decision date:** 21 September 2026  
 **Source:** Head of AI direction + `Pitch Factory input_output.docx`  
-**Owners:** Mayank Somwani (UI), Blenard Tahiraj (pipeline), Jaya Joshi (QA)
+**Owners:** Mayank Somwani (pipeline), Blenard Tahiraj (UI), Jaya Joshi (QA)
 
 ## Journey mapping (docx → app stages)
 
@@ -95,5 +95,14 @@ feeds a generation prompt.
 | QA-01 | Stage 1 intake + research outputs | Jaya |
 | QA-02 | Stage 1 documents + first-meeting PPT/agenda | Jaya |
 | QA-03 | Stage 2 outputs + email all stages + Concretisation | Jaya |
+| TSK-008 | Employee login, role model and activity log (D3) | Jaya |
+| TSK-009 | Jamie AI connector (D8) | Mayank |
+| TSK-010 | Translate CI sheet into design tokens | Blenard |
+| TSK-011 | Control Tower routing, versioning and logging (D5) | Jaya |
+| TSK-012 | Content agent for the three journey stages (D6) | Blenard |
+| TSK-013 | Follow-up e-mail in three lengths (D9) | Mayank |
+| TSK-014 | Design agent on the design tokens (D7) | Blenard |
+| TSK-015 | Automated minutes of meeting (D10) | Mayank |
+| TSK-016 | Approval workflow and automatic filing (D11) | Jaya |
 
 Assignment PDF: `Pitch_Factory_Feature_Redefinition_Mayank_Blenard_QA.pdf`

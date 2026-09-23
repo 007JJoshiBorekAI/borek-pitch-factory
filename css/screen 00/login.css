@@ -1,0 +1,642 @@
+/* Screen / 00 Login */
+
+position: relative;
+width: 1440px;
+height: 1024px;
+
+background: #FFFFFF;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 760px;
+height: 1024px;
+left: 0px;
+top: 0px;
+
+background: #0D1240;
+
+
+/* Frame */
+
+position: absolute;
+width: 184px;
+height: 43px;
+left: 88px;
+top: 76px;
+
+
+
+/* Vector */
+
+position: absolute;
+left: 13.3%;
+right: 71.39%;
+top: 10.27%;
+bottom: 26.92%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 66.47%;
+right: 18.22%;
+top: 10.27%;
+bottom: 26.92%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 30.8%;
+right: 53.89%;
+top: 10.27%;
+bottom: 26.91%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 83.97%;
+right: 0.03%;
+top: 10.27%;
+bottom: 26.91%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 48.6%;
+right: 35.04%;
+top: 10.27%;
+bottom: 26.92%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 13.19%;
+right: 83.67%;
+top: 83.1%;
+bottom: 0%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 19.26%;
+right: 77.03%;
+top: 83.1%;
+bottom: 0%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 26.19%;
+right: 71.46%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 31.51%;
+right: 65.41%;
+top: 83.36%;
+bottom: 0%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 37.61%;
+right: 59.3%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 43.89%;
+right: 55.47%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 47.9%;
+right: 48.39%;
+top: 83.1%;
+bottom: 0%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 54.43%;
+right: 42.15%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 61.07%;
+right: 35.79%;
+top: 83.1%;
+bottom: 0%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 71.14%;
+right: 25.25%;
+top: 83.1%;
+bottom: 0%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 78.16%;
+right: 18.77%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 83.98%;
+right: 12.3%;
+top: 83.1%;
+bottom: 0%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 90.61%;
+right: 6.31%;
+top: 83.36%;
+bottom: 0%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 97.02%;
+right: 0.03%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #FFFFFF;
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 89.09%;
+top: 0%;
+bottom: 16.64%;
+
+background: #FFFFFF;
+
+
+/* AI PITCH */
+
+position: absolute;
+width: 160px;
+height: 24px;
+left: 88px;
+top: 136px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+letter-spacing: 1.2px;
+
+color: #FFFFFF;
+
+
+
+/* Prepare the right conversation. */
+
+position: absolute;
+width: 540px;
+height: 81.2px;
+left: 88px;
+top: 304px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 300;
+font-size: 56px;
+line-height: 66px;
+/* or 118% */
+
+color: #FFFFFF;
+
+
+
+/* splash */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+
+position: absolute;
+width: 286px;
+height: 7px;
+left: 88px;
+top: 472px;
+
+
+
+/* Rectangle */
+
+width: 71.5px;
+height: 7px;
+
+background: #E07E00;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Rectangle */
+
+width: 71.5px;
+height: 7px;
+
+background: #DD3D00;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Rectangle */
+
+width: 71.5px;
+height: 7px;
+
+background: #124F94;
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Rectangle */
+
+width: 71.5px;
+height: 7px;
+
+background: #02A69F;
+
+/* Inside auto layout */
+flex: none;
+order: 3;
+flex-grow: 0;
+
+
+/* From client research to an approved follow-up, all in one focused workspace. */
+
+position: absolute;
+width: 520px;
+height: 26.1px;
+left: 88px;
+top: 522px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 18px;
+line-height: 29px;
+/* or 161% */
+
+color: #FFFFFF;
+
+
+
+/* Internal · Borek Solutions */
+
+position: absolute;
+width: 220px;
+height: 24px;
+left: 88px;
+top: 916px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #FFFFFF;
+
+
+
+/* Welcome */
+
+position: absolute;
+width: 360px;
+height: 58px;
+left: 856px;
+top: 224px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 300;
+font-size: 40px;
+line-height: 48px;
+
+color: #0D1240;
+
+
+
+/* Sign in with your Borek account to continue. */
+
+position: absolute;
+width: 420px;
+height: 24px;
+left: 856px;
+top: 282px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 19px;
+
+color: #5C6178;
+
+
+
+/* Button / Microsoft */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 14px 20px;
+gap: 12px;
+
+position: absolute;
+width: 448px;
+height: 52px;
+left: 856px;
+top: 360px;
+
+background: #0D1240;
+border: 1px solid #E2E4EC;
+border-radius: 8px;
+
+
+/* Microsoft 365 logo */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 0px;
+
+width: 20px;
+height: 20px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Microsoft 365 logo */
+
+width: 20px;
+height: 20px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* image 1 */
+
+position: absolute;
+width: 54px;
+height: 41px;
+left: calc(50% - 54px/2);
+top: calc(50% - 41px/2 + 0.5px);
+
+background: url(image);
+
+
+/* Continue with Microsoft */
+
+width: 173px;
+height: 18px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 15px;
+line-height: 18px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Save Sign In  */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 10px;
+
+position: absolute;
+width: 215px;
+height: 18px;
+left: 856px;
+top: 438px;
+
+
+
+/* Check box outline blank */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Vector */
+
+position: absolute;
+height: 16px;
+left: 5.56%;
+right: 5.56%;
+top: calc(50% - 16px/2);
+
+background: #5C6178;
+
+
+/* Keep me signed in on this device */
+
+width: 187px;
+height: 15px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+/* identical to box height */
+display: flex;
+align-items: center;
+
+color: #5C6178;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 448px;
+height: 1px;
+left: 856px;
+top: 508px;
+
+background: #E2E4EC;
+
+
+/* Language */
+
+position: absolute;
+width: 100px;
+height: 24px;
+left: 856px;
+top: 542px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+
+color: #5C6178;
+
+
+
+/* English Deutsch */
+
+position: absolute;
+width: 220px;
+height: 24px;
+left: 856px;
+top: 574px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #124F94;
+
+
+
+/* Need access? Contact IT Support. */
+
+position: absolute;
+width: 420px;
+height: 24px;
+left: 856px;
+top: 704px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 16px;
+
+color: #5C6178;
+

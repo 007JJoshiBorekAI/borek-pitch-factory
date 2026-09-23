@@ -74,5 +74,13 @@ verticals. Does not gate BT-30.
 Assignment PDF: `Pitch_Factory_New_Tickets_Jaya_Mayank_Blenard.pdf`, generated
 by `scripts/generate_jj_ms_bt_tickets_pdf.py`.
 
+## Feature redefinition + Control Tower board (22 September 2026)
+
+Mayank and Blenard **switched** on the sprint tickets: **Mayank** owns pipeline
+(**BT-34–36**); **Blenard** owns the user surface (**MS-33–35**). Board tasks
+**TSK-008–016** are assigned as on the board (Jaya / Mayank / Blenard). See
+[`FEATURE_REDEFINITION_SPRINT.md`](FEATURE_REDEFINITION_SPRINT.md) and
+[`TSK_ASSIGNMENT.md`](TSK_ASSIGNMENT.md).
+
 **Closure rule:** do not close until every Done when condition and required
 proof is satisfied.

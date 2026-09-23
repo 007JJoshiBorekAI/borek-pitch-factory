@@ -189,10 +189,11 @@ def build() -> Path:
     story.append(p("Feature redefinition tickets", s["cover_title"]))
     story.append(p("Mayank Somwani  ·  Blenard Tahiraj  ·  Jaya Joshi (QA)", s["cover_sub"]))
     story.append(p(
-        "Aligned to Pitch Factory input_output.docx. Development: Mayank (UI), Blenard "
-        "(pipeline). QA sign-off: Jaya. Docx defines two workflow stages mapped to First "
-        "contact (Pre-meeting) and Deepening (After 1st meeting). Concretisation keeps the "
-        "existing priced-proposal path with email added.",
+        "Aligned to Pitch Factory input_output.docx plus Control Tower board TSK-008–016. "
+        "Development: Mayank (pipeline + Jamie/email/MOM), Blenard (UI + design/content "
+        "agents). QA and Control Tower: Jaya. MS-33–35 switched to Blenard; BT-34–36 "
+        "switched to Mayank. Docx stages map to First contact and Deepening. "
+        "Concretisation keeps the existing priced-proposal path with email added.",
         s["body"],
     ))
     story.append(p(
@@ -201,7 +202,6 @@ def build() -> Path:
         s["note"],
     ))
 
-    # Section 1: Docx mapping
     story.append(p("1. Docx stage mapping", s["h1"]))
     story.append(table(
         ["Docx stage", "App journey stage", "Purpose"],
@@ -231,7 +231,8 @@ def build() -> Path:
         ["Output", "Ticket"],
         [
             ["Brief company description, headcount, HQ, decision makers, revenue", "BT-34 / BT-36"],
-            ["Hypothesis for Borek support; relevance to product offering", "BT-36"],
+            ["Hypothesis for Borek support", "BT-36"],
+            ["Relevance to product offering", "BT-36"],
             ["10–15 probing / discovery questions", "BT-36"],
             ["Use case relevance (past Borek use cases)", "BT-36"],
             ["First-meeting PPT: AI-tech, hypothesis, use-case slides", "BT-36 / MS-35"],
@@ -260,6 +261,21 @@ def build() -> Path:
             ["MOM (minutes of meeting)", "BT-36"],
             ["Draft email after the call", "BT-36 / MS-35"],
             ["Adjusted PPT from meeting discussion", "BT-36 / MS-35"],
+            ["14-chapter Framework (review / confirm before Present)", "BT-36 / MS-35"],
+        ], s, [usable * 0.55, usable * 0.45],
+    ))
+
+    story.append(Spacer(1, 8))
+    story.append(p("3.1 Concretisation", s["h1"]))
+    story.append(p(
+        "Existing priced-proposal deck path is unchanged. This sprint adds optional draft email only.",
+        s["body"],
+    ))
+    story.append(table(
+        ["Output", "Ticket"],
+        [
+            ["Priced proposal deck", "Existing pipeline — not re-scoped in this sprint"],
+            ["Optional draft email after proposal", "MS-35 / BT-36"],
         ], s, [usable * 0.55, usable * 0.45],
     ))
 
@@ -272,7 +288,7 @@ def build() -> Path:
         "TRANSCRIPT_SUMMARIZING job stage produces a structured summary; only that "
         "summary is injected as TRANSCRIPT_SUMMARY_BEGIN…END into extraction, synthesis, "
         "follow-up, and Stage 2 generation prompts. Voice recordings transcribed on "
-        "intake follow the same rule. Owner: BT-36. Verified: QA-03 scenario 13.",
+        "intake follow the same rule. Owner: BT-36 (Mayank). Verified: QA-03 scenario 13.",
         s["body"],
     ))
     story.append(table(
@@ -285,52 +301,48 @@ def build() -> Path:
     ))
 
     story.append(Spacer(1, 8))
-    story.append(p("5. Ticket distribution", s["h1"]))
+    story.append(p("5. Work items by API bundle", s["h1"]))
+    story.append(p(
+        "Bundle names match docs/Borek_Pitch_Factory_Documentation.pdf §5 (HTTP) and §6 "
+        "(worker). Only this sprint’s tickets are listed.",
+        s["note"],
+    ))
+    story.append(table(
+        ["Bundle", "Mayank", "Blenard", "Jaya (QA)"],
+        [
+            ["§5.4 Upload — intake, documents, logo", "BT-34, BT-35", "MS-33, MS-34", "QA-01"],
+            ["§6.1 First contact worker", "BT-34, BT-35, BT-36", "MS-35", "QA-02"],
+            ["§5.6 Plan + §5.7 Deck — first-meeting PPT", "BT-36", "MS-35", "QA-02"],
+            ["§5.5 Framework review + §6.2 Deepening", "BT-36", "MS-35", "QA-03"],
+            ["§5.8 Draft email (all stages)", "BT-36, TSK-013", "MS-35", "QA-03"],
+            ["§5.3 Eligibility markers", "BT-36 → BT-31", "—", "QA-03, TSK-011"],
+            ["§6.3 Concretisation optional email", "BT-36", "MS-35", "QA-03"],
+            ["Login / SSO / activity (D3)", "—", "—", "TSK-008"],
+            ["Control Tower + MP approval (D5, D11)", "—", "—", "TSK-011, TSK-016"],
+            ["Jamie connector + MOM (D8, D10)", "TSK-009, TSK-015", "—", "—"],
+            ["CI tokens + content/design agents", "—", "TSK-010, TSK-012, TSK-014", "—"],
+        ], s, [36 * mm, 34 * mm, 34 * mm, usable - 104 * mm],
+    ))
+
+    story.append(Spacer(1, 8))
+    story.append(p("6. Ticket distribution", s["h1"]))
     story.append(table(
         ["Owner", "Role", "Tickets", "Count"],
         [
-            ["Mayank Somwani", "User surface", "MS-33, MS-34, MS-35", "3"],
-            ["Blenard Tahiraj", "Pipeline", "BT-34, BT-35, BT-36", "3"],
-            ["Jaya Joshi", "QA sign-off", "QA-01, QA-02, QA-03", "3"],
+            ["Mayank Somwani", "Pipeline + Jamie/email/MOM", "BT-34–36, TSK-009, TSK-013, TSK-015", "6"],
+            ["Blenard Tahiraj", "UI + design/content agents", "MS-33–35, TSK-010, TSK-012, TSK-014", "6"],
+            ["Jaya Joshi", "QA + Control Tower", "QA-01–03, TSK-008, TSK-011, TSK-016", "6"],
         ], s, [32 * mm, 30 * mm, usable - 74 * mm, 12 * mm],
     ))
 
     story.append(PageBreak())
 
-    # Mayank
-    story.append(person_banner("Mayank Somwani", "User surface", "MS-33 · MS-34 · MS-35", s, MAYANK))
-    story.append(Spacer(1, 8))
-    story.append(ticket_block(s, "MS-33",
-        "Stage 1 sales intake (docx fields + About Company + voice)",
-        "Phase 3  ·  P0  ·  docs/tickets/MS33_ABOUT_COMPANY_INTAKE.md",
-        "Pre-meeting form: client web page, POC name/position, sales topic, optional voice "
-        "recording, About company. No transcript on First contact.",
-        "All docx Stage 1 inputs persist and reload. Voice optional. Transcript panel hidden "
-        "on First contact.",
-        "BT-34 schema freeze.",
+    story.append(person_banner(
+        "Mayank Somwani",
+        "Pipeline + Jamie / follow-up email / minutes",
+        "BT-34 · BT-35 · BT-36 · TSK-009 · TSK-013 · TSK-015",
+        s, MAYANK,
     ))
-    story.append(ticket_block(s, "MS-34",
-        "Client document upload for First contact",
-        "Phase 3  ·  P0  ·  docs/tickets/MS34_FIRST_CONTACT_DOCUMENT_UPLOAD.md",
-        "Replace transcript upload with client documents (.pdf, .docx, .txt) on First contact. "
-        "Transcripts belong to Deepening (Stage 2).",
-        "Document upload on First contact; transcript upload on Deepening; clear errors.",
-        "BT-35 upload API.",
-    ))
-    story.append(ticket_block(s, "MS-35",
-        "Stage output review UI + email on all 3 stages",
-        "Phase 4  ·  P0  ·  docs/tickets/MS35_EMAIL_ALL_STAGES_NO_PPT_FIRST_CONTACT.md",
-        "Review/download for every docx output. Stage 2 intake: transcript + meeting feedback "
-        "+ optional docs. Email review on First contact, Deepening, and Concretisation.",
-        "All docx outputs have UI surfaces. Deepening collects meeting feedback. Email on all "
-        "three stages; confirm does not auto-send.",
-        "BT-36 outputs, MS-32 email review.",
-    ))
-
-    story.append(PageBreak())
-
-    # Blenard
-    story.append(person_banner("Blenard Tahiraj", "Pipeline and backend", "BT-34 · BT-35 · BT-36", s, BLENARD))
     story.append(Spacer(1, 8))
     story.append(ticket_block(s, "BT-34",
         "Intake context + company research in main prompts",
@@ -358,11 +370,97 @@ def build() -> Path:
         "dialogue. transcript_summary.schema.json frozen. BT-31 markers updated.",
         "BT-34, BT-35, BT-33, JJ-31 first-meeting profile.",
     ))
+    story.append(ticket_block(s, "TSK-009",
+        "Build Jamie AI connector (D8)",
+        "Implementation  ·  Critical  ·  docs/tickets/TSK009_JAMIE_AI_CONNECTOR.md",
+        "A finished Jamie meeting is picked up automatically; transcript, participants and "
+        "actions feed Control Tower / Pitch Factory.",
+        "Transcript, participants and actions available within ten minutes of meeting end.",
+        "Microsoft 365 / Jamie access.",
+    ))
+    story.append(ticket_block(s, "TSK-013",
+        "Build follow-up e-mail in three lengths (D9)",
+        "Implementation  ·  Critical  ·  docs/tickets/TSK013_FOLLOWUP_EMAIL_THREE_LENGTHS.md",
+        "From one test meeting produce a short, a medium and an extensive follow-up draft, "
+        "with the option to attach a generated deck.",
+        "Three length variants exist for one test meeting; deck attach is optional.",
+        "BT-36 / TSK-012 content; TSK-014 deck.",
+    ))
+    story.append(ticket_block(s, "TSK-015",
+        "Build automated minutes of meeting (D10)",
+        "Implementation  ·  High  ·  docs/tickets/TSK015_AUTOMATED_MINUTES.md",
+        "Minutes with participants, decisions, actions, owners and dates generated and "
+        "filed automatically.",
+        "MOM generated and filed without manual transcription for the test meeting.",
+        "TSK-009 transcript.",
+    ))
 
     story.append(PageBreak())
 
-    # Jaya QA
-    story.append(person_banner("Jaya Joshi", "QA sign-off", "QA-01 · QA-02 · QA-03", s, QA))
+    story.append(person_banner(
+        "Blenard Tahiraj",
+        "User surface + CI tokens / content & design agents",
+        "MS-33 · MS-34 · MS-35 · TSK-010 · TSK-012 · TSK-014",
+        s, BLENARD,
+    ))
+    story.append(Spacer(1, 8))
+    story.append(ticket_block(s, "MS-33",
+        "Stage 1 sales intake (docx fields + About Company + voice)",
+        "Phase 3  ·  P0  ·  docs/tickets/MS33_ABOUT_COMPANY_INTAKE.md",
+        "Pre-meeting form: client web page, POC name/position, sales topic, optional voice "
+        "recording, About company. No transcript on First contact.",
+        "All docx Stage 1 inputs persist and reload. Voice optional. Transcript panel hidden "
+        "on First contact.",
+        "BT-34 schema freeze.",
+    ))
+    story.append(ticket_block(s, "MS-34",
+        "Client document upload for First contact",
+        "Phase 3  ·  P0  ·  docs/tickets/MS34_FIRST_CONTACT_DOCUMENT_UPLOAD.md",
+        "Replace transcript upload with client documents (.pdf, .docx, .txt) on First contact. "
+        "Transcripts belong to Deepening (Stage 2).",
+        "Document upload on First contact; transcript upload on Deepening; clear errors.",
+        "BT-35 upload API.",
+    ))
+    story.append(ticket_block(s, "MS-35",
+        "Stage output review UI + email on all 3 stages",
+        "Phase 4  ·  P0  ·  docs/tickets/MS35_EMAIL_ALL_STAGES_NO_PPT_FIRST_CONTACT.md",
+        "Review/download for every docx output. Stage 2 intake: transcript + meeting feedback "
+        "+ optional docs. Email review on First contact, Deepening, and Concretisation.",
+        "All docx outputs have UI surfaces. Deepening collects meeting feedback. Email on all "
+        "three stages; confirm does not auto-send.",
+        "BT-36 outputs, MS-32 email review.",
+    ))
+    story.append(ticket_block(s, "TSK-010",
+        "Translate the CI sheet into design tokens",
+        "Design  ·  High  ·  docs/tickets/TSK010_CI_DESIGN_TOKENS.md",
+        "CI sheet received from Euron translated into the design tokens used by the design agent.",
+        "Tokens consumed by TSK-014 with no one-off colour/type overrides.",
+        "Euron CI sheet.",
+    ))
+    story.append(ticket_block(s, "TSK-012",
+        "Build content agent for the three journey stages (D6)",
+        "Implementation  ·  Critical  ·  docs/tickets/TSK012_CONTENT_AGENT.md",
+        "For each journey stage a factually complete draft is produced from a test transcript "
+        "without manual editing.",
+        "First contact, Deepening and Concretisation drafts exist from one test transcript.",
+        "TSK-009 / BT-36 transcript path.",
+    ))
+    story.append(ticket_block(s, "TSK-014",
+        "Build design agent on the design tokens (D7)",
+        "Implementation  ·  Critical  ·  docs/tickets/TSK014_DESIGN_AGENT.md",
+        "Output carries the CI and is judged sendable without rework against the reference deck.",
+        "Reference-deck comparison passes for the test output.",
+        "TSK-010 tokens; TSK-012 content.",
+    ))
+
+    story.append(PageBreak())
+
+    story.append(person_banner(
+        "Jaya Joshi",
+        "QA sign-off + login / Control Tower / approval",
+        "QA-01 · QA-02 · QA-03 · TSK-008 · TSK-011 · TSK-016",
+        s, QA,
+    ))
     story.append(Spacer(1, 8))
     story.append(ticket_block(s, "QA-01",
         "Stage 1 intake + research outputs",
@@ -389,35 +487,61 @@ def build() -> Path:
         "Seventeen scenarios documented. Blocks MS-35 / BT-36 release.",
         "MS-35, BT-36, QA-01, QA-02 complete.",
     ))
+    story.append(ticket_block(s, "TSK-008",
+        "Build employee login, role model and activity log (D3)",
+        "Implementation  ·  Critical  ·  docs/tickets/TSK008_EMPLOYEE_LOGIN_ACTIVITY_LOG.md",
+        "Sign-in via Microsoft 365 SSO. Role model for generate / edit / release. Activity "
+        "log for every generation, edit and release.",
+        "SSO works; every generation, edit and release is logged with user, time and document ID.",
+        "Microsoft 365 tenant.",
+    ))
+    story.append(ticket_block(s, "TSK-011",
+        "Build Control Tower routing, versioning and logging (D5)",
+        "Implementation  ·  Critical  ·  docs/tickets/TSK011_CONTROL_TOWER_ROUTING.md",
+        "Journey stage and output type selectable; request routed, versioned and logged end-to-end.",
+        "A request can be selected, routed, versioned and audited from intake to output.",
+        "TSK-008 session.",
+    ))
+    story.append(ticket_block(s, "TSK-016",
+        "Build approval workflow and automatic filing (D11)",
+        "Implementation  ·  Critical  ·  docs/tickets/TSK016_APPROVAL_AND_FILING.md",
+        "No document reaches ready to send without a Managing Partner release; released "
+        "documents are filed automatically.",
+        "Unreleased output cannot be sent; released output is filed with lineage.",
+        "TSK-011 routing; AT-61 filing shape.",
+    ))
 
     story.append(Spacer(1, 10))
-    story.append(p("6. Contracts to freeze (week one)", s["h1"]))
+    story.append(p("7. Contracts to freeze (week one)", s["h1"]))
     story.append(table(
         ["Handoff", "Freeze", "Consumer"],
         [
-            ["BT-34 → MS-33", "Stage 1 intake API + stage1_research.schema.json", "Mayank intake UI"],
-            ["BT-35 → MS-34", "Client document upload response", "Mayank upload panel"],
-            ["BT-36 → MS-35", "stage1_outputs + stage2_outputs schemas", "Mayank review screens"],
+            ["BT-34 → MS-33", "Stage 1 intake API + stage1_research.schema.json", "Blenard intake UI"],
+            ["BT-35 → MS-34", "Client document upload response", "Blenard upload panel"],
+            ["BT-36 → MS-35", "stage1_outputs + stage2_outputs schemas", "Blenard review screens"],
             ["BT-36 → all LLM paths", "transcript_summary.schema.json", "Extraction, synthesis, follow-up, Stage 2"],
             ["BT-36 → JJ-31", "First-meeting 3-slide PPT profile", "Gamma / PPTX rendering"],
             ["BT-36 → BT-31", "Completion markers per stage artefact set", "Journey unlock"],
+            ["TSK-010 → TSK-014", "CI design tokens from Euron sheet", "Design agent"],
+            ["TSK-009 → TSK-012 / TSK-015", "Jamie transcript + participants + actions", "Content agent, MOM"],
         ], s, [28 * mm, 58 * mm, usable - 86 * mm],
     ))
 
     story.append(Spacer(1, 8))
-    story.append(p("7. Suggested sequence", s["h1"]))
+    story.append(p("8. Suggested sequence", s["h1"]))
     story.append(table(
-        ["Wave", "Mayank", "Blenard", "Jaya (QA)"],
+        ["Wave", "Mayank", "Blenard", "Jaya"],
         [
-            ["1 — Stage 1 intake", "MS-33", "BT-34 freeze + build", "QA-01"],
-            ["2 — Documents + research", "MS-34", "BT-35", "QA-02"],
-            ["3 — All outputs + email", "MS-35", "BT-36", "QA-03 release gate"],
+            ["1 — Stage 1 intake", "BT-34 freeze + build", "MS-33", "QA-01, TSK-008"],
+            ["2 — Documents + research", "BT-35, TSK-009", "MS-34, TSK-010", "QA-02, TSK-011"],
+            ["3 — Outputs + agents + email", "BT-36, TSK-013, TSK-015", "MS-35, TSK-012, TSK-014", "QA-03, TSK-016"],
         ], s, [28 * mm, 40 * mm, 40 * mm, usable - 108 * mm],
     ))
     story.append(Spacer(1, 6))
     story.append(p(
-        "Specs: docs/tickets/FEATURE_REDEFINITION_SPRINT.md and MS33–MS35, BT34–BT36, "
-        "QA01–QA03. Regenerate: python scripts/generate_feature_redefinition_tickets_pdf.py",
+        "Specs: docs/tickets/FEATURE_REDEFINITION_SPRINT.md, TSK_ASSIGNMENT.md, MS33–MS35, "
+        "BT34–BT36, QA01–QA03, TSK008–TSK016. "
+        "Regenerate: python scripts/generate_feature_redefinition_tickets_pdf.py",
         s["note"],
     ))
 
