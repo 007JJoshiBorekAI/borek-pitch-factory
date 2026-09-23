@@ -16,6 +16,9 @@ import {
   isStage1VoiceUnavailableError,
   stage1IntakeErrorMessage,
   stage1VoiceErrorMessage,
+  clientDocumentErrorMessage,
+  isClientDocumentEndpointUnavailable,
+  isMissingClientDocumentError,
 } from "./apiErrors.js";
 
 assert.equal(
@@ -107,6 +110,44 @@ assert.match(
 assert.match(
   stage1IntakeErrorMessage(new ApiRequestError("Invalid intake", 422, "VALIDATION_ERROR")),
   /pre-meeting fields/i,
+);
+assert.match(
+  clientDocumentErrorMessage(
+    new ApiRequestError("Unsupported", 400, "INVALID_CLIENT_DOCUMENT_FORMAT"),
+  ),
+  /PDF, DOCX, or TXT/i,
+);
+assert.match(
+  clientDocumentErrorMessage(
+    new ApiRequestError("Too large", 400, "CLIENT_DOCUMENT_TOO_LARGE"),
+  ),
+  /10 MB/i,
+);
+assert.equal(
+  isMissingClientDocumentError(
+    new ApiRequestError("Missing document", 404, "CLIENT_DOCUMENT_NOT_FOUND"),
+  ),
+  true,
+);
+assert.equal(
+  isClientDocumentEndpointUnavailable(
+    new ApiRequestError("Missing document", 404, "CLIENT_DOCUMENT_NOT_FOUND"),
+  ),
+  false,
+);
+assert.equal(
+  isClientDocumentEndpointUnavailable(new ApiRequestError("Route missing", 404)),
+  true,
+);
+assert.equal(
+  isClientDocumentEndpointUnavailable(new ApiRequestError("Unavailable", 503)),
+  true,
+);
+assert.match(
+  clientDocumentErrorMessage(
+    new ApiRequestError("Missing document", 404, "CLIENT_DOCUMENT_NOT_FOUND"),
+  ),
+  /no longer available/i,
 );
 
 console.log("apiErrors tests passed");
