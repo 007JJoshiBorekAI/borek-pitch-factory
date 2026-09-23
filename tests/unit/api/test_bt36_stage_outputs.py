@@ -25,6 +25,29 @@ def headers() -> dict[str, str]:
     }
 
 
+def followup_statics() -> dict:
+    return {
+        "project_name": "Acme Invoice Pilot",
+        "client_short": "Acme",
+        "salutation_style": "informal",
+        "standard_recipients": [
+            {
+                "email": "markus@example.com",
+                "first_name": "Markus",
+                "last_name": "Weber",
+                "salutation": "Mr",
+                "kind": "to",
+                "primary": True,
+            }
+        ],
+        "sender_profile": {
+            "name": "Lena Hoffmann",
+            "role": "Project Lead",
+            "email": "lena@borek.example",
+        },
+    }
+
+
 def create_opportunity(client: TestClient) -> str:
     response = client.post(
         "/opportunities",
@@ -33,6 +56,7 @@ def create_opportunity(client: TestClient) -> str:
             "client_name": "Acme",
             "opportunity_name": "Invoice Automation",
             "department": "Finance",
+            "followup_statics": followup_statics(),
             "stage1_intake": {
                 "sales_topic_description": "Invoice matching automation",
                 "about_company": "Regional equipment distributor.",
@@ -130,6 +154,38 @@ def test_meeting_feedback_and_stage2_outputs() -> None:
     assert extra_doc.status_code == 201
 
 
+def test_deepening_email_uses_ms32_template() -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    client.post(
+        f"/opportunities/{opportunity_id}/transcripts",
+        headers=headers(),
+        files={
+            "file": (
+                "workshop.txt",
+                (
+                    "Lena Hoffmann (BOREK): We decided the interface will be REST, not SOAP.\n"
+                    "Markus Weber (Acme): Agreed. I will provide test invoices by 18.09.2026.\n"
+                    "Lena Hoffmann (BOREK): I will deliver the interface specification by 25.09.2026.\n"
+                ).encode(),
+                "text/plain",
+            )
+        },
+    )
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/email-drafts/generate",
+        headers=headers(),
+        json={"journey_stage": "deepening"},
+    )
+    assert generated.status_code == 200, generated.text
+    body = generated.json()["draft"]["lengths"]["short"]["body"]
+    assert body.startswith("Hi Markus,")
+    assert "Key points" in body
+    assert "Next steps" in body
+    assert "Acme Invoice Pilot" in generated.json()["draft"]["lengths"]["short"]["subject"]
+
+
 def test_email_drafts_three_lengths_confirm_never_sends() -> None:
     reset_memory_store()
     client = TestClient(create_app())
@@ -149,6 +205,7 @@ def test_email_drafts_three_lengths_confirm_never_sends() -> None:
     draft = generated.json()["draft"]
     assert draft["send_status"] == "not_sent"
     assert draft["lengths"]["short"]["word_count"] <= 150
+    assert "Key points" in draft["lengths"]["short"]["body"]
     assert "medium" in draft["lengths"]
     assert "extensive" in draft["lengths"]
     send = client.post(
