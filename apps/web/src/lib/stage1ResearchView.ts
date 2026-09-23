@@ -103,6 +103,14 @@ export function dependencyLabel(code: string): string {
       return "Meeting agenda not generated";
     case "PRESENTATION_NOT_RUN":
       return "First-meeting presentation not generated";
+    case "STAGE1_OUTPUTS_NOT_GENERATED":
+      return "First Contact outputs have not been generated yet";
+    case "STAGE2_OUTPUTS_NOT_GENERATED":
+      return "Deepening outputs have not been generated yet";
+    case "FIRST_MEETING_PPT_PROFILE_UNFROZEN":
+      return "First-meeting presentation profile is not frozen yet";
+    case "RETRIEVAL_PROMPT_VERSION_UNAVAILABLE":
+      return "Generation prompt version is not exposed by the retrieval API";
     default:
       return code;
   }

@@ -89,6 +89,10 @@ export function presentationUnavailableMessage(
     return "Presentation reference exists but no authorized preview or download is available in this environment.";
   }
   if (presentationRef.status === "pending") {
+    const unfrozen = dependencies.find((code) => code.includes("PPT_PROFILE_UNFROZEN"));
+    if (unfrozen) {
+      return dependencyLabel(unfrozen);
+    }
     return "First-meeting presentation generation is pending.";
   }
   const dependency = dependencies.find((code) => code.includes("PRESENTATION"));

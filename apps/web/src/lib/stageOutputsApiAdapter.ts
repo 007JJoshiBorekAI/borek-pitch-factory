@@ -127,7 +127,7 @@ function adaptUseCases(useCases: Stage1OutputsPayload["use_cases"]): UseCaseColl
   return {
     status: "generated",
     items: useCases.map((item) => ({
-      use_case_id: item.title,
+      use_case_id: "",
       title: item.title,
       relevance_summary: item.rationale || null,
       origin: "UNKNOWN" as const,
@@ -442,6 +442,13 @@ export function adaptEmailDraftEnvelope(
 /** Returns true when a First Contact presentation download must not be offered. */
 export function isFirstContactPresentationDownloadBlocked(
   adapted: AdaptedStage1Review,
+): boolean {
+  return adapted.presentationUnfrozen || adapted.panelOutputs === null;
+}
+
+/** Returns true when a Deepening presentation download must not be offered. */
+export function isDeepeningPresentationDownloadBlocked(
+  adapted: AdaptedStage2Review,
 ): boolean {
   return adapted.presentationUnfrozen || adapted.panelOutputs === null;
 }

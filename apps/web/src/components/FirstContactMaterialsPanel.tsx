@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { FirstMeetingPresentationPanel } from "@/components/FirstMeetingPresentationPanel";
@@ -11,11 +11,25 @@ import {
   resolveVerifiedStagePresentation,
   type VerifiedStagePresentation,
 } from "@/lib/presentationStageVerification";
+import {
+  STAGE1_OUTPUTS_NOT_GENERATED,
+  type AdaptedStage1Review,
+  isFirstContactPresentationDownloadBlocked,
+} from "@/lib/stageOutputsApiAdapter";
+import {
+  deriveStage1ArtifactAvailability,
+  fetchAdaptedStage1Outputs,
+  generateAndFetchAdaptedStage1Outputs,
+  stage1OutputsErrorMessage,
+  stage1OutputsUnavailableDependencies,
+} from "@/lib/stage1OutputsLive";
+import type { Stage1ArtifactAvailability } from "@/lib/stageOutputReview";
 import { stage1OutputsDemo } from "@/lib/stageOutputDemoFixtures";
 import { FIRST_CONTACT_SLIDE_COUNT } from "@/lib/stageOutputArtifacts";
-import { isStageOutputDemoMode } from "@/lib/stageOutputReview";
+import { buildStageOutputHubItems, isStageOutputDemoMode } from "@/lib/stageOutputReview";
 import { loadStageReviewContext } from "@/lib/stageOutputReviewLoad";
 import type { StageOutputHubItem } from "@/lib/stageOutputReview";
+import { dependencyLabel } from "@/lib/stage1ResearchView";
 
 export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: string }) {
   const { accessToken } = useAuth();
@@ -27,8 +41,65 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
   const [opportunityName, setOpportunityName] = useState("");
   const [hubItems, setHubItems] = useState<StageOutputHubItem[]>([]);
   const [eligibilityLockCopy, setEligibilityLockCopy] = useState<string | null>(null);
+  const [processedClientDocumentCount, setProcessedClientDocumentCount] = useState(0);
+  const [hasStage1Intake, setHasStage1Intake] = useState(false);
+  const [adaptedOutputs, setAdaptedOutputs] = useState<AdaptedStage1Review | null>(null);
+  const [outputsLoadError, setOutputsLoadError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [verifiedPresentation, setVerifiedPresentation] =
     useState<VerifiedStagePresentation | null>(null);
+
+  const refreshHubItems = useCallback(
+    (
+      stage1Availability: Stage1ArtifactAvailability | undefined,
+      processedDocs: number,
+      intakeReady: boolean,
+    ) => {
+      setHubItems(
+        buildStageOutputHubItems(
+          {
+            journeyStage: "first_contact",
+            opportunityId,
+            processedClientDocumentCount: processedDocs,
+            hasStage1Intake: intakeReady,
+            apiLoadFailed: false,
+            stage1Availability,
+          },
+          demoMode,
+        ),
+      );
+    },
+    [demoMode, opportunityId],
+  );
+
+  const loadLiveStage1Outputs = useCallback(async () => {
+    if (!accessToken || demoMode) {
+      setAdaptedOutputs(null);
+      setOutputsLoadError(null);
+      return;
+    }
+    try {
+      const adapted = await fetchAdaptedStage1Outputs(accessToken, opportunityId);
+      setAdaptedOutputs(adapted);
+      setOutputsLoadError(null);
+      refreshHubItems(
+        deriveStage1ArtifactAvailability(adapted),
+        processedClientDocumentCount,
+        hasStage1Intake,
+      );
+    } catch (loadError) {
+      setAdaptedOutputs(null);
+      setOutputsLoadError(stage1OutputsErrorMessage(loadError));
+    }
+  }, [
+    accessToken,
+    demoMode,
+    hasStage1Intake,
+    opportunityId,
+    processedClientDocumentCount,
+    refreshHubItems,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -50,8 +121,12 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
         }
         setClientName(loaded.opportunity.client_name);
         setOpportunityName(loaded.opportunity.opportunity_name);
-        setHubItems(loaded.hubItems);
         setEligibilityLockCopy(loaded.eligibilityLockCopy);
+        setProcessedClientDocumentCount(loaded.processedClientDocumentCount);
+        setHasStage1Intake(loaded.liveContextHasIntake);
+        if (demoMode) {
+          setHubItems(loaded.hubItems);
+        }
       } catch {
         if (active) {
           setError("Meeting materials could not be loaded. Return to intake and try again.");
@@ -69,9 +144,18 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
   }, [accessToken, demoMode, opportunityId]);
 
   useEffect(() => {
+    void loadLiveStage1Outputs();
+  }, [loadLiveStage1Outputs]);
+
+  useEffect(() => {
     let active = true;
     async function loadPresentation() {
-      if (!accessToken || demoMode) {
+      if (
+        !accessToken ||
+        demoMode ||
+        !adaptedOutputs ||
+        isFirstContactPresentationDownloadBlocked(adaptedOutputs)
+      ) {
         setVerifiedPresentation(null);
         return;
       }
@@ -88,10 +172,39 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
     return () => {
       active = false;
     };
-  }, [accessToken, demoMode, opportunityId]);
+  }, [accessToken, adaptedOutputs, demoMode, opportunityId]);
 
-  const outputs = demoMode ? stage1OutputsDemo : null;
-  const liveDependencies = ["AGENDA_NOT_RUN", "PRESENTATION_NOT_RUN"];
+  async function handleGenerateStage1Outputs() {
+    if (!accessToken || demoMode || generating) {
+      return;
+    }
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const adapted = await generateAndFetchAdaptedStage1Outputs(accessToken, opportunityId);
+      setAdaptedOutputs(adapted);
+      setOutputsLoadError(null);
+      refreshHubItems(
+        deriveStage1ArtifactAvailability(adapted),
+        processedClientDocumentCount,
+        hasStage1Intake,
+      );
+    } catch (generateFailure) {
+      setGenerateError(stage1OutputsErrorMessage(generateFailure));
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  const outputs = demoMode ? stage1OutputsDemo : adaptedOutputs?.panelOutputs ?? null;
+  const liveDependencies = demoMode
+    ? ["AGENDA_NOT_RUN", "PRESENTATION_NOT_RUN"]
+    : stage1OutputsUnavailableDependencies(adaptedOutputs);
+  const outputsNotGenerated =
+    !demoMode &&
+    (adaptedOutputs === null ||
+      adaptedOutputs.envelopeStatus === "not_generated" ||
+      adaptedOutputs.panelOutputs === null);
 
   return (
     <StageReviewLayout
@@ -116,6 +229,12 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
         </p>
       ) : null}
 
+      {!demoMode && outputsLoadError ? (
+        <p className="form-error" role="alert">
+          {outputsLoadError}
+        </p>
+      ) : null}
+
       <FirstMeetingPresentationPanel
         presentationRef={outputs?.presentation_ref ?? null}
         dependencies={outputs?.dependencies ?? liveDependencies}
@@ -127,15 +246,36 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
       {outputs ? (
         <MeetingAgendaPanel agenda={outputs.meeting_agenda} dependencies={outputs.dependencies} />
       ) : (
-        <MeetingAgendaPanel
-          agenda={{
-            status: "unknown",
-            origin: "AI_INFERENCE",
-            items: [],
-            source_refs: [],
-          }}
-          dependencies={liveDependencies}
-        />
+        <>
+          <MeetingAgendaPanel
+            agenda={{
+              status: "unknown",
+              origin: "UNKNOWN",
+              items: [],
+              source_refs: [],
+            }}
+            dependencies={liveDependencies}
+          />
+          {!demoMode && outputsNotGenerated ? (
+            <section className="upload-panel stage-review-section">
+              <div className="stage-review-unavailable">
+                <strong>Meeting materials unavailable</strong>
+                <p>{dependencyLabel(STAGE1_OUTPUTS_NOT_GENERATED)}</p>
+              </div>
+              <div className="stage-review-generate-row">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={generating || !accessToken}
+                  onClick={() => void handleGenerateStage1Outputs()}
+                >
+                  {generating ? "Generating Stage 1 outputs…" : "Generate Stage 1 outputs"}
+                </button>
+                {generateError ? <p className="form-error">{generateError}</p> : null}
+              </div>
+            </section>
+          ) : null}
+        </>
       )}
     </StageReviewLayout>
   );

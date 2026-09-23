@@ -131,21 +131,16 @@ const reviewPanelSource = readFileSync(
   fileURLToPath(new URL("../components/FirstContactReviewPanel.tsx", import.meta.url)),
   "utf8",
 );
-assert.match(reviewPanelSource, /handleGenerateResearch[\s\S]*generateStage1Research/);
-assert.match(reviewPanelSource, /Generate company research/);
-assert.match(reviewPanelSource, /Session-only research result/);
+assert.match(reviewPanelSource, /fetchAdaptedStage1Outputs/);
+assert.match(reviewPanelSource, /generateAndFetchAdaptedStage1Outputs/);
+assert.match(reviewPanelSource, /Generate Stage 1 outputs/);
+assert.doesNotMatch(reviewPanelSource, /generateStage1Research/);
+assert.doesNotMatch(reviewPanelSource, /Session-only research result/);
 assert.match(reviewPanelSource, /DiscoveryQuestionsPanel/);
 assert.match(
   reviewPanelSource,
-  /Requires an explicit action\. No external research call runs when opening this page\./,
+  /Requires an explicit action\. No generation runs when opening this page\./,
 );
-
-const sessionSource = readFileSync(
-  fileURLToPath(new URL("./stage1ResearchSession.ts", import.meta.url)),
-  "utf8",
-);
-assert.match(sessionSource, /sessionStorage/);
-assert.match(sessionSource, /research\.opportunity_id === opportunityId/);
 
 const materialsSource = readFileSync(
   fileURLToPath(new URL("../components/FirstContactMaterialsPanel.tsx", import.meta.url)),

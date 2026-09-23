@@ -77,7 +77,7 @@ assert.equal(stage1.panelOutputs.discovery_questions.items[0].source_refs, undef
 assert.equal(stage1.panelOutputs.meeting_agenda.origin, "UNKNOWN");
 assert.equal(stage1.panelOutputs.meeting_agenda.items[0].topic, "Introductions");
 assert.equal(stage1.panelOutputs.meeting_agenda.items[0].duration_minutes, null);
-assert.equal(stage1.panelOutputs.use_cases.items[0].use_case_id, "Invoice 3-way Match");
+assert.equal(stage1.panelOutputs.use_cases.items[0].use_case_id, "");
 assert.equal(stage1.panelOutputs.use_cases.items[0].origin, "UNKNOWN");
 assert.equal(stage1.panelOutputs.use_cases.items[1].status, "unknown");
 assert.equal(stage1.panelOutputs.prompt_version, "");

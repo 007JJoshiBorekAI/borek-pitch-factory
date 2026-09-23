@@ -53,20 +53,63 @@ const liveWithInputs = buildStageOutputHubItems(
 assert.equal(liveWithInputs.every((item) => item.status === "backend_unavailable"), true);
 assert.equal(liveWithInputs.every((item) => item.reviewHref === null), true);
 
-const liveWithSessionResearch = buildStageOutputHubItems(
+const partialStage1Availability = buildStageOutputHubItems(
   {
     journeyStage: "first_contact",
     opportunityId: "opp-1",
     processedClientDocumentCount: 2,
     hasStage1Intake: true,
     apiLoadFailed: false,
-    hasSessionResearch: true,
+    stage1Availability: {
+      company_research_brief: false,
+      discovery_questions: true,
+      use_case_relevance: false,
+      first_meeting_deck: false,
+      meeting_agenda: true,
+    },
   },
   false,
 );
-const researchHubItem = liveWithSessionResearch.find((item) => item.id === "company_research_brief");
-assert.equal(researchHubItem?.status, "available");
-assert.match(researchHubItem?.reviewHref ?? "", /first-contact\/review/);
+assert.equal(
+  partialStage1Availability.find((item) => item.id === "discovery_questions")?.status,
+  "available",
+);
+assert.equal(
+  partialStage1Availability.find((item) => item.id === "company_research_brief")?.status,
+  "backend_unavailable",
+);
+assert.equal(
+  partialStage1Availability.find((item) => item.id === "optional_email")?.status,
+  "backend_unavailable",
+);
+
+const partialStage2Availability = buildStageOutputHubItems(
+  {
+    journeyStage: "deepening",
+    opportunityId: "opp-2",
+    processedClientDocumentCount: 0,
+    hasStage1Intake: false,
+    apiLoadFailed: false,
+    stage2Availability: {
+      call_summary: true,
+      minutes_of_meeting: false,
+      adjusted_deck: true,
+    },
+  },
+  false,
+);
+assert.equal(
+  partialStage2Availability.find((item) => item.id === "call_summary")?.status,
+  "available",
+);
+assert.equal(
+  partialStage2Availability.find((item) => item.id === "minutes_of_meeting")?.status,
+  "backend_unavailable",
+);
+assert.equal(
+  partialStage2Availability.find((item) => item.id === "draft_email")?.status,
+  "backend_unavailable",
+);
 
 const demoHub = buildStageOutputHubItems(
   {
