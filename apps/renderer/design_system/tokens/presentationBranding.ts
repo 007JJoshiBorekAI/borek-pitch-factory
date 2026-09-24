@@ -1,5 +1,5 @@
 /**
- * TSK-010: Approved Borek presentation branding (JJ-26 CI).
+ * TSK-010: Approved Borek presentation branding (Arbios master / schema 2.0).
  *
  * Loads `packages/contracts/borek_design_tokens.json` — the Design Agent source
  * of truth for approved presentation CI. This module is distinct from the
@@ -11,8 +11,11 @@ import designTokens from "../../../../packages/contracts/borek_design_tokens.jso
 export const APPROVED_PRESENTATION_COLORS = {
   primary: designTokens.colors.primary.hex,
   heading: designTokens.colors.heading.hex,
+  body: designTokens.colors.body.hex,
+  kicker: designTokens.colors.kicker.hex,
   accent: designTokens.colors.accent.hex,
   cardBackground: designTokens.colors.card_background.hex,
+  cardPanel: designTokens.colors.card_panel.hex,
 } as const;
 
 export type ApprovedPresentationColorToken = keyof typeof APPROVED_PRESENTATION_COLORS;
@@ -23,7 +26,7 @@ export const APPROVED_PRESENTATION_TYPOGRAPHY = {
 } as const;
 
 export const APPROVED_BOREK_LOGO = {
-  placement: designTokens.borek_logo.placement,
+  placements: designTokens.borek_logo.placements,
   everyCard: designTokens.borek_logo.every_card,
   runtimeOverridable: designTokens.borek_logo.runtime_overridable,
 } as const;
@@ -43,6 +46,7 @@ export const APPROVED_GAMMA_BRANDING = {
   themeIdSetting: designTokens.gamma_branding.theme_id_setting,
   templateIdSetting: designTokens.gamma_branding.template_id_setting,
   requestOverrideForbidden: designTokens.gamma_branding.request_override_forbidden,
+  designContractVersion: designTokens.gamma_branding.design_contract_version,
 } as const;
 
 export const APPROVED_COVER_SURFACE = {

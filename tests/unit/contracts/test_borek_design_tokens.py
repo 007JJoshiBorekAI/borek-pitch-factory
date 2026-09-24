@@ -54,6 +54,7 @@ def _clone_tokens(design_tokens_raw: dict) -> dict:
         lambda tokens: tokens["colors"]["accent"].update({"hex": "not-a-hex"}),
         lambda tokens: tokens["typography"]["heading_font"].update({"family": "Aptos Display"}),
         lambda tokens: tokens["surfaces"]["cover"].update({"hex": "0D1D51"}),
+        lambda tokens: tokens["footer"].update({"left_text": "Wrong footer"}),
         lambda tokens: tokens.update({"unsupported_branding_field": True}),
     ],
 )
@@ -77,11 +78,13 @@ def test_python_and_json_contract_share_approved_values(design_tokens_raw: dict)
     assert branding.body_font.family == design_tokens_raw["typography"]["body_font"]["family"]
 
 
-def test_approved_colors_match_jj26_ci() -> None:
+def test_approved_colors_match_arbios_master() -> None:
     branding = load_borek_presentation_branding()
-    assert branding.primary_hex == "2C567A"
-    assert branding.heading_hex == "0D1D51"
-    assert branding.accent_hex == "0072C7"
+    assert branding.primary_hex == "0D1240"
+    assert branding.heading_hex == "0D1240"
+    assert branding.body_hex == "515C70"
+    assert branding.kicker_hex == "8A90A5"
+    assert branding.accent_hex == "124F94"
     assert branding.card_background_hex == "FFFFFF"
 
 
@@ -91,10 +94,11 @@ def test_approved_typography_is_inter() -> None:
     assert branding.body_font.family == "Inter"
 
 
-def test_cover_surface_has_no_approved_hex() -> None:
+def test_cover_surface_uses_arbios_navy() -> None:
     branding = load_borek_presentation_branding()
     assert branding.cover_appearance == "dark"
-    assert branding.cover_hex is None
+    assert branding.cover_hex == "0D1240"
+    assert branding.design_contract_version == "2.0"
 
 
 def test_client_logo_rules_match_gamma_template() -> None:
