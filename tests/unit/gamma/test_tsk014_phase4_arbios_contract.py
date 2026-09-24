@@ -7,12 +7,16 @@ from pathlib import Path
 
 import pytest
 
+from services.gamma.client_logo import decide_client_logo
 from services.gamma.design_compliance import check_gamma_design_compliance
 from services.gamma.design_configuration import build_gamma_design_configuration
 from services.gamma.layout_map import load_gamma_arbios_layout_map
+from services.gamma.live_client import LiveGammaClient, _build_scratch_header_footer
 from services.gamma.reference_deck_compliance import check_reference_deck_compliance
 from services.gamma.theme_contract import is_gamma_theme_contract_aligned
 from services.gamma.visual_contract import collect_visual_contract_violations
+from tests.unit.gamma.test_jj27_client_logo_placement import OPPORTUNITY_ID, _logo, _request
+from tests.unit.gamma.test_jj29_signed_logo_url import OWNED_BASE, _mint
 
 ROOT = Path(__file__).resolve().parents[3]
 CONTRACTS = ROOT / "packages" / "contracts"
@@ -99,3 +103,29 @@ def test_reference_deck_never_sets_visual_acceptance_without_render(monkeypatch:
     assert result.passed is True
     assert result.visual_acceptance is False
     assert result.render_ready is False
+
+
+def test_scratch_header_footer_leaves_borek_logo_to_theme(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Schema 2.0 Borek logo placement is theme-owned; scratch mode only sends client logo."""
+    from app.config import settings
+    from services.gamma import live_client
+
+    monkeypatch.setattr(settings, "PUBLIC_API_BASE_URL", OWNED_BASE)
+    monkeypatch.setattr(settings, "CLIENT_LOGO_SIGNING_SECRET", "jj29-logo-signing-secret")
+    monkeypatch.setattr(
+        live_client,
+        "owned_https_prefixes",
+        lambda: (f"{OWNED_BASE}/",),
+    )
+    signed = _mint()
+    assert signed is not None
+    decision = decide_client_logo(_logo(), opportunity_id=OPPORTUNITY_ID)
+    request = _request(client_logo_ref=signed, client_logo_placement=decision.placement)
+
+    header_footer = _build_scratch_header_footer(request)
+    assert "bottomLeft" not in header_footer
+    assert "topRight" not in header_footer
+    assert header_footer["bottomRight"]["source"] == "custom"
+
+    payload = LiveGammaClient(api_key="k", theme_id="theme-1")._generation_payload(request)  # noqa: SLF001
+    assert payload["cardOptions"]["headerFooter"] == header_footer
