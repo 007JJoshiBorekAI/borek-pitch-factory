@@ -1,0 +1,139 @@
+{
+  "schema_version": "1.0",
+  "description": "Fidelity assessment for Pitch Factory journey cards against Arbios master layouts. All mappings are Pitch Factory implementation choices that preserve journey-stage structure; they are not claims that generated decks exactly reproduce the HTML master.",
+  "mapping_kind": "implementation",
+  "not_exact_master_reproduction": true,
+  "source_layout_registry": "packages/contracts/arbios_master_layout_registry.json",
+  "source_layout_map": "packages/contracts/gamma_arbios_layout_map.json",
+  "fidelity_levels": {
+    "exact": "Journey card content model fits the mapped master layout regions; Gamma template work is still required to render those regions.",
+    "approximate": "Closest Arbios layout chosen to preserve journey-stage cards and slot provenance. Does not reproduce all master regions and is not an exact visual match.",
+    "duplicate_master_layout": "Multiple journey cards intentionally map to the same Arbios layout id; template must differentiate cards.",
+    "unmapped_journey_card": "Journey card has no Arbios fidelity entry."
+  },
+  "mappings": [
+    {
+      "layout_id": "COVER_01",
+      "arbios_layout_id": "F1",
+      "fidelity": "exact",
+      "master_regions": ["kicker", "title", "intro_columns", "white_logo_top_left"],
+      "template_action": "Cover card must use F1 navy surface and white logo; not a generic title slide."
+    },
+    {
+      "layout_id": "EXECUTIVE_SUMMARY_01",
+      "arbios_layout_id": "L18",
+      "fidelity": "approximate",
+      "master_regions": ["title", "lead", "capability_columns", "stat_row"],
+      "template_action": "Implementation choice: closest L18 fit for one executive-summary body slot; plain text alone under-represents the master."
+    },
+    {
+      "layout_id": "CONTEXT_01",
+      "arbios_layout_id": "L08",
+      "fidelity": "approximate",
+      "master_regions": ["title", "matrix", "notes_column"],
+      "template_action": "Implementation choice: matrix + notes structure preferred; single body block is insufficient for L08."
+    },
+    {
+      "layout_id": "PROBLEM_SOLUTION_01",
+      "arbios_layout_id": "L01",
+      "fidelity": "exact",
+      "master_regions": ["title", "before_column", "after_column"],
+      "template_action": "Two-column contrast layout required."
+    },
+    {
+      "layout_id": "PROCESS_FLOW_01",
+      "arbios_layout_id": "L12",
+      "fidelity": "exact",
+      "master_regions": ["title", "flow_steps", "fact_strip"],
+      "template_action": "Horizontal flow with supporting facts."
+    },
+    {
+      "layout_id": "SCOPE_01",
+      "arbios_layout_id": "L10",
+      "fidelity": "approximate",
+      "master_regions": ["title", "data_table", "bullet_column"],
+      "template_action": "Implementation choice: table + bullet column preferred for scope content."
+    },
+    {
+      "layout_id": "REQUIREMENTS_MATRIX_01",
+      "arbios_layout_id": "L03",
+      "fidelity": "exact",
+      "master_regions": ["title", "comparison_matrix"],
+      "template_action": "Comparison matrix layout required."
+    },
+    {
+      "layout_id": "ARCHITECTURE_01",
+      "arbios_layout_id": "L09",
+      "fidelity": "approximate",
+      "master_regions": ["title", "product_ui_mock"],
+      "template_action": "Implementation choice: L09 UI mock is the closest master layout; architecture prose alone will not match."
+    },
+    {
+      "layout_id": "COMPLIANCE_01",
+      "arbios_layout_id": "L19",
+      "fidelity": "approximate",
+      "master_regions": ["title", "certificate_grid", "commitment_list"],
+      "template_action": "Implementation choice: certificate/commitment grid preferred; compliance body text is an approximate fit."
+    },
+    {
+      "layout_id": "TIMELINE_01",
+      "arbios_layout_id": "L16",
+      "fidelity": "approximate",
+      "master_regions": ["title", "phased_steps", "client_actions"],
+      "template_action": "Implementation choice: phased step layout for timeline content."
+    },
+    {
+      "layout_id": "MILESTONES_01",
+      "arbios_layout_id": "L16",
+      "fidelity": "duplicate_master_layout",
+      "master_regions": ["title", "phased_steps", "client_actions"],
+      "template_action": "Shares L16 with TIMELINE_01 by implementation choice; template needs differentiated cards."
+    },
+    {
+      "layout_id": "TEAM_FTE_01",
+      "arbios_layout_id": "L23",
+      "fidelity": "approximate",
+      "master_regions": ["title", "team_grid"],
+      "template_action": "Implementation choice: L23 management roster is closest to staffing/FTE content."
+    },
+    {
+      "layout_id": "SUCCESS_METRICS_01",
+      "arbios_layout_id": "L11",
+      "fidelity": "approximate",
+      "master_regions": ["title", "hero_metric", "comparison_bars"],
+      "template_action": "Implementation choice: big-number + bars preferred; metrics prose alone under-represents L11."
+    },
+    {
+      "layout_id": "OPEN_QUESTIONS_01",
+      "arbios_layout_id": "L14",
+      "fidelity": "exact",
+      "master_regions": ["title", "faq_pairs"],
+      "template_action": "Quoted question + answer pairs."
+    },
+    {
+      "layout_id": "NEXT_STEPS_01",
+      "arbios_layout_id": "F3",
+      "fidelity": "approximate",
+      "master_regions": ["closing_contacts", "white_logo_top_left", "next_actions"],
+      "template_action": "Implementation choice: journey final card mapped to F3 closing; template must apply closing treatment."
+    }
+  ],
+  "master_layouts_not_in_journey": [
+    {
+      "arbios_layout_id": "F2",
+      "label": "Who we are",
+      "notes": "Fixed company data slide; not part of First Contact / Deepening / Concretisation card lists."
+    },
+    {
+      "arbios_layout_id": "L06",
+      "label": "Section divider",
+      "notes": "Used in use-case portfolio deck (see use_case_presentation_reference.json), not pitch journey stages."
+    }
+  ],
+  "gamma_template_requirements": [
+    "Each journey layout_id needs a distinct Gamma template card with regions matching the mapped Arbios layout fidelity notes.",
+    "Theme supplies CI (colour, typography, logo, footer); it does not select L01–L24 structures.",
+    "POST /generations/from-template preserves template card structure; per-card Arbios layout selection requires template rebuild in Gamma dashboard.",
+    "Arbios layout metadata stays in contracts, SlideSpec layoutId, and compliance modules — never in Gamma inputText."
+  ]
+}

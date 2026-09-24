@@ -47,11 +47,12 @@ def _deepening_manifest() -> ReferenceDeckManifest:
     )
 
 
-def test_fixture_reference_manifest_is_discovered() -> None:
+def test_production_reference_manifest_is_discovered() -> None:
     manifest = discover_reference_deck_manifest()
     assert manifest is not None
-    assert manifest.reference_id == "arbios-deepening-v1"
+    assert manifest.reference_id == "arbios-deepening-full-v1"
     assert manifest.stage == "deepening"
+    assert len(manifest.layout_ids) == 15
 
 
 def test_matching_structural_reference_passes() -> None:
@@ -181,7 +182,7 @@ def test_cross_stage_manifest_cannot_pass_wrong_stage_payload() -> None:
 def test_design_compliance_and_reference_acceptance_remain_separate() -> None:
     payload = _load_gamma_fixture("deepening.json")
     design = check_gamma_design_compliance(payload)
-    reference = check_reference_deck_compliance(payload)
+    reference = check_reference_deck_compliance(payload, manifest=_deepening_manifest())
     assert design.passed is True
     assert reference.passed is True
     assert reference.code == STRUCTURAL_REFERENCE_PASS

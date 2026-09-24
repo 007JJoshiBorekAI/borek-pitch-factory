@@ -103,9 +103,11 @@ def build_card_segments(
         card_slots = slots_by_layout.get(layout_id, [])
         if not card_slots:
             continue
-        segments.append(
-            "\n\n".join(f"{slot.name}: {slot.value}" for slot in card_slots if slot.value.strip())
+        segment = "\n\n".join(
+            f"{slot.name}: {slot.value}" for slot in card_slots if slot.value.strip()
         )
+        if segment.strip():
+            segments.append(segment)
     return tuple(segment for segment in segments if segment.strip())
 
 

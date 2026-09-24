@@ -97,9 +97,26 @@ def test_render_ready_requires_declared_theme_contract(monkeypatch: pytest.Monke
 
 
 def test_reference_deck_never_sets_visual_acceptance_without_render(monkeypatch: pytest.MonkeyPatch) -> None:
+    from services.gamma.reference_deck_compliance import ReferenceDeckManifest
+
     monkeypatch.setenv("GAMMA_THEME_CONTRACT_VERSION", "2.0")
     payload = _load_gamma_fixture("deepening.json")
-    result = check_reference_deck_compliance(payload)
+    manifest = ReferenceDeckManifest(
+        reference_id="qa-deepening-structural-v1",
+        stage="deepening",
+        layout_ids=(
+            "COVER_01",
+            "EXECUTIVE_SUMMARY_01",
+            "PROBLEM_SOLUTION_01",
+            "TEAM_FTE_01",
+            "NEXT_STEPS_01",
+        ),
+        pricing_permitted=False,
+        client_logo_permitted=True,
+        forbidden_grounded_fact_kinds=frozenset({"pricing"}),
+        required_slots=("cover.title", "next_steps.body"),
+    )
+    result = check_reference_deck_compliance(payload, manifest=manifest)
     assert result.passed is True
     assert result.visual_acceptance is False
     assert result.render_ready is False
