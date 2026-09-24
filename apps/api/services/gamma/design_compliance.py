@@ -14,11 +14,18 @@ from typing import Any
 import jsonschema
 
 from packages.contracts.presentation_branding import load_borek_presentation_branding
+from services.gamma.design_configuration import build_gamma_design_configuration
+from services.gamma.layout_map import load_gamma_arbios_layout_map
+from services.gamma.theme_contract import is_gamma_theme_contract_aligned
 from services.framework.company_facts import UngroundedPriceError, refuse_ungrounded_prices
 from services.gamma.contract import FORBIDDEN_BRANDING_KEYS, GammaPayloadError
 from services.gamma.payload import gamma_payload_schema
 from services.gamma.payload_compliance import find_prohibited_gamma_commercial_paths
-from services.gamma.template import GammaTemplate, load_gamma_template
+from services.gamma.template import (
+    GammaTemplate,
+    GammaTemplateContractError,
+    load_gamma_template,
+)
 
 FIRST_MEETING_PROFILE = "first_meeting_3"
 FIRST_MEETING_UNFROZEN_CODE = "FIRST_MEETING_PPT_PROFILE_UNFROZEN"
@@ -36,10 +43,21 @@ class DesignComplianceViolation:
 @dataclass(frozen=True)
 class DesignComplianceReport:
     violations: tuple[DesignComplianceViolation, ...]
+    gamma_theme_contract_aligned: bool = False
 
     @property
     def passed(self) -> bool:
         return not self.violations
+
+    @property
+    def payload_compliant(self) -> bool:
+        """Payload and token contract checks passed (independent of deployed Gamma theme)."""
+        return self.passed
+
+    @property
+    def render_ready(self) -> bool:
+        """True only when payload checks pass and the deployed Gamma theme matches the contract."""
+        return self.passed and self.gamma_theme_contract_aligned
 
 
 def check_gamma_design_compliance(
@@ -51,16 +69,16 @@ def check_gamma_design_compliance(
     template: GammaTemplate | None = None,
 ) -> DesignComplianceReport:
     """Return a pass/fail report for one Gamma content payload."""
+    violations = collect_gamma_design_compliance_violations(
+        payload,
+        grounding=grounding,
+        request_overrides=request_overrides,
+        design_configuration=design_configuration,
+        template=template,
+    )
     return DesignComplianceReport(
-        violations=tuple(
-            collect_gamma_design_compliance_violations(
-                payload,
-                grounding=grounding,
-                request_overrides=request_overrides,
-                design_configuration=design_configuration,
-                template=template,
-            )
-        )
+        violations=tuple(violations),
+        gamma_theme_contract_aligned=is_gamma_theme_contract_aligned(),
     )
 
 
@@ -132,8 +150,15 @@ def collect_gamma_design_compliance_violations(
     )
     if request_overrides:
         violations.extend(_collect_request_override_violations(request_overrides))
-    if design_configuration:
-        violations.extend(_collect_design_configuration_violations(design_configuration))
+    violations.extend(_collect_arbios_layout_mapping_violations(payload, contract))
+    expected_configuration = build_gamma_design_configuration()
+    supplied_configuration = design_configuration or expected_configuration
+    violations.extend(
+        _collect_design_configuration_violations(
+            supplied_configuration,
+            expected=expected_configuration,
+        )
+    )
     violations.extend(_collect_branding_contract_violations())
     return violations
 
@@ -411,11 +436,49 @@ def _collect_request_override_violations(
     return violations
 
 
+def _collect_arbios_layout_mapping_violations(
+    payload: dict[str, Any],
+    contract: GammaTemplate,
+) -> list[DesignComplianceViolation]:
+    layout_map = load_gamma_arbios_layout_map()
+    violations: list[DesignComplianceViolation] = []
+    seen_layout_ids: set[str] = set()
+
+    for index, slot in enumerate(payload.get("slots") or []):
+        if not isinstance(slot, dict):
+            continue
+        name = str(slot.get("name") or "")
+        if not name:
+            continue
+        try:
+            layout_id = contract.slot(name).layout_id
+        except GammaTemplateContractError:
+            continue
+        if layout_id in seen_layout_ids:
+            continue
+        seen_layout_ids.add(layout_id)
+        if layout_map.arbios_layout_for(layout_id) is None:
+            violations.append(
+                DesignComplianceViolation(
+                    path=f"slots[{index}].layout_id",
+                    code="ARBIOS_LAYOUT_UNMAPPED",
+                    message=(
+                        f"Gamma layout {layout_id!r} has no Arbios master mapping "
+                        "in packages/contracts/gamma_arbios_layout_map.json."
+                    ),
+                )
+            )
+    return violations
+
+
 def _collect_design_configuration_violations(
     design_configuration: dict[str, Any],
+    *,
+    expected: dict[str, Any] | None = None,
 ) -> list[DesignComplianceViolation]:
     branding = load_borek_presentation_branding()
     violations: list[DesignComplianceViolation] = []
+    baseline = expected or build_gamma_design_configuration()
 
     for key in design_configuration:
         if key in branding.gamma_locked_keys or key.startswith("brand."):
@@ -427,11 +490,32 @@ def _collect_design_configuration_violations(
                 )
             )
 
+    supplied_version = str(design_configuration.get("design_contract_version") or "")
+    expected_version = str(baseline.get("design_contract_version") or branding.design_contract_version)
+    if supplied_version and supplied_version != expected_version:
+        violations.append(
+            DesignComplianceViolation(
+                path="design_configuration.design_contract_version",
+                code="DESIGN_CONTRACT_VERSION_MISMATCH",
+                message=(
+                    f"Design contract version {supplied_version!r} does not match "
+                    f"approved version {expected_version!r}."
+                ),
+            )
+        )
+
     colors = design_configuration.get("colors")
     if isinstance(colors, dict):
         for token_name, approved in branding.colors.items():
             supplied = colors.get(token_name)
             if supplied is None:
+                violations.append(
+                    DesignComplianceViolation(
+                        path=f"design_configuration.colors.{token_name}",
+                        code="APPROVED_TOKEN_MISSING",
+                        message=f"Design configuration must declare approved color '{token_name}'.",
+                    )
+                )
                 continue
             supplied_hex = _normalize_hex(supplied)
             if supplied_hex != approved.hex:
@@ -454,6 +538,13 @@ def _collect_design_configuration_violations(
         ):
             supplied = typography.get(role)
             if supplied is None:
+                violations.append(
+                    DesignComplianceViolation(
+                        path=f"design_configuration.typography.{role}",
+                        code="APPROVED_TOKEN_MISSING",
+                        message=f"Design configuration must declare typography '{role}'.",
+                    )
+                )
                 continue
             if str(supplied) != approved.family:
                 violations.append(
@@ -463,6 +554,42 @@ def _collect_design_configuration_violations(
                         message=(
                             f"Supplied font '{role}' ({supplied!r}) "
                             f"does not match approved token ({approved.family!r})."
+                        ),
+                    )
+                )
+
+    footer = design_configuration.get("footer")
+    expected_footer = baseline.get("footer") if isinstance(baseline.get("footer"), dict) else {}
+    if isinstance(footer, dict):
+        for key in ("left_text", "color_hex"):
+            supplied = footer.get(key)
+            expected_value = expected_footer.get(key)
+            if expected_value is not None and supplied != expected_value:
+                violations.append(
+                    DesignComplianceViolation(
+                        path=f"design_configuration.footer.{key}",
+                        code="VISUAL_CONTRACT_MISMATCH",
+                        message=(
+                            f"Footer {key} {supplied!r} does not match approved "
+                            f"visual contract ({expected_value!r})."
+                        ),
+                    )
+                )
+
+    canvas = design_configuration.get("canvas")
+    expected_canvas = baseline.get("canvas") if isinstance(baseline.get("canvas"), dict) else {}
+    if isinstance(canvas, dict):
+        for key in ("width_px", "height_px"):
+            supplied = canvas.get(key)
+            expected_value = expected_canvas.get(key)
+            if expected_value is not None and supplied != expected_value:
+                violations.append(
+                    DesignComplianceViolation(
+                        path=f"design_configuration.canvas.{key}",
+                        code="VISUAL_CONTRACT_MISMATCH",
+                        message=(
+                            f"Canvas {key} {supplied!r} does not match approved "
+                            f"visual contract ({expected_value!r})."
                         ),
                     )
                 )

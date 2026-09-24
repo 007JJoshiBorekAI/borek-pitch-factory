@@ -26,6 +26,7 @@ from services.gamma.signed_logo import mint_signed_client_logo_url
 from services.gamma.provider import build_gamma_provider
 from services.gamma.input_text import align_slots_with_planned_slides
 from services.gamma.design_compliance import validate_gamma_design_compliance
+from services.gamma.design_configuration import build_gamma_design_configuration
 from services.gamma.payload import build_gamma_content_payload, slots_from_payload
 from services.gamma.slot_mapping import resolve_journey_stage, slot_chapter_provenance
 from services.gamma.template import load_gamma_template
@@ -158,6 +159,7 @@ def build_gamma_request(
     validate_gamma_design_compliance(
         content,
         grounding=_framework_company_facts(framework),
+        design_configuration=build_gamma_design_configuration(),
     )
     planned = tuple(spec for spec in (planned_slide_specs or []) if isinstance(spec, dict))
     slots = align_slots_with_planned_slides(

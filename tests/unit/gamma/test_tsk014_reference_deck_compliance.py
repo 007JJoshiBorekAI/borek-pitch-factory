@@ -47,13 +47,11 @@ def _deepening_manifest() -> ReferenceDeckManifest:
     )
 
 
-def test_no_repository_reference_manifest_reports_unavailable() -> None:
-    assert discover_reference_deck_manifest() is None
-    result = check_reference_deck_compliance(_load_gamma_fixture("deepening.json"))
-    assert result.status == "unavailable"
-    assert result.code == REFERENCE_DECK_UNAVAILABLE
-    assert result.passed is False
-    assert result.visual_acceptance is False
+def test_fixture_reference_manifest_is_discovered() -> None:
+    manifest = discover_reference_deck_manifest()
+    assert manifest is not None
+    assert manifest.reference_id == "arbios-deepening-v1"
+    assert manifest.stage == "deepening"
 
 
 def test_matching_structural_reference_passes() -> None:
@@ -64,7 +62,7 @@ def test_matching_structural_reference_passes() -> None:
     assert result.passed is True
     assert result.structural_only is True
     assert result.visual_acceptance is False
-    assert "Visual sendability review is still required" in result.message
+    assert "Rendered visual acceptance is still required" in result.message
 
 
 def test_stage_mismatch_fails() -> None:
@@ -185,5 +183,6 @@ def test_design_compliance_and_reference_acceptance_remain_separate() -> None:
     design = check_gamma_design_compliance(payload)
     reference = check_reference_deck_compliance(payload)
     assert design.passed is True
-    assert reference.passed is False
-    assert reference.code == REFERENCE_DECK_UNAVAILABLE
+    assert reference.passed is True
+    assert reference.code == STRUCTURAL_REFERENCE_PASS
+    assert reference.visual_acceptance is False

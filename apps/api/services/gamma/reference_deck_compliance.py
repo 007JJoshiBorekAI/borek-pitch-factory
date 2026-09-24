@@ -15,7 +15,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from services.gamma.design_configuration import build_gamma_design_configuration
 from services.gamma.template import GammaTemplate, GammaTemplateContractError, load_gamma_template
+from services.gamma.theme_contract import is_gamma_theme_contract_aligned
+from services.gamma.visual_contract import collect_visual_contract_violations
 
 REFERENCE_DECK_UNAVAILABLE = "REFERENCE_DECK_UNAVAILABLE"
 STRUCTURAL_REFERENCE_FAIL = "STRUCTURAL_REFERENCE_FAIL"
@@ -59,6 +62,7 @@ class ReferenceDeckComplianceResult:
     violations: tuple[ReferenceDeckComplianceViolation, ...]
     reference_id: str | None = None
     visual_acceptance: bool = False
+    gamma_theme_contract_aligned: bool = False
 
     @property
     def passed(self) -> bool:
@@ -68,6 +72,15 @@ class ReferenceDeckComplianceResult:
     def structural_only(self) -> bool:
         """True when structural checks passed but visual sendability is not proven."""
         return self.status == "structural_pass"
+
+    @property
+    def render_ready(self) -> bool:
+        """True only when structural checks pass, theme is aligned, and visual acceptance is proven."""
+        return (
+            self.status == "structural_pass"
+            and self.gamma_theme_contract_aligned
+            and self.visual_acceptance
+        )
 
 
 def discover_reference_deck_manifest() -> ReferenceDeckManifest | None:
@@ -105,6 +118,7 @@ def check_reference_deck_compliance(
 ) -> ReferenceDeckComplianceResult:
     """Compare one Gamma payload against an approved structural reference."""
     resolved = manifest or discover_reference_deck_manifest()
+    theme_aligned = is_gamma_theme_contract_aligned()
     if resolved is None:
         return ReferenceDeckComplianceResult(
             status="unavailable",
@@ -117,30 +131,48 @@ def check_reference_deck_compliance(
             violations=(),
             reference_id=None,
             visual_acceptance=False,
+            gamma_theme_contract_aligned=theme_aligned,
         )
 
     contract = template or load_gamma_template()
-    violations = collect_reference_deck_violations(payload, manifest=resolved, template=contract)
+    violations = list(
+        collect_reference_deck_violations(payload, manifest=resolved, template=contract)
+    )
+    design_configuration = build_gamma_design_configuration()
+    for item in collect_visual_contract_violations(design_configuration):
+        violations.append(
+            ReferenceDeckComplianceViolation(
+                path=item.path,
+                code=item.code,
+                message=item.message,
+            )
+        )
     if violations:
         return ReferenceDeckComplianceResult(
             status="structural_fail",
             code=STRUCTURAL_REFERENCE_FAIL,
-            message="Gamma payload does not match the approved structural reference deck.",
+            message="Gamma payload or visual contract does not match the approved reference deck.",
             violations=tuple(violations),
             reference_id=resolved.reference_id,
             visual_acceptance=False,
+            gamma_theme_contract_aligned=theme_aligned,
         )
+
+    message = (
+        "Structural and deterministic visual-contract checks passed for "
+        f"{resolved.reference_id!r}. Rendered visual acceptance is still required."
+    )
+    if not theme_aligned:
+        message += " Deployed Gamma theme has not declared GAMMA_THEME_CONTRACT_VERSION=2.0."
 
     return ReferenceDeckComplianceResult(
         status="structural_pass",
         code=STRUCTURAL_REFERENCE_PASS,
-        message=(
-            "Structural reference comparison passed for "
-            f"{resolved.reference_id!r}. Visual sendability review is still required."
-        ),
+        message=message,
         violations=(),
         reference_id=resolved.reference_id,
         visual_acceptance=False,
+        gamma_theme_contract_aligned=theme_aligned,
     )
 
 
