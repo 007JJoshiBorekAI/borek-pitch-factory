@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "description": "Deterministic visual contract checks derived from the Arbios HTML master. Structural and token checks only; pixel render comparison remains a separate QA step.",
+  "authority": "packages/contracts/borek_design_tokens.json",
+  "design_contract_version": "2.0",
+  "deterministic_checks": {
+    "canvas_dimensions": { "width_px": 1920, "height_px": 1080 },
+    "required_colors": ["primary", "heading", "body", "kicker", "accent", "card_background"],
+    "required_typography_roles": ["title", "body", "kicker", "footer"],
+    "footer_left_text": "Borek Solutions Group · boreksolutions.de · Confidential",
+    "footer_color_hex": "9AA0B3",
+    "content_logo_anchor": "top_right",
+    "cover_logo_anchor": "top_left",
+    "font_family": "Inter",
+    "forbidden_style_rules": [
+      "gradients_on_cards",
+      "coloured_strokes_on_cards",
+      "shadows_on_cards",
+      "logo_recolour",
+      "logo_stretch"
+    ]
+  },
+  "layout_map_required": true,
+  "layout_map_path": "packages/contracts/gamma_arbios_layout_map.json",
+  "visual_acceptance_requires_render_evidence": true
+}
