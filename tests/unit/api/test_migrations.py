@@ -272,6 +272,21 @@ def test_bt36_transcript_summaries_are_numbered_031() -> None:
     assert "GRANT ALL ON public.transcript_summaries TO service_role" in content
 
 
+def test_updated_pitch_intake_and_employee_selector_migration() -> None:
+    content = (MIGRATIONS_DIR / "032_pitch_intake_and_meeting_review.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "ADD COLUMN IF NOT EXISTS service_solution TEXT" in content
+    assert "ADD COLUMN IF NOT EXISTS poc_email TEXT" in content
+    assert "ADD COLUMN IF NOT EXISTS email_sender_profile JSONB" in content
+    assert "ADD COLUMN IF NOT EXISTS pitch_owner JSONB" in content
+    assert "ADD COLUMN IF NOT EXISTS team_members JSONB" in content
+    assert "ADD COLUMN IF NOT EXISTS first_meeting_details JSONB" in content
+    assert "authenticated_read_employee_directory" in content
+    assert "TO authenticated" in content
+    assert "ALTER COLUMN pitch_owner SET NOT NULL" in content
+
+
 def test_d3_employee_roles_and_activity_document_id() -> None:
     content = (MIGRATIONS_DIR / "027_employee_roles_and_activity.sql").read_text(
         encoding="utf-8"

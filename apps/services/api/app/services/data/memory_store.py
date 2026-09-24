@@ -29,12 +29,13 @@ from app.services.stage1_intake_store import (
     present_opportunity,
 )
 
-ALLOWED_TRANSCRIPT_EXTENSIONS = {".txt", ".vtt", ".srt", ".docx"}
+ALLOWED_TRANSCRIPT_EXTENSIONS = {".txt", ".vtt", ".srt", ".docx", ".pdf"}
 ALLOWED_TRANSCRIPT_MIME_TYPES = {
     "text/plain",
     "text/vtt",
     "application/x-subrip",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/pdf",
 }
 
 _FIXTURE_PATH = (
@@ -332,6 +333,12 @@ class MemoryDataStore:
         additional_client_information: dict[str, Any] | None = None,
         followup_statics: dict[str, Any] | None = None,
         stage1_intake: dict[str, Any] | None = None,
+        service_solution: str | None = None,
+        business_need: str | None = None,
+        pitch_description: str | None = None,
+        email_sender_profile: dict[str, Any] | None = None,
+        pitch_owner: dict[str, Any] | None = None,
+        team_members: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         opportunity_id = uuid.uuid4()
         now = _now()
@@ -345,6 +352,15 @@ class MemoryDataStore:
             "pii_redaction_enabled": bool(pii_redaction_enabled),
             "additional_client_information": copy.deepcopy(additional_client_information),
             "followup_statics": copy.deepcopy(followup_statics),
+            "service_solution": service_solution,
+            "business_need": business_need,
+            "pitch_description": pitch_description,
+            "email_sender_profile": copy.deepcopy(email_sender_profile),
+            "pitch_owner": copy.deepcopy(
+                pitch_owner
+                or {"source": "employee", "employee_id": str(user_id)}
+            ),
+            "team_members": copy.deepcopy(team_members or []),
             "created_by": user_id,
             "created_at": now,
             "updated_at": now,
@@ -464,6 +480,12 @@ class MemoryDataStore:
             if value is not None or key in {
                 "additional_client_information",
                 "followup_statics",
+                "service_solution",
+                "business_need",
+                "pitch_description",
+                "email_sender_profile",
+                "pitch_owner",
+                "team_members",
                 *STAGE1_DB_COLUMNS,
                 *JOURNEY_OUTPUT_DB_COLUMNS,
             }:

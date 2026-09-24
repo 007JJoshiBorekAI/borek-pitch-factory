@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -43,12 +43,44 @@ def _to_response(row: dict) -> OpportunityResponse:
     return OpportunityResponse.model_validate(row)
 
 
+def _pitch_person_payload(person: Any) -> dict | None:
+    if person is None:
+        return None
+    return person.model_dump(mode="json")
+
+
+def _validate_employee_people(store: Any, people: list[dict]) -> None:
+    employee_ids = {
+        str(person["employee_id"])
+        for person in people
+        if person.get("source") == "employee"
+    }
+    if not employee_ids:
+        return
+    listed = {str(row["user_id"]) for row in store.list_user_roles()}
+    missing = sorted(employee_ids - listed)
+    if missing:
+        from app.services.api_errors import bad_request
+
+        raise bad_request(
+            "PITCH_EMPLOYEE_NOT_FOUND",
+            "Every selected pitch owner or team member must exist in the employee directory.",
+        )
+
+
 @router.post("", response_model=OpportunityResponse, status_code=201)
 def create_opportunity(
     body: OpportunityCreateRequest,
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> OpportunityResponse:
+    store.get_or_create_user_role(user_id=user.id, email=user.email)
+    owner = _pitch_person_payload(body.pitch_owner) or {
+        "source": "employee",
+        "employee_id": str(user.id),
+    }
+    team_members = [member.model_dump(mode="json") for member in body.team_members]
+    _validate_employee_people(store, [owner, *team_members])
     row = store.create_opportunity(
         user_id=user.id,
         client_name=body.client_name,
@@ -69,6 +101,16 @@ def create_opportunity(
         stage1_intake=(
             body.stage1_intake.model_dump() if body.stage1_intake is not None else None
         ),
+        service_solution=body.service_solution,
+        business_need=body.business_need,
+        pitch_description=body.pitch_description,
+        email_sender_profile=(
+            body.email_sender_profile.model_dump()
+            if body.email_sender_profile is not None
+            else None
+        ),
+        pitch_owner=owner,
+        team_members=team_members,
     )
     record_audit_event(
         store,
@@ -312,10 +354,17 @@ def update_opportunity(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> OpportunityResponse:
+    updates = body.model_dump(exclude_unset=True, mode="json")
+    owner = updates.get("pitch_owner")
+    team_members = updates.get("team_members")
+    people = ([owner] if isinstance(owner, dict) else []) + (
+        team_members if isinstance(team_members, list) else []
+    )
+    _validate_employee_people(store, people)
     row = store.update_opportunity(
         opportunity_id=opportunity_id,
         user_id=user.id,
-        updates=body.model_dump(exclude_unset=True),
+        updates=updates,
     )
     record_audit_event(
         store,

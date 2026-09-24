@@ -262,6 +262,35 @@ def _require_followup_statics(opportunity: dict[str, Any]) -> dict[str, Any]:
     return statics
 
 
+def _require_preparation_email_statics(opportunity: dict[str, Any]) -> dict[str, Any]:
+    intake = opportunity.get("stage1_intake") or {}
+    email = str(intake.get("poc_email") or "").strip()
+    name = str(intake.get("poc_name") or "").strip()
+    sender = opportunity.get("email_sender_profile")
+    if not name or not email or not isinstance(sender, dict):
+        raise bad_request(
+            "PREPARATION_EMAIL_CONTACTS_REQUIRED",
+            "Set stage1_intake.poc_name, stage1_intake.poc_email, and email_sender_profile before generating the client preparation email.",
+        )
+    first_name = name.split()[0] if name else None
+    return {
+        "project_name": str(opportunity.get("opportunity_name") or "Pitch"),
+        "client_short": str(opportunity.get("client_name") or "Client"),
+        "salutation_style": "informal",
+        "standard_recipients": [
+            {
+                "email": email,
+                "first_name": first_name,
+                "last_name": None,
+                "salutation": None,
+                "kind": "to",
+                "primary": True,
+            }
+        ],
+        "sender_profile": sender,
+    }
+
+
 def _extract_followup_payload(
     *,
     opportunity_id: UUID,
@@ -307,10 +336,10 @@ def generate_email_draft(
     name = str(opportunity.get("opportunity_name") or "this opportunity")
     intake = opportunity.get("stage1_intake") or {}
     topic = str(intake.get("sales_topic_description") or name).strip()
-    statics = _require_followup_statics(opportunity)
     meeting_date = datetime.now(UTC).strftime("%d.%m.%Y")
 
     if journey_stage == "deepening":
+        statics = _require_followup_statics(opportunity)
         sources = store.list_transcript_sources(opportunity_id=opportunity_id, user_id=user_id)
         if not sources:
             raise bad_request(
@@ -327,8 +356,10 @@ def generate_email_draft(
         )
         lengths = render_three_lengths(extraction, statics)
     elif journey_stage == "first_contact":
-        lengths = render_first_contact_draft(statics, topic=topic, meeting_date=meeting_date)
+        statics = _require_preparation_email_statics(opportunity)
+        lengths = render_first_contact_draft(statics, topic=topic)
     else:
+        statics = _require_followup_statics(opportunity)
         extraction = extract_followup_from_summary(
             {
                 "narrative": f"Optional post-proposal note for {name}. No prices or commercial terms were invented.",

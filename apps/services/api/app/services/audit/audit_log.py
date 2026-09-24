@@ -41,6 +41,8 @@ class AuditAction(StrEnum):
     EMAIL_DRAFT_CONFIRM = "email_draft.confirm"
     CLIENT_DOCUMENT_UPLOAD = "client_document.upload"
     CLIENT_DOCUMENT_DELETE = "client_document.delete"
+    FIRST_MEETING_DETAILS_GENERATE = "first_meeting_details.generate"
+    FIRST_MEETING_DETAILS_REVIEW = "first_meeting_details.review"
 
 
 class AuditObjectType(StrEnum):
@@ -55,6 +57,7 @@ class AuditObjectType(StrEnum):
     CLIENT_DOCUMENT = "client_document"
     EMPLOYEE = "employee"
     SESSION = "session"
+    FIRST_MEETING_DETAILS = "first_meeting_details"
 
 
 def record_audit_event(

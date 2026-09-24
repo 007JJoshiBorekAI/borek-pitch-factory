@@ -48,7 +48,7 @@ def require_first_contact_client_documents(
     opportunity_id: UUID,
     user_id: UUID,
 ) -> list[dict[str, Any]]:
-    """First contact research/generation requires processed client documents."""
+    """Require at least one safe pre-meeting source and return processed documents."""
     if not is_first_contact_opportunity(
         store,
         opportunity_id=opportunity_id,
@@ -68,6 +68,14 @@ def require_first_contact_client_documents(
     if processed:
         return processed
 
+    opportunity = store.get_opportunity(
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+    )
+    intake = opportunity.get("stage1_intake") or {}
+    if intake.get("client_web_page") or intake.get("about_company"):
+        return []
+
     transcripts = store.list_transcripts(
         opportunity_id=opportunity_id,
         user_id=user_id,
@@ -78,8 +86,8 @@ def require_first_contact_client_documents(
             "Meeting transcripts cannot be used for First contact. Upload client documents instead.",
         )
     raise bad_request(
-        "CLIENT_DOCUMENT_REQUIRED",
-        "Upload at least one client document before starting First contact research or generation.",
+        "FIRST_CONTACT_SOURCE_REQUIRED",
+        "Provide a client URL, About Company text, or at least one client document before generating the brief.",
     )
 
 

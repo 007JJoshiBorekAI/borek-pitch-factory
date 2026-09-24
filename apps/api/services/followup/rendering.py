@@ -221,14 +221,13 @@ def render_first_contact_draft(
     statics: dict[str, Any],
     *,
     topic: str,
-    meeting_date: str,
+    meeting_date: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Optional pre-meeting note — MS-32 tone, no JJ-32 extraction."""
     extraction = {
         "meeting_topic": " ".join(topic.split()[:4]) or "First contact",
-        "meeting_date": meeting_date,
         "key_points": [
-            "We received your client documents and will not invent company facts.",
+            "We received your background information and will not invent company facts.",
             f"Our first conversation will focus on {topic}.",
         ],
         "decisions": [],
@@ -241,13 +240,17 @@ def render_first_contact_draft(
     lines = [
         greeting(statics),
         "",
-        f"thank you for sharing background material ahead of our conversation on {meeting_date}.",
+        (
+            f"thank you for sharing background information ahead of our conversation on {meeting_date}."
+            if meeting_date
+            else "thank you for sharing background information ahead of our conversation."
+        ),
         "",
         "Key points",
         *[f"- {point}" for point in extraction["key_points"]],
         "",
         "Next steps",
-        "- Borek prepares discovery questions grounded in the documents you provided.",
+        "- Borek prepares discovery questions grounded in the sources you provided.",
         "",
         "If anything here does not match your understanding, just let me know and I will correct it.",
         "",
@@ -256,7 +259,9 @@ def render_first_contact_draft(
         f"{(statics.get('sender_profile') or {}).get('role') or ''} - BOREK".strip(),
     ]
     project_name = str(statics.get("project_name") or "Project").strip()
-    subject = f"{project_name} — First contact {extraction['meeting_topic']} ({meeting_date})"
+    subject = f"{project_name} — First contact {extraction['meeting_topic']}"
+    if meeting_date:
+        subject += f" ({meeting_date})"
     body = "\n".join(lines)
     short_body = _clip_content(body, SHORT_CONTENT_WORD_CAP)
     medium_body = _clip_content(body, MEDIUM_CONTENT_WORD_CAP)

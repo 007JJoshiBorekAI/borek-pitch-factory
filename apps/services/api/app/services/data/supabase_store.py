@@ -145,6 +145,16 @@ def _normalize_opportunity(row: dict[str, Any]) -> dict[str, Any]:
             "pii_redaction_enabled": bool(normalized.get("pii_redaction_enabled", True)),
             "additional_client_information": normalized.get("additional_client_information"),
             "followup_statics": normalized.get("followup_statics"),
+            "service_solution": normalized.get("service_solution"),
+            "business_need": normalized.get("business_need"),
+            "pitch_description": normalized.get("pitch_description"),
+            "email_sender_profile": normalized.get("email_sender_profile"),
+            "pitch_owner": normalized.get("pitch_owner")
+            or {
+                "source": "employee",
+                "employee_id": str(normalized["created_by"]),
+            },
+            "team_members": normalized.get("team_members") or [],
         }
     )
 
@@ -474,6 +484,12 @@ class SupabaseDataStore:
         additional_client_information: dict[str, Any] | None = None,
         followup_statics: dict[str, Any] | None = None,
         stage1_intake: dict[str, Any] | None = None,
+        service_solution: str | None = None,
+        business_need: str | None = None,
+        pitch_description: str | None = None,
+        email_sender_profile: dict[str, Any] | None = None,
+        pitch_owner: dict[str, Any] | None = None,
+        team_members: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         from app.services.stage1_intake_store import apply_intake_columns
 
@@ -486,6 +502,13 @@ class SupabaseDataStore:
             "pii_redaction_enabled": bool(pii_redaction_enabled),
             "additional_client_information": additional_client_information,
             "followup_statics": followup_statics,
+            "service_solution": service_solution,
+            "business_need": business_need,
+            "pitch_description": pitch_description,
+            "email_sender_profile": email_sender_profile,
+            "pitch_owner": pitch_owner
+            or {"source": "employee", "employee_id": str(user_id)},
+            "team_members": team_members or [],
             "created_by": str(user_id),
         }
         apply_intake_columns(payload, stage1_intake)
@@ -685,6 +708,12 @@ class SupabaseDataStore:
             or key in {
                 "additional_client_information",
                 "followup_statics",
+                "service_solution",
+                "business_need",
+                "pitch_description",
+                "email_sender_profile",
+                "pitch_owner",
+                "team_members",
                 *STAGE1_DB_COLUMNS,
                 *JOURNEY_OUTPUT_DB_COLUMNS,
             }
@@ -2704,7 +2733,7 @@ class SupabaseDataStore:
         return self._normalize_user_role(created.json()[0])
 
     def list_user_roles(self) -> list[dict[str, Any]]:
-        response = self._service_role_request(
+        response = self._request(
             "GET",
             "user_roles",
             params={"select": "*", "order": "email.asc"},
@@ -2997,6 +3026,7 @@ def validate_transcript_upload(file_name: str, mime_type: str | None) -> None:
         "text/vtt",
         "application/x-subrip",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/pdf",
         "application/octet-stream",
     }:
         raise bad_request("INVALID_TRANSCRIPT_FORMAT", f"Unsupported transcript mime type {mime_type}")

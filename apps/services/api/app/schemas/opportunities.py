@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import re
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -108,6 +108,33 @@ class FollowupProjectStatics(BaseModel):
         return self
 
 
+class EmployeePitchPerson(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: Literal["employee"]
+    employee_id: UUID
+
+
+class ManualPitchPerson(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: Literal["manual"]
+    name: str = Field(..., min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def reject_blank_name(self) -> ManualPitchPerson:
+        if not self.name.strip():
+            raise ValueError("manual pitch person name cannot be blank")
+        self.name = self.name.strip()
+        return self
+
+
+PitchPerson = Annotated[
+    EmployeePitchPerson | ManualPitchPerson,
+    Field(discriminator="source"),
+]
+
+
 class OpportunityCreateRequest(BaseModel):
     client_name: str = Field(..., min_length=1)
     opportunity_name: str = Field(..., min_length=1)
@@ -117,6 +144,12 @@ class OpportunityCreateRequest(BaseModel):
     additional_client_information: AdditionalClientInformation | None = None
     followup_statics: FollowupProjectStatics | None = None
     stage1_intake: Stage1Intake | None = None
+    service_solution: str | None = Field(default=None, max_length=20_000)
+    business_need: str | None = Field(default=None, max_length=20_000)
+    pitch_description: str | None = Field(default=None, max_length=20_000)
+    email_sender_profile: FollowupSenderProfile | None = None
+    pitch_owner: PitchPerson | None = None
+    team_members: list[PitchPerson] = Field(default_factory=list, max_length=100)
 
 
 class OpportunityUpdateRequest(BaseModel):
@@ -129,6 +162,18 @@ class OpportunityUpdateRequest(BaseModel):
     additional_client_information: AdditionalClientInformation | None = None
     followup_statics: FollowupProjectStatics | None = None
     stage1_intake: Stage1Intake | None = None
+    service_solution: str | None = Field(default=None, max_length=20_000)
+    business_need: str | None = Field(default=None, max_length=20_000)
+    pitch_description: str | None = Field(default=None, max_length=20_000)
+    email_sender_profile: FollowupSenderProfile | None = None
+    pitch_owner: PitchPerson | None = None
+    team_members: list[PitchPerson] = Field(default_factory=list, max_length=100)
+
+    @model_validator(mode="after")
+    def preserve_required_pitch_owner(self) -> OpportunityUpdateRequest:
+        if "pitch_owner" in self.model_fields_set and self.pitch_owner is None:
+            raise ValueError("pitch_owner cannot be cleared")
+        return self
 
 
 class OpportunityResponse(BaseModel):
@@ -142,6 +187,12 @@ class OpportunityResponse(BaseModel):
     additional_client_information: AdditionalClientInformation | None = None
     followup_statics: FollowupProjectStatics | None = None
     stage1_intake: Stage1Intake | None = None
+    service_solution: str | None = None
+    business_need: str | None = None
+    pitch_description: str | None = None
+    email_sender_profile: FollowupSenderProfile | None = None
+    pitch_owner: PitchPerson
+    team_members: list[PitchPerson] = Field(default_factory=list)
     demo_marker: str | None = None
     created_by: UUID
     created_at: datetime

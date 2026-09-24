@@ -9,6 +9,7 @@ STAGE1_DB_COLUMNS = (
     "client_web_page",
     "poc_name",
     "poc_position",
+    "poc_email",
     "sales_topic_description",
     "about_company",
     "voice_recording_artifact_id",
@@ -18,6 +19,7 @@ STAGE1_NESTED_FIELDS = (
     "client_web_page",
     "poc_name",
     "poc_position",
+    "poc_email",
     "sales_topic_description",
     "about_company",
 )

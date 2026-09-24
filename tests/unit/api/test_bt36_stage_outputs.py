@@ -57,9 +57,12 @@ def create_opportunity(client: TestClient) -> str:
             "opportunity_name": "Invoice Automation",
             "department": "Finance",
             "followup_statics": followup_statics(),
+            "email_sender_profile": followup_statics()["sender_profile"],
             "stage1_intake": {
                 "sales_topic_description": "Invoice matching automation",
                 "about_company": "Regional equipment distributor.",
+                "poc_name": "Markus Weber",
+                "poc_email": "markus@example.com",
             },
         },
     )
@@ -67,7 +70,7 @@ def create_opportunity(client: TestClient) -> str:
     return response.json()["id"]
 
 
-def test_stage1_outputs_require_document_and_persist() -> None:
+def test_stage1_outputs_accept_about_company_source_and_persist() -> None:
     reset_memory_store()
     client = TestClient(create_app())
     opportunity_id = create_opportunity(client)
@@ -77,20 +80,8 @@ def test_stage1_outputs_require_document_and_persist() -> None:
     )
     assert empty.status_code == 200
     assert empty.json()["status"] == "not_generated"
-    blocked = client.post(
-        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
-        headers=headers(),
-    )
-    assert blocked.status_code == 400
-    assert blocked.json()["error"]["code"] == "CLIENT_DOCUMENT_REQUIRED"
-    upload = client.post(
-        f"/opportunities/{opportunity_id}/client-documents",
-        headers=headers(),
-        files={"file": ("brief.txt", b"Client background material.", "text/plain")},
-    )
-    assert upload.status_code == 201, upload.text
     generated = client.post(
-        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        f"/opportunities/{opportunity_id}/brief/generate",
         headers=headers(),
     )
     assert generated.status_code == 200, generated.text
@@ -99,10 +90,31 @@ def test_stage1_outputs_require_document_and_persist() -> None:
     assert len(body["outputs"]["discovery_questions"]) >= 10
     assert body["outputs"]["presentation"]["code"] == "FIRST_MEETING_PPT_PROFILE_UNFROZEN"
     stored = client.get(
-        f"/opportunities/{opportunity_id}/stage1-outputs",
+        f"/opportunities/{opportunity_id}/brief",
         headers=headers(),
     ).json()
     assert stored["status"] == "ready"
+
+
+def test_brief_requires_url_about_company_or_document() -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    response = client.post(
+        "/opportunities",
+        headers=headers(),
+        json={
+            "client_name": "No Sources",
+            "opportunity_name": "Unknown",
+            "department": "Sales",
+        },
+    )
+    opportunity_id = response.json()["id"]
+    blocked = client.post(
+        f"/opportunities/{opportunity_id}/brief/generate",
+        headers=headers(),
+    )
+    assert blocked.status_code == 400
+    assert blocked.json()["error"]["code"] == "FIRST_CONTACT_SOURCE_REQUIRED"
 
 
 def test_meeting_feedback_and_stage2_outputs() -> None:
@@ -223,6 +235,30 @@ def test_email_drafts_three_lengths_confirm_never_sends() -> None:
     assert confirmed.json()["draft"]["status"] == "confirmed"
     assert confirmed.json()["draft"]["send_status"] == "not_sent"
     assert confirmed.json()["draft"]["selected_length"] == "short"
+
+
+def test_client_preparation_email_exposes_one_draft() -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/client-preparation-email/generate",
+        headers=headers(),
+    )
+    assert generated.status_code == 200, generated.text
+    draft = generated.json()["draft"]
+    assert set(draft) == {
+        "id",
+        "status",
+        "send_status",
+        "subject",
+        "body",
+        "word_count",
+        "created_at",
+        "updated_at",
+    }
+    assert draft["send_status"] == "not_sent"
+    assert "lengths" not in draft
 
 
 def test_stage1_outputs_unlock_deepening_without_first_contact_deck() -> None:

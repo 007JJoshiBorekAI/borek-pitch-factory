@@ -1,6 +1,6 @@
 """ES-1 — validate and normalize transcript uploads.
 
-Accepts .txt / .vtt / .srt / .docx and rejects every other format with a
+Accepts .txt / .vtt / .srt / .docx / .pdf and rejects every other format with a
 user-facing error. Speaker-turn splitting is ES-2.
 """
 
@@ -12,8 +12,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from docx import Document
+from pypdf import PdfReader
 
-ALLOWED_TRANSCRIPT_EXTENSIONS = frozenset({".txt", ".vtt", ".srt", ".docx"})
+ALLOWED_TRANSCRIPT_EXTENSIONS = frozenset({".txt", ".vtt", ".srt", ".docx", ".pdf"})
 
 _SRT_INDEX_RE = re.compile(r"^\d+$")
 _TIMESTAMP_RE = re.compile(
@@ -40,7 +41,8 @@ class TranscriptIngestionResult:
 def ingest_transcript(filename: str, content: bytes) -> TranscriptIngestionResult:
     if not filename or not filename.strip():
         raise TranscriptIngestionError(
-            "Please upload a file named with one of these extensions: .txt, .vtt, .srt, or .docx."
+            "Please upload a file named with one of these extensions: "
+            ".txt, .vtt, .srt, .docx, or .pdf."
         )
 
     extension = Path(filename).suffix.lower()
@@ -48,7 +50,7 @@ def ingest_transcript(filename: str, content: bytes) -> TranscriptIngestionResul
         displayed = extension if extension else "no extension"
         raise TranscriptIngestionError(
             f"Unsupported transcript format ({displayed}). "
-            "Upload a .txt, .vtt, .srt, or .docx file."
+            "Upload a .txt, .vtt, .srt, .docx, or .pdf file."
         )
 
     if not content:
@@ -62,14 +64,16 @@ def ingest_transcript(filename: str, content: bytes) -> TranscriptIngestionResul
         text = _normalize_vtt(_decode_text_bytes(content))
     elif extension == ".srt":
         text = _normalize_srt(_decode_text_bytes(content))
-    else:
+    elif extension == ".docx":
         text = _normalize_docx(content)
+    else:
+        text = _normalize_pdf(content)
 
     normalized = _collapse_blank_lines(text).strip()
     if not normalized:
         raise TranscriptIngestionError(
             "The file was read but contained no transcript text. "
-            "Check the export and upload a .txt, .vtt, .srt, or .docx file."
+            "Check the export and upload a .txt, .vtt, .srt, .docx, or .pdf file."
         )
 
     return TranscriptIngestionResult(
@@ -86,7 +90,8 @@ def _decode_text_bytes(content: bytes) -> str:
         except UnicodeDecodeError:
             continue
     raise TranscriptIngestionError(
-        "The file is not valid text. Save it as UTF-8 .txt, .vtt, or .srt, or upload a .docx file."
+        "The file is not valid text. Save it as UTF-8 .txt, .vtt, or .srt, "
+        "or upload a .docx or .pdf file."
     )
 
 
@@ -134,6 +139,18 @@ def _normalize_docx(content: bytes) -> str:
 
     paragraphs = [p.text.strip() for p in document.paragraphs if p.text and p.text.strip()]
     return "\n".join(paragraphs)
+
+
+def _normalize_pdf(content: bytes) -> str:
+    try:
+        reader = PdfReader(io.BytesIO(content))
+        pages = [text for page in reader.pages if (text := (page.extract_text() or "").strip())]
+    except Exception:
+        raise TranscriptIngestionError(
+            "The .pdf file could not be read. Export it again and retry."
+        ) from None
+
+    return "\n\n".join(pages)
 
 
 def _collapse_blank_lines(text: str) -> str:

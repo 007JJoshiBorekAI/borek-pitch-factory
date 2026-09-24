@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -13,6 +14,7 @@ class Stage1Intake(BaseModel):
     client_web_page: str | None = Field(default=None, max_length=2048)
     poc_name: str | None = Field(default=None, max_length=200)
     poc_position: str | None = Field(default=None, max_length=200)
+    poc_email: str | None = Field(default=None, max_length=320)
     sales_topic_description: str | None = Field(default=None, max_length=20_000)
     about_company: str | None = Field(default=None, max_length=20_000)
 
@@ -44,4 +46,11 @@ class Stage1Intake(BaseModel):
             raise ValueError(
                 "client_web_page must be an absolute HTTP(S) URL without credentials"
             )
+        return value
+
+    @field_validator("poc_email")
+    @classmethod
+    def validate_poc_email(cls, value: str | None) -> str | None:
+        if value is not None and not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+            raise ValueError("poc_email must be a valid email address")
         return value

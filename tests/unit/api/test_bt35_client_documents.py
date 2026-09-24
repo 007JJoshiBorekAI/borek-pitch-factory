@@ -160,26 +160,36 @@ def test_authorization_and_opportunity_association() -> None:
     assert delete.status_code == 204
 
 
-def test_first_contact_research_requires_documents_and_rejects_transcript_only() -> None:
+def test_first_contact_research_accepts_about_company_and_rejects_transcript_only() -> None:
     client = TestClient(create_app())
     opportunity_id = create_opportunity(client)
 
-    missing = client.post(
+    about_company = client.post(
         f"/opportunities/{opportunity_id}/stage1-research",
         headers=headers(),
     )
-    assert missing.status_code == 400
-    assert missing.json()["error"]["code"] == "CLIENT_DOCUMENT_REQUIRED"
+    assert about_company.status_code == 200
+
+    no_source = client.post(
+        "/opportunities",
+        headers=headers(),
+        json={
+            "client_name": "Transcript Only",
+            "opportunity_name": "Invalid First Contact",
+            "department": "Finance",
+        },
+    )
+    transcript_only_opportunity_id = no_source.json()["id"]
 
     transcript_only = client.post(
-        f"/opportunities/{opportunity_id}/transcripts",
+        f"/opportunities/{transcript_only_opportunity_id}/transcripts",
         headers=headers(),
         files={"file": ("meeting.txt", io.BytesIO(b"Speaker 1: hello"), "text/plain")},
     )
     assert transcript_only.status_code == 201
 
     blocked = client.post(
-        f"/opportunities/{opportunity_id}/stage1-research",
+        f"/opportunities/{transcript_only_opportunity_id}/stage1-research",
         headers=headers(),
     )
     assert blocked.status_code == 400
@@ -187,13 +197,13 @@ def test_first_contact_research_requires_documents_and_rejects_transcript_only()
 
     upload_client_document(
         client,
-        opportunity_id,
+        transcript_only_opportunity_id,
         filename="brief.txt",
         content=b"Client provided annual revenue guidance in the brief.",
         mime_type="text/plain",
     )
     research = client.post(
-        f"/opportunities/{opportunity_id}/stage1-research",
+        f"/opportunities/{transcript_only_opportunity_id}/stage1-research",
         headers=headers(),
     )
     assert research.status_code == 200
@@ -201,7 +211,7 @@ def test_first_contact_research_requires_documents_and_rejects_transcript_only()
     assert payload["user_statements"]["client_documents"][0]["document_key"] == "D1"
     assert "annual revenue guidance" in format_client_documents_for_prompt(
         get_memory_store().list_client_document_sources(
-            opportunity_id=UUID(opportunity_id),
+            opportunity_id=UUID(transcript_only_opportunity_id),
             user_id=OWNER,
         )
     )

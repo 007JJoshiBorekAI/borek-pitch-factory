@@ -119,3 +119,26 @@ def test_non_admin_cannot_assign_roles() -> None:
         json={"role": "admin", "email": "other@borek.test"},
     )
     assert denied.status_code == 403
+
+
+def test_consultant_can_read_employee_selector() -> None:
+    client = _client()
+    get_memory_store().set_user_role(
+        user_id=USER_A,
+        email="consultant@borek.test",
+        role="consultant",
+    )
+    get_memory_store().set_user_role(
+        user_id=USER_B,
+        email="teammate@borek.test",
+        role="reviewer",
+    )
+    listed = client.get(
+        "/employees",
+        headers=_headers(USER_A, "consultant@borek.test"),
+    )
+    assert listed.status_code == 200
+    assert {row["email"] for row in listed.json()} >= {
+        "consultant@borek.test",
+        "teammate@borek.test",
+    }

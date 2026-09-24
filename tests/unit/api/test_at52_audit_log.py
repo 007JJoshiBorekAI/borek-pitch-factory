@@ -90,6 +90,15 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
             "opportunity_name": "Invoice Automation",
             "department": "Finance",
             "language": "en",
+            "stage1_intake": {
+                "poc_name": "Mira",
+                "poc_email": "client@example.com",
+            },
+            "email_sender_profile": {
+                "name": "Owner",
+                "role": "Consultant",
+                "email": "owner@example.com",
+            },
         },
     )
     assert opportunity.status_code == 201
@@ -110,12 +119,78 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
     assert transcript.status_code == 201
     transcript_id = transcript.json()["transcript"]["id"]
 
+    first_meeting = client.post(
+        f"/opportunities/{opportunity_id}/first-meeting-details/generate",
+        headers=_headers(),
+    )
+    assert first_meeting.status_code == 200
+    reviewed = client.put(
+        f"/opportunities/{opportunity_id}/first-meeting-details/review",
+        headers=_headers(),
+        json=first_meeting.json()["generated"],
+    )
+    assert reviewed.status_code == 200
+
     client_doc = client.post(
         f"/opportunities/{opportunity_id}/client-documents",
         headers=_headers(),
         files={"file": ("brief.txt", b"Client background material.", "text/plain")},
     )
     assert client_doc.status_code == 201
+
+    stage1_outputs = client.post(
+        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        headers=_headers(),
+    )
+    assert stage1_outputs.status_code == 200
+    stage2_outputs = client.post(
+        f"/opportunities/{opportunity_id}/stage2-outputs/generate",
+        headers=_headers(),
+    )
+    assert stage2_outputs.status_code == 200
+    feedback = client.put(
+        f"/opportunities/{opportunity_id}/meeting-feedback",
+        headers=_headers(),
+        json={"text": "Client requested a written recap."},
+    )
+    assert feedback.status_code == 200
+    statics = client.patch(
+        f"/opportunities/{opportunity_id}",
+        headers=_headers(),
+        json={
+            "followup_statics": {
+                "project_name": "Acme Invoice Pilot",
+                "client_short": "Acme",
+                "salutation_style": "informal",
+                "standard_recipients": [
+                    {
+                        "email": "client@example.com",
+                        "first_name": "Mira",
+                        "kind": "to",
+                        "primary": True,
+                    }
+                ],
+                "sender_profile": {
+                    "name": "Owner",
+                    "role": "Consultant",
+                    "email": "owner@example.com",
+                },
+            }
+        },
+    )
+    assert statics.status_code == 200
+    email_draft = client.post(
+        f"/opportunities/{opportunity_id}/email-drafts/generate",
+        headers=_headers(),
+        json={"journey_stage": "first_contact"},
+    )
+    assert email_draft.status_code == 200
+    email_confirm = client.post(
+        f"/opportunities/{opportunity_id}/email-drafts/{email_draft.json()['draft']['id']}/confirm",
+        headers=_headers(),
+        json={"selected_length": "short"},
+    )
+    assert email_confirm.status_code == 200
 
     regenerate_transcript = client.post(
         f"/opportunities/{opportunity_id}/transcripts/{transcript_id}/regenerate",
@@ -248,7 +323,9 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
     assert voice.status_code == 200
 
     recorded = set(_audit_actions())
-    assert PIPELINE_AUDIT_ACTIONS.issubset(recorded)
+    assert PIPELINE_AUDIT_ACTIONS.issubset(recorded), sorted(
+        PIPELINE_AUDIT_ACTIONS - recorded
+    )
 
 
 def test_backlog_highlighted_actions_are_covered() -> None:

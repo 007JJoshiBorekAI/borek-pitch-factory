@@ -22,6 +22,7 @@ INTAKE = {
     "client_web_page": "https://example.com",
     "poc_name": "Ada Lovelace",
     "poc_position": "Operations",
+    "poc_email": "ada@example.com",
     "sales_topic_description": "Invoice matching",
     "about_company": "Sales says the client has 500 employees.",
 }
@@ -113,6 +114,7 @@ def test_optional_intake_and_old_clients(intake):
         {"client_web_page": "https://example.com/\nsecret"},
         *[{field: "bad\x00text"} for field in INTAKE],
         {"poc_name": 123},
+        {"poc_email": "not-an-email"},
         {"poc_position": "x" * 201},
         {"sales_topic_description": "x" * 20_001},
         {"voice_transcript": "speaker: text"},

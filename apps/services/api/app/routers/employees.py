@@ -100,9 +100,9 @@ def list_activity(
 @router.get(
     "",
     response_model=list[EmployeeRoleResponse],
-    dependencies=[Depends(require_role(EmployeeRole.ADMIN))],
 )
-def list_employees(_user: AuthUserDep, store: DataStoreDep) -> list[EmployeeRoleResponse]:
+def list_employees(user: AuthUserDep, store: DataStoreDep) -> list[EmployeeRoleResponse]:
+    store.get_or_create_user_role(user_id=user.id, email=user.email)
     return [_role_response(row) for row in store.list_user_roles()]
 
 

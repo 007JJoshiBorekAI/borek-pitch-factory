@@ -80,7 +80,13 @@ def test_upload_rejects_invalid_extension() -> None:
     response = client.post(
         f"/opportunities/{opportunity_id}/transcripts",
         headers=_headers(),
-        files={"file": ("notes.pdf", io.BytesIO(b"pdf"), "application/pdf")},
+        files={
+            "file": (
+                "notes.xlsx",
+                io.BytesIO(b"spreadsheet"),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
     )
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_TRANSCRIPT_FORMAT"
