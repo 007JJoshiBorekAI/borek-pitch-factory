@@ -186,6 +186,56 @@ def test_deepening_email_uses_ms32_template() -> None:
     assert "Acme Invoice Pilot" in generated.json()["draft"]["lengths"]["short"]["subject"]
 
 
+def test_client_preparation_email_requires_stage1() -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    blocked = client.post(
+        f"/opportunities/{opportunity_id}/client-preparation-email/generate",
+        headers=headers(),
+    )
+    assert blocked.status_code == 400
+    assert blocked.json()["error"]["code"] == "STAGE1_OUTPUTS_REQUIRED"
+    empty = client.get(
+        f"/opportunities/{opportunity_id}/client-preparation-email",
+        headers=headers(),
+    )
+    assert empty.status_code == 200
+    assert empty.json()["status"] == "not_generated"
+    assert empty.json()["email"] is None
+
+
+def test_client_preparation_email_after_brief() -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    upload = client.post(
+        f"/opportunities/{opportunity_id}/client-documents",
+        headers=headers(),
+        files={"file": ("brief.txt", b"Client background material.", "text/plain")},
+    )
+    assert upload.status_code == 201, upload.text
+    stage1 = client.post(
+        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        headers=headers(),
+    )
+    assert stage1.status_code == 200, stage1.text
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/client-preparation-email/generate",
+        headers=headers(),
+    )
+    assert generated.status_code == 200, generated.text
+    body = generated.json()
+    assert body["status"] == "ready"
+    assert body["email"]["subject"]
+    assert "Key points" in body["email"]["body"]
+    fetched = client.get(
+        f"/opportunities/{opportunity_id}/client-preparation-email",
+        headers=headers(),
+    )
+    assert fetched.json()["email"]["subject"] == body["email"]["subject"]
+
+
 def test_email_drafts_three_lengths_confirm_never_sends() -> None:
     reset_memory_store()
     client = TestClient(create_app())

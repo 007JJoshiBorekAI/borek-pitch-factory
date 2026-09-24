@@ -72,7 +72,7 @@ export function CreatePitchPanel() {
     try {
       savePitchDraft(opportunityId, draft);
       await generateFramework(accessToken, opportunityId);
-      router.push(`/deck-center?opportunityId=${encodeURIComponent(opportunityId)}`);
+      router.push(`/meeting-preparation?opportunityId=${encodeURIComponent(opportunityId)}`);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "The pitch could not be created. Add a transcript on the first meeting, then try again.");
       setBusy(false);

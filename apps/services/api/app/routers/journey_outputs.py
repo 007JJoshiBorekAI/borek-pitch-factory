@@ -14,10 +14,12 @@ from app.services.api_errors import bad_request
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.journey_generation import (
     JOURNEY_STAGES,
+    client_preparation_envelope,
     confirm_email_draft,
     empty_stage1,
     empty_stage2,
     envelope_from_stored,
+    generate_client_preparation_email,
     generate_email_draft,
     generate_stage1_outputs,
     generate_stage2_outputs,
@@ -134,6 +136,37 @@ def write_meeting_feedback(
     )
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
     return get_meeting_feedback(opportunity)
+
+
+@router.get("/{opportunity_id}/client-preparation-email")
+def get_client_preparation_email(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    stored = opportunity.get("client_preparation_email")
+    return client_preparation_envelope(opportunity_id, stored)
+
+
+@router.post("/{opportunity_id}/client-preparation-email/generate")
+def post_client_preparation_email_generate(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.CLIENT_PREPARATION_EMAIL_GENERATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    return generate_client_preparation_email(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
 
 
 @router.get("/{opportunity_id}/email-drafts")

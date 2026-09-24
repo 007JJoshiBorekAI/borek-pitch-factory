@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { EmailDraftTemplateSection } from "@/components/EmailDraftTemplateSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { StageInputs, StageStepper } from "@/components/StageChrome";
 import { useAuth } from "@/components/AuthProvider";
@@ -174,6 +175,15 @@ export function OpportunityStagePanel() {
                   <label className="pitch-info-card"><span>Action items</span><textarea value={draft.actionItems} onChange={(event) => update("actionItems", event.target.value)} /></label>
                   <label className="pitch-info-card"><span>Responsible team member</span><input value={draft.responsible} onChange={(event) => update("responsible", event.target.value)} /></label>
                 </div>
+                <EmailDraftTemplateSection
+                  accessToken={accessToken}
+                  opportunityId={opportunityId}
+                  mode={{ kind: "journey", journeyStage: "deepening" }}
+                  title="Follow-up email"
+                  description="Review the post-meeting draft before completing Stage 2."
+                  canGenerate={hasTranscript}
+                  generateBlockedHint={TRANSCRIPT_REQUIRED_MESSAGE}
+                />
                 <button type="button" className="btn btn-primary pitch-block-btn" disabled={busy} onClick={() => void handleComplete()}>
                   {busy ? "Saving..." : "Complete Stage 2 →"}
                 </button>

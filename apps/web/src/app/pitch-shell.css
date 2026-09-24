@@ -880,6 +880,39 @@
   margin-bottom: 14px;
 }
 .pitch-info-card textarea { min-height: 72px; }
+.pitch-email-lengths {
+  display: inline-flex;
+  border: 1px solid var(--pitch-gray-200);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.pitch-email-lengths button {
+  border: none;
+  background: #fff;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--pitch-gray-600);
+}
+.pitch-email-lengths button.active {
+  background: var(--pitch-navy-dark);
+  color: #fff;
+}
+.pitch-email-draft-box {
+  border: 1px solid var(--pitch-gray-200);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.pitch-email-draft-box hr {
+  border: none;
+  border-top: 1px solid var(--pitch-gray-200);
+  margin: 14px 0;
+}
 .pitch-thin-bar { height: 6px; border-radius: 3px; background: var(--pitch-gray-100); overflow: hidden; margin: 12px 0; }
 .pitch-thin-bar span { display: block; height: 100%; background: var(--pitch-blue); }
 .pitch-info-banner, .pitch-package-bar {
@@ -906,6 +939,117 @@
 .pitch-decision h3 { margin-top: 8px; }
 .pitch-include-list { margin: 0 0 16px; padding-left: 18px; }
 .pitch-include-list li { margin-bottom: 8px; }
+
+.pitch-meeting-prep-title {
+  font-weight: 400;
+}
+
+.pitch-meeting-prep-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--pitch-gray-50);
+  border-radius: 8px;
+  padding: 16px 22px;
+  margin-bottom: 36px;
+}
+
+.pitch-meeting-prep-banner strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pitch-blue);
+  font-weight: 700;
+}
+
+.pitch-meeting-prep-sq {
+  width: 8px;
+  height: 8px;
+  background: var(--pitch-navy);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.pitch-meeting-prep-banner-mid {
+  color: var(--pitch-gray-600);
+  flex: 1;
+}
+
+.pitch-meeting-prep-banner-time {
+  color: var(--pitch-gray-500);
+  font-size: 13px;
+}
+
+.pitch-meeting-prep-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+}
+
+.pitch-meeting-prep-spaced {
+  margin-top: 40px;
+}
+
+.pitch-meeting-prep-kv {
+  margin-top: 22px;
+}
+
+.pitch-meeting-prep-kv-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--pitch-gray-100);
+}
+
+.pitch-meeting-prep-kv-label {
+  color: var(--pitch-gray-500);
+  font-size: 14px;
+}
+
+.pitch-meeting-prep-kv-value {
+  font-weight: 600;
+  color: var(--pitch-navy);
+}
+
+.pitch-meeting-prep-questions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pitch-meeting-prep-questions li {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--pitch-gray-100);
+  align-items: flex-start;
+}
+
+.pitch-meeting-prep-qnum {
+  color: var(--pitch-gray-400);
+  font-weight: 700;
+  font-size: 14px;
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.pitch-meeting-prep-agenda {
+  background: var(--pitch-gray-50);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-top: 28px;
+  margin-bottom: 20px;
+}
+
+.pitch-meeting-prep-agenda-line {
+  color: var(--pitch-navy);
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0;
+}
 
 @media (max-width: 960px) {
   .app-workspace:has(.pitch-sidebar) {
@@ -947,6 +1091,7 @@
   .pitch-body-cols,
   .pitch-stage-cols,
   .pitch-create-cols,
+  .pitch-meeting-prep-cols,
   .pitch-approval-layout,
   .pitch-form-row,
   .pitch-card-row,

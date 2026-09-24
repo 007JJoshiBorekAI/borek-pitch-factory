@@ -11,6 +11,7 @@ import { PitchReviewSlideSidebar, PitchReviewView } from "@/components/PitchRevi
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
+import { StageStepper } from "@/components/StageChrome";
 import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
   ApiRequestError,
@@ -76,11 +77,13 @@ interface DeckCenterPanelProps {
   opportunityId: string;
   presentationId?: string;
   presentationVersionId?: string;
+  chromeVariant?: "pipeline" | "stage2";
 }
 
 export function DeckCenterPanel({
   opportunityId,
   presentationId: requestedPresentationId,
+  chromeVariant = "pipeline",
 }: DeckCenterPanelProps) {
   const router = useRouter();
   const { accessToken, isAuthenticated, loading, session } = useAuth();
@@ -114,6 +117,11 @@ export function DeckCenterPanel({
     () => buildJobProgressView({ snapshot: jobSnapshot }),
     [jobSnapshot],
   );
+  const isStage2Chrome = chromeVariant === "stage2";
+  const backHref = isStage2Chrome
+    ? `/meeting-preparation?opportunityId=${encodeURIComponent(opportunityId)}`
+    : pipelineHref("/plan-preview", opportunityId);
+  const backLabel = isStage2Chrome ? "Back to meeting preparation" : "Back to plan";
 
   const slideTiles = useMemo(() => (deck ? mapDeckSlides(deck) : []), [deck]);
   const reviewSlides = useMemo(
@@ -542,8 +550,8 @@ export function DeckCenterPanel({
         ) : null}
 
         <WorkflowActionBar
-          backHref={pipelineHref("/plan-preview", opportunityId)}
-          backLabel="Back to plan"
+          backHref={backHref}
+          backLabel={backLabel}
           contextLabel="Current presentation"
           context={
             <>
@@ -584,7 +592,16 @@ export function DeckCenterPanel({
             </button>
           )}
         </WorkflowActionBar>
-        <WorkflowStepIndicator currentStep={4} />
+        {isStage2Chrome ? (
+          <>
+            <p className="pitch-breadcrumb">
+              <Link href="/clients">Clients</Link> / <span>{clientName}</span> / <span>Pitch</span>
+            </p>
+            <StageStepper activeIndex={5} />
+          </>
+        ) : (
+          <WorkflowStepIndicator currentStep={4} />
+        )}
 
         <div className="intake-main">
             {notice && surfacePrecedence.showRecovery ? (

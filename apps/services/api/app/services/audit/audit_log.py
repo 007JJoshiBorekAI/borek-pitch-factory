@@ -39,6 +39,7 @@ class AuditAction(StrEnum):
     MEETING_FEEDBACK_UPDATE = "meeting_feedback.update"
     EMAIL_DRAFT_GENERATE = "email_draft.generate"
     EMAIL_DRAFT_CONFIRM = "email_draft.confirm"
+    CLIENT_PREPARATION_EMAIL_GENERATE = "client_preparation_email.generate"
     CLIENT_DOCUMENT_UPLOAD = "client_document.upload"
     CLIENT_DOCUMENT_DELETE = "client_document.delete"
 

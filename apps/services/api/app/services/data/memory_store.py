@@ -452,8 +452,10 @@ class MemoryDataStore:
         }
 
     def get_opportunity(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
+        from app.services.pitch_owner import user_can_access_opportunity
+
         row = self.opportunities.get(opportunity_id)
-        if row is None or row["created_by"] != user_id:
+        if row is None or not user_can_access_opportunity(row, user_id):
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
         return present_opportunity(row)
 
@@ -464,8 +466,10 @@ class MemoryDataStore:
         user_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
+        from app.services.pitch_owner import user_can_access_opportunity
+
         row = self.opportunities.get(opportunity_id)
-        if row is None or row["created_by"] != user_id:
+        if row is None or not user_can_access_opportunity(row, user_id):
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
         expanded = expand_opportunity_updates(dict(updates))
         for key, value in expanded.items():
@@ -1873,9 +1877,12 @@ class MemoryDataStore:
         user_id: UUID,
         journey_stage: str,
         payload: dict[str, Any],
+        opportunity: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        from app.services.pitch_owner import user_can_access_opportunity
+
         row = self.opportunities.get(opportunity_id)
-        if row is None or row["created_by"] != user_id:
+        if row is None or not user_can_access_opportunity(row, user_id):
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
         drafts = copy.deepcopy(row.get("email_drafts") or {})
         existing = drafts.get(journey_stage)

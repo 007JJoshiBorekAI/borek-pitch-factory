@@ -92,6 +92,66 @@ def empty_email(opportunity_id: UUID, journey_stage: str) -> dict[str, Any]:
     )
 
 
+def empty_client_preparation_email(opportunity_id: UUID) -> dict[str, Any]:
+    return _validate(
+        "client_preparation_email.schema.json",
+        {
+            "schema_version": "1.0",
+            "opportunity_id": str(opportunity_id),
+            "status": "not_generated",
+            "email": None,
+        },
+    )
+
+
+def client_preparation_envelope(opportunity_id: UUID, stored: dict[str, Any] | None) -> dict[str, Any]:
+    if not stored:
+        return empty_client_preparation_email(opportunity_id)
+    return _validate(
+        "client_preparation_email.schema.json",
+        {
+            "schema_version": "1.0",
+            "opportunity_id": str(opportunity_id),
+            "status": "ready",
+            "email": stored,
+        },
+    )
+
+
+def generate_client_preparation_email(
+    store: Any,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+) -> dict[str, Any]:
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    stage1 = opportunity.get("stage1_outputs") or {}
+    if stage1.get("status") != "ready" or not stage1.get("outputs"):
+        raise bad_request(
+            "STAGE1_OUTPUTS_REQUIRED",
+            "Generate the meeting brief before creating the client preparation email.",
+        )
+    statics = _require_followup_statics(opportunity)
+    intake = opportunity.get("stage1_intake") or {}
+    name = str(opportunity.get("opportunity_name") or "this opportunity")
+    topic = str(intake.get("sales_topic_description") or name).strip()
+    meeting_date = datetime.now(UTC).strftime("%d.%m.%Y")
+    lengths = render_first_contact_draft(statics, topic=topic, meeting_date=meeting_date)
+    medium = lengths["medium"]
+    email = {
+        "subject": medium["subject"],
+        "body": medium["body"],
+        "word_count": medium["word_count"],
+        "generated_at": _now(),
+    }
+    store.update_opportunity(
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        updates={"client_preparation_email": email},
+    )
+    return client_preparation_envelope(opportunity_id, email)
+
+
 def get_meeting_feedback(opportunity: dict[str, Any]) -> dict[str, Any]:
     updated = opportunity.get("meeting_feedback_updated_at")
     if hasattr(updated, "isoformat"):
@@ -341,11 +401,9 @@ def generate_email_draft(
             calendar_meeting_date=meeting_date,
         )
         lengths = render_three_lengths(extraction, statics)
-    existing = store.get_email_draft(
-        opportunity_id=opportunity_id,
-        user_id=user_id,
-        journey_stage=journey_stage,
-    )
+    drafts = opportunity.get("email_drafts") or {}
+    existing_raw = drafts.get(journey_stage)
+    existing = dict(existing_raw) if isinstance(existing_raw, dict) else None
     stored = store.upsert_email_draft(
         opportunity_id=opportunity_id,
         user_id=user_id,
@@ -356,6 +414,7 @@ def generate_email_draft(
             "lengths": lengths,
             "confirmed_at": None,
         },
+        opportunity=opportunity,
     )
     return envelope_from_stored(opportunity_id, journey_stage, stored)
 

@@ -27,7 +27,12 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith("/first-contact")) {
     return "Stage 1";
   }
-  if (pathname.startsWith("/first-meeting") || pathname.startsWith("/opportunity") || pathname.startsWith("/create-pitch")) {
+  if (
+    pathname.startsWith("/first-meeting") ||
+    pathname.startsWith("/opportunity") ||
+    pathname.startsWith("/create-pitch") ||
+    pathname.startsWith("/meeting-preparation")
+  ) {
     return "Stage 2";
   }
   if (pathname.startsWith("/clients")) return "Clients";
@@ -38,7 +43,7 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith("/upload")) return "Pitch Factory";
   if (pathname.startsWith("/framework-review")) return "Pitch review";
   if (pathname.startsWith("/plan-preview")) return "Meeting preparation";
-  if (pathname.startsWith("/deck-center")) return "Pitch review";
+  if (pathname.startsWith("/pitch-review") || pathname.startsWith("/deck-center")) return "Pitch review";
   if (pathname.startsWith("/followup-review")) return "Follow-ups";
   return "Pitch Factory";
 }
@@ -48,7 +53,9 @@ function isActive(pathname: string, href: string): boolean {
     pathname.startsWith("/first-contact") ||
     pathname.startsWith("/first-meeting") ||
     pathname.startsWith("/opportunity") ||
-    pathname.startsWith("/create-pitch");
+    pathname.startsWith("/create-pitch") ||
+    pathname.startsWith("/meeting-preparation") ||
+    pathname.startsWith("/pitch-review");
   if (href === "/") return pathname === "/";
   if (href === "/clients") return pathname.startsWith("/clients") || inStage;
   return pathname === href || pathname.startsWith(`${href}/`);

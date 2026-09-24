@@ -20,3 +20,14 @@ def parse_team_members(team_text: str | None) -> list[Any]:
     if not team_text or not team_text.strip():
         return []
     return [part.strip() for part in team_text.split(",") if part.strip()]
+
+
+def user_can_access_opportunity(row: dict[str, Any], user_id: UUID) -> bool:
+    """Match API ownership: row creator or employee pitch_owner."""
+    created = row.get("created_by")
+    if created is not None and str(created) == str(user_id):
+        return True
+    owner = row.get("pitch_owner")
+    if isinstance(owner, dict) and owner.get("source") == "employee":
+        return str(owner.get("employee_id") or "") == str(user_id)
+    return False

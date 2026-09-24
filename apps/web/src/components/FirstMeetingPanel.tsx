@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { EmailDraftTemplateSection } from "@/components/EmailDraftTemplateSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { StageInputs, StageStepper } from "@/components/StageChrome";
 import { useAuth } from "@/components/AuthProvider";
@@ -202,6 +203,17 @@ export function FirstMeetingPanel() {
                       ? transcripts.map((item) => item.file_name).join(" · ")
                       : TRANSCRIPT_REQUIRED_MESSAGE)}
                 </p>
+                {hasTranscript ? (
+                  <EmailDraftTemplateSection
+                    accessToken={accessToken}
+                    opportunityId={opportunityId}
+                    mode={{ kind: "journey", journeyStage: "deepening" }}
+                    title="Follow-up email"
+                    description="Draft to send after the first meeting — short, medium, or extensive."
+                    canGenerate={hasTranscript}
+                    generateBlockedHint={TRANSCRIPT_REQUIRED_MESSAGE}
+                  />
+                ) : null}
               </div>
               <aside className="pitch-right-panel">
                 <div className="pitch-panel-label">Create pitch</div>

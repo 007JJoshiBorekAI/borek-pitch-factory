@@ -659,20 +659,28 @@ class SupabaseDataStore:
             "presentations": presentations,
         }
 
-    def get_opportunity(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
+    def _fetch_opportunity_row(self, opportunity_id: UUID) -> dict[str, Any] | None:
+        """Load by primary key; RLS on the caller JWT enforces row access."""
         response = self._request(
             "GET",
             "opportunities",
             params={
                 "select": "*",
                 "id": f"eq.{opportunity_id}",
-                "created_by": f"eq.{user_id}",
                 "limit": "1",
             },
         )
         if response.status_code != 200 or not response.json():
+            return None
+        return response.json()[0]
+
+    def get_opportunity(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
+        from app.services.pitch_owner import user_can_access_opportunity
+
+        row = self._fetch_opportunity_row(opportunity_id)
+        if row is None or not user_can_access_opportunity(row, user_id):
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
-        return _normalize_opportunity(response.json()[0])
+        return _normalize_opportunity(row)
 
     def update_opportunity(
         self,
@@ -700,15 +708,20 @@ class SupabaseDataStore:
         response = self._request(
             "PATCH",
             "opportunities",
-            params={
-                "id": f"eq.{opportunity_id}",
-                "created_by": f"eq.{user_id}",
-            },
+            params={"id": f"eq.{opportunity_id}"},
             json_body=payload,
         )
-        if response.status_code not in (200, 204) or not response.json():
+        if response.status_code not in (200, 201, 204):
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
-        return _normalize_opportunity(response.json()[0])
+        rows = response.json() if response.content else []
+        if rows:
+            row = rows[0]
+            from app.services.pitch_owner import user_can_access_opportunity
+
+            if not user_can_access_opportunity(row, user_id):
+                raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
+            return _normalize_opportunity(row)
+        return self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
 
     def upsert_email_draft(
         self,
@@ -717,8 +730,10 @@ class SupabaseDataStore:
         user_id: UUID,
         journey_stage: str,
         payload: dict[str, Any],
+        opportunity: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        opportunity = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        if opportunity is None:
+            opportunity = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         drafts = dict(opportunity.get("email_drafts") or {})
         existing = drafts.get(journey_stage) or {}
         now = datetime.now(UTC).isoformat()

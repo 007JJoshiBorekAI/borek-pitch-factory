@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { EmailDraftTemplateSection } from "@/components/EmailDraftTemplateSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { StageStepper } from "@/components/StageChrome";
 import { useAuth } from "@/components/AuthProvider";
@@ -201,6 +202,15 @@ export function FirstContactPanel() {
                         <li key={item.order}>{item.label}</li>
                       ))}
                     </ol>
+                    <EmailDraftTemplateSection
+                      accessToken={accessToken}
+                      opportunityId={opportunityId}
+                      mode={{ kind: "client-preparation" }}
+                      title="Client preparation email"
+                      description="Optional pre-meeting note for the client, grounded in your brief and project statics."
+                      canGenerate={ready}
+                      generateBlockedHint="Generate the meeting brief first, then create the client preparation email."
+                    />
                   </>
                 )}
                 <div className="pitch-split-actions">

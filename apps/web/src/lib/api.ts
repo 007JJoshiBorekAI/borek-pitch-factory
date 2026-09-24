@@ -608,6 +608,101 @@ export async function generateStage1Outputs(
   );
 }
 
+export type JourneyEmailStage = "first_contact" | "deepening" | "concretisation";
+export type EmailDraftLength = "short" | "medium" | "extensive";
+
+export interface EmailDraftBody {
+  subject: string;
+  body: string;
+  word_count: number;
+}
+
+export interface EmailDraftEnvelope {
+  schema_version: string;
+  opportunity_id: string;
+  journey_stage: JourneyEmailStage;
+  draft: {
+    id: string;
+    status: "draft" | "confirmed";
+    send_status: "not_sent";
+    selected_length: EmailDraftLength | null;
+    lengths: Record<EmailDraftLength, EmailDraftBody>;
+    confirmed_at: string | null;
+    created_at: string;
+    updated_at: string;
+  } | null;
+}
+
+export interface ClientPreparationEmailEnvelope {
+  schema_version: string;
+  opportunity_id: string;
+  status: "not_generated" | "ready";
+  email: (EmailDraftBody & { generated_at: string }) | null;
+}
+
+export async function getClientPreparationEmail(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientPreparationEmailEnvelope> {
+  return apiFetch<ClientPreparationEmailEnvelope>(
+    `/opportunities/${opportunityId}/client-preparation-email`,
+    accessToken,
+  );
+}
+
+export async function generateClientPreparationEmail(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientPreparationEmailEnvelope> {
+  return apiFetch<ClientPreparationEmailEnvelope>(
+    `/opportunities/${opportunityId}/client-preparation-email/generate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function getEmailDrafts(
+  accessToken: string,
+  opportunityId: string,
+  journeyStage: JourneyEmailStage,
+): Promise<EmailDraftEnvelope> {
+  return apiFetch<EmailDraftEnvelope>(
+    `/opportunities/${opportunityId}/email-drafts?journey_stage=${encodeURIComponent(journeyStage)}`,
+    accessToken,
+  );
+}
+
+export async function generateEmailDrafts(
+  accessToken: string,
+  opportunityId: string,
+  journeyStage: JourneyEmailStage,
+): Promise<EmailDraftEnvelope> {
+  return apiFetch<EmailDraftEnvelope>(
+    `/opportunities/${opportunityId}/email-drafts/generate`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify({ journey_stage: journeyStage }),
+    },
+  );
+}
+
+export async function confirmEmailDraft(
+  accessToken: string,
+  opportunityId: string,
+  draftId: string,
+  selectedLength: EmailDraftLength,
+): Promise<EmailDraftEnvelope> {
+  return apiFetch<EmailDraftEnvelope>(
+    `/opportunities/${opportunityId}/email-drafts/${draftId}/confirm`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify({ selected_length: selectedLength }),
+    },
+  );
+}
+
 export interface FrameworkGenerateResponse {
   job_id: string;
   status: string;

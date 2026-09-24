@@ -62,6 +62,7 @@ EXPECTED_COLUMNS = {
         "stage1_outputs",
         "stage2_outputs",
         "email_drafts",
+        "client_preparation_email",
         "demo_marker",
     ),
     "transcript_summaries": (

@@ -10,6 +10,7 @@ JOURNEY_OUTPUT_DB_COLUMNS = (
     "stage1_outputs",
     "stage2_outputs",
     "email_drafts",
+    "client_preparation_email",
 )
 
 

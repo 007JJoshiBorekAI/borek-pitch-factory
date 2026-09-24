@@ -79,6 +79,7 @@ def extract_knowledge_model(
     complete: ClaudeComplete | None = None,
     client_pack: dict[str, Any] | None = None,
     stage1_intake: dict[str, Any] | None = None,
+    journey_context_block: str | None = None,
 ) -> dict[str, Any]:
     """Run the extraction pass. ``complete`` is injectable so tests never call Anthropic."""
     if not turns:
@@ -94,6 +95,7 @@ def extract_knowledge_model(
         identity,
         client_pack=client_pack,
         stage1_intake=safe_intake_for_llm(stage1_intake, redact=redact),
+        journey_context_block=journey_context_block,
     )
     runner = complete or anthropic_structured_complete
     allowed_cids = [identity.conversation_id]
@@ -340,6 +342,7 @@ def _format_user_message(
     *,
     client_pack: dict[str, Any] | None = None,
     stage1_intake: dict[str, Any] | None = None,
+    journey_context_block: str | None = None,
 ) -> str:
     lines = [
         f"opportunity_id: {identity.opportunity_id}",
@@ -377,4 +380,6 @@ def _format_user_message(
     intake_block = format_stage1_intake_for_prompt(stage1_intake)
     if intake_block:
         lines.extend(["", intake_block])
+    if journey_context_block:
+        lines.extend(["", journey_context_block.strip()])
     return "\n".join(lines)

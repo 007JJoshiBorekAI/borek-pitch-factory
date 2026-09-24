@@ -18,7 +18,6 @@ import {
   getJourneyStageEligibility,
   getOpportunity,
   listTranscripts,
-  updateOpportunity,
   uploadTranscript,
   type AdditionalClientInformation,
   type JourneyStageEligibilityResponse,
@@ -50,6 +49,7 @@ import {
   loadSelectedJourneyStage,
   saveSelectedJourneyStage,
 } from "@/lib/journeyStageSelection";
+import { persistOpportunityContext } from "@/lib/opportunityContextSync";
 import { countByStatus } from "@/lib/uploadQueue";
 import type { TranscriptQueueItem } from "@/lib/uploadQueue";
 import { createRestoredQueueItem, updateQueueItem } from "@/lib/uploadQueue";
@@ -314,8 +314,12 @@ export function TranscriptUploadPanel({
     if (!accessToken || !opportunityId) {
       throw new Error("Create an opportunity before saving client information.");
     }
-    const updated = await updateOpportunity(accessToken, opportunityId, {
-      additional_client_information: additionalClientInformation,
+    const current = opportunity ?? (await getOpportunity(accessToken, opportunityId));
+    const updated = await persistOpportunityContext(accessToken, opportunityId, {
+      opportunity: {
+        ...current,
+        additional_client_information: additionalClientInformation,
+      },
     });
     const stored = storedFromResponse(updated);
     setOpportunity(updated);
@@ -325,6 +329,16 @@ export function TranscriptUploadPanel({
       queue: queueItems,
       summary: uploadSummary,
     });
+  }
+
+  async function handleContinueToCustomerStory() {
+    if (!accessToken || !opportunityId) {
+      return;
+    }
+    await persistOpportunityContext(accessToken, opportunityId, {
+      opportunity: opportunity ?? undefined,
+    });
+    router.push(pipelineHref("/framework-review", opportunityId));
   }
 
   async function handleUploadBatch(batch: TranscriptQueueItem[]) {
@@ -396,12 +410,13 @@ export function TranscriptUploadPanel({
           statusCounts.success > 0 &&
           statusCounts.pending === 0 &&
           statusCounts.uploading === 0 ? (
-            <Link
-              href={pipelineHref("/framework-review", opportunityId)}
+            <button
+              type="button"
               className="btn btn-primary"
+              onClick={() => void handleContinueToCustomerStory()}
             >
               Continue to customer story
-            </Link>
+            </button>
           ) : (
             <button type="button" className="btn btn-primary" disabled>
               Continue to customer story

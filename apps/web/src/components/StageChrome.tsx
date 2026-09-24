@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-const STEPS = ["Stage 1", "First meeting", "Stage 2", "Create pitch", "Prepare", "Present"] as const;
+const STEPS = ["Stage 1", "First meeting", "Stage 2", "Create pitch", "Prepare", "Review pitch"] as const;
 
 export function StageStepper({ activeIndex }: { activeIndex: number }) {
   return (
