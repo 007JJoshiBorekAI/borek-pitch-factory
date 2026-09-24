@@ -1,65 +1,194 @@
 {
-  "schema_version": "1.0",
-  "description": "TSK-010: Approved Borek presentation branding from JJ-26 CI. Consumed by the Design Agent (TSK-014). Distinct from fallback renderer technical tokens in apps/renderer/design_system/tokens/.",
+  "schema_version": "2.0",
+  "description": "TSK-010 / TSK-014 Phase 4: Definitive Borek presentation branding from the Arbios master deck. Supersedes JJ-26 hex and logo-placement values where they conflict. Consumed by the Design Agent (TSK-014).",
   "authority": {
     "presentation_engine": "gamma",
     "documents": [
       {
-        "path": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md",
-        "role": "primary_ci"
+        "path": "C:/Users/BlenardTahiraj/Downloads/Borek Master Presentation.html",
+        "role": "primary_ci",
+        "notes": "Arbios definitive layout master (32-slide guide + reusable layouts)"
+      },
+      {
+        "path": "packages/contracts/arbios_master_layout_registry.json",
+        "role": "layout_registry"
+      },
+      {
+        "path": "packages/contracts/gamma_arbios_layout_map.json",
+        "role": "gamma_layout_map"
       },
       {
         "path": "packages/contracts/gamma_template.json",
         "role": "gamma_template_contract"
       },
       {
-        "path": "docs/spikes/PHASE2_RAG_GAMMA_SPIKE.md",
-        "role": "gamma_theme_build_notes"
+        "path": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md",
+        "role": "historical_ci",
+        "notes": "JJ-26 slot and stage-profile rules remain authoritative where not superseded"
       }
     ]
   },
+  "canvas": {
+    "width_px": 1920,
+    "height_px": 1080,
+    "content_margin_px": 72,
+    "cover_margin_px": 115,
+    "content_top_px": 300,
+    "content_bottom_px": 930,
+    "source": "Borek Master Presentation.html · guide slide 02"
+  },
   "colors": {
     "primary": {
-      "hex": "2C567A",
-      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+      "hex": "0D1240",
+      "role": "navy",
+      "usage": "Titles and cover backgrounds",
+      "source": "Borek Master Presentation.html · guide slide 03"
     },
     "heading": {
-      "hex": "0D1D51",
-      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+      "hex": "0D1240",
+      "role": "navy",
+      "usage": "Slide titles",
+      "source": "Borek Master Presentation.html · guide slide 03"
+    },
+    "body": {
+      "hex": "515C70",
+      "role": "slate",
+      "usage": "Body text",
+      "source": "Borek Master Presentation.html · guide slide 03"
+    },
+    "kicker": {
+      "hex": "8A90A5",
+      "role": "grey",
+      "usage": "Kickers and section labels",
+      "source": "Borek Master Presentation.html · guide slide 03"
     },
     "accent": {
-      "hex": "0072C7",
-      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+      "hex": "124F94",
+      "role": "blue",
+      "usage": "AI Suite product coding accent",
+      "source": "Borek Master Presentation.html · guide slide 03"
     },
     "card_background": {
       "hex": "FFFFFF",
-      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet",
-      "notes": "White presentation cards"
+      "usage": "Card ground on white slides",
+      "source": "Borek Master Presentation.html · guide slide 03"
+    },
+    "card_panel": {
+      "hex": "F3F4F8",
+      "usage": "Card fill panels",
+      "source": "Borek Master Presentation.html · guide slide 03"
+    },
+    "card_border": {
+      "hex": "E4E7F0",
+      "usage": "1px card border",
+      "source": "Borek Master Presentation.html · guide slide 03"
+    },
+    "footer_muted": {
+      "hex": "9AA0B3",
+      "usage": "Footer and page numbers",
+      "source": "Borek Master Presentation.html · guide slide 02"
     }
+  },
+  "semantic_accents": {
+    "ai_suite": { "hex": "124F94", "source": "guide slide 03" },
+    "ai_projects": { "hex": "02A69F", "source": "guide slide 03" },
+    "ai_department": { "hex": "DD3D00", "source": "guide slide 03" },
+    "divider_bar": { "hex": "E07E00", "source": "guide slide 03 · divider bar only" }
   },
   "surfaces": {
     "cover": {
       "appearance": "dark",
-      "hex": null,
-      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet",
-      "notes": "CI specifies a dark cover without an exact hex value"
+      "hex": "0D1240",
+      "source": "Borek Master Presentation.html · F1 Cover"
+    },
+    "content_slide": {
+      "appearance": "light",
+      "hex": "FFFFFF",
+      "source": "Borek Master Presentation.html · L01–L24"
     }
   },
   "typography": {
     "heading_font": {
       "family": "Inter",
-      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+      "source": "Borek Master Presentation.html · guide slide 03"
     },
     "body_font": {
       "family": "Inter",
-      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
-    }
+      "source": "Borek Master Presentation.html · guide slide 03"
+    },
+    "scale_px": {
+      "title": { "size": 60, "weight": 300, "usage": "Slide title" },
+      "card_title": { "size": 36, "weight": null, "usage": "Card heading" },
+      "lead": { "size": 26, "weight": null, "usage": "Intro paragraph" },
+      "body": { "size": 21, "weight": null, "usage": "Body and list text" },
+      "kicker": { "size": 18, "weight": 600, "usage": "Kicker · section caps", "transform": "uppercase" },
+      "footer": { "size": 15, "weight": null, "usage": "Footer caps", "transform": "uppercase", "letter_spacing_px": 2.6 }
+    },
+    "rules": [
+      "Inter only",
+      "No gradients",
+      "No coloured strokes on cards",
+      "No shadows on cards"
+    ]
+  },
+  "cards": {
+    "fill_hex": "F3F4F8",
+    "border_hex": "E4E7F0",
+    "border_width_px": 1,
+    "radius_px": 20,
+    "source": "Borek Master Presentation.html · guide slide 03"
   },
   "borek_logo": {
-    "placement": "bottom_left_header_footer",
     "every_card": true,
     "runtime_overridable": false,
-    "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+    "asset_dark": "logo-dark-2.svg",
+    "asset_light": "logo-white-2.svg",
+    "rules": [
+      "Never recolour, stretch, add effects, or place on busy photo areas"
+    ],
+    "placements": {
+      "content_slide": {
+        "asset": "logo-dark-2.svg",
+        "anchor": "top_right",
+        "right_px": 72,
+        "top_px": 107,
+        "width_px": 280
+      },
+      "cover": {
+        "asset": "logo-white-2.svg",
+        "anchor": "top_left",
+        "left_px": 115,
+        "top_px": 90,
+        "width_px": 286
+      },
+      "divider": {
+        "asset": "logo-white-2.svg",
+        "anchor": "top_left",
+        "left_px": 115,
+        "top_px": 90,
+        "width_px": 286
+      },
+      "closing": {
+        "asset": "logo-white-2.svg",
+        "anchor": "top_left",
+        "left_px": 90,
+        "top_px": 130,
+        "width_px": 314
+      }
+    },
+    "source": "Borek Master Presentation.html · guide slide 02"
+  },
+  "footer": {
+    "position_top_px": 1000,
+    "left_px": 72,
+    "right_px": 72,
+    "font_size_px": 15,
+    "letter_spacing_px": 2.6,
+    "transform": "uppercase",
+    "color_hex": "9AA0B3",
+    "left_text": "Borek Solutions Group · boreksolutions.de · Confidential",
+    "right_text_pattern": "{page} / {total}",
+    "source": "Borek Master Presentation.html · guide slide 02"
   },
   "client_logo": {
     "source": "packages/contracts/gamma_template.json#client_logo",
@@ -85,30 +214,36 @@
     "theme_id_setting": "GAMMA_THEME_ID",
     "template_id_setting": "GAMMA_TEMPLATE_ID",
     "request_override_forbidden": true,
-    "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md"
+    "design_contract_version": "2.0",
+    "source": "packages/contracts/borek_design_tokens.json"
   },
   "fallback_renderer": {
     "token_path": "apps/renderer/design_system/tokens/",
-    "purpose": "Feature-flagged PPTX fallback and Framework export; not approved JJ-26 presentation CI",
+    "purpose": "Feature-flagged PPTX fallback and Framework export; not the definitive Arbios presentation CI",
     "equivalent_mappings": [
       {
         "approved_token": "colors.primary",
-        "approved_hex": "2C567A",
+        "approved_hex": "0D1240",
         "fallback_token": "BorekColors.primary",
         "fallback_hex": "0057B8"
       },
       {
         "approved_token": "colors.heading",
-        "approved_hex": "0D1D51",
+        "approved_hex": "0D1240",
         "fallback_token": "BorekColors.text",
         "fallback_hex": "182230"
       },
       {
-        "approved_token": "colors.accent",
-        "approved_hex": "0072C7",
+        "approved_token": "colors.body",
+        "approved_hex": "515C70",
         "fallback_token": null,
-        "fallback_hex": null,
-        "notes": "No dedicated accent token in fallback renderer"
+        "fallback_hex": null
+      },
+      {
+        "approved_token": "colors.accent",
+        "approved_hex": "124F94",
+        "fallback_token": null,
+        "fallback_hex": null
       },
       {
         "approved_token": "typography.heading_font",
@@ -123,8 +258,8 @@
         "fallback_family": "Aptos"
       },
       {
-        "approved_token": "borek_logo.placement",
-        "approved_value": "bottom_left_header_footer",
+        "approved_token": "borek_logo.placements.content_slide.anchor",
+        "approved_value": "top_right",
         "fallback_token": "BorekBranding.logo",
         "fallback_value": "top_left_margin"
       }

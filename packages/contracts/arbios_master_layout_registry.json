@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "source": "C:/Users/BlenardTahiraj/Downloads/Borek Master Presentation.html",
+  "authority": "arbios_definitive",
+  "canvas": { "width_px": 1920, "height_px": 1080 },
+  "guide_slides": [
+    { "id": "G01", "label": "01 Guide · How to use", "delete_before_send": true },
+    { "id": "G02", "label": "02 Guide · Grid & logo", "delete_before_send": true },
+    { "id": "G03", "label": "03 Guide · Colour & type", "delete_before_send": true },
+    { "id": "G04", "label": "04 Guide · People & map", "delete_before_send": true },
+    { "id": "G05", "label": "05 Guide · Language & structure", "delete_before_send": true }
+  ],
+  "layouts": [
+    { "id": "F1", "label": "06 F1 Cover", "category": "cover", "reuse": "per_deck" },
+    { "id": "F2", "label": "07 F2 Who we are", "category": "fixed_data", "reuse": "unchanged_every_deck" },
+    { "id": "L01", "label": "08 L01 Two-column contrast", "category": "content", "reuse": "as_needed" },
+    { "id": "L02", "label": "09 L02 Four cards + outcome strip", "category": "content", "reuse": "as_needed" },
+    { "id": "L03", "label": "10 L03 Comparison matrix", "category": "content", "reuse": "as_needed" },
+    { "id": "L04", "label": "11 L04 Three offers", "category": "content", "reuse": "as_needed" },
+    { "id": "L05", "label": "12 L05 Five pillars", "category": "content", "reuse": "as_needed" },
+    { "id": "L06", "label": "13 L06 Section divider", "category": "divider", "reuse": "as_needed" },
+    { "id": "L07", "label": "14 L07 Three-stage process", "category": "content", "reuse": "as_needed" },
+    { "id": "L08", "label": "15 L08 Matrix + notes", "category": "content", "reuse": "as_needed" },
+    { "id": "L09", "label": "16 L09 Product UI mock", "category": "content", "reuse": "as_needed" },
+    { "id": "L10", "label": "17 L10 Data table + points", "category": "content", "reuse": "as_needed" },
+    { "id": "L11", "label": "18 L11 Big number + bars", "category": "content", "reuse": "as_needed" },
+    { "id": "L12", "label": "19 L12 Flow + facts", "category": "content", "reuse": "as_needed" },
+    { "id": "L13", "label": "20 L13 Dashboard mock", "category": "content", "reuse": "as_needed" },
+    { "id": "L14", "label": "21 L14 Objections / FAQ", "category": "content", "reuse": "as_needed" },
+    { "id": "L15", "label": "22 L15 Two models + features", "category": "content", "reuse": "as_needed" },
+    { "id": "L16", "label": "23 L16 Phased steps", "category": "content", "reuse": "as_needed" },
+    { "id": "L17", "label": "24 L17 Three packages", "category": "content", "reuse": "as_needed" },
+    { "id": "L18", "label": "25 L18 Capabilities + stats", "category": "content", "reuse": "as_needed" },
+    { "id": "L19", "label": "26 L19 Certificates + commitments", "category": "content", "reuse": "as_needed" },
+    { "id": "L20", "label": "27 L20 Option comparison", "category": "content", "reuse": "as_needed" },
+    { "id": "L21", "label": "28 L21 Price tables", "category": "content", "reuse": "as_needed" },
+    { "id": "L22", "label": "29 L22 Case study", "category": "content", "reuse": "as_needed" },
+    { "id": "L23", "label": "30 L23 Management team", "category": "content", "reuse": "as_needed" },
+    { "id": "L24", "label": "31 L24 Locations map", "category": "content", "reuse": "as_needed" },
+    { "id": "F3", "label": "32 F3 Closing", "category": "closing", "reuse": "per_deck" }
+  ]
+}

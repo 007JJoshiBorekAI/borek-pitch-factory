@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "description": "Pitch Factory implementation mapping: associates each Gamma journey layout_id with the closest Arbios master layout by content requirement. This file is not extracted from the reference decks; mappings were chosen to preserve existing journey-stage structure, slot provenance, and commercial safeguards.",
+  "mapping_kind": "implementation",
+  "not_specified_by_reference": true,
+  "source_layout_registry": "packages/contracts/arbios_master_layout_registry.json",
+  "mappings": [
+    {
+      "layout_id": "COVER_01",
+      "arbios_layout_id": "F1",
+      "rationale": "Cover headline, kicker, and intro columns"
+    },
+    {
+      "layout_id": "EXECUTIVE_SUMMARY_01",
+      "arbios_layout_id": "L18",
+      "rationale": "Capabilities narrative with supporting stats"
+    },
+    {
+      "layout_id": "CONTEXT_01",
+      "arbios_layout_id": "L08",
+      "rationale": "Matrix plus explanatory notes for starting context"
+    },
+    {
+      "layout_id": "PROBLEM_SOLUTION_01",
+      "arbios_layout_id": "L01",
+      "rationale": "Before/after or problem/solution contrast columns"
+    },
+    {
+      "layout_id": "PROCESS_FLOW_01",
+      "arbios_layout_id": "L12",
+      "rationale": "Horizontal process flow with supporting facts"
+    },
+    {
+      "layout_id": "SCOPE_01",
+      "arbios_layout_id": "L10",
+      "rationale": "Structured scope table with supporting points"
+    },
+    {
+      "layout_id": "REQUIREMENTS_MATRIX_01",
+      "arbios_layout_id": "L03",
+      "rationale": "Criteria-by-provider comparison matrix"
+    },
+    {
+      "layout_id": "ARCHITECTURE_01",
+      "arbios_layout_id": "L09",
+      "rationale": "Product or system UI mock for technical architecture"
+    },
+    {
+      "layout_id": "COMPLIANCE_01",
+      "arbios_layout_id": "L19",
+      "rationale": "Certificates and security commitments grid"
+    },
+    {
+      "layout_id": "TIMELINE_01",
+      "arbios_layout_id": "L16",
+      "rationale": "Phased delivery steps with client actions"
+    },
+    {
+      "layout_id": "MILESTONES_01",
+      "arbios_layout_id": "L16",
+      "rationale": "Same phased-step layout for milestone breakdown"
+    },
+    {
+      "layout_id": "TEAM_FTE_01",
+      "arbios_layout_id": "L23",
+      "rationale": "Management and delivery team roster"
+    },
+    {
+      "layout_id": "SUCCESS_METRICS_01",
+      "arbios_layout_id": "L11",
+      "rationale": "Big-number outcome with comparative bars"
+    },
+    {
+      "layout_id": "OPEN_QUESTIONS_01",
+      "arbios_layout_id": "L14",
+      "rationale": "Quoted questions with concise answers"
+    },
+    {
+      "layout_id": "NEXT_STEPS_01",
+      "arbios_layout_id": "F3",
+      "rationale": "Closing contacts and next actions; closest journey equivalent to F3 Closing"
+    }
+  ]
+}

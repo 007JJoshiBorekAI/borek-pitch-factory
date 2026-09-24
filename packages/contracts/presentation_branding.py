@@ -1,4 +1,4 @@
-"""TSK-010: load approved Borek presentation branding tokens (JJ-26 CI).
+"""TSK-010 / TSK-014: load approved Borek presentation branding tokens.
 
 `packages/contracts/borek_design_tokens.json` is the machine-readable source of
 truth for approved presentation CI. Gamma applies branding in the theme; the
@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 _TOKENS_PATH = Path(__file__).resolve().parent / "borek_design_tokens.json"
+_SUPPORTED_SCHEMA_VERSIONS = frozenset({"2.0"})
 
 
 class PresentationBrandingContractError(RuntimeError):
@@ -53,11 +54,11 @@ class BorekPresentationBranding:
     body_font: ApprovedFontToken
     cover_appearance: str
     cover_hex: str | None
-    borek_logo_placement: str
     client_logo: ClientLogoRules
     gamma_locked_keys: tuple[str, ...]
     gamma_theme_id_setting: str
     gamma_template_id_setting: str
+    design_contract_version: str
     raw: dict[str, Any]
 
     @property
@@ -67,6 +68,14 @@ class BorekPresentationBranding:
     @property
     def heading_hex(self) -> str:
         return self.colors["heading"].hex
+
+    @property
+    def body_hex(self) -> str:
+        return self.colors["body"].hex
+
+    @property
+    def kicker_hex(self) -> str:
+        return self.colors["kicker"].hex
 
     @property
     def accent_hex(self) -> str:
@@ -91,7 +100,7 @@ def load_borek_presentation_branding() -> BorekPresentationBranding:
 
     raw = json.loads(_TOKENS_PATH.read_text(encoding="utf-8"))
     schema_version = raw.get("schema_version")
-    if schema_version != "1.0":
+    if schema_version not in _SUPPORTED_SCHEMA_VERSIONS:
         raise PresentationBrandingContractError(
             f"Unsupported borek_design_tokens schema_version: {schema_version!r}"
         )
@@ -127,7 +136,6 @@ def load_borek_presentation_branding() -> BorekPresentationBranding:
     if cover_hex is not None and not isinstance(cover_hex, str):
         raise PresentationBrandingContractError("cover.hex must be string or null")
 
-    borek_logo = _require_mapping(raw, "borek_logo")
     client_logo_raw = _require_mapping(raw, "client_logo")
     gamma = _require_mapping(raw, "gamma_branding")
     locked_keys = gamma.get("locked_keys")
@@ -140,8 +148,7 @@ def load_borek_presentation_branding() -> BorekPresentationBranding:
         heading_font=heading_font,
         body_font=body_font,
         cover_appearance=str(cover["appearance"]),
-        cover_hex=cover_hex,
-        borek_logo_placement=str(borek_logo["placement"]),
+        cover_hex=str(cover_hex).upper() if isinstance(cover_hex, str) else None,
         client_logo=ClientLogoRules(
             slot=str(client_logo_raw["slot"]),
             cards=tuple(str(card) for card in client_logo_raw["cards"]),
@@ -153,6 +160,7 @@ def load_borek_presentation_branding() -> BorekPresentationBranding:
         gamma_locked_keys=tuple(locked_keys),
         gamma_theme_id_setting=str(gamma["theme_id_setting"]),
         gamma_template_id_setting=str(gamma["template_id_setting"]),
+        design_contract_version=str(gamma.get("design_contract_version") or schema_version),
         raw=raw,
     )
 

@@ -112,6 +112,7 @@ def test_missing_framework_slot_uses_slide_spec_fallback_for_planned_layout() ->
     assert any(slot.name == "context.summary" for slot in aligned)
     assert any(slot.name == "next_steps.body" for slot in aligned)
     assert segments[-1].startswith("next_steps.body:")
+    assert "arbios_layout:" not in segments[-1]
 
 
 def test_template_mode_payload_unchanged_without_card_split() -> None:

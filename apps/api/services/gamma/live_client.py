@@ -161,16 +161,7 @@ class LiveGammaClient:
                 payload["title"] = title
             return payload
 
-        header_footer: dict[str, Any] = {
-            "bottomLeft": {"type": "image", "source": "themeLogo"},
-        }
-        client_logo_url = _fetchable_client_logo_url(request)
-        if client_logo_url is not None:
-            placement = request.client_logo_placement or load_gamma_template().client_logo
-            header_footer["bottomRight"] = _custom_header_footer_image(
-                src=client_logo_url,
-                max_height_pct=placement.max_height_pct,
-            )
+        header_footer = _build_scratch_header_footer(request)
         input_text, num_cards = build_scratch_input_text(
             ordered_slots,
             template=template,
@@ -289,6 +280,25 @@ class LiveGammaClient:
         if not isinstance(payload, dict):
             raise GammaProviderError("Gamma returned a non-object payload.")
         return payload
+
+
+def _build_scratch_header_footer(request: GammaGenerateRequest) -> dict[str, Any]:
+    """Header/footer slots for scratch ``/generations`` when a client logo is fetchable.
+
+    Borek logo placement is owned by the locked Gamma theme (schema 2.0: top-right
+    on content slides, inverted logo on cover/closing). Do not inject ``themeLogo``
+    into ``bottomLeft``; that was the legacy JJ-26 placement and conflicts with the
+    Arbios master.
+    """
+    header_footer: dict[str, Any] = {}
+    client_logo_url = _fetchable_client_logo_url(request)
+    if client_logo_url is not None:
+        placement = request.client_logo_placement or load_gamma_template().client_logo
+        header_footer["bottomRight"] = _custom_header_footer_image(
+            src=client_logo_url,
+            max_height_pct=placement.max_height_pct,
+        )
+    return header_footer
 
 
 def uses_scratch_generation(request: GammaGenerateRequest) -> bool:

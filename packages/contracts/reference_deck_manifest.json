@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "reference_id": "arbios-deepening-full-v1",
+  "stage": "deepening",
+  "source": "Structural implementation baseline derived from gamma_template.json deepening profile and Arbios layout mapping. Not an approved rendered reference deck.",
+  "design_contract_version": "2.0",
+  "structural_baseline_only": true,
+  "visual_acceptance_required": true,
+  "delivery_ready_on_structural_pass": false,
+  "layout_ids": [
+    "COVER_01",
+    "EXECUTIVE_SUMMARY_01",
+    "CONTEXT_01",
+    "PROBLEM_SOLUTION_01",
+    "PROCESS_FLOW_01",
+    "SCOPE_01",
+    "REQUIREMENTS_MATRIX_01",
+    "ARCHITECTURE_01",
+    "COMPLIANCE_01",
+    "TIMELINE_01",
+    "MILESTONES_01",
+    "TEAM_FTE_01",
+    "SUCCESS_METRICS_01",
+    "OPEN_QUESTIONS_01",
+    "NEXT_STEPS_01"
+  ],
+  "required_slots": ["cover.title", "cover.client_name", "next_steps.body"],
+  "pricing_permitted": false,
+  "client_logo_permitted": true,
+  "forbidden_grounded_fact_kinds": ["pricing"]
+}

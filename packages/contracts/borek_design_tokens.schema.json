@@ -2,37 +2,34 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://borek.ai/contracts/borek_design_tokens.schema.json",
   "title": "BorekDesignTokens",
-  "description": "TSK-010 approved presentation branding tokens (JJ-26 CI).",
+  "description": "TSK-010 / TSK-014 approved presentation branding tokens (Arbios definitive master, schema 2.0).",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema_version",
     "description",
     "authority",
+    "canvas",
     "colors",
+    "semantic_accents",
     "surfaces",
     "typography",
+    "cards",
     "borek_logo",
+    "footer",
     "client_logo",
     "gamma_branding",
     "fallback_renderer"
   ],
   "properties": {
-    "schema_version": {
-      "const": "1.0"
-    },
-    "description": {
-      "type": "string",
-      "minLength": 1
-    },
+    "schema_version": { "const": "2.0" },
+    "description": { "type": "string", "minLength": 1 },
     "authority": {
       "type": "object",
       "additionalProperties": false,
       "required": ["presentation_engine", "documents"],
       "properties": {
-        "presentation_engine": {
-          "const": "gamma"
-        },
+        "presentation_engine": { "const": "gamma" },
         "documents": {
           "type": "array",
           "minItems": 1,
@@ -42,27 +39,76 @@
             "required": ["path", "role"],
             "properties": {
               "path": { "type": "string", "minLength": 1 },
-              "role": { "type": "string", "minLength": 1 }
+              "role": { "type": "string", "minLength": 1 },
+              "notes": { "type": "string" }
             }
           }
         }
       }
     },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width_px",
+        "height_px",
+        "content_margin_px",
+        "cover_margin_px",
+        "content_top_px",
+        "content_bottom_px",
+        "source"
+      ],
+      "properties": {
+        "width_px": { "const": 1920 },
+        "height_px": { "const": 1080 },
+        "content_margin_px": { "const": 72 },
+        "cover_margin_px": { "const": 115 },
+        "content_top_px": { "const": 300 },
+        "content_bottom_px": { "const": 930 },
+        "source": { "type": "string", "minLength": 1 }
+      }
+    },
     "colors": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["primary", "heading", "accent", "card_background"],
+      "required": [
+        "primary",
+        "heading",
+        "body",
+        "kicker",
+        "accent",
+        "card_background",
+        "card_panel",
+        "card_border",
+        "footer_muted"
+      ],
       "properties": {
-        "primary": { "$ref": "#/$defs/primaryColorToken" },
-        "heading": { "$ref": "#/$defs/headingColorToken" },
+        "primary": { "$ref": "#/$defs/navyColorToken" },
+        "heading": { "$ref": "#/$defs/navyColorToken" },
+        "body": { "$ref": "#/$defs/bodyColorToken" },
+        "kicker": { "$ref": "#/$defs/kickerColorToken" },
         "accent": { "$ref": "#/$defs/accentColorToken" },
-        "card_background": { "$ref": "#/$defs/cardBackgroundColorToken" }
+        "card_background": { "$ref": "#/$defs/whiteColorToken" },
+        "card_panel": { "$ref": "#/$defs/panelColorToken" },
+        "card_border": { "$ref": "#/$defs/borderColorToken" },
+        "footer_muted": { "$ref": "#/$defs/footerMutedColorToken" }
+      }
+    },
+    "semantic_accents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ai_suite", "ai_projects", "ai_department", "divider_bar"],
+      "properties": {
+        "ai_suite": { "$ref": "#/$defs/semanticAccentToken" },
+        "ai_projects": { "$ref": "#/$defs/semanticAccentToken" },
+        "ai_department": { "$ref": "#/$defs/semanticAccentToken" },
+        "divider_bar": { "$ref": "#/$defs/semanticAccentToken" }
       }
     },
     "surfaces": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["cover"],
+      "required": ["cover", "content_slide"],
       "properties": {
         "cover": {
           "type": "object",
@@ -70,9 +116,18 @@
           "required": ["appearance", "hex", "source"],
           "properties": {
             "appearance": { "const": "dark" },
-            "hex": { "type": "null" },
-            "source": { "type": "string", "minLength": 1 },
-            "notes": { "type": "string" }
+            "hex": { "const": "0D1240" },
+            "source": { "type": "string", "minLength": 1 }
+          }
+        },
+        "content_slide": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["appearance", "hex", "source"],
+          "properties": {
+            "appearance": { "const": "light" },
+            "hex": { "const": "FFFFFF" },
+            "source": { "type": "string", "minLength": 1 }
           }
         }
       }
@@ -80,20 +135,71 @@
     "typography": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["heading_font", "body_font"],
+      "required": ["heading_font", "body_font", "scale_px", "rules"],
       "properties": {
         "heading_font": { "$ref": "#/$defs/fontToken" },
-        "body_font": { "$ref": "#/$defs/fontToken" }
+        "body_font": { "$ref": "#/$defs/fontToken" },
+        "scale_px": { "type": "object", "minProperties": 4 },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "cards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fill_hex", "border_hex", "border_width_px", "radius_px", "source"],
+      "properties": {
+        "fill_hex": { "const": "F3F4F8" },
+        "border_hex": { "const": "E4E7F0" },
+        "border_width_px": { "const": 1 },
+        "radius_px": { "const": 20 },
+        "source": { "type": "string", "minLength": 1 }
       }
     },
     "borek_logo": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["placement", "every_card", "runtime_overridable", "source"],
+      "required": ["every_card", "runtime_overridable", "asset_dark", "asset_light", "rules", "placements", "source"],
       "properties": {
-        "placement": { "const": "bottom_left_header_footer" },
         "every_card": { "const": true },
         "runtime_overridable": { "const": false },
+        "asset_dark": { "const": "logo-dark-2.svg" },
+        "asset_light": { "const": "logo-white-2.svg" },
+        "rules": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "placements": { "type": "object", "minProperties": 4 },
+        "source": { "type": "string", "minLength": 1 }
+      }
+    },
+    "footer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position_top_px",
+        "left_px",
+        "right_px",
+        "font_size_px",
+        "letter_spacing_px",
+        "transform",
+        "color_hex",
+        "left_text",
+        "right_text_pattern",
+        "source"
+      ],
+      "properties": {
+        "position_top_px": { "const": 1000 },
+        "left_px": { "const": 72 },
+        "right_px": { "const": 72 },
+        "font_size_px": { "const": 15 },
+        "letter_spacing_px": { "const": 2.6 },
+        "transform": { "const": "uppercase" },
+        "color_hex": { "const": "9AA0B3" },
+        "left_text": {
+          "const": "Borek Solutions Group · boreksolutions.de · Confidential"
+        },
+        "right_text_pattern": { "const": "{page} / {total}" },
         "source": { "type": "string", "minLength": 1 }
       }
     },
@@ -136,6 +242,7 @@
         "theme_id_setting",
         "template_id_setting",
         "request_override_forbidden",
+        "design_contract_version",
         "source"
       ],
       "properties": {
@@ -149,6 +256,7 @@
         "theme_id_setting": { "const": "GAMMA_THEME_ID" },
         "template_id_setting": { "const": "GAMMA_TEMPLATE_ID" },
         "request_override_forbidden": { "const": true },
+        "design_contract_version": { "const": "2.0" },
         "source": { "type": "string", "minLength": 1 }
       }
     },
@@ -175,32 +283,67 @@
       "properties": {
         "hex": { "type": "string", "pattern": "^[0-9A-Fa-f]{6}$" },
         "source": { "type": "string", "minLength": 1 },
+        "role": { "type": "string" },
+        "usage": { "type": "string" },
         "notes": { "type": "string" }
       }
     },
-    "primaryColorToken": {
+    "navyColorToken": {
       "allOf": [
         { "$ref": "#/$defs/colorTokenBase" },
-        { "properties": { "hex": { "const": "2C567A" } } }
+        { "properties": { "hex": { "const": "0D1240" } } }
       ]
     },
-    "headingColorToken": {
+    "bodyColorToken": {
       "allOf": [
         { "$ref": "#/$defs/colorTokenBase" },
-        { "properties": { "hex": { "const": "0D1D51" } } }
+        { "properties": { "hex": { "const": "515C70" } } }
+      ]
+    },
+    "kickerColorToken": {
+      "allOf": [
+        { "$ref": "#/$defs/colorTokenBase" },
+        { "properties": { "hex": { "const": "8A90A5" } } }
       ]
     },
     "accentColorToken": {
       "allOf": [
         { "$ref": "#/$defs/colorTokenBase" },
-        { "properties": { "hex": { "const": "0072C7" } } }
+        { "properties": { "hex": { "const": "124F94" } } }
       ]
     },
-    "cardBackgroundColorToken": {
+    "whiteColorToken": {
       "allOf": [
         { "$ref": "#/$defs/colorTokenBase" },
         { "properties": { "hex": { "const": "FFFFFF" } } }
       ]
+    },
+    "panelColorToken": {
+      "allOf": [
+        { "$ref": "#/$defs/colorTokenBase" },
+        { "properties": { "hex": { "const": "F3F4F8" } } }
+      ]
+    },
+    "borderColorToken": {
+      "allOf": [
+        { "$ref": "#/$defs/colorTokenBase" },
+        { "properties": { "hex": { "const": "E4E7F0" } } }
+      ]
+    },
+    "footerMutedColorToken": {
+      "allOf": [
+        { "$ref": "#/$defs/colorTokenBase" },
+        { "properties": { "hex": { "const": "9AA0B3" } } }
+      ]
+    },
+    "semanticAccentToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hex", "source"],
+      "properties": {
+        "hex": { "type": "string", "pattern": "^[0-9A-Fa-f]{6}$" },
+        "source": { "type": "string", "minLength": 1 }
+      }
     },
     "fontToken": {
       "type": "object",

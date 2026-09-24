@@ -31,14 +31,19 @@ same code can point at a staging workspace.
 The CI sheet is applied once, by hand, when the template is built in Gamma. It
 is not a runtime input and the pipeline has no way to override it.
 
-| Element | Value |
+**TSK-014 Phase 4:** Visual colours and logo placement are superseded by the
+Arbios definitive master in `packages/contracts/borek_design_tokens.json`
+(schema 2.0). Slot names, stage profiles, and commercial safeguards below remain
+authoritative.
+
+| Element | Value (schema 2.0 / Arbios master) |
 | --- | --- |
-| Primary | `#2C567A` |
-| Heading | `#0D1D51` |
-| Accent | `#0072C7` |
+| Primary / heading navy | `#0D1240` |
+| Body slate | `#515C70` |
+| Accent blue | `#124F94` |
 | Body and heading typeface | Inter |
-| Borek logo | theme logo, bottom-left header/footer on every card |
-| Background | white cards, dark cover |
+| Borek logo | top-right on content slides; top-left white logo on cover/closing |
+| Background | white content slides; `#0D1240` cover |
 
 These keys are refused if they ever appear in a request: `brand_color`, `theme`,
 `font`, `logo_override`, `template_css`, `master_id`. The fixture and live

@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "description": "Narrative and content-structure reference for use-case portfolio presentations. Colours and layout rules come from the HTML master, not this deck's Office theme.",
+  "source": "C:/Users/BlenardTahiraj/Downloads/Ai Tech Use Case EN 1.pptx",
+  "authority": "arbios_definitive",
+  "visual_rules_authority": "packages/contracts/borek_design_tokens.json",
+  "deck_type": "use_case_portfolio",
+  "slide_count": 70,
+  "narrative_blocks": [
+    {
+      "id": "portfolio_intro",
+      "label": "Portfolio introduction",
+      "example_headings": ["AI TECH · REFERENCES", "Use cases in applied AI"],
+      "purpose": "Frame the portfolio scope and edition"
+    },
+    {
+      "id": "use_case_divider",
+      "label": "Use case divider",
+      "pattern": "USE CASE {n} / {total}",
+      "required_lines": [
+        "use_case_title",
+        "category_and_client",
+        "footer_brand_line"
+      ],
+      "footer_phrase": "BOREK SOLUTIONS GROUP · BOREKSOLUTIONS.DE"
+    },
+    {
+      "id": "problem",
+      "label": "Problem statement",
+      "pattern": "01 · THE PROBLEM",
+      "required_sections": ["headline_transformation", "initial_situation", "bullet_pain_points"]
+    },
+    {
+      "id": "inside_the_system",
+      "label": "Inside the system",
+      "pattern": "Inside the system",
+      "required_sections": ["numbered_screens", "screen_title", "one_line_description"],
+      "notes": "Typically 1–3 slides per use case with numbered UI walkthrough"
+    },
+    {
+      "id": "management_summary",
+      "label": "Management summary",
+      "pattern": "MANAGEMENT SUMMARY",
+      "required_sections": ["at_a_glance", "portfolio_stats"]
+    }
+  ],
+  "observed_counts": {
+    "use_case_divider": 14,
+    "problem": 14,
+    "inside_the_system": 36,
+    "management_summary": 1
+  },
+  "content_rules": [
+    "Use plain-language transformation headline (from X to Y)",
+    "Number screens sequentially within each use case",
+    "Keep footer brand line on divider and walkthrough slides",
+    "Do not import Office theme colours from the PPTX"
+  ]
+}

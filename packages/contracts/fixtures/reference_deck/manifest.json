@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "reference_id": "arbios-deepening-v1",
+  "stage": "deepening",
+  "source": "Arbios Borek Master Presentation.html mapped to gamma_template.json deepening profile",
+  "design_contract_version": "2.0",
+  "layout_ids": [
+    "COVER_01",
+    "EXECUTIVE_SUMMARY_01",
+    "PROBLEM_SOLUTION_01",
+    "TEAM_FTE_01",
+    "NEXT_STEPS_01"
+  ],
+  "required_slots": ["cover.title", "next_steps.body"],
+  "pricing_permitted": false,
+  "client_logo_permitted": true,
+  "forbidden_grounded_fact_kinds": ["pricing"]
+}

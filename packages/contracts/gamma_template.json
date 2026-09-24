@@ -1,5 +1,13 @@
 {
   "schema_version": "1.0",
+  "design_contract": {
+    "version": "2.0",
+    "tokens": "packages/contracts/borek_design_tokens.json",
+    "layout_registry": "packages/contracts/arbios_master_layout_registry.json",
+    "layout_map": "packages/contracts/gamma_arbios_layout_map.json",
+    "visual_contract": "packages/contracts/reference_deck_visual_contract.json",
+    "use_case_reference": "packages/contracts/use_case_presentation_reference.json"
+  },
     "description": "JJ-26 / JJ-31: the branded Borek Gamma template. Branding is locked in the template and never sent per request; only the named content slots below vary per client. stage_profiles select which cards, logo, and pricing facts apply at each journey stage. Slot source chapters are a subset of the layout's allowed chapters in the internal renderer, so both engines cite the same Framework evidence.",
   "template_id": "borek-branded-standard",
   "template_version": "v1",
