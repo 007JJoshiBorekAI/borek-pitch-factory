@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { JourneyStageChoice } from "@/components/JourneyStageSelector";
@@ -25,6 +25,7 @@ import {
   getLatestPresentationPlan,
   getOpportunity,
   getPresentation,
+  getPresentationPlan,
   regeneratePresentationSlide,
   retryJob,
   waitForJob,
@@ -36,7 +37,7 @@ import {
   isMissingPresentationPlanError,
   isPresentationNotReadyError,
 } from "@/lib/apiErrors";
-import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
+import { buildDownloadFilename, mapDeckSlides, waitForDeckCenter } from "@/lib/deckCenter";
 import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
 import { draftFromNotes, loadPitchDraft, type PitchDraft } from "@/lib/pitchDraft";
 import { buildPitchReviewSlides, pitchReviewStatusLabel } from "@/lib/pitchReview";
@@ -108,6 +109,7 @@ export function DeckCenterPanel({
   const [recoveryTarget, setRecoveryTarget] = useState<"job" | "download-pptx" | "download-pdf">(
     "job",
   );
+  const autoBuildRef = useRef(false);
 
   const trackJob = useCallback((job: JobResponse) => {
     setJobSnapshot(snapshotFromJob(job));
@@ -129,7 +131,7 @@ export function DeckCenterPanel({
     [pitchDraft, plan, slideTiles],
   );
   const reviewStatus = pitchReviewStatusLabel(reviewSlides);
-  const ready = Boolean(deck && presentation);
+  const ready = Boolean(presentation && (deck || (isStage2Chrome && reviewSlides.length > 0)));
   const generatedAt = formatGeneratedAt(presentation?.created_at);
   const version = versionLabel(deck?.version_number);
 
@@ -139,7 +141,10 @@ export function DeckCenterPanel({
         return;
       }
       try {
-        const center = await getDeckCenter(accessToken, presentationId);
+        const center = await waitForDeckCenter(
+          () => getDeckCenter(accessToken, presentationId),
+          { isNotReady: isPresentationNotReadyError },
+        );
         setDeck(center);
         setPartialArtifacts(center.slides.length === 0);
         setPptxAvailable(Boolean(center.pptx_download_url));
@@ -213,23 +218,33 @@ export function DeckCenterPanel({
   }, [accessToken, opportunityId]);
 
   useEffect(() => {
-    if (!accessToken) {
+    if (!accessToken || !presentation) {
       return;
     }
     let cancelled = false;
-    void getLatestPresentationPlan(accessToken, opportunityId)
+    void getPresentationPlan(accessToken, presentation.presentation_plan_id)
       .then((latest) => {
         if (!cancelled) setPlan(latest);
       })
-      .catch((loadError) => {
-        if (!cancelled && !isMissingPresentationPlanError(loadError)) {
-          setPlan(null);
+      .catch(async (loadError) => {
+        if (cancelled) {
+          return;
         }
+        if (isMissingPresentationPlanError(loadError)) {
+          try {
+            const latest = await getLatestPresentationPlan(accessToken, opportunityId);
+            if (!cancelled) setPlan(latest);
+          } catch {
+            setPlan(null);
+          }
+          return;
+        }
+        setPlan(null);
       });
     return () => {
       cancelled = true;
     };
-  }, [accessToken, opportunityId]);
+  }, [accessToken, opportunityId, presentation]);
 
   useEffect(() => {
     if (loading || !accessToken) {
@@ -311,7 +326,12 @@ export function DeckCenterPanel({
     setInfo(null);
     setRetryJobId(null);
     try {
-      const generated = await generatePresentation(accessToken, opportunityId);
+      const generated = await generatePresentation(
+        accessToken,
+        opportunityId,
+        undefined,
+        journeyStageForGenerate(opportunityId),
+      );
       setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("deck", generated.job_id));
       setJobPolling(true);
@@ -334,6 +354,33 @@ export function DeckCenterPanel({
       setJobPolling(false);
     }
   }
+
+  useEffect(() => {
+    if (
+      !isStage2Chrome ||
+      autoBuildRef.current ||
+      loading ||
+      !accessToken ||
+      contentLoading ||
+      jobPolling ||
+      busy ||
+      presentation ||
+      notice
+    ) {
+      return;
+    }
+    autoBuildRef.current = true;
+    void handleGenerateDeck();
+  }, [
+    accessToken,
+    busy,
+    contentLoading,
+    isStage2Chrome,
+    jobPolling,
+    loading,
+    notice,
+    presentation,
+  ]);
 
   async function handleRetry() {
     if (!accessToken || !retryJobId) {
@@ -437,19 +484,34 @@ export function DeckCenterPanel({
   }
 
   async function handleDownload(kind: "pptx" | "pdf") {
-    if (!accessToken || !deck) {
+    if (!accessToken || !presentation) {
       return;
     }
     setRecoveryTarget(kind === "pptx" ? "download-pptx" : "download-pdf");
     setBusy(true);
     setNotice(null);
     try {
-      const path = kind === "pptx" ? deck.pptx_download_url : deck.pdf_download_url;
+      const center = await waitForDeckCenter(
+        () => getDeckCenter(accessToken, presentation.id),
+        { isNotReady: isPresentationNotReadyError, attempts: 8, intervalMs: 1000 },
+      );
+      setDeck(center);
+      setPptxAvailable(Boolean(center.pptx_download_url));
+      setPdfAvailable(Boolean(center.pdf_download_url));
+      const path = kind === "pptx" ? center.pptx_download_url : center.pdf_download_url;
+      if (!path) {
+        throw new ApiRequestError(
+          "The PowerPoint file is still being written. Try again in a moment.",
+          409,
+          "PRESENTATION_NOT_READY",
+          { retryable: true },
+        );
+      }
       const blob = await downloadPresentationFile(accessToken, path);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = buildDownloadFilename(deck.presentation_name, kind);
+      anchor.download = buildDownloadFilename(center.presentation_name, kind);
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
@@ -549,6 +611,7 @@ export function DeckCenterPanel({
           </div>
         ) : null}
 
+        {!(isStage2Chrome && ready) ? (
         <WorkflowActionBar
           backHref={backHref}
           backLabel={backLabel}
@@ -592,6 +655,7 @@ export function DeckCenterPanel({
             </button>
           )}
         </WorkflowActionBar>
+        ) : null}
         {isStage2Chrome ? (
           <>
             <p className="pitch-breadcrumb">
@@ -666,7 +730,7 @@ export function DeckCenterPanel({
               </section>
             ) : null}
 
-            {presentation && !deck && isAuthenticated && !contentLoading && !busy && !notice ? (
+            {presentation && !deck && isAuthenticated && !contentLoading && !busy && !notice && !isStage2Chrome ? (
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>
@@ -685,13 +749,16 @@ export function DeckCenterPanel({
               </section>
             ) : null}
 
-            {deck && presentation && accessToken ? (
-              <section className="upload-panel presentation-ready-panel" data-testid="presentation-ready">
+            {((deck && presentation) || (isStage2Chrome && presentation && reviewSlides.length > 0)) && accessToken ? (
+              <section
+                className={isStage2Chrome ? "pitch-review-stage" : "upload-panel presentation-ready-panel"}
+                data-testid="presentation-ready"
+              >
                 <PitchReviewView
                   accessToken={accessToken}
                   clientName={clientName}
                   opportunityId={opportunityId}
-                  presentationName={deck.presentation_name || pitchDraft?.pitchTitle || "Pitch"}
+                  presentationName={deck?.presentation_name || pitchDraft?.pitchTitle || "Pitch"}
                   versionLabel={version}
                   statusLabel={reviewStatus}
                   slides={reviewSlides}

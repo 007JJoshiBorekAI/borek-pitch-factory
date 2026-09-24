@@ -76,16 +76,46 @@ function checksForLayout(layoutId: string): PitchReviewCheck[] {
   ];
 }
 
-function mergePlannedSlide(planned: PlannedSlide | undefined, tile: SlidePreviewTile): PitchReviewSlideItem {
+function fallbackBullets(
+  purpose: string,
+  references: string[],
+  layoutId: string,
+  draft: PitchDraft | null,
+): string[] {
+  if (references.length > 0) {
+    return references.slice(0, 4);
+  }
+  const fromPurpose = linesFromText(purpose, 3);
+  if (fromPurpose.length > 1) {
+    return fromPurpose;
+  }
+  const category = layoutId.toUpperCase();
+  const draftLines = [
+    category.includes("COVER") || category.includes("CONTEXT") ? draft?.businessNeed : "",
+    category.includes("PROBLEM") || category.includes("CHALLENGE") ? draft?.painPoints : "",
+    category.includes("SCOPE") || category.includes("REQUIRE") ? draft?.requirements : "",
+    category.includes("NEXT") || category.includes("TIMELINE") ? draft?.nextMeeting || draft?.timeline : "",
+    draft?.proposedSolution,
+    draft?.borekServices,
+    draft?.summary,
+  ]
+    .flatMap((value) => linesFromText(value ?? "", 2))
+    .filter(Boolean);
+  if (draftLines.length > 0) {
+    return draftLines.slice(0, 3);
+  }
+  return fromPurpose.length > 0 ? fromPurpose : [purpose];
+}
+
+function mergePlannedSlide(
+  planned: PlannedSlide | undefined,
+  tile: SlidePreviewTile,
+  draft: PitchDraft | null,
+): PitchReviewSlideItem {
   const layoutLabel = formatLayoutLabel(tile.layoutId);
   const purpose = planned?.purpose?.trim() || layoutLabel;
   const references = planned?.frameworkReferences?.filter(Boolean) ?? [];
-  const bullets =
-    references.length > 0
-      ? references.slice(0, 4)
-      : linesFromText(purpose, 3).length > 0
-        ? linesFromText(purpose, 3)
-        : [purpose];
+  const bullets = fallbackBullets(purpose, references, tile.layoutId, draft);
 
   return {
     slideId: tile.slideId,
@@ -96,7 +126,7 @@ function mergePlannedSlide(planned: PlannedSlide | undefined, tile: SlidePreview
     purpose,
     whyThisSlide: purpose,
     bullets,
-    selectedContent: references.length > 0 ? references.slice(0, 2) : [layoutLabel],
+    selectedContent: references.length > 0 ? references.slice(0, 2) : bullets.slice(0, 2),
     borekSources: references.length > 0 ? references : ["Released capabilities deck", "Brand master"],
     clientQuote: null,
     evidenceSource: null,
@@ -106,18 +136,33 @@ function mergePlannedSlide(planned: PlannedSlide | undefined, tile: SlidePreview
   };
 }
 
+export function tilesFromPlannedSlides(plannedSlides: PlannedSlide[]): SlidePreviewTile[] {
+  return plannedSlides
+    .slice()
+    .sort((left, right) => left.order - right.order)
+    .map((slide, index) => ({
+      slideId: `planned-${slide.order}`,
+      slideIndex: index,
+      layoutId: slide.layoutId,
+      previewUrl: null,
+    }));
+}
+
 export function buildPitchReviewSlides(
   tiles: SlidePreviewTile[],
   plannedSlides: PlannedSlide[],
   draft: PitchDraft | null,
 ): PitchReviewSlideItem[] {
-  const sortedTiles = tiles.slice().sort((left, right) => left.slideIndex - right.slideIndex);
   const sortedPlan = plannedSlides.slice().sort((left, right) => left.order - right.order);
+  const sortedTiles =
+    tiles.length > 0
+      ? tiles.slice().sort((left, right) => left.slideIndex - right.slideIndex)
+      : tilesFromPlannedSlides(sortedPlan);
   const evidence = clientQuoteFromDraft(draft);
 
   return sortedTiles.map((tile, index) => {
     const planned = sortedPlan[index] ?? sortedPlan.find((slide) => slide.order === tile.slideIndex + 1);
-    const item = mergePlannedSlide(planned, tile);
+    const item = mergePlannedSlide(planned, tile, draft);
     return {
       ...item,
       clientQuote: evidence.quote,

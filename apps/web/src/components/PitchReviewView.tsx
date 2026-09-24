@@ -109,10 +109,6 @@ export function PitchReviewView({
     return active.checks.filter((check) => !checked[`${active.slideId}:${check.id}`]).length;
   }, [active, checked]);
 
-  if (!active) {
-    return null;
-  }
-
   return (
     <div className="pitch-review-page" data-testid="pitch-review-page">
       <div className="pitch-review-topline">
@@ -124,9 +120,18 @@ export function PitchReviewView({
           <span className="pitch-review-status">{statusLabel}</span>
           <button
             type="button"
+            className="btn btn-secondary"
+            data-testid="download-powerpoint"
+            disabled={busy || !pptxAvailable}
+            onClick={onDownloadPptx}
+          >
+            {pptxAvailable ? "Download PowerPoint" : "PowerPoint still rendering…"}
+          </button>
+          <button
+            type="button"
             className="btn btn-primary"
             data-testid="use-this-version"
-            disabled={busy}
+            disabled={busy || slides.length === 0}
             onClick={onUseVersion}
           >
             Use this version
@@ -138,6 +143,11 @@ export function PitchReviewView({
         {clientName} / {presentationName || "Pitch"}
       </p>
 
+      {!active ? (
+        <p className="upload-hint" data-testid="pitch-review-empty">
+          Slide previews are still arriving. The PowerPoint download will enable as soon as the file is ready.
+        </p>
+      ) : (
       <div className="pitch-review-workspace">
         <div className="pitch-review-main">
           <div className="pitch-section-label">
@@ -155,13 +165,10 @@ export function PitchReviewView({
             ))}
           </p>
           <div className="pitch-review-toolbar">
-            <button type="button" className="btn btn-secondary" disabled={busy}>
-              Edit slide
-            </button>
             <button
               type="button"
               className="btn btn-secondary"
-              disabled={busy}
+              disabled={busy || active.slideId.startsWith("planned-")}
               onClick={() => onRegenerate(active.slideId)}
             >
               Regenerate
@@ -241,6 +248,7 @@ export function PitchReviewView({
           </p>
         </aside>
       </div>
+      )}
     </div>
   );
 }

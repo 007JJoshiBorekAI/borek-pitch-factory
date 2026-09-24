@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { StageStepper } from "@/components/StageChrome";
 import { useAuth } from "@/components/AuthProvider";
 import { generateFramework, getOpportunity, listTranscripts } from "@/lib/api";
+import { saveSelectedJourneyStage } from "@/lib/journeyStageSelection";
 import { TRANSCRIPT_REQUIRED_MESSAGE } from "@/lib/transcriptFormats";
 import { draftFromNotes, emptyPitchDraft, loadPitchDraft, savePitchDraft, type PitchDraft } from "@/lib/pitchDraft";
 
@@ -71,8 +72,13 @@ export function CreatePitchPanel() {
     setError(null);
     try {
       savePitchDraft(opportunityId, draft);
-      await generateFramework(accessToken, opportunityId);
-      router.push(`/meeting-preparation?opportunityId=${encodeURIComponent(opportunityId)}`);
+      saveSelectedJourneyStage("deepening", opportunityId);
+      const generated = await generateFramework(accessToken, opportunityId);
+      const next = new URLSearchParams({ opportunityId });
+      if (generated.job_id) {
+        next.set("frameworkJobId", generated.job_id);
+      }
+      router.push(`/meeting-preparation?${next.toString()}`);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "The pitch could not be created. Add a transcript on the first meeting, then try again.");
       setBusy(false);
