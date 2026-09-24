@@ -22,9 +22,6 @@ out/
 dist/
 *.tsbuildinfo
 
-# Generated (AT-4 / AT-5 output � do not commit hand-edits)
-generated/python/
-generated/typescript/
 
 # IDE / OS
 .idea/
