@@ -21,6 +21,7 @@ from app.schemas.opportunities import (
     OpportunityUpdateRequest,
     RecentWorkSnapshot,
 )
+from app.services.pitch_owner import employee_pitch_owner, parse_team_members
 from app.services.recent_work import list_recent_work_snapshots
 from app.services import job_service
 from app.services.api_errors import not_found
@@ -55,6 +56,9 @@ def create_opportunity(
         opportunity_name=body.opportunity_name,
         department=body.department,
         language=body.language,
+        pitch_owner=employee_pitch_owner(user.id),
+        team_members=parse_team_members(body.team_members_text),
+        pitch_description=body.pitch_description,
         pii_redaction_enabled=body.pii_redaction_enabled,
         additional_client_information=(
             body.additional_client_information.model_dump()

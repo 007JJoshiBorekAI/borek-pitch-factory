@@ -41,6 +41,30 @@ def _create_opportunity(client: TestClient) -> str:
     return response.json()["id"]
 
 
+def test_create_opportunity_sets_pitch_owner_from_signed_in_user() -> None:
+    client = _client()
+    response = client.post(
+        "/opportunities",
+        headers=_headers(),
+        json={
+            "client_name": "Acme Corp",
+            "opportunity_name": "Invoice Automation",
+            "department": "Finance",
+            "language": "en",
+            "team_members_text": "Alex Analyst",
+            "pitch_description": "Short overview",
+        },
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["pitch_owner"] == {
+        "source": "employee",
+        "employee_id": str(USER_ID),
+    }
+    assert body["team_members"] == ["Alex Analyst"]
+    assert body["pitch_description"] == "Short overview"
+
+
 def test_create_and_get_opportunity() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)

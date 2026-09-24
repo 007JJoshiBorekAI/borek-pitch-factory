@@ -328,6 +328,8 @@ export interface OpportunityCreatePayload {
   department: string;
   language: string;
   pii_redaction_enabled?: boolean;
+  pitch_description?: string;
+  team_members_text?: string;
   additional_client_information?: AdditionalClientInformation;
   followup_statics?: FollowupProjectStatics;
   stage1_intake?: Stage1Intake | null;

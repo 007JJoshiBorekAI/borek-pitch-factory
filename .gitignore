@@ -37,6 +37,7 @@ local_es_harness/
 # Render / test artifacts
 *.pptx
 *.pdf
+!samples/**/*.pdf
 !tests/fixtures/**/*.pptx
 tests/golden_deck/**/output/
 tmp/

@@ -58,6 +58,8 @@ export function NewPitchPanel() {
         opportunity_name: draft.pitchTitle.trim(),
         department: draft.service.trim() || "General",
         language: "en",
+        pitch_description: draft.description.trim() || undefined,
+        team_members_text: draft.team.trim() || undefined,
         pii_redaction_enabled: true,
         additional_client_information: informationWithDraft(null, draft),
         stage1_intake: buildStage1Intake(draft),
@@ -114,7 +116,6 @@ export function NewPitchPanel() {
         {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
         <div className="pitch-body-cols">
           <div className="pitch-form-col">
-            <div className="pitch-form-eyebrow">01 Client & opportunity</div>
             <div className="pitch-form-row">
               <label>
                 <span className="pitch-field-label">Pitch Name / Title</span>

@@ -470,11 +470,15 @@ class SupabaseDataStore:
         opportunity_name: str,
         department: str,
         language: str,
+        pitch_owner: dict[str, Any] | None = None,
+        team_members: list[Any] | None = None,
+        pitch_description: str | None = None,
         pii_redaction_enabled: bool = True,
         additional_client_information: dict[str, Any] | None = None,
         followup_statics: dict[str, Any] | None = None,
         stage1_intake: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        from app.services.pitch_owner import employee_pitch_owner
         from app.services.stage1_intake_store import apply_intake_columns
 
         payload = {
@@ -482,6 +486,9 @@ class SupabaseDataStore:
             "opportunity_name": opportunity_name,
             "department": department,
             "language": language,
+            "pitch_owner": pitch_owner or employee_pitch_owner(user_id),
+            "team_members": team_members if team_members is not None else [],
+            "pitch_description": pitch_description,
             "status": "active",
             "pii_redaction_enabled": bool(pii_redaction_enabled),
             "additional_client_information": additional_client_information,

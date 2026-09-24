@@ -1,0 +1,23 @@
+Lena Hoffmann (BOREK): Good morning everyone. Welcome to the Meridian AP requirements workshop. We will keep the follow-up email short and put detail in the protocol.
+Sandra Krüger (Meridian): Agreed. Markus from procurement is here for buyer escalation rules.
+Markus Dietrich (Meridian): Morning.
+Jonas Richter (BOREK): Agenda: scope confirmation, matching rules, integration boundaries, then actions.
+Lena Hoffmann (BOREK): For the interface between the matching agent and SAP, we propose REST, not SOAP — Thomas, does that align with your integration standards?
+Thomas Berg (Meridian): Yes. REST is what we prefer for new services. OAuth client credentials for the technical user.
+Sandra Krüger (Meridian): Pilot scope stays invoice matching only. Warehouse labelling and credit notes stay out of scope for now.
+Lena Hoffmann (BOREK): Decision noted: pilot is invoice 3-way match only; credit notes deferred to a later stage.
+Jonas Richter (BOREK): On tolerances — quantity exact, unit price exact unless discount agreement, total rounding up to fifty cents, over two percent deviation always human review, duplicates blocked, above five thousand euros one-click approval even if rules pass. Still accurate?
+Sandra Krüger (Meridian): Yes, that is our rule book. Markus, anything from buyers?
+Markus Dietrich (Meridian): If the agent cannot resolve in two business days, route to me via ServiceNow, not email to the supplier.
+Lena Hoffmann (BOREK): Understood — no autonomous supplier email in phase one; escalation internal only.
+Thomas Berg (Meridian): Raw PDFs deleted after extraction — confirm retention is metadata plus structured fields only.
+Jonas Richter (BOREK): Confirmed in the architecture slide we shared.
+Sandra Krüger (Meridian): Success metrics: eighty-five percent auto-match on clean cases, manual hours down from seventy-five to twelve per month, zero wrong postings outside tolerance.
+Lena Hoffmann (BOREK): I will deliver the interface specification document by 25 September 2026.
+Sandra Krüger (Meridian): I will provide the test invoice pack by 18 September 2026 — bank details masked.
+Thomas Berg (Meridian): I will complete the security questionnaire by 22 September 2026.
+Markus Dietrich (Meridian): I will send the ServiceNow queue name for escalations by 19 September 2026.
+Lena Hoffmann (BOREK): Open question: when should we involve the works council — before or after sandbox demo?
+Sandra Krüger (Meridian): Before any demo that shows posting into SAP, even sandbox. I need a written agenda two weeks ahead.
+Lena Hoffmann (BOREK): We will draft that agenda next week. Coffee break?
+Sandra Krüger (Meridian): Five minutes, then we do the exception walkthrough.

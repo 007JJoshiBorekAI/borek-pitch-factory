@@ -96,7 +96,7 @@ export function FirstContactPanel() {
             </p>
             <div className="title-row" style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start" }}>
               <div>
-                <h2 className="pitch-greet">Stage 1 · First contact</h2>
+                <h2 className="pitch-greet"> First contact</h2>
                 <p className="pitch-status-line">
                   {ready ? "Information pack ready" : "New prospect · First meeting preparation"}
                 </p>

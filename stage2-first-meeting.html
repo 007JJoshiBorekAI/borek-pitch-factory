@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Stage 2 · First meeting · Borek AI Pitch</title>
+<title>First meeting · Borek AI Pitch</title>
 <style>
 :root{
   --navy:#12224a; --navy-dark:#0e1a38; --blue:#2f5fd1; --blue-light:#eaf0ff;
-  --gray-25:#fafbfc; --gray-50:#f6f7f9; --gray-100:#eef0f3; --gray-200:#e3e5ea;
+  --gray-50:#f6f7f9; --gray-100:#eef0f3; --gray-200:#e3e5ea;
   --gray-400:#9aa1ae; --gray-500:#767e8c; --gray-600:#5b6472; --gray-800:#333c4d;
   --orange:#e08a2b; --red:#d3452b; --teal:#14a394;
 }
@@ -37,72 +37,21 @@ h1.page-title{font-size:32px;font-weight:700;margin:4px 0 0;color:var(--navy);}
 .user-name{font-size:14px;font-weight:600;color:var(--navy);}
 .progress-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;margin:22px 0 26px;}
 .progress-bar span{display:block;height:100%;}
-.breadcrumb{color:var(--gray-500);font-size:14px;margin-bottom:8px;}
-.breadcrumb a{color:var(--gray-500);font-weight:400;}
-h2.big-title{font-size:34px;font-weight:400;margin:0 0 12px;color:var(--navy);}
-.status-line{display:flex;align-items:center;gap:8px;color:var(--blue);font-weight:600;font-size:14px;margin-bottom:10px;}
-.status-line .status-dot{width:8px;height:8px;border-radius:2px;background:var(--navy);}
-.subtle{color:var(--gray-500);font-size:15px;margin:0 0 30px;}
 
-/* stepper */
-.stepper{display:flex;align-items:flex-start;margin-bottom:38px;position:relative;}
-.step-item{flex:1;position:relative;text-align:left;}
-.step-item .line{position:absolute;top:6px;left:0;right:0;height:2px;background:var(--gray-200);}
-.step-item:first-child .line{left:50%;}
-.step-item:last-child .line{right:50%;}
-.step-marker{width:13px;height:13px;position:relative;z-index:1;margin-bottom:12px;}
-.step-marker.done{background:var(--navy);}
-.step-marker.current{background:#fff;border:3px solid var(--blue);}
-.step-marker.later{background:#fff;border:2px solid var(--gray-300, #d7dae0);}
-.step-name{font-weight:700;color:var(--navy);font-size:15px;}
-.step-name.muted{color:var(--gray-500);font-weight:600;}
-.step-state{font-size:13px;color:var(--gray-500);}
-.step-state.current{color:var(--blue);font-weight:600;}
-
-.body-cols{display:flex;gap:36px;align-items:flex-start;}
-.left-col{width:260px;flex-shrink:0;}
-.mid-col{flex:1;min-width:0;}
-.right-col{width:320px;flex-shrink:0;}
-
-.panel-label{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--gray-500);text-transform:uppercase;margin-bottom:6px;}
-.panel-desc{color:var(--gray-500);font-size:13px;margin-bottom:18px;}
-.input-item{padding:14px;border-radius:6px;margin-bottom:6px;}
-.input-item.active{background:#fff;border-left:3px solid var(--blue);box-shadow:0 0 0 1px var(--gray-200);}
-.input-item .name{font-weight:700;color:var(--navy);font-size:14px;}
-.input-item .meta{font-size:12.5px;color:var(--gray-500);margin-top:2px;}
-.input-item .meta.blue{color:var(--blue);font-weight:600;}
-.left-divider{border-top:1px solid var(--gray-200);margin:22px 0 16px;}
-.source-title{font-weight:700;color:var(--navy);margin-bottom:6px;}
-.source-desc{color:var(--gray-500);font-size:13px;}
-
-h3.mid-title{font-size:26px;font-weight:700;margin:0 0 6px;color:var(--navy);}
-.mid-sub{color:var(--gray-500);font-size:14px;margin:0 0 22px;}
-.card{border:1px solid var(--gray-200);border-radius:8px;padding:18px 20px;margin-bottom:16px;}
+.meeting-panel{max-width:920px;}
+h2.meeting-title{font-size:26px;font-weight:700;margin:0 0 6px;color:var(--navy);}
+.meeting-sub{color:var(--gray-500);font-size:14px;margin:0 0 22px;}
+.card{border:1px solid var(--gray-200);border-radius:8px;padding:18px 20px;margin-bottom:16px;background:#fff;}
 .card-row{display:flex;gap:16px;}
 .card-row .card{flex:1;}
 .card-label{font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--gray-500);text-transform:uppercase;margin-bottom:8px;}
 .card-value{font-size:14.5px;color:var(--gray-800);}
-.card ul{margin:0;padding-left:18px;}
+.card ul{margin:0;padding-left:18px;color:var(--gray-800);font-size:14.5px;}
 .card li{margin-bottom:4px;}
-.bottom-actions{display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
+.bottom-actions{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:16px;flex-wrap:wrap;}
 .btn-outline{background:#fff;color:var(--navy);border:1px solid var(--gray-200);border-radius:6px;padding:13px 20px;font-size:14px;font-weight:600;cursor:pointer;}
 .btn-primary{background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;}
 .saved-note{color:var(--gray-500);font-size:13px;margin-top:10px;}
-
-.right-panel{border:1px solid var(--gray-200);border-radius:8px;padding:22px;}
-h3.right-title{font-size:24px;font-weight:700;margin:6px 0 14px;color:var(--navy);}
-.progress-thin{height:6px;border-radius:3px;background:var(--gray-100);overflow:hidden;margin-bottom:14px;}
-.progress-thin span{display:block;height:100%;width:75%;background:var(--blue);}
-.right-desc{color:var(--gray-500);font-size:13.5px;margin-bottom:18px;}
-.right-divider{border-top:1px solid var(--gray-200);margin:18px 0;}
-.missing-label{color:var(--blue);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
-.missing-item{color:var(--navy);font-weight:600;font-size:14px;margin-bottom:4px;}
-.btn-disabled{background:var(--gray-100);color:var(--gray-400);border:none;border-radius:6px;padding:13px 20px;font-size:14px;font-weight:600;width:100%;cursor:default;margin:16px 0 8px;}
-.right-fine{color:var(--gray-500);font-size:12.5px;}
-.carries-label{color:var(--gray-500);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
-.carries-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:9px;font-size:14px;color:var(--navy);}
-.carries-item .sq{width:7px;height:7px;background:var(--navy);margin-top:6px;flex-shrink:0;}
-.no-twice{color:var(--blue);font-weight:700;font-size:13.5px;margin-top:14px;}
 </style>
 </head>
 <body>
@@ -123,7 +72,7 @@ h3.right-title{font-size:24px;font-weight:700;margin:6px 0 14px;color:var(--navy
   </aside>
   <main class="main">
     <div class="topline">
-      <h1 class="page-title">Stage 2</h1>
+      <h1 class="page-title">Pitch Factory</h1>
       <div class="header-actions">
         <div class="lang-toggle"><span>DE</span><span class="active">EN</span></div>
         <div class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="dot"></span></div>
@@ -137,92 +86,39 @@ h3.right-title{font-size:24px;font-weight:700;margin:6px 0 14px;color:var(--navy
       <span style="width:25%;background:var(--teal)"></span>
     </div>
 
-    <div class="breadcrumb"><a href="#">Clients</a> / <a href="#">Acme GmbH</a> / <a href="#">Customer operations</a></div>
-    <h2 class="big-title">Stage 2 · After first meeting</h2>
-    <div class="status-line"><span class="status-dot"></span> First meeting complete · Transcript received · 18 Sep 2026</div>
-    <p class="subtle">Capture what the client told us, then create the next pitch without re-entering it.</p>
+    <section class="meeting-panel" aria-label="First meeting">
+      <h2 class="meeting-title">First meeting</h2>
+      <p class="meeting-sub">Suggested from the transcript. Review and edit before continuing.</p>
 
-    <div class="stepper">
-      <div class="step-item"><div class="line"></div><div class="step-marker done"></div><div class="step-name">Stage 1</div><div class="step-state">Complete</div></div>
-      <div class="step-item"><div class="line"></div><div class="step-marker done"></div><div class="step-name">First meeting</div><div class="step-state">Complete</div></div>
-      <div class="step-item"><div class="line"></div><div class="step-marker current"></div><div class="step-name">Stage 2</div><div class="step-state current">Current</div></div>
-      <div class="step-item"><div class="line"></div><div class="step-marker later"></div><div class="step-name muted">Create pitch</div><div class="step-state">Next</div></div>
-      <div class="step-item"><div class="line"></div><div class="step-marker later"></div><div class="step-name muted">Prepare</div><div class="step-state">Later</div></div>
-      <div class="step-item"><div class="line"></div><div class="step-marker later"></div><div class="step-name muted">Present</div><div class="step-state">Later</div></div>
-    </div>
-
-    <div class="body-cols">
-      <div class="left-col">
-        <div class="panel-label">Stage 2 inputs</div>
-        <div class="panel-desc">Review what was captured from the meeting.</div>
-        <div class="input-item active"><div class="name">01 First meeting</div><div class="meta">Current · 6 fields</div></div>
-        <div class="input-item"><div class="name">02 Opportunity</div><div class="meta">Ready to review · 6 fields</div></div>
-        <div class="input-item"><div class="name">03 Stakeholders</div><div class="meta">Ready to review · 3 fields</div></div>
-        <div class="input-item"><div class="name">04 Next steps</div><div class="meta blue">2 missing · 4 fields</div></div>
-        <div class="left-divider"></div>
-        <div class="panel-label">Source</div>
-        <div class="source-title">Jamie.ai transcript</div>
-        <div class="source-desc">Manual edits stay linked to this meeting and are added to activity.</div>
+      <div class="card-row">
+        <div class="card"><div class="card-label">Meeting date</div><div class="card-value">18 September 2026 · 10:00–11:00</div></div>
+        <div class="card"><div class="card-label">Meeting participants</div><div class="card-value">Mira Koch · Leon Weber · Elena Manovska</div></div>
       </div>
-
-      <div class="mid-col">
-        <h3 class="mid-title">First meeting</h3>
-        <p class="mid-sub">Suggested from the transcript. Review and edit before continuing.</p>
-
-        <div class="card-row">
-          <div class="card"><div class="card-label">Meeting date</div><div class="card-value">18 September 2026 · 10:00–11:00</div></div>
-          <div class="card"><div class="card-label">Meeting participants</div><div class="card-value">Mira Koch · Leon Weber · Elena Manovska</div></div>
+      <div class="card">
+        <div class="card-label">Meeting summary</div>
+        <div class="card-value">Acme wants to standardise multilingual support operations and test a focused pilot before peak season. Borek should outline the operating model, quality controls and delivery plan.</div>
+      </div>
+      <div class="card-row">
+        <div class="card">
+          <div class="card-label">Client needs / pain points</div>
+          <ul><li>Inconsistent QA across four languages</li><li>Slow onboarding</li><li>Uneven performance reporting</li></ul>
         </div>
         <div class="card">
-          <div class="card-label">Meeting summary</div>
-          <div class="card-value">Acme wants to standardise multilingual support operations and test a focused pilot before peak season. Borek should outline the operating model, quality controls and delivery plan.</div>
-        </div>
-        <div class="card-row">
-          <div class="card">
-            <div class="card-label">Client needs / pain points</div>
-            <ul><li>Inconsistent QA across four languages</li><li>Slow onboarding</li><li>Uneven performance reporting</li></ul>
-          </div>
-          <div class="card">
-            <div class="card-label">Client requirements</div>
-            <ul><li>German data handling</li><li>Start with DE and EN</li><li>Weekly quality reporting</li></ul>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-label">Questions / concerns raised</div>
-          <div class="card-value">How quickly can a pilot team start? How will Borek evidence quality improvement? Can the pilot extend to Polish and French?</div>
-        </div>
-
-        <div class="bottom-actions">
-          <button class="btn-outline">Open transcript</button>
-          <button class="btn-primary">Continue to opportunity →</button>
-        </div>
-        <div class="saved-note">Saved just now · changes logged</div>
-      </div>
-
-      <div class="right-col">
-        <div class="right-panel">
-          <div class="panel-label">Create pitch</div>
-          <h3 class="right-title">3 of 4 sections ready</h3>
-          <div class="progress-thin"><span></span></div>
-          <div class="right-desc">Complete Stage 2 before creating the next client presentation.</div>
-          <div class="right-divider"></div>
-          <div class="missing-label">Missing</div>
-          <div class="missing-item">Next meeting date</div>
-          <div class="missing-item">Responsible team member</div>
-          <button class="btn-disabled">Create pitch →</button>
-          <div class="right-fine">Available when required information is reviewed.</div>
-          <div class="right-divider"></div>
-          <div class="carries-label">Carries into the pitch</div>
-          <div class="carries-item"><span class="sq"></span>Client &amp; meeting summary</div>
-          <div class="carries-item"><span class="sq"></span>Business need &amp; pain points</div>
-          <div class="carries-item"><span class="sq"></span>Requirements &amp; proposed solution</div>
-          <div class="carries-item"><span class="sq"></span>Relevant services &amp; scope</div>
-          <div class="carries-item"><span class="sq"></span>Timeline &amp; budget</div>
-          <div class="carries-item"><span class="sq"></span>Stakeholders</div>
-          <div class="no-twice">No information is entered twice.</div>
+          <div class="card-label">Client requirements</div>
+          <ul><li>German data handling</li><li>Start with DE and EN</li><li>Weekly quality reporting</li></ul>
         </div>
       </div>
-    </div>
+      <div class="card">
+        <div class="card-label">Questions / concerns raised</div>
+        <div class="card-value">How quickly can a pilot team start? How will Borek evidence quality improvement? Can the pilot extend to Polish and French?</div>
+      </div>
+
+      <div class="bottom-actions">
+        <button type="button" class="btn-outline">Open transcript</button>
+        <button type="button" class="btn-primary">Continue to opportunity →</button>
+      </div>
+      <div class="saved-note">Saved just now · changes logged</div>
+    </section>
   </main>
 </div>
 </body>

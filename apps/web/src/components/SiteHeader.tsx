@@ -1,14 +1,18 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/components/AuthProvider";
+import { BrandLogo } from "@/components/BrandLogo";
 
 interface SiteHeaderProps {
   signedInEmail?: string | null;
   opportunityId?: string | null;
   onNewPresentation?: () => void;
+  sidebarExtra?: ReactNode;
+  progressVariant?: "default" | "review";
 }
 
 const NAV = [
@@ -64,21 +68,7 @@ export function initialsFromName(name: string): string {
   return letters.join("") || "B";
 }
 
-function LogoMark() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-      <circle cx="4" cy="6" r="2" fill="#12224a" />
-      <circle cx="10" cy="3" r="2" fill="#12224a" />
-      <circle cx="16" cy="6" r="2" fill="#12224a" />
-      <circle cx="4" cy="14" r="2" fill="#12224a" />
-      <circle cx="10" cy="17" r="2" fill="#12224a" />
-      <circle cx="16" cy="14" r="2" fill="#12224a" />
-      <circle cx="10" cy="10" r="2" fill="#12224a" />
-    </svg>
-  );
-}
-
-export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
+export function SiteHeader({ signedInEmail, sidebarExtra, progressVariant = "default" }: SiteHeaderProps) {
   const pathname = usePathname();
   const { session, employee } = useAuth();
   const email = signedInEmail ?? session?.user.email ?? employee?.email ?? null;
@@ -87,11 +77,7 @@ export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
   return (
     <>
       <aside className="pitch-sidebar">
-        <Link href="/" className="pitch-logo">
-          <LogoMark />
-          <span className="pitch-logo-name">BOREK</span>
-        </Link>
-        <div className="pitch-logo-sub">AI PITCH</div>
+        <BrandLogo href="/" className="pitch-sidebar-brand" />
         {email ? (
           <Link href="/" className="pitch-btn-new">
             + New pitch
@@ -106,6 +92,7 @@ export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
             ))}
           </ul>
         </nav>
+        {sidebarExtra}
       </aside>
       <header className="pitch-topbar">
         <div className="pitch-topline">
@@ -131,11 +118,14 @@ export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
             )}
           </div>
         </div>
-        <div className="pitch-progress" aria-hidden="true">
+        <div
+          className={`pitch-progress${progressVariant === "review" ? " pitch-progress-review" : ""}`}
+          aria-hidden="true"
+        >
           <span />
           <span />
           <span />
-          <span />
+          {progressVariant === "default" ? <span /> : null}
         </div>
       </header>
     </>

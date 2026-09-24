@@ -1,20 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { JourneyStageChoice } from "@/components/JourneyStageSelector";
 import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
+import { PitchReviewSlideSidebar, PitchReviewView } from "@/components/PitchReviewView";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SlidePreviewCard } from "@/components/SlidePreviewCard";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
 import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
   ApiRequestError,
-  changePresentationSlideLayout,
   downloadPresentationFile,
   FRAMEWORK_JOB_TIMEOUT_MS,
   generatePresentation,
@@ -22,6 +21,7 @@ import {
   getDeckCenter,
   getJob,
   getLatestPresentation,
+  getLatestPresentationPlan,
   getOpportunity,
   getPresentation,
   regeneratePresentationSlide,
@@ -32,10 +32,14 @@ import type { JobResponse } from "@/lib/api";
 import {
   isDeckFileMissingError,
   isMissingPresentationError,
+  isMissingPresentationPlanError,
   isPresentationNotReadyError,
 } from "@/lib/apiErrors";
 import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
 import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
+import { draftFromNotes, loadPitchDraft, type PitchDraft } from "@/lib/pitchDraft";
+import { buildPitchReviewSlides, pitchReviewStatusLabel } from "@/lib/pitchReview";
+import type { PresentationPlanResponse } from "@/lib/planTypes";
 import {
   buildJobProgressView,
   jobStageLabel,
@@ -55,7 +59,6 @@ import {
   DOWNLOAD_PDF_LABEL,
   DOWNLOAD_POWERPOINT_LABEL,
   formatGeneratedAt,
-  presentationReadyTitle,
   slideCountLabel,
   versionLabel,
 } from "@/lib/presentationReady";
@@ -79,10 +82,14 @@ export function DeckCenterPanel({
   opportunityId,
   presentationId: requestedPresentationId,
 }: DeckCenterPanelProps) {
+  const router = useRouter();
   const { accessToken, isAuthenticated, loading, session } = useAuth();
   const [presentation, setPresentation] = useState<PresentationResponse | null>(null);
   const [deck, setDeck] = useState<DeckCenterResponse | null>(null);
   const [opportunityName, setOpportunityName] = useState<string | null>(null);
+  const [clientName, setClientName] = useState<string>("Client");
+  const [pitchDraft, setPitchDraft] = useState<PitchDraft | null>(null);
+  const [plan, setPlan] = useState<PresentationPlanResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [contentLoading, setContentLoading] = useState(true);
   const [jobPolling, setJobPolling] = useState(false);
@@ -109,8 +116,11 @@ export function DeckCenterPanel({
   );
 
   const slideTiles = useMemo(() => (deck ? mapDeckSlides(deck) : []), [deck]);
-  const featuredSlide =
-    slideTiles.find((slide) => slide.slideId === featuredSlideId) ?? slideTiles[0] ?? null;
+  const reviewSlides = useMemo(
+    () => buildPitchReviewSlides(slideTiles, plan?.plan_json.slides ?? [], pitchDraft),
+    [pitchDraft, plan, slideTiles],
+  );
+  const reviewStatus = pitchReviewStatusLabel(reviewSlides);
   const ready = Boolean(deck && presentation);
   const generatedAt = formatGeneratedAt(presentation?.created_at);
   const version = versionLabel(deck?.version_number);
@@ -177,11 +187,35 @@ export function DeckCenterPanel({
       .then((opportunity) => {
         if (!cancelled) {
           setOpportunityName(opportunityLabel(opportunity));
+          setClientName(opportunity.client_name?.trim() || "Client");
+          const stored =
+            loadPitchDraft(opportunityId) ??
+            draftFromNotes(opportunity.additional_client_information?.notes);
+          setPitchDraft(stored);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setOpportunityName(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, opportunityId]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+    let cancelled = false;
+    void getLatestPresentationPlan(accessToken, opportunityId)
+      .then((latest) => {
+        if (!cancelled) setPlan(latest);
+      })
+      .catch((loadError) => {
+        if (!cancelled && !isMissingPresentationPlanError(loadError)) {
+          setPlan(null);
         }
       });
     return () => {
@@ -458,40 +492,6 @@ export function DeckCenterPanel({
     }
   }
 
-  async function handleChangeLayout(slideId: string, layoutId: string) {
-    if (!accessToken || !presentation) {
-      return;
-    }
-    setRecoveryTarget("job");
-    setBusy(true);
-    setNotice(null);
-    try {
-      const queued = await changePresentationSlideLayout(
-        accessToken,
-        presentation.id,
-        slideId,
-        layoutId,
-      );
-      setInfo("Updating this slide layout…");
-      setNotice(runningRecoveryNotice("deck", queued.job_id));
-      setJobPolling(true);
-      await waitForJob(accessToken, queued.job_id, {
-        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
-        onProgress: trackJob,
-      });
-      setJobSnapshot(null);
-      await loadDeck(presentation.id);
-      setNotice(null);
-      setInfo(null);
-    } catch (layoutError) {
-      setInfo(null);
-      setNotice(recoveryNoticeFromError(layoutError, "deck"));
-    } finally {
-      setBusy(false);
-      setJobPolling(false);
-    }
-  }
-
   const metaParts = [
     opportunityName,
     deck ? slideCountLabel(slideTiles.length) : null,
@@ -502,9 +502,27 @@ export function DeckCenterPanel({
   const progressSurfaceVisible = Boolean(jobPolling || progressView?.failed);
   const surfacePrecedence = recoverySurfacePrecedence(notice, progressSurfaceVisible);
 
+  function handleUseVersion() {
+    router.push(`/approvals?opportunityId=${encodeURIComponent(opportunityId)}`);
+  }
+
   return (
     <div className="app-workspace">
-      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
+      <SiteHeader
+        signedInEmail={session?.user.email}
+        opportunityId={opportunityId}
+        progressVariant={ready ? "review" : "default"}
+        sidebarExtra={
+          ready ? (
+            <PitchReviewSlideSidebar
+              slides={reviewSlides}
+              selectedSlideId={featuredSlideId}
+              onSelectSlide={setFeaturedSlideId}
+              versionLabel={version}
+            />
+          ) : null
+        }
+      />
 
       <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
@@ -567,15 +585,6 @@ export function DeckCenterPanel({
           )}
         </WorkflowActionBar>
         <WorkflowStepIndicator currentStep={4} />
-        <AppPageHeader
-          kicker="Presentation"
-          title={presentationReadyTitle(ready)}
-          lead={
-            ready
-              ? "Preview the slides, then download the PowerPoint. A PDF copy is also available."
-              : "When generation finishes, the preview and downloads appear here automatically."
-          }
-        />
 
         <div className="intake-main">
             {notice && surfacePrecedence.showRecovery ? (
@@ -660,75 +669,29 @@ export function DeckCenterPanel({
             ) : null}
 
             {deck && presentation && accessToken ? (
-              <>
-                <section className="upload-panel presentation-ready-panel" data-testid="presentation-ready">
-                  <header className="upload-panel-header presentation-ready-header">
-                    <div>
-                      <h2>{deck.presentation_name}</h2>
-                      {metaParts.length > 0 ? (
-                        <p className="presentation-ready-meta">{metaParts.join(" · ")}</p>
-                      ) : null}
-                    </div>
-                  </header>
-                  {!pptxAvailable ? (
-                    <p className="upload-hint">PowerPoint isn’t available yet.</p>
-                  ) : null}
-                  {!pdfAvailable ? <p className="upload-hint">PDF isn’t available yet.</p> : null}
-
-                  {featuredSlide ? (
-                    <div className="presentation-hero" data-testid="presentation-hero-preview">
-                      <SlidePreviewCard
-                        accessToken={accessToken}
-                        slideId={featuredSlide.slideId}
-                        slideIndex={featuredSlide.slideIndex}
-                        layoutId={featuredSlide.layoutId}
-                        previewPath={featuredSlide.previewUrl}
-                        featured
-                        busy={busy}
-                        canEdit
-                        onRegenerate={(slideId) => void handleRegenerateSlide(slideId)}
-                        onChangeLayout={(slideId, layoutId) => void handleChangeLayout(slideId, layoutId)}
-                      />
-                    </div>
-                  ) : (
-                    <p className="upload-hint">Slide previews aren’t available yet.</p>
-                  )}
-
-                </section>
-
-                <section className="upload-panel">
-                  <header className="upload-panel-header">
-                    <div>
-                      <h2>Slide review</h2>
-                  <p>
-                    Open a slide to preview it. You can regenerate a slide or change its layout when
-                    another layout in the same family is available.
-                  </p>
-                    </div>
-                  </header>
-                  {slideTiles.length > 0 ? (
-                    <div className="deck-slide-grid" data-testid="deck-slide-grid">
-                      {slideTiles.map((slide) => (
-                        <SlidePreviewCard
-                          key={slide.slideId}
-                          accessToken={accessToken}
-                          slideId={slide.slideId}
-                          slideIndex={slide.slideIndex}
-                          layoutId={slide.layoutId}
-                          previewPath={slide.previewUrl}
-                          busy={busy}
-                          canEdit
-                          onSelect={() => setFeaturedSlideId(slide.slideId)}
-                          onRegenerate={(slideId) => void handleRegenerateSlide(slideId)}
-                          onChangeLayout={(slideId, layoutId) => void handleChangeLayout(slideId, layoutId)}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="upload-hint">No slide previews were returned for this presentation.</p>
-                  )}
-                </section>
-              </>
+              <section className="upload-panel presentation-ready-panel" data-testid="presentation-ready">
+                <PitchReviewView
+                  accessToken={accessToken}
+                  clientName={clientName}
+                  opportunityId={opportunityId}
+                  presentationName={deck.presentation_name || pitchDraft?.pitchTitle || "Pitch"}
+                  versionLabel={version}
+                  statusLabel={reviewStatus}
+                  slides={reviewSlides}
+                  selectedSlideId={featuredSlideId}
+                  draft={pitchDraft}
+                  busy={busy}
+                  pptxAvailable={pptxAvailable}
+                  pdfAvailable={pdfAvailable}
+                  onRegenerate={(slideId) => void handleRegenerateSlide(slideId)}
+                  onDownloadPptx={() => void handleDownload("pptx")}
+                  onDownloadPdf={() => void handleDownload("pdf")}
+                  onUseVersion={handleUseVersion}
+                />
+                {metaParts.length > 0 ? (
+                  <p className="upload-hint presentation-ready-meta">{metaParts.join(" · ")}</p>
+                ) : null}
+              </section>
             ) : null}
         </div>
       </div>

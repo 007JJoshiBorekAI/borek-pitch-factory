@@ -89,7 +89,7 @@ assert.match(logoHtml, /5 MiB maximum/);
 assert.match(logoHtml, /cover and closing/);
 assert.match(logoHtml, /bottom-right/);
 assert.match(logoHtml, /Client name/);
-assert.match(logoHtml, /src="\/logo.webp"/);
+assert.match(logoHtml, /src="\/logo.png"/);
 assert.doesNotMatch(logoHtml, /64-4096/);
 assert.doesNotMatch(logoHtml, /Gamma/i);
 

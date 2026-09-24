@@ -37,27 +37,18 @@
   background: #fff;
 }
 
-.pitch-logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--pitch-navy);
-  text-decoration: none;
-  font-weight: 800;
+.pitch-sidebar-brand {
+  display: block;
+  margin-bottom: 28px;
 }
 
-.pitch-logo-name {
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-}
-
-.pitch-logo-sub {
-  margin: 6px 0 28px 28px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: var(--pitch-blue);
+.pitch-sidebar-brand .brand-logo-image {
+  width: 100%;
+  max-width: 210px;
+  height: auto;
+  max-height: 52px;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .pitch-btn-new {
@@ -190,6 +181,215 @@
 .pitch-progress span:nth-child(2) { width: 16%; background: var(--pitch-red); }
 .pitch-progress span:nth-child(3) { width: 45%; background: var(--pitch-navy); }
 .pitch-progress span:nth-child(4) { width: 25%; background: var(--pitch-teal); }
+
+.pitch-progress-review span:nth-child(1) { width: 33%; background: var(--pitch-orange); }
+.pitch-progress-review span:nth-child(2) { width: 33%; background: var(--pitch-blue); }
+.pitch-progress-review span:nth-child(3) { width: 34%; background: var(--pitch-teal); }
+
+.pitch-review-slides-nav {
+  margin-top: 28px;
+  flex: 1;
+}
+
+.pitch-review-slide-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 4px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  color: var(--pitch-navy);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pitch-review-slide-item.active {
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--pitch-gray-200);
+  border-left: 3px solid var(--pitch-blue);
+}
+
+.pitch-review-warn {
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  background: var(--pitch-navy);
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.pitch-review-versions {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--pitch-gray-500);
+  line-height: 1.6;
+}
+
+.pitch-review-page {
+  margin-top: 8px;
+}
+
+.pitch-review-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.pitch-review-kicker {
+  font-size: 14px;
+  color: var(--pitch-gray-500);
+}
+
+.pitch-review-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--pitch-navy);
+}
+
+.pitch-review-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pitch-review-status {
+  font-size: 14px;
+  color: var(--pitch-gray-600);
+}
+
+.pitch-review-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 32px;
+  margin-top: 24px;
+}
+
+.pitch-review-slide-preview {
+  background: var(--pitch-navy-dark);
+  color: #fff;
+  border-radius: 8px;
+  padding: 28px 32px;
+  margin: 12px 0 20px;
+  min-height: 200px;
+}
+
+.pitch-review-slide-tag {
+  font-size: 11px;
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+
+.pitch-review-slide-headline {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 26px;
+  font-weight: 400;
+  margin: 16px 0;
+}
+
+.pitch-review-slide-bar {
+  height: 3px;
+  width: 48px;
+  background: var(--pitch-orange);
+  margin: 12px 0 16px;
+}
+
+.pitch-review-slide-bullets {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.7;
+}
+
+.pitch-review-slide-image {
+  display: block;
+  width: 100%;
+  border-radius: 4px;
+}
+
+.pitch-review-selected-label {
+  margin-top: 16px;
+}
+
+.pitch-review-selected strong {
+  display: block;
+  margin-top: 8px;
+}
+
+.pitch-review-toolbar {
+  margin-top: 8px;
+}
+
+.pitch-review-download-links {
+  font-size: 13px;
+  color: var(--pitch-gray-500);
+  margin-top: 14px;
+}
+
+.pitch-review-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin-right: 12px;
+  color: var(--pitch-gray-500);
+  font-weight: 400;
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+.pitch-review-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pitch-review-aside-block {
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.pitch-review-aside-block h4 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--pitch-gray-500);
+  margin: 0 0 8px;
+}
+
+.pitch-review-quote {
+  font-style: italic;
+  color: var(--pitch-gray-600);
+  margin: 0;
+}
+
+.pitch-review-source-meta {
+  font-size: 13px;
+  color: var(--pitch-gray-500);
+  margin: 8px 0 0;
+}
+
+.pitch-review-source-list {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.pitch-review-check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.pitch-review-version-meta {
+  font-size: 13px;
+  color: var(--pitch-gray-500);
+  margin-top: 8px;
+}
 
 .app-workspace:has(.pitch-sidebar) > .app-shell,
 .app-workspace:has(.pitch-sidebar) > main {
@@ -749,7 +949,12 @@
   .pitch-create-cols,
   .pitch-approval-layout,
   .pitch-form-row,
-  .pitch-card-row {
+  .pitch-card-row,
+  .pitch-review-workspace {
     display: block;
+  }
+
+  .pitch-review-topline {
+    flex-direction: column;
   }
 }
