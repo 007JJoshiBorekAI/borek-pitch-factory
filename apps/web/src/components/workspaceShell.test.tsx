@@ -25,6 +25,10 @@ assert.match(sidebarSource, /AI PITCH/);
 assert.match(navSource, /Pre-meeting/);
 assert.match(navSource, /Post-meeting/);
 assert.match(navSource, /Clients/);
+assert.match(navSource, /resolveWorkspaceNavHref/);
+assert.match(navSource, /postMeetingIntakeHref/);
+assert.match(sidebarSource, /resolveWorkspaceNavHref/);
+assert.match(sidebarSource, /loadActiveOpportunity/);
 assert.match(sidebarSource, /workspace-sidebar-active-rail/);
 
 assert.match(topBarSource, /workspace-topbar-splash/);

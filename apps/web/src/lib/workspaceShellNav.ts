@@ -1,3 +1,5 @@
+import { postMeetingIntakeHref } from "./journeyStageSelection";
+
 export type WorkspaceNavSection = "pre-meeting" | "post-meeting" | "clients";
 
 export interface WorkspaceNavItem {
@@ -9,9 +11,20 @@ export interface WorkspaceNavItem {
 /** Figma sidebar navigation — node 304:193 */
 export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
   { id: "pre-meeting", label: "Pre-meeting", href: "/upload" },
-  { id: "post-meeting", label: "Post-meeting", href: "/deepening/review" },
+  { id: "post-meeting", label: "Post-meeting", href: "/clients" },
   { id: "clients", label: "Clients", href: "/clients" },
 ];
+
+export function resolveWorkspaceNavHref(
+  section: WorkspaceNavSection,
+  activeOpportunityId?: string | null,
+): string {
+  if (section === "post-meeting") {
+    return postMeetingIntakeHref(activeOpportunityId);
+  }
+  const item = WORKSPACE_NAV_ITEMS.find((row) => row.id === section);
+  return item?.href ?? "/";
+}
 
 const PRE_MEETING_PREFIXES = [
   "/upload",

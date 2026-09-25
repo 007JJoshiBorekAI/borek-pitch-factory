@@ -12,10 +12,14 @@ export function MeetingFeedbackPanel({
   accessToken,
   opportunityId,
   disabled = false,
+  variant = "default",
+  onFeedbackChange,
 }: {
   accessToken: string | null;
   opportunityId: string | null;
   disabled?: boolean;
+  variant?: "default" | "embedded";
+  onFeedbackChange?: (text: string | null, updatedAt: string | null) => void;
 }) {
   const [draftText, setDraftText] = useState("");
   const [confirmedUpdatedAt, setConfirmedUpdatedAt] = useState<string | null>(null);
@@ -49,8 +53,10 @@ export function MeetingFeedbackPanel({
         if (cancelled) {
           return;
         }
-        setDraftText(response.text ?? "");
+        const text = response.text ?? "";
+        setDraftText(text);
         setConfirmedUpdatedAt(response.updated_at);
+        onFeedbackChange?.(text.length > 0 ? text : null, response.updated_at);
       })
       .catch((error) => {
         if (cancelled) {
@@ -86,9 +92,11 @@ export function MeetingFeedbackPanel({
       const saved = await updateMeetingFeedback(accessToken, opportunityId, {
         text: textToSave.length > 0 ? textToSave : null,
       });
-      setDraftText(saved.text ?? "");
+      const text = saved.text ?? "";
+      setDraftText(text);
       setConfirmedUpdatedAt(saved.updated_at);
       setSaveConfirmed(true);
+      onFeedbackChange?.(text.length > 0 ? text : null, saved.updated_at);
     } catch (error) {
       setSaveError(meetingFeedbackErrorMessage(error));
       if (isJourneyOutputsEndpointUnavailable(error)) {
@@ -97,6 +105,62 @@ export function MeetingFeedbackPanel({
     } finally {
       setSaving(false);
     }
+  }
+
+  if (variant === "embedded") {
+    return (
+      <div className="post-meeting-feedback-block" aria-labelledby="meeting-feedback-title">
+        <p id="meeting-feedback-title" className="post-meeting-field-kicker">
+          MEETING FEEDBACK
+        </p>
+
+        {loadError ? <div className="alert alert-error">{loadError}</div> : null}
+        {saveError ? <div className="alert alert-error">{saveError}</div> : null}
+        {saveConfirmed ? (
+          <p className="post-meeting-inline-notice" role="status">
+            Meeting feedback saved
+            {confirmedUpdatedAt ? ` · ${new Date(confirmedUpdatedAt).toLocaleString()}` : ""}.
+          </p>
+        ) : null}
+
+        {!canEdit && !endpointUnavailable ? (
+          <p className="post-meeting-inline-hint">Create an opportunity to record meeting feedback.</p>
+        ) : null}
+
+        {endpointUnavailable ? (
+          <p className="post-meeting-inline-hint">
+            Meeting feedback requires the BT-36 backend on this environment.
+          </p>
+        ) : (
+          <>
+            {loading ? <p className="post-meeting-inline-hint">Loading meeting feedback…</p> : null}
+            <div className="post-meeting-feedback-input-wrap">
+              <textarea
+                className="post-meeting-feedback-input"
+                rows={4}
+                value={draftText}
+                disabled={panelDisabled || !canEdit}
+                placeholder="What did you learn from the meeting?"
+                onChange={(event) => {
+                  setDraftText(event.target.value);
+                  setSaveConfirmed(false);
+                }}
+              />
+            </div>
+            <div className="post-meeting-feedback-actions">
+              <button
+                type="button"
+                className="post-meeting-text-button"
+                disabled={panelDisabled || !canEdit}
+                onClick={() => void handleSave()}
+              >
+                {saving ? "Saving feedback…" : "Save feedback"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
   }
 
   return (

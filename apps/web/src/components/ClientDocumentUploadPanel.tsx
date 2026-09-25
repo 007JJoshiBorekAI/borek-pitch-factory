@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, type MutableRefObject } from "react";
 
 import {
   deleteClientDocument,
@@ -34,6 +34,8 @@ interface ClientDocumentUploadPanelProps {
   heading?: string;
   description?: string;
   scopeNote?: string;
+  variant?: "default" | "compact";
+  uploadTriggerRef?: MutableRefObject<(() => void) | null>;
 }
 
 function statusClassName(status: string): string {
@@ -48,6 +50,8 @@ export function ClientDocumentUploadPanel({
   heading = "Client documents",
   description = "Upload background material from the client. Meeting transcripts are added after the first call (Deepening stage).",
   scopeNote,
+  variant = "default",
+  uploadTriggerRef,
 }: ClientDocumentUploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
@@ -63,6 +67,18 @@ export function ClientDocumentUploadPanel({
 
   const canUpload = Boolean(accessToken && opportunityId) && !disabled && !endpointUnavailable;
   const panelDisabled = disabled || loading || uploading || deleteBusy;
+
+  useEffect(() => {
+    if (!uploadTriggerRef) {
+      return;
+    }
+    uploadTriggerRef.current = () => {
+      inputRef.current?.click();
+    };
+    return () => {
+      uploadTriggerRef.current = null;
+    };
+  }, [uploadTriggerRef]);
 
   function updateDocuments(rows: ClientDocument[]) {
     const sorted = [...rows].sort((a, b) => a.document_key.localeCompare(b.document_key));
@@ -216,6 +232,96 @@ export function ClientDocumentUploadPanel({
   }
 
   const processedCount = documents.filter((row) => row.processing_status === "processed").length;
+
+  if (variant === "compact") {
+    return (
+      <div className="post-meeting-documents-compact">
+        <input
+          ref={inputRef}
+          type="file"
+          accept={CLIENT_DOCUMENT_ACCEPT}
+          multiple
+          className="sr-only"
+          disabled={panelDisabled || !canUpload}
+          onChange={(event) => handleInputChange(event.target.files)}
+        />
+
+        {error ? <div className="alert alert-error">{error}</div> : null}
+        {notice ? (
+          <p className="post-meeting-inline-notice" role="status">
+            {notice}
+          </p>
+        ) : null}
+
+        {loading ? <p className="post-meeting-inline-hint">Loading client documents…</p> : null}
+
+        {documents.length > 0 ? (
+          <ul className="post-meeting-document-list" aria-label="Added client documents">
+            {documents.map((document) => (
+              <li key={document.id} className="post-meeting-document-row">
+                <span className="post-meeting-document-name">{document.file_name}</span>
+                <span className="post-meeting-status-badge">
+                  {document.processing_status === "processed" ? "ADDED" : "PROCESSING"}
+                </span>
+                <button
+                  type="button"
+                  className="post-meeting-text-button"
+                  disabled={panelDisabled}
+                  onClick={() => setDeleteTarget(document)}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {uploadRows.length > 0 ? (
+          <ul className="post-meeting-document-list" aria-label="Upload progress">
+            {uploadRows.map((row) => (
+              <li key={row.id} className="post-meeting-document-row">
+                <span className="post-meeting-document-name">{row.fileName}</span>
+                <span className="post-meeting-status-badge">
+                  {row.status === "uploading" ? "UPLOADING" : "FAILED"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {endpointUnavailable ? (
+          <p className="post-meeting-inline-hint">
+            Client document upload requires the BT-35 backend on this environment.
+          </p>
+        ) : null}
+
+        {deleteTarget ? (
+          <div className="client-document-delete-dialog" role="dialog" aria-labelledby="delete-document-title">
+            <strong id="delete-document-title">Remove {deleteTarget.file_name}?</strong>
+            <p>This document will be deleted from the opportunity. This cannot be undone.</p>
+            <div className="client-document-delete-actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={deleteBusy}
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={deleteBusy}
+                onClick={() => void confirmDelete()}
+              >
+                {deleteBusy ? "Removing…" : "Remove document"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <section className="upload-panel client-document-panel" aria-labelledby="client-documents-title">

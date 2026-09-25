@@ -12,6 +12,7 @@ import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneyStageSelector";
 import { OpportunityForm } from "@/components/OpportunityForm";
 import { MeetingFeedbackPanel } from "@/components/MeetingFeedbackPanel";
+import { PostMeetingIntakeView } from "@/components/PostMeetingIntakeView";
 import { PreMeetingIntakeView } from "@/components/PreMeetingIntakeView";
 import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
@@ -68,6 +69,7 @@ import {
 
 interface TranscriptUploadPanelProps {
   initialOpportunityId?: string | null;
+  initialJourneyStage?: JourneyStageName | null;
   startFresh?: boolean;
 }
 
@@ -95,16 +97,23 @@ function mergeQueue(
   return extras.length === 0 ? cached : [...cached, ...extras];
 }
 
-function initialJourneyStage(startFresh: boolean): JourneyStageName | null {
+function initialJourneyStage(
+  startFresh: boolean,
+  requestedStage?: JourneyStageName | null,
+): JourneyStageName | null {
   const stored = loadSelectedJourneyStage();
   if (startFresh && stored?.opportunityId) {
     return defaultStartableStage(NEW_CLIENT_ELIGIBILITY);
+  }
+  if (requestedStage) {
+    return requestedStage;
   }
   return stored?.journeyStage ?? defaultStartableStage(NEW_CLIENT_ELIGIBILITY);
 }
 
 export function TranscriptUploadPanel({
   initialOpportunityId = null,
+  initialJourneyStage: requestedJourneyStage = null,
   startFresh = false,
 }: TranscriptUploadPanelProps) {
   const router = useRouter();
@@ -128,7 +137,7 @@ export function TranscriptUploadPanel({
   const [eligibility, setEligibility] =
     useState<JourneyStageEligibilityResponse>(NEW_CLIENT_ELIGIBILITY);
   const [journeyStage, setJourneyStage] = useState<JourneyStageName | null>(() =>
-    initialJourneyStage(startFresh),
+    initialJourneyStage(startFresh, requestedJourneyStage),
   );
   const [eligibilityLoading, setEligibilityLoading] = useState(false);
   const [eligibilityError, setEligibilityError] = useState<string | null>(null);
@@ -137,10 +146,19 @@ export function TranscriptUploadPanel({
   const [stage1CreateError, setStage1CreateError] = useState<string | null>(null);
 
   const isFirstContact = journeyStage === "first_contact";
+  const isDeepening = journeyStage === "deepening";
   const contextMatchesRequest = !initialOpportunityId || opportunityId === initialOpportunityId;
   const canUpload =
     isAuthenticated && !startFresh && Boolean(opportunityId) && contextMatchesRequest;
   const statusCounts = useMemo(() => countByStatus(queueItems), [queueItems]);
+
+  useEffect(() => {
+    if (!requestedJourneyStage || startFresh) {
+      return;
+    }
+    setJourneyStage(requestedJourneyStage);
+    saveSelectedJourneyStage(requestedJourneyStage, initialOpportunityId ?? opportunityId);
+  }, [initialOpportunityId, opportunityId, requestedJourneyStage, startFresh]);
 
   useEffect(() => {
     if (!startFresh) {
@@ -439,6 +457,31 @@ export function TranscriptUploadPanel({
             onCreateOpportunity={handleCreateOpportunity}
             onSaveStage1Intake={handleSaveStage1Intake}
             onNavigateToReview={(id) => router.push(pipelineHref("/first-contact/review", id))}
+          />
+        </div>
+      </WorkspaceShell>
+    );
+  }
+
+  if (isDeepening) {
+    return (
+      <WorkspaceShell activeSection="post-meeting" pageTitle="Post-meeting">
+        <div className="app-shell app-workspace-body post-meeting-workspace">
+          {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
+          <PostMeetingIntakeView
+            disabled={!isAuthenticated || loading}
+            accessToken={accessToken}
+            opportunity={opportunity}
+            opportunityId={opportunityId}
+            queueItems={queueItems}
+            uploadSummary={uploadSummary}
+            canUpload={canUpload}
+            onQueueItemsChange={(items) => {
+              setQueueItems(items);
+              setUploadSummary(null);
+            }}
+            onUploadBatch={handleUploadBatch}
+            onNavigateToReview={(id) => router.push(pipelineHref("/deepening/review", id))}
           />
         </div>
       </WorkspaceShell>

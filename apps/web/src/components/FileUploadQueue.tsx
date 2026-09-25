@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 
 import {
   ABC_SYSTEMS_Q2_SAMPLE_FILENAME,
@@ -23,6 +23,11 @@ interface FileUploadQueueProps {
   uploadDisabled?: boolean;
   onItemsChange: (items: TranscriptQueueItem[]) => void;
   onUpload: (items: TranscriptQueueItem[]) => Promise<void>;
+  variant?: "default" | "compact";
+  transcriptTitle?: string;
+  transcriptMeta?: string;
+  transcriptReady?: boolean;
+  transcriptProcessing?: boolean;
 }
 
 function statusClassName(status: TranscriptQueueItem["status"]): string {
@@ -44,6 +49,11 @@ export function FileUploadQueue({
   uploadDisabled = false,
   onItemsChange,
   onUpload,
+  variant = "default",
+  transcriptTitle,
+  transcriptMeta,
+  transcriptReady = false,
+  transcriptProcessing = false,
 }: FileUploadQueueProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -136,6 +146,123 @@ export function FileUploadQueue({
       onChange={(event) => addFiles(event.target.files)}
     />
   );
+
+  if (variant === "compact" && transcriptReady && settled) {
+    return (
+      <div className="post-meeting-transcript-tile" aria-live="polite">
+        <div className="post-meeting-transcript-icon" aria-hidden="true">
+          ✓
+        </div>
+        <div className="post-meeting-transcript-copy">
+          <strong>{transcriptTitle ?? "Meeting transcript"}</strong>
+          <span>{transcriptMeta ?? "Transcript processed"}</span>
+        </div>
+        <span className="post-meeting-status-badge post-meeting-status-ready">READY</span>
+        <div className="post-meeting-transcript-actions">
+          <button
+            type="button"
+            className="post-meeting-text-button"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            Replace
+          </button>
+          {fileInput}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "compact") {
+    return (
+      <div
+        className={`post-meeting-upload-compact${dragActive ? " is-active" : ""}${
+          hasErrors ? " has-errors" : ""
+        }`}
+      >
+        {transcriptProcessing ? (
+          <div className="post-meeting-transcript-tile post-meeting-transcript-tile-processing">
+            <div className="post-meeting-transcript-icon" aria-hidden="true">
+              …
+            </div>
+            <div className="post-meeting-transcript-copy">
+              <strong>{transcriptTitle ?? "Meeting transcript"}</strong>
+              <span>{transcriptMeta ?? "Processing transcript…"}</span>
+            </div>
+            <span className="post-meeting-status-badge">PROCESSING</span>
+          </div>
+        ) : (
+          <div
+            className="post-meeting-upload-dropzone"
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setDragActive(true);
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragActive(true);
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault();
+              setDragActive(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragActive(false);
+              addFiles(event.dataTransfer.files);
+            }}
+          >
+            <p>Drop transcript files here or browse</p>
+            <button
+              type="button"
+              className="post-meeting-text-button"
+              disabled={busy}
+              onClick={() => inputRef.current?.click()}
+            >
+              Browse files
+            </button>
+            {fileInput}
+          </div>
+        )}
+
+        {items.length > 0 && !transcriptReady ? (
+          <ul className="post-meeting-upload-queue" aria-label="Queued transcript files">
+            {items.map((item) => (
+              <li key={item.id}>
+                <span>{item.fileName}</span>
+                <span className="post-meeting-status-badge">{statusLabel(item.status)}</span>
+                {item.status === "error" ? (
+                  <button
+                    type="button"
+                    className="post-meeting-text-button"
+                    disabled={busy || uploadDisabled}
+                    onClick={() => void handleRetry(item)}
+                  >
+                    Retry
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {error ? <div className="alert alert-error">{error}</div> : null}
+
+        {canSubmit || busy ? (
+          <div className="post-meeting-upload-actions">
+            <button
+              type="button"
+              className="post-meeting-primary-inline-button"
+              disabled={busy || !canSubmit || uploadDisabled}
+              onClick={() => void handleUploadClick()}
+            >
+              {busy ? "Uploading…" : `Upload ${uploadableCount} file${uploadableCount === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div

@@ -4,9 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { loadActiveOpportunity } from "@/lib/pipelineContext";
 import {
   WORKSPACE_NAV_ITEMS,
   resolveActiveNavSection,
+  resolveWorkspaceNavHref,
   type WorkspaceNavSection,
 } from "@/lib/workspaceShellNav";
 
@@ -23,6 +25,7 @@ export function WorkspaceSidebar({
 }: WorkspaceSidebarProps) {
   const pathname = usePathname();
   const currentSection = activeSection ?? resolveActiveNavSection(pathname);
+  const activeOpportunityId = loadActiveOpportunity()?.id ?? null;
 
   return (
     <aside
@@ -52,7 +55,7 @@ export function WorkspaceSidebar({
           return (
             <Link
               key={item.id}
-              href={item.href}
+              href={resolveWorkspaceNavHref(item.id, activeOpportunityId)}
               className={[
                 "workspace-sidebar-link",
                 isActive ? "workspace-sidebar-link-active" : "",

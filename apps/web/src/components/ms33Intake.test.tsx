@@ -66,23 +66,29 @@ assert.doesNotMatch(uploadPanelSource, /Next step not available yet/);
 const normalizedUploadPanel = uploadPanelSource.replace(/\r\n/g, "\n");
 const firstContactReturnStart = normalizedUploadPanel.indexOf("if (isFirstContact) {\n    return (");
 assert.notEqual(firstContactReturnStart, -1);
-const deepeningReturnStart = normalizedUploadPanel.indexOf(
-  'return (\n    <WorkspaceShell>\n      <div className="app-shell app-workspace-body">',
-  firstContactReturnStart + 1,
-);
-assert.notEqual(deepeningReturnStart, -1);
-const firstContactBlock = normalizedUploadPanel.slice(firstContactReturnStart, deepeningReturnStart);
+const postMeetingReturnStart = normalizedUploadPanel.indexOf("if (isDeepening) {");
+assert.notEqual(postMeetingReturnStart, -1);
+const firstContactBlock = normalizedUploadPanel.slice(firstContactReturnStart, postMeetingReturnStart);
 assert.match(firstContactBlock, /PreMeetingIntakeView/);
 assert.match(firstContactBlock, /first-contact\/review/);
 assert.doesNotMatch(firstContactBlock, /FileUploadQueue/);
 assert.match(normalizedUploadPanel.slice(normalizedUploadPanel.indexOf("async function handleCreateOpportunity")), /stage1_intake/);
 
+const deepeningReturnStart = postMeetingReturnStart;
+assert.notEqual(deepeningReturnStart, -1);
 const deepeningBlock = normalizedUploadPanel.slice(deepeningReturnStart);
-assert.match(deepeningBlock, /MeetingFeedbackPanel/);
-assert.match(deepeningBlock, /Transcript files/);
-assert.match(deepeningBlock, /FileUploadQueue/);
-assert.match(deepeningBlock, /Optional client documents/);
+assert.match(deepeningBlock, /PostMeetingIntakeView/);
+assert.match(deepeningBlock, /deepening\/review/);
 assert.doesNotMatch(deepeningBlock, /PreMeetingIntakeView/);
+
+const legacyDeepeningStart = normalizedUploadPanel.indexOf(
+  'return (\n    <WorkspaceShell>\n      <div className="app-shell app-workspace-body">',
+  deepeningReturnStart + 1,
+);
+assert.notEqual(legacyDeepeningStart, -1);
+const legacyBlock = normalizedUploadPanel.slice(legacyDeepeningStart);
+assert.match(legacyBlock, /MeetingFeedbackPanel/);
+assert.match(legacyBlock, /FileUploadQueue/);
 
 const apiSource = readFileSync(
   fileURLToPath(new URL("../lib/api.ts", import.meta.url)),
