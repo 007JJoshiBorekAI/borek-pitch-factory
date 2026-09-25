@@ -8,6 +8,11 @@ import {
 } from "@/lib/abcSystemsQ2Transcript";
 import { uploadErrorMessage } from "@/lib/apiErrors";
 import { ALLOWED_TRANSCRIPT_EXTENSIONS } from "@/lib/transcriptFormats";
+import { WorkflowStateCard } from "@/components/WorkflowStateCard";
+import {
+  transcriptProcessingWorkflowState,
+  transcriptReadyWorkflowState,
+} from "@/lib/workflowState";
 import {
   createQueueItems,
   getUploadableItems,
@@ -147,17 +152,34 @@ export function FileUploadQueue({
     />
   );
 
+  if (variant === "compact" && transcriptProcessing) {
+    return (
+      <div className="post-meeting-upload-compact post-meeting-upload-compact-processing">
+        <WorkflowStateCard
+          presentation={transcriptProcessingWorkflowState({
+            title: transcriptTitle ?? "Processing the meeting",
+            description: transcriptMeta ?? "Processing transcript…",
+            sourceLabel: transcriptTitle ? `${transcriptTitle} · received` : undefined,
+          })}
+          variant="compact"
+          dataTestId="transcript-processing-state"
+        />
+      </div>
+    );
+  }
+
   if (variant === "compact" && transcriptReady && settled) {
     return (
-      <div className="post-meeting-transcript-tile" aria-live="polite">
-        <div className="post-meeting-transcript-icon" aria-hidden="true">
-          ✓
-        </div>
-        <div className="post-meeting-transcript-copy">
-          <strong>{transcriptTitle ?? "Meeting transcript"}</strong>
-          <span>{transcriptMeta ?? "Transcript processed"}</span>
-        </div>
-        <span className="post-meeting-status-badge post-meeting-status-ready">READY</span>
+      <div className="post-meeting-transcript-state">
+        <WorkflowStateCard
+          presentation={transcriptReadyWorkflowState({
+            title: transcriptTitle ?? "Meeting transcript",
+            description: transcriptMeta ?? "Transcript processed",
+            meta: "Ready",
+          })}
+          variant="compact"
+          dataTestId="transcript-ready-state"
+        />
         <div className="post-meeting-transcript-actions">
           <button
             type="button"
@@ -180,50 +202,37 @@ export function FileUploadQueue({
           hasErrors ? " has-errors" : ""
         }`}
       >
-        {transcriptProcessing ? (
-          <div className="post-meeting-transcript-tile post-meeting-transcript-tile-processing">
-            <div className="post-meeting-transcript-icon" aria-hidden="true">
-              …
-            </div>
-            <div className="post-meeting-transcript-copy">
-              <strong>{transcriptTitle ?? "Meeting transcript"}</strong>
-              <span>{transcriptMeta ?? "Processing transcript…"}</span>
-            </div>
-            <span className="post-meeting-status-badge">PROCESSING</span>
-          </div>
-        ) : (
-          <div
-            className="post-meeting-upload-dropzone"
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setDragActive(true);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragActive(true);
-            }}
-            onDragLeave={(event) => {
-              event.preventDefault();
-              setDragActive(false);
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragActive(false);
-              addFiles(event.dataTransfer.files);
-            }}
+        <div
+          className="post-meeting-upload-dropzone"
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setDragActive(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragActive(false);
+            addFiles(event.dataTransfer.files);
+          }}
+        >
+          <p>Drop transcript files here or browse</p>
+          <button
+            type="button"
+            className="post-meeting-text-button"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
           >
-            <p>Drop transcript files here or browse</p>
-            <button
-              type="button"
-              className="post-meeting-text-button"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
-            >
-              Browse files
-            </button>
-            {fileInput}
-          </div>
-        )}
+            Browse files
+          </button>
+          {fileInput}
+        </div>
 
         {items.length > 0 && !transcriptReady ? (
           <ul className="post-meeting-upload-queue" aria-label="Queued transcript files">

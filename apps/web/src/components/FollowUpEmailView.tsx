@@ -12,6 +12,7 @@ import {
   type FollowupProjectStatics,
   type FollowupRecipient,
 } from "@/lib/followupReview";
+import { WorkflowStateCard } from "@/components/WorkflowStateCard";
 import {
   buildFollowUpEmailReadiness,
   followUpEditorHeaderLabel,
@@ -24,6 +25,7 @@ import {
   isFollowUpSubjectEditable,
   type FollowUpEmailReadinessModel,
 } from "@/lib/followUpEmail";
+import { followUpReadinessWorkflowState } from "@/lib/workflowState";
 import type { EmailDraftLength } from "@/lib/journeyOutputsContracts";
 import type { StageEmailReviewContext } from "@/lib/stageEmailReview";
 
@@ -131,6 +133,10 @@ export function FollowUpEmailView({
     error,
     clientName,
   });
+  const readinessWorkflowState = followUpReadinessWorkflowState(
+    readiness.phase,
+    readiness.recipientSummary,
+  );
 
   const updatePrimary = (updates: Partial<FollowupRecipient>) => {
     onStaticsChange({
@@ -364,6 +370,14 @@ export function FollowUpEmailView({
           </section>
 
           <aside className="follow-up-email-actions" aria-labelledby="follow-up-email-ready-title">
+            {readinessWorkflowState ? (
+              <WorkflowStateCard
+                presentation={readinessWorkflowState}
+                variant="embedded"
+                dataTestId="follow-up-readiness-state"
+                className="follow-up-email-readiness-state"
+              />
+            ) : null}
             <p className="follow-up-email-actions-kicker">EMAIL READY</p>
             <h2 id="follow-up-email-ready-title" className="follow-up-email-actions-title">
               {readiness.heading}

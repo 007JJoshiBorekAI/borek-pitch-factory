@@ -81,6 +81,8 @@ assert.match(html, /Requirements Workshop/);
 assert.match(html, /data-testid="follow-up-subject"/);
 assert.match(html, /data-testid="follow-up-body"/);
 assert.match(html, /data-testid="follow-up-readiness-checklist"/);
+assert.match(html, /data-testid="follow-up-readiness-state"/);
+assert.match(html, /READY TO CONFIRM/);
 assert.match(html, /Confirm email/);
 assert.doesNotMatch(html, />Send email</);
 assert.match(html, /Back to meeting input/);
@@ -109,6 +111,7 @@ assert.match(liveHtml, /readonly/i);
 const confirmedHtml = render({ serverConfirmed: true });
 assert.match(confirmedHtml, /Confirmed — not sent/);
 assert.match(confirmedHtml, /Review confirmed/);
+assert.match(confirmedHtml, /data-workflow-state-key="confirmed_email_not_sent"/);
 
 const attachmentHtml = render({
   draft: { ...draft, attachment_name: "Acme_summary.docx" },

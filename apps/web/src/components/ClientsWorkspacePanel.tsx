@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { WorkflowStateCard } from "@/components/WorkflowStateCard";
 import { listOpportunities, listRecentWork } from "@/lib/api";
+import { newClientWorkflowState } from "@/lib/workflowState";
 import {
   buildClientDirectory,
   filterClientDirectoryRows,
@@ -154,13 +156,11 @@ export function ClientsWorkspacePanel() {
         ) : null}
 
         {showEmpty ? (
-          <div className="clients-state clients-state-empty">
-            <h2>No clients yet</h2>
-            <p>Create your first client and pitch to see them listed here.</p>
-            <Link href="/upload?new=1" className="clients-add-button clients-add-button-inline">
-              Add new client
-            </Link>
-          </div>
+          <WorkflowStateCard
+            presentation={newClientWorkflowState()}
+            className="clients-workflow-state"
+            dataTestId="clients-new-client-state"
+          />
         ) : null}
 
         {showNoMatches ? (

@@ -4,6 +4,7 @@ import Image from "next/image";
 import React, { useEffect, useId, useRef, useState } from "react";
 
 import { PreMeetingPitchFiles, uploadStagedPitchFiles } from "@/components/PreMeetingPitchFiles";
+import { WorkflowStateCard } from "@/components/WorkflowStateCard";
 import { countProcessedClientDocuments } from "@/components/ClientDocumentUploadPanel";
 import type { ClientDocument, OpportunityCreatePayload, OpportunityResponse, Stage1Intake } from "@/lib/api";
 import { uploadStage1Voice } from "@/lib/api";
@@ -25,6 +26,7 @@ import {
   type PreMeetingFormValues,
 } from "@/lib/preMeetingIntake";
 import { clearOpportunityDraft, loadOpportunityDraft, saveOpportunityDraft } from "@/lib/pipelineContext";
+import { preMeetingMissingInformationState } from "@/lib/workflowState";
 import { STAGE1_VOICE_ACCEPT, buildStage1IntakePayload, validateStage1VoiceFile } from "@/lib/stage1Intake";
 
 interface PreMeetingIntakeViewProps {
@@ -62,6 +64,12 @@ export function PreMeetingIntakeView({
   const processedDocumentCount = countProcessedClientDocuments(clientDocuments);
   const panelDisabled = disabled || busy || voiceBusy;
   const generateReady = isGenerateReady(values, processedDocumentCount);
+  const missingInformationState = submitAttempted
+    ? preMeetingMissingInformationState({
+        validationMessage: validatePreMeetingForm(values),
+        processedDocumentCount,
+      })
+    : null;
 
   useEffect(() => {
     if (opportunity) {
@@ -416,6 +424,14 @@ export function PreMeetingIntakeView({
             </details>
           </section>
 
+          {missingInformationState ? (
+            <WorkflowStateCard
+              presentation={missingInformationState}
+              variant="embedded"
+              dataTestId="pre-meeting-missing-information"
+              className="pre-meeting-workflow-state"
+            />
+          ) : null}
           {error ? (
             <p className="pre-meeting-form-error" role="alert">
               {error}

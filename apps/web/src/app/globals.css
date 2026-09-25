@@ -4411,6 +4411,190 @@ samp {
   cursor: pointer;
 }
 
+/* ——— FIGMA-08 workflow state cards (Screen / 08 Important states) ——— */
+.workflow-state-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr);
+  align-items: stretch;
+  margin-top: 32px;
+  border: 1px solid var(--shell-border);
+  border-radius: 8px;
+  background: var(--shell-canvas);
+  overflow: hidden;
+  box-shadow: var(--workspace-card-shadow);
+}
+
+.workflow-state-accent {
+  width: 6px;
+  background: var(--shell-action-default);
+}
+
+.workflow-state-tone-brand .workflow-state-accent {
+  background: var(--shell-action-default);
+}
+
+.workflow-state-tone-active .workflow-state-accent {
+  background: var(--shell-action-active);
+}
+
+.workflow-state-tone-neutral .workflow-state-accent {
+  background: var(--shell-text-secondary);
+}
+
+.workflow-state-body {
+  display: grid;
+  gap: 12px;
+  padding: 20px 24px;
+  min-height: 156px;
+}
+
+.workflow-state-eyebrow {
+  margin: 0;
+  color: var(--shell-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workflow-state-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.workflow-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--borek-primary-soft);
+  color: var(--shell-action-default);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.workflow-state-tone-active .workflow-state-icon {
+  color: var(--shell-action-active);
+}
+
+.workflow-state-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.workflow-state-title {
+  margin: 0;
+  color: var(--shell-text-primary);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.workflow-state-description {
+  margin: 0;
+  color: var(--shell-text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.workflow-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.workflow-state-action {
+  border: 0;
+  background: transparent;
+  color: var(--shell-action-active);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.workflow-state-action:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.workflow-state-action:disabled {
+  color: var(--shell-text-secondary);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.workflow-state-meta {
+  color: var(--shell-text-secondary);
+  font-size: 14px;
+}
+
+.workflow-state-details {
+  margin: 0;
+  color: var(--shell-text-secondary);
+  font-size: 12px;
+}
+
+.workflow-state-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--shell-text-primary);
+}
+
+.workflow-state-details p {
+  margin: 0.35rem 0 0;
+}
+
+.workflow-state-compact {
+  margin-top: 0;
+}
+
+.workflow-state-compact .workflow-state-body {
+  min-height: auto;
+  padding: 16px 20px;
+}
+
+.workflow-state-embedded {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.workflow-state-embedded .workflow-state-body {
+  min-height: auto;
+  padding: 16px 20px;
+}
+
+.clients-workflow-state,
+.archive-workflow-state {
+  max-width: 500px;
+  margin-inline: auto;
+}
+
+.recovery-banner.workflow-state-card {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.live-progress .workflow-state-embedded {
+  margin-bottom: 1rem;
+}
+
+.post-meeting-transcript-state {
+  display: grid;
+  gap: 8px;
+}
+
+.follow-up-email-readiness-state {
+  margin-bottom: 12px;
+}
+
 @media (max-width: 1024px) {
   .clients-header {
     flex-direction: column;

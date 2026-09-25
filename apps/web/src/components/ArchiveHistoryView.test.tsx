@@ -66,10 +66,11 @@ assert.match(emptyHtml, /Archive/);
 assert.match(emptyHtml, /Client or opportunity/);
 assert.match(emptyHtml, /From date/);
 assert.match(emptyHtml, /To date/);
-assert.match(emptyHtml, /Nothing filed yet/);
-assert.match(emptyHtml, /Filed presentations will appear here/);
+assert.match(emptyHtml, /ARCHIVED/);
+assert.match(emptyHtml, /Workspace archived/);
 assert.match(emptyHtml, /These files are stored in Pitch Factory/);
-assert.match(emptyHtml, /Recent presentations/);
+assert.match(emptyHtml, /Recent presentations →/);
+assert.doesNotMatch(emptyHtml, /Restore/);
 assert.doesNotMatch(emptyHtml, forbidden);
 assert.doesNotMatch(emptyHtml, /opportunity UUID/i);
 

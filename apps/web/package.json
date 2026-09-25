@@ -36,6 +36,7 @@
     "test:figma05": "tsx src/lib/postMeetingIntake.test.ts && tsx src/components/postMeetingIntakeView.test.tsx",
     "test:figma06": "tsx src/lib/pitchGeneration.test.ts && tsx src/components/pitchGenerationView.test.tsx",
     "test:figma07": "tsx src/lib/followUpEmail.test.ts && tsx src/components/followUpEmailView.test.tsx",
+    "test:figma08": "tsx src/lib/workflowState.test.ts && tsx src/components/workflowStateCard.test.tsx && tsx src/components/figma08Integration.test.tsx && tsx src/components/RecoveryBanner.test.tsx",
     "test:ux": "tsx src/components/frameworkReviewUx.test.tsx && tsx src/components/surfaceConsistency.test.ts && tsx src/components/workflowStepIndicator.test.tsx",
     "test:ms32": "tsx src/lib/followupReview.test.ts && tsx src/components/FollowupReviewView.test.tsx"
   },
