@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
-import { FollowupReviewView } from "@/components/FollowupReviewView";
-import { StageReviewLayout } from "@/components/StageReviewLayout";
+import { FollowUpEmailView } from "@/components/FollowUpEmailView";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import type { JourneyStageName } from "@/lib/api";
 import { updateOpportunity } from "@/lib/api";
 import {
@@ -35,7 +36,6 @@ import {
 } from "@/lib/stageEmailReview";
 import { isStageOutputDemoMode } from "@/lib/stageOutputReview";
 import { loadStageReviewContext } from "@/lib/stageOutputReviewLoad";
-import type { StageOutputHubItem } from "@/lib/stageOutputReview";
 
 export function FollowupReviewPanel({
   opportunityId,
@@ -54,8 +54,6 @@ export function FollowupReviewPanel({
 
   const [clientName, setClientName] = useState("");
   const [opportunityName, setOpportunityName] = useState("");
-  const [hubItems, setHubItems] = useState<StageOutputHubItem[]>([]);
-  const [eligibilityLockCopy, setEligibilityLockCopy] = useState<string | null>(null);
   const [contextLoading, setContextLoading] = useState(true);
   const [contextError, setContextError] = useState<string | null>(null);
 
@@ -66,6 +64,8 @@ export function FollowupReviewPanel({
   const [selectedLength, setSelectedLength] = useState<EmailDraftLength>("medium");
   const [checklist, setChecklist] = useState(emptyFollowupChecklist);
   const [acknowledgedFlags, setAcknowledgedFlags] = useState<Set<string>>(new Set());
+  const [bodyEdited, setBodyEdited] = useState(false);
+  const initialDraftBodyRef = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [confirmingDraft, setConfirmingDraft] = useState(false);
@@ -80,6 +80,8 @@ export function FollowupReviewPanel({
       setAdaptedEmail(applied);
       setSelectedLength(nextLength);
       setDraft(applied.panelDraft);
+      initialDraftBodyRef.current = applied.panelDraft?.body ?? null;
+      setBodyEdited(false);
       setChecklist(emptyFollowupChecklist());
       setAcknowledgedFlags(new Set());
     },
@@ -131,6 +133,8 @@ export function FollowupReviewPanel({
       setAdaptedEmail(null);
       setChecklist(emptyFollowupChecklist());
       setAcknowledgedFlags(new Set());
+      setBodyEdited(false);
+      initialDraftBodyRef.current = null;
 
       try {
         const loaded = await loadStageReviewContext(
@@ -145,15 +149,14 @@ export function FollowupReviewPanel({
 
         setClientName(loaded.opportunity.client_name);
         setOpportunityName(loaded.opportunity.opportunity_name);
-        setHubItems(loaded.hubItems);
-        setEligibilityLockCopy(loaded.eligibilityLockCopy);
-
         const savedStatics = loaded.opportunity.followup_statics;
         if (demoMode) {
           const demoStatics = savedStatics ?? demoFollowupProjectStatics();
           setStatics(demoStatics);
           setStaticsSaved(true);
-          setDraft(demoEmailDraftForStage(journeyStage, demoStatics));
+          const demoDraft = demoEmailDraftForStage(journeyStage, demoStatics);
+          setDraft(demoDraft);
+          initialDraftBodyRef.current = demoDraft.body;
         } else if (savedStatics) {
           setStatics(savedStatics);
           setStaticsSaved(true);
@@ -192,6 +195,8 @@ export function FollowupReviewPanel({
     setAdaptedEmail(null);
     setChecklist(emptyFollowupChecklist());
     setAcknowledgedFlags(new Set());
+    setBodyEdited(false);
+    initialDraftBodyRef.current = null;
   }
 
   async function handleSaveStatics() {
@@ -217,7 +222,10 @@ export function FollowupReviewPanel({
       setAcknowledgedFlags(new Set());
 
       if (demoMode) {
-        setDraft(demoEmailDraftForStage(journeyStage, saved.followup_statics));
+        const demoDraft = demoEmailDraftForStage(journeyStage, saved.followup_statics);
+        setDraft(demoDraft);
+        initialDraftBodyRef.current = demoDraft.body;
+        setBodyEdited(false);
         setInfo(stageContext.staticsSavedInfoDemo);
       } else {
         setDraft(null);
@@ -249,6 +257,7 @@ export function FollowupReviewPanel({
       return;
     }
     setDraft(value);
+    setBodyEdited(value.body !== initialDraftBodyRef.current);
     setChecklist(emptyFollowupChecklist());
     setAcknowledgedFlags(new Set());
     setInfo(null);
@@ -259,7 +268,10 @@ export function FollowupReviewPanel({
       return;
     }
     setSelectedLength(length);
-    setDraft(panelDraftForAdaptedEmail(adaptedEmail, length));
+    const nextDraft = panelDraftForAdaptedEmail(adaptedEmail, length);
+    setDraft(nextDraft);
+    initialDraftBodyRef.current = nextDraft?.body ?? null;
+    setBodyEdited(false);
     setChecklist(emptyFollowupChecklist());
     setAcknowledgedFlags(new Set());
     setInfo(null);
@@ -329,13 +341,6 @@ export function FollowupReviewPanel({
     }
   }
 
-  const canConfirm = canConfirmFollowupReview(
-    draft,
-    statics,
-    checklist,
-    acknowledgedFlags,
-    staticsSaved,
-  );
   const serverConfirmed = Boolean(!demoMode && adaptedEmail?.serverConfirmed);
   const draftNotGenerated =
     !demoMode && staticsSaved && !draft && !generatingDraft && !contextLoading;
@@ -345,27 +350,27 @@ export function FollowupReviewPanel({
   const panelBusy = busy || generatingDraft || confirmingDraft;
 
   return (
-    <StageReviewLayout
-      journeyStage={journeyStage}
-      currentStep="email"
-      opportunityId={opportunityId}
-      clientName={clientName || "Client"}
-      opportunityName={opportunityName || "Opportunity"}
-      kicker={stageContext.kicker}
-      title={stageContext.title}
-      lead={stageContext.lead}
-      demoMode={demoMode}
-      loading={authLoading || contextLoading}
-      error={combinedError}
-      hubItems={hubItems}
-      eligibilityLockCopy={eligibilityLockCopy}
-    >
+    <WorkspaceShell activeSection="post-meeting">
+      {!authLoading && accessToken ? <span data-testid="auth-ready" hidden /> : null}
+
       {!showReview ? (
         authLoading ? null : (
-          <p className="alert alert-info">Sign in to review this email.</p>
+          <div className="upload-banner upload-banner-info app-shell app-workspace-body">
+            <div>
+              <strong>Authentication required</strong>
+              <p>Sign in to review this follow-up email.</p>
+            </div>
+            <div className="upload-banner-actions">
+              <Link href="/login" className="btn btn-primary">
+                Sign in
+              </Link>
+            </div>
+          </div>
         )
       ) : (
-        <FollowupReviewView
+        <FollowUpEmailView
+          opportunityId={opportunityId}
+          clientName={clientName || opportunityName || null}
           stageContext={stageContext}
           demoMode={demoMode}
           statics={statics}
@@ -376,13 +381,14 @@ export function FollowupReviewPanel({
           selectedLength={selectedLength}
           liveDraftReadOnly={liveDraftReadOnly}
           serverConfirmed={serverConfirmed}
+          bodyEdited={bodyEdited}
           checklist={checklist}
           acknowledgedFlags={acknowledgedFlags}
-          canConfirm={canConfirm}
           busy={panelBusy}
           generatingDraft={generatingDraft}
           confirmingDraft={confirmingDraft}
-          error={null}
+          loading={authLoading || contextLoading}
+          error={combinedError}
           info={info}
           onStaticsChange={handleStaticsChange}
           onSaveStatics={() => void handleSaveStatics()}
@@ -396,6 +402,6 @@ export function FollowupReviewPanel({
           onConfirm={() => void handleConfirm()}
         />
       )}
-    </StageReviewLayout>
+    </WorkspaceShell>
   );
 }

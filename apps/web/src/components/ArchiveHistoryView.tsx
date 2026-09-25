@@ -2,14 +2,18 @@ import Link from "next/link";
 import React, { type FormEvent } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
+import { WorkflowStateCard } from "@/components/WorkflowStateCard";
 import {
   ARCHIVE_O2_NOTE,
-  archiveEmptyCopy,
   formatArchiveDate,
   type ArchiveCard,
   type ArchiveDownload,
   type ArchiveSearchQuery,
 } from "@/lib/archiveHistory";
+import {
+  filedArchiveEmptyWorkflowState,
+  filedArchiveFilteredEmptyWorkflowState,
+} from "@/lib/workflowState";
 
 export interface ArchiveHistoryViewProps {
   items: ArchiveCard[];
@@ -54,8 +58,10 @@ export function ArchiveHistoryView({
   onRetry,
   onDownload,
 }: ArchiveHistoryViewProps) {
-  const empty = archiveEmptyCopy(hasActiveFilters);
   const showEmpty = !loading && items.length === 0 && !error;
+  const emptyPresentation = hasActiveFilters
+    ? filedArchiveFilteredEmptyWorkflowState()
+    : filedArchiveEmptyWorkflowState();
 
   return (
     <div className="archive-page">
@@ -134,16 +140,11 @@ export function ArchiveHistoryView({
       ) : null}
 
       {showEmpty ? (
-        <section className="recent-empty">
-          <p className="recent-empty-kicker">{empty.kicker}</p>
-          <h2>{empty.title}</h2>
-          <p>{empty.detail}</p>
-          {!hasActiveFilters ? (
-            <Link href="/" className="btn btn-primary">
-              Recent presentations
-            </Link>
-          ) : null}
-        </section>
+        <WorkflowStateCard
+          presentation={emptyPresentation}
+          className="archive-workflow-state"
+          dataTestId="archive-empty-state"
+        />
       ) : null}
 
       {!loading && items.length > 0 ? (

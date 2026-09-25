@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { ArchiveHistoryView } from "@/components/ArchiveHistoryView";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { useAuth } from "@/components/AuthProvider";
 import { downloadPresentationFile, listArchiveArtifacts } from "@/lib/api";
 import {
@@ -116,8 +116,7 @@ export function ArchiveHistoryPanel() {
   }
 
   return (
-    <div className="app-workspace recent-page">
-      <SiteHeader signedInEmail={session?.user.email} />
+    <WorkspaceShell className="recent-page">
       <main className="app-shell app-workspace-body">
         <ArchiveHistoryView
           items={visibleItems}
@@ -145,6 +144,6 @@ export function ArchiveHistoryPanel() {
           onDownload={(item, download) => void handleDownload(item, download)}
         />
       </main>
-    </div>
+    </WorkspaceShell>
   );
 }

@@ -35,6 +35,7 @@ function render(
 {
   const html = render({ snapshot: snapshot(), plannedSlideCount: 12 });
   assert.match(html, /data-testid="live-generation-progress"/);
+  assert.match(html, /data-testid="researching-state"/);
   assert.match(html, /data-status="RUNNING"/);
   assert.match(html, /data-step="SLIDE_GENERATING" data-state="complete"/);
   assert.match(html, /data-step="SLIDE_VALIDATING" data-state="current"/);

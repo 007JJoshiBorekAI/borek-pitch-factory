@@ -81,6 +81,36 @@ export function clearSelectedJourneyStage(): void {
   getSessionStorage()?.removeItem(SELECTION_KEY);
 }
 
+export const JOURNEY_STAGE_QUERY = "journeyStage";
+
+export function parseJourneyStageQuery(value: string | null | undefined): JourneyStageName | null {
+  if (value === "first_contact" || value === "deepening" || value === "concretisation") {
+    return value;
+  }
+  return null;
+}
+
+export function uploadIntakeHref(
+  opportunityId: string | null | undefined,
+  journeyStage?: JourneyStageName | null,
+): string {
+  if (!opportunityId?.trim()) {
+    return "/clients";
+  }
+  const params = new URLSearchParams({
+    opportunityId: opportunityId.trim(),
+  });
+  if (journeyStage) {
+    params.set(JOURNEY_STAGE_QUERY, journeyStage);
+  }
+  return `/upload?${params.toString()}`;
+}
+
+/** Post-meeting sidebar entry — meeting input intake for the active opportunity. */
+export function postMeetingIntakeHref(opportunityId: string | null | undefined): string {
+  return uploadIntakeHref(opportunityId, "deepening");
+}
+
 export function continueHref(opportunityId: string | null): string {
   if (!opportunityId) {
     return "/upload?new=1";

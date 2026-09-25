@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { JourneyStartPanel } from "@/components/JourneyStartPanel";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { useAuth } from "@/components/AuthProvider";
 import { downloadPresentationFile, listRecentWork } from "@/lib/api";
 import { buildDownloadFilename } from "@/lib/deckCenter";
@@ -104,11 +104,7 @@ export function RecentPresentationsPanel() {
   }
 
   return (
-    <div className="app-workspace recent-page">
-      <SiteHeader
-        signedInEmail={session?.user.email}
-        onNewPresentation={openJourneyStart}
-      />
+    <WorkspaceShell className="recent-page">
       <main className="app-shell app-workspace-body">
         <div className="recent-heading-row">
           <AppPageHeader
@@ -191,6 +187,6 @@ export function RecentPresentationsPanel() {
           </section>
         ) : null}
       </main>
-    </div>
+    </WorkspaceShell>
   );
 }

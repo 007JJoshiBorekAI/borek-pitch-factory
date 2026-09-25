@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 
+import { WorkflowStateCard } from "@/components/WorkflowStateCard";
 import {
   elapsedMsSince,
   formatElapsedLabel,
   type JobProgressStepState,
   type JobProgressView,
 } from "@/lib/jobProgress";
+import { jobProgressResearchingState } from "@/lib/workflowState";
 
 interface LiveGenerationProgressProps {
   view: JobProgressView;
@@ -45,6 +47,7 @@ export function LiveGenerationProgress({ view, nowMs }: LiveGenerationProgressPr
     { startedAt: view.elapsedFrom, createdAt: null, completedAt: view.elapsedTo },
     nowMs ?? tick,
   );
+  const researchingState = jobProgressResearchingState(view.status, view.phase, view.headline);
 
   return (
     <section
@@ -54,6 +57,13 @@ export function LiveGenerationProgress({ view, nowMs }: LiveGenerationProgressPr
       data-status={view.status}
       data-job-type={view.jobType}
     >
+      {researchingState ? (
+        <WorkflowStateCard
+          presentation={researchingState}
+          variant="embedded"
+          dataTestId="researching-state"
+        />
+      ) : null}
       <header className="live-progress-header">
         <div>
           <h2 className="live-progress-title">{view.title}</h2>

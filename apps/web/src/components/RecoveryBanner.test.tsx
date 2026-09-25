@@ -25,7 +25,8 @@ const html = renderToStaticMarkup(
 assert.equal((html.match(/data-testid="recovery-banner"/g) ?? []).length, 1);
 assert.equal((html.match(/data-testid="recovery-action"/g) ?? []).length, 1);
 assert.match(html, /data-recovery-category="TERMINAL_FAILURE"/);
-assert.match(html, /<details class="recovery-details">/);
+assert.match(html, /class="workflow-state-details recovery-details"/);
+assert.match(html, /data-workflow-state-key="generation_failed"/);
 assert.doesNotMatch(html, /<details[^>]* open/);
 assert.ok(html.indexOf("<details") < html.indexOf("job-secret"));
 assert.ok(html.indexOf("<details") < html.indexOf("internal"));
@@ -45,7 +46,7 @@ const generateHtml = renderToStaticMarkup(
     onAction={() => undefined}
   />,
 );
-assert.match(generateHtml, />Generate again</);
+assert.match(generateHtml, />Generate again →</);
 assert.doesNotMatch(generateHtml, /href=/);
 assert.match(generateHtml, /ch\.4 today_vs_agent/);
 assert.ok(generateHtml.indexOf("<details") < generateHtml.indexOf("today_vs_agent"));

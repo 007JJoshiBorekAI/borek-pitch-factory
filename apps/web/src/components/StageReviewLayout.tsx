@@ -5,7 +5,7 @@ import React from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { JourneyOutputStepper } from "@/components/JourneyOutputStepper";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { StageOutputHubPanel } from "@/components/StageOutputHubPanel";
 import type { JourneyStageName } from "@/lib/api";
 import { pipelineHref } from "@/lib/pipelineContext";
@@ -52,8 +52,7 @@ export function StageReviewLayout({
   const backHref = pipelineHref("/upload", opportunityId);
 
   return (
-    <div className="app-workspace stage-review-page">
-      <SiteHeader />
+    <WorkspaceShell className="stage-review-page">
       <div className="app-shell app-workspace-body">
         <div className="stage-review-context" aria-label="Opportunity">
           <span>{clientName}</span>
@@ -90,6 +89,6 @@ export function StageReviewLayout({
           </Link>
         </div>
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }

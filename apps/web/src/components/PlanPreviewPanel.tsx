@@ -8,7 +8,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { JourneyStageChoice } from "@/components/JourneyStageSelector";
 import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
 import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
@@ -353,9 +353,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
   const surfacePrecedence = recoverySurfacePrecedence(activeNotice, progressSurfaceVisible);
 
   return (
-    <div className="app-workspace">
-      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
-
+    <WorkspaceShell>
       <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
@@ -506,6 +504,6 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
         ) : null}
         </div>
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }
