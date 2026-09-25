@@ -58,25 +58,17 @@ const uploadPanelSource = readFileSync(
   fileURLToPath(new URL("./TranscriptUploadPanel.tsx", import.meta.url)),
   "utf8",
 );
-assert.match(uploadPanelSource, /Stage1IntakePanel/);
+assert.match(uploadPanelSource, /PreMeetingIntakeView/);
 assert.match(uploadPanelSource, /isFirstContact/);
-assert.match(uploadPanelSource, /hidePersonalisation={isFirstContact}/);
-assert.match(uploadPanelSource, /buildStage1IntakePayload\(stage1Draft\)/);
-assert.match(uploadPanelSource, /stage1_intake: stage1Intake/);
-assert.match(uploadPanelSource, /!isFirstContact \?/);
+assert.match(uploadPanelSource, /first-contact\/review/);
+assert.doesNotMatch(uploadPanelSource, /Next step not available yet/);
 
 const firstContactBlock = uploadPanelSource.slice(
-  uploadPanelSource.indexOf("isFirstContact ? ("),
-  uploadPanelSource.indexOf("!isFirstContact ? ("),
+  uploadPanelSource.indexOf("if (isFirstContact)"),
+  uploadPanelSource.indexOf("return (\n    <WorkspaceShell>\n      <div className=\"app-shell app-workspace-body\">"),
 );
-assert.match(firstContactBlock, /Stage1IntakePanel/);
+assert.match(firstContactBlock, /PreMeetingIntakeView/);
 assert.doesNotMatch(firstContactBlock, /FileUploadQueue/);
-assert.match(uploadPanelSource, /stage1-workflow-status/);
-assert.match(uploadPanelSource, /Next step not available yet/);
-assert.doesNotMatch(
-  uploadPanelSource.slice(uploadPanelSource.indexOf("isFirstContact ? ("), uploadPanelSource.indexOf(") : opportunityId")),
-  /Continue to customer story/,
-);
 
 const deepeningBlock = uploadPanelSource.slice(uploadPanelSource.indexOf("!isFirstContact ? ("));
 assert.match(deepeningBlock, /MeetingFeedbackPanel/);

@@ -56,16 +56,16 @@ const uploadPanelSource = readFileSync(
   "utf8",
 );
 assert.match(uploadPanelSource, /ClientDocumentUploadPanel/);
-assert.match(uploadPanelSource, /processedDocumentCount/);
+assert.match(uploadPanelSource, /PreMeetingIntakeView/);
 
 const firstContactBlock = uploadPanelSource.slice(
-  uploadPanelSource.indexOf("isFirstContact ? ("),
-  uploadPanelSource.indexOf("!isFirstContact ? ("),
+  uploadPanelSource.indexOf("if (isFirstContact)"),
+  uploadPanelSource.indexOf('return (\n    <WorkspaceShell>\n      <div className="app-shell app-workspace-body">'),
 );
-assert.match(firstContactBlock, /ClientDocumentUploadPanel/);
+assert.match(firstContactBlock, /PreMeetingIntakeView/);
 assert.doesNotMatch(firstContactBlock, /FileUploadQueue/);
 
-const deepeningBlock = uploadPanelSource.slice(uploadPanelSource.indexOf("!isFirstContact ? ("));
+const deepeningBlock = uploadPanelSource.slice(uploadPanelSource.indexOf("<MeetingFeedbackPanel"));
 assert.match(deepeningBlock, /MeetingFeedbackPanel/);
 assert.match(deepeningBlock, /Transcript files/);
 assert.match(deepeningBlock, /FileUploadQueue/);

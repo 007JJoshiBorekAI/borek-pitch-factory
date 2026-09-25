@@ -6,16 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
-import {
-  ClientDocumentUploadPanel,
-  countProcessedClientDocuments,
-} from "@/components/ClientDocumentUploadPanel";
+import { ClientDocumentUploadPanel } from "@/components/ClientDocumentUploadPanel";
 import { ClientLogoUpload } from "@/components/ClientLogoUpload";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneyStageSelector";
 import { OpportunityForm } from "@/components/OpportunityForm";
 import { MeetingFeedbackPanel } from "@/components/MeetingFeedbackPanel";
-import { Stage1IntakePanel } from "@/components/Stage1IntakePanel";
+import { PreMeetingIntakeView } from "@/components/PreMeetingIntakeView";
 import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
 import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
@@ -30,7 +27,6 @@ import {
   type JourneyStageEligibilityResponse,
   type JourneyStageName,
   type OpportunityCreatePayload,
-  type ClientDocument,
   type OpportunityResponse,
   type Stage1Intake,
 } from "@/lib/api";
@@ -139,13 +135,8 @@ export function TranscriptUploadPanel({
   const [eligibilityReloadKey, setEligibilityReloadKey] = useState(0);
   const [stage1Draft, setStage1Draft] = useState<Stage1IntakeFormValues>(EMPTY_STAGE1_FORM);
   const [stage1CreateError, setStage1CreateError] = useState<string | null>(null);
-  const [clientDocuments, setClientDocuments] = useState<ClientDocument[]>([]);
 
   const isFirstContact = journeyStage === "first_contact";
-  const processedDocumentCount = useMemo(
-    () => countProcessedClientDocuments(clientDocuments),
-    [clientDocuments],
-  );
   const contextMatchesRequest = !initialOpportunityId || opportunityId === initialOpportunityId;
   const canUpload =
     isAuthenticated && !startFresh && Boolean(opportunityId) && contextMatchesRequest;
@@ -318,16 +309,21 @@ export function TranscriptUploadPanel({
     setStage1CreateError(null);
     let payload = values;
     if (isFirstContact) {
-      const validationError = validateStage1IntakeForm(stage1Draft);
+      const intakeValues = values.stage1_intake
+        ? stage1IntakeToFormValues(values.stage1_intake)
+        : stage1Draft;
+      const validationError = validateStage1IntakeForm(intakeValues);
       if (validationError) {
         setStage1CreateError(validationError);
         throw new Error(validationError);
       }
-      const stage1Payload = buildStage1IntakePayload(stage1Draft);
-      payload = {
-        ...values,
-        ...(hasStage1IntakeContent(stage1Payload) ? { stage1_intake: stage1Payload } : {}),
-      };
+      if (!values.stage1_intake) {
+        const stage1Payload = buildStage1IntakePayload(stage1Draft);
+        payload = {
+          ...values,
+          ...(hasStage1IntakeContent(stage1Payload) ? { stage1_intake: stage1Payload } : {}),
+        };
+      }
     }
     const created = await createOpportunity(accessToken, payload);
     const stored = storedFromResponse(created);
@@ -347,6 +343,7 @@ export function TranscriptUploadPanel({
       summary: null,
     });
     router.replace(pipelineHref("/upload", created.id));
+    return created.id;
   }
 
   async function handleSaveStage1Intake(stage1Intake: Stage1Intake) {
@@ -429,6 +426,25 @@ export function TranscriptUploadPanel({
     }
   }
 
+  if (isFirstContact) {
+    return (
+      <WorkspaceShell>
+        <div className="app-shell app-workspace-body pre-meeting-workspace">
+          {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
+          <PreMeetingIntakeView
+            disabled={!isAuthenticated || loading}
+            accessToken={accessToken}
+            opportunity={opportunity}
+            opportunityId={opportunityId}
+            onCreateOpportunity={handleCreateOpportunity}
+            onSaveStage1Intake={handleSaveStage1Intake}
+            onNavigateToReview={(id) => router.push(pipelineHref("/first-contact/review", id))}
+          />
+        </div>
+      </WorkspaceShell>
+    );
+  }
+
   return (
     <WorkspaceShell>
       <div className="app-shell app-workspace-body">
@@ -449,20 +465,7 @@ export function TranscriptUploadPanel({
             </>
           }
         >
-          {isFirstContact ? (
-            <div className="stage1-workflow-status" role="status">
-              <strong>Next step not available yet</strong>
-              <p>
-                {!opportunityId
-                  ? "Create the opportunity, save pre-meeting information, and upload at least one client document."
-                  : processedDocumentCount > 0
-                    ? `${processedDocumentCount} client document${processedDocumentCount === 1 ? "" : "s"} ready. Company brief generation will arrive in a later release.`
-                    : hasStage1IntakeContent(opportunity?.stage1_intake)
-                      ? "Upload at least one client document (.pdf, .docx, .txt) before research can run."
-                      : "Save pre-meeting information and upload client documents below."}
-              </p>
-            </div>
-          ) : opportunityId &&
+          {opportunityId &&
             statusCounts.success > 0 &&
             statusCounts.pending === 0 &&
             statusCounts.uploading === 0 ? (
@@ -481,13 +484,9 @@ export function TranscriptUploadPanel({
         <WorkflowStepIndicator currentStep={1} />
 
         <AppPageHeader
-          kicker={isFirstContact ? "First contact intake" : "Presentation intake"}
-          title={isFirstContact ? "Start a new pitch" : "Create a presentation"}
-          lead={
-            isFirstContact
-              ? "Give us the client. Prepare for the first meeting — no meeting transcript needed at this stage."
-              : "Confirm the client, add discovery transcripts, and continue to the customer story."
-          }
+          kicker="Presentation intake"
+          title="Create a presentation"
+          lead="Confirm the client, add discovery transcripts, and continue to the customer story."
         />
 
         <div className="intake-main">
@@ -527,11 +526,7 @@ export function TranscriptUploadPanel({
               <header className="upload-panel-header">
                 <div>
                   <h2>Client and opportunity</h2>
-                  <p>
-                    {isFirstContact
-                      ? "Create the workspace for this First contact pitch."
-                      : "Create the workspace that will hold the transcripts and presentation."}
-                  </p>
+                  <p>Create the workspace that will hold the transcripts and presentation.</p>
                 </div>
               </header>
               <OpportunityForm
@@ -548,25 +543,17 @@ export function TranscriptUploadPanel({
                       }
                     : null
                 }
-                onSubmit={handleCreateOpportunity}
+                onSubmit={async (values) => {
+                  await handleCreateOpportunity(values);
+                }}
                 onUpdateClientInformation={handleUpdateClientInformation}
-                hidePersonalisation={isFirstContact}
-                personalisationHint={
-                  journeyStage === "first_contact"
-                    ? "Save confirmed context for later. First contact stays generic and will not use client-specific references or branding."
-                    : undefined
-                }
                 personalisation={
-                  accessToken && opportunityId && journeyStage !== "first_contact" ? (
+                  accessToken && opportunityId ? (
                     <ClientLogoUpload
                       accessToken={accessToken}
                       opportunityId={opportunityId}
                       clientName={opportunity?.client_name}
                     />
-                  ) : journeyStage === "first_contact" ? (
-                    <p className="client-information-stage-note">
-                      Client branding becomes available for tailored presentations after First contact.
-                    </p>
                   ) : (
                     <p className="client-information-stage-note">
                       Create the opportunity to add an optional client logo.
@@ -579,29 +566,7 @@ export function TranscriptUploadPanel({
               ) : null}
             </section>
 
-            {isFirstContact ? (
-              <>
-                <Stage1IntakePanel
-                  disabled={!isAuthenticated || loading}
-                  existingIntake={opportunity?.stage1_intake ?? null}
-                  draftValues={opportunity ? undefined : stage1Draft}
-                  onDraftChange={opportunity ? undefined : setStage1Draft}
-                  accessToken={accessToken}
-                  opportunityId={opportunityId}
-                  showSaveAction={Boolean(opportunityId)}
-                  onSave={handleSaveStage1Intake}
-                />
-                <ClientDocumentUploadPanel
-                  accessToken={accessToken}
-                  opportunityId={opportunityId}
-                  disabled={!isAuthenticated || loading}
-                  onDocumentsChange={setClientDocuments}
-                />
-              </>
-            ) : null}
-
-            {!isFirstContact ? (
-              <>
+            <>
                 <MeetingFeedbackPanel
                   accessToken={accessToken}
                   opportunityId={opportunityId}
@@ -657,8 +622,7 @@ export function TranscriptUploadPanel({
                   description="Upload optional background material (PDF, DOCX, or TXT). These are client documents, not meeting transcripts."
                   scopeNote="Documents are listed per opportunity. The API does not separate uploads by journey stage, so files from First contact appear here too."
                 />
-              </>
-            ) : null}
+            </>
         </div>
       </div>
     </WorkspaceShell>
