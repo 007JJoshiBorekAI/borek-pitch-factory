@@ -22,7 +22,6 @@ for (const name of [
   "TranscriptUploadPanel.tsx",
   "FrameworkReviewPanel.tsx",
   "PlanPreviewPanel.tsx",
-  "DeckCenterPanel.tsx",
 ]) {
   const source = readFileSync(fileURLToPath(new URL(`./${name}`, import.meta.url)), "utf8");
   assert.match(source, /WorkflowStepIndicator/, name);
@@ -30,12 +29,16 @@ for (const name of [
   assert.doesNotMatch(source, /PipelineStepper/, name);
 }
 
-const planSource = readFileSync(
-  fileURLToPath(new URL("./PlanPreviewPanel.tsx", import.meta.url)),
-  "utf8",
-);
 const deckSource = readFileSync(
   fileURLToPath(new URL("./DeckCenterPanel.tsx", import.meta.url)),
+  "utf8",
+);
+assert.match(deckSource, /PitchGenerationView/);
+assert.doesNotMatch(deckSource, /WorkflowStepIndicator/);
+assert.doesNotMatch(deckSource, /PipelineStepper/);
+
+const planSource = readFileSync(
+  fileURLToPath(new URL("./PlanPreviewPanel.tsx", import.meta.url)),
   "utf8",
 );
 assert.doesNotMatch(planSource, /upload-sidebar|Step 3 of 4/);

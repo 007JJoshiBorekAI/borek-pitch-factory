@@ -34,6 +34,7 @@
     "test:figma03": "tsx src/lib/preMeetingIntake.test.ts && tsx src/components/preMeetingIntakeView.test.tsx",
     "test:figma04": "tsx src/lib/clientDirectory.test.ts && tsx src/components/clientsWorkspacePanel.test.tsx",
     "test:figma05": "tsx src/lib/postMeetingIntake.test.ts && tsx src/components/postMeetingIntakeView.test.tsx",
+    "test:figma06": "tsx src/lib/pitchGeneration.test.ts && tsx src/components/pitchGenerationView.test.tsx",
     "test:ux": "tsx src/components/frameworkReviewUx.test.tsx && tsx src/components/surfaceConsistency.test.ts && tsx src/components/workflowStepIndicator.test.tsx",
     "test:ms32": "tsx src/lib/followupReview.test.ts && tsx src/components/FollowupReviewView.test.tsx"
   },

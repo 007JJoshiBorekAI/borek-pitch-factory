@@ -79,10 +79,14 @@ const deckCenterSource = readFileSync(
   fileURLToPath(new URL("./DeckCenterPanel.tsx", import.meta.url)),
   "utf8",
 );
-assert.match(deckCenterSource, /PipelineStepper|WorkflowStepIndicator/);
+assert.match(deckCenterSource, /PitchGenerationView/);
 assert.doesNotMatch(deckCenterSource, /JourneyOutputStepper/);
-assert.match(deckCenterSource, /concretisation-email-review/);
+assert.doesNotMatch(deckCenterSource, /WorkflowStepIndicator/);
 assert.match(deckCenterSource, /followupReviewHref/);
+assert.match(
+  readFileSync(fileURLToPath(new URL("./PitchGenerationView.tsx", import.meta.url)), "utf8"),
+  /concretisation-email-review/,
+);
 assert.match(deckCenterSource, /"concretisation"/);
 
 const uploadSource = readFileSync(

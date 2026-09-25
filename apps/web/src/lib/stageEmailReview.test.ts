@@ -87,13 +87,18 @@ const deckCenterSource = readFileSync(
   fileURLToPath(new URL("../components/DeckCenterPanel.tsx", import.meta.url)),
   "utf8",
 );
-assert.match(deckCenterSource, /PipelineStepper|WorkflowStepIndicator/);
+assert.match(deckCenterSource, /PitchGenerationView/);
+assert.doesNotMatch(deckCenterSource, /PipelineStepper|WorkflowStepIndicator/);
 assert.doesNotMatch(deckCenterSource, /JourneyOutputStepper/);
-assert.match(deckCenterSource, /Review follow-up email/);
 assert.match(deckCenterSource, /shouldShowConcretisationEmailReviewLink/);
 assert.match(deckCenterSource, /followupReviewHref\(\s*opportunityId,\s*"concretisation"/);
-assert.match(deckCenterSource, /data-testid="concretisation-email-review"/);
 assert.match(deckCenterSource, /isStageOutputDemoMode/);
+const pitchGenerationViewSource = readFileSync(
+  fileURLToPath(new URL("../components/PitchGenerationView.tsx", import.meta.url)),
+  "utf8",
+);
+assert.match(pitchGenerationViewSource, /Review follow-up email/);
+assert.match(pitchGenerationViewSource, /data-testid="concretisation-email-review"/);
 assert.doesNotMatch(deckCenterSource, /email has been generated|generated email/i);
 
 console.log("MS-35 stage email review tests passed");
