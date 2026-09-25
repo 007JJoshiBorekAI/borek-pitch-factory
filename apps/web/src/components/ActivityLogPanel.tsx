@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { assignEmployeeRole, listActivityLog, listEmployees } from "@/lib/api";
 import {
   formatActivityAction,
@@ -64,9 +64,8 @@ export function ActivityLogPanel() {
   }
 
   return (
-    <div className="app-shell">
-      <SiteHeader />
-      <main className="app-workspace">
+    <WorkspaceShell>
+      <main className="app-shell app-workspace-body">
         <AppPageHeader
           kicker="Governance"
           title="Activity log"
@@ -180,6 +179,6 @@ export function ActivityLogPanel() {
           </p>
         )}
       </main>
-    </div>
+    </WorkspaceShell>
   );
 }

@@ -16,7 +16,7 @@ import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneySt
 import { OpportunityForm } from "@/components/OpportunityForm";
 import { MeetingFeedbackPanel } from "@/components/MeetingFeedbackPanel";
 import { Stage1IntakePanel } from "@/components/Stage1IntakePanel";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
 import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
@@ -430,9 +430,7 @@ export function TranscriptUploadPanel({
   }
 
   return (
-    <div className="app-workspace">
-      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
-
+    <WorkspaceShell>
       <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
@@ -663,6 +661,6 @@ export function TranscriptUploadPanel({
             ) : null}
         </div>
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }

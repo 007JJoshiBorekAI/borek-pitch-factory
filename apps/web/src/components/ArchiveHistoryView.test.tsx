@@ -90,9 +90,11 @@ assert.ok(listHtml.includes(`href="${filed.openHref.replaceAll("&", "&amp;")}"`)
 assert.doesNotMatch(listHtml, forbidden);
 assert.doesNotMatch(listHtml, />22222222-2222-4222-8222-222222222222</);
 
-const headerSource = readFileSync(fileURLToPath(new URL("./SiteHeader.tsx", import.meta.url)), "utf8");
-assert.match(headerSource, /href="\/archive"/);
-assert.match(headerSource, />Archive</);
+const topBarSource = readFileSync(
+  fileURLToPath(new URL("./WorkspaceTopBar.tsx", import.meta.url)),
+  "utf8",
+);
+assert.match(topBarSource, /href="\/archive"[\s\S]*Archive/);
 
 const css = readFileSync(fileURLToPath(new URL("../app/globals.css", import.meta.url)), "utf8");
 assert.match(css, /\.archive-filters\s*\{[\s\S]*grid-template-columns:/);
