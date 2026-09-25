@@ -208,7 +208,7 @@ export function FirstContactPanel() {
                       mode={{ kind: "client-preparation" }}
                       title="Client preparation email"
                       description="Optional pre-meeting note for the client, grounded in your brief and project statics."
-                      canGenerate={ready}
+                      canGenerate={Boolean(ready)}
                       generateBlockedHint="Generate the meeting brief first, then create the client preparation email."
                     />
                   </>

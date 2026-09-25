@@ -117,7 +117,7 @@ export function mergeStage1Intake(
       existing?.sales_topic_description,
       enriched.sales_topic_description,
     ),
-    about_company: mergeAboutCompany(existing?.about_company, enriched.about_company),
+    about_company: mergeAboutCompany(existing?.about_company, enriched.about_company ?? null),
   };
 }
 

@@ -63,7 +63,12 @@ def repair_gamma_slot_text(text: str) -> str:
         ]
         if kept_lines:
             kept_paragraphs.append("\n".join(kept_lines))
-    return _PARAGRAPH_SEPARATOR.join(kept_paragraphs).strip()
+    repaired = _PARAGRAPH_SEPARATOR.join(kept_paragraphs).strip()
+    # A cost word on one line and a number on another still counts as commercial
+    # once the lines are joined. Drop the slot rather than send pricing to Gamma.
+    if contains_prohibited_gamma_commercial_text(repaired):
+        return ""
+    return repaired
 
 
 def apply_gamma_payload_compliance(

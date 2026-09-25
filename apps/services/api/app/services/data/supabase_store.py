@@ -795,6 +795,11 @@ class SupabaseDataStore:
         generation_job_id: UUID | None = None,
     ) -> dict[str, Any]:
         self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
         now = datetime.now(UTC).isoformat()
         payload = {
             "transcript_id": str(transcript_id),
@@ -807,25 +812,30 @@ class SupabaseDataStore:
             "summary_json": summary_json,
             "updated_at": now,
         }
-        existing = self._request(
+        # Table grants are service_role only (031_transcript_summaries.sql).
+        scope = {
+            "transcript_id": f"eq.{transcript_id}",
+            "opportunity_id": f"eq.{opportunity_id}",
+        }
+        existing = self._service_role_request(
             "GET",
             "transcript_summaries",
-            params={
-                "select": "transcript_id",
-                "transcript_id": f"eq.{transcript_id}",
-                "limit": "1",
-            },
+            params={"select": "transcript_id", "limit": "1", **scope},
         )
         if existing.status_code == 200 and existing.json():
-            response = self._request(
+            response = self._service_role_request(
                 "PATCH",
                 "transcript_summaries",
-                params={"transcript_id": f"eq.{transcript_id}"},
+                params=scope,
                 json_body=payload,
             )
         else:
             payload["created_at"] = now
-            response = self._request("POST", "transcript_summaries", json_body=payload)
+            response = self._service_role_request(
+                "POST",
+                "transcript_summaries",
+                json_body=payload,
+            )
         if response.status_code not in (200, 201, 204):
             raise bad_request("TRANSCRIPT_SUMMARY_STORE_FAILED", response.text)
         return payload

@@ -608,6 +608,65 @@ export async function generateStage1Outputs(
   );
 }
 
+export interface TranscriptSummary {
+  schema_version: string;
+  opportunity_id: string;
+  transcript_id: string;
+  participants: string[];
+  decisions: string[];
+  action_items: Array<{ text: string; owner?: string | null; due?: string | null }>;
+  open_questions: string[];
+  client_terms: string[];
+  narrative: string;
+  summary_truncated: boolean;
+}
+
+export interface Stage2OutputsEnvelope {
+  schema_version: string;
+  opportunity_id: string;
+  status: "not_generated" | "ready";
+  outputs: {
+    call_summary: string;
+    mom: {
+      title: string;
+      participants: string[];
+      decisions: string[];
+      action_items: string[];
+      open_questions: string[];
+      meeting_feedback: string | null;
+    };
+    presentation: {
+      status: string;
+      code: string | null;
+      presentation_id: string | null;
+      download_url: string | null;
+    };
+    transcript_summary: TranscriptSummary;
+    generated_at: string;
+  } | null;
+}
+
+export async function getStage2Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage2OutputsEnvelope> {
+  return apiFetch<Stage2OutputsEnvelope>(
+    `/opportunities/${opportunityId}/stage2-outputs`,
+    accessToken,
+  );
+}
+
+export async function generateStage2Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage2OutputsEnvelope> {
+  return apiFetch<Stage2OutputsEnvelope>(
+    `/opportunities/${opportunityId}/stage2-outputs/generate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
 export type JourneyEmailStage = "first_contact" | "deepening" | "concretisation";
 export type EmailDraftLength = "short" | "medium" | "extensive";
 

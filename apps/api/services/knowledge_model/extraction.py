@@ -38,6 +38,7 @@ from services.framework.stage1_intake import (
     format_stage1_intake_for_prompt,
     safe_intake_for_llm,
 )
+from services.observability.llm_logger import STAGE_EXTRACTION, run_logged_llm_call
 from services.validation.schema_retry import SourceRefRetryError, require_valid_source_refs
 from services.transcript.summarize import (
     format_transcript_summary_for_prompt,

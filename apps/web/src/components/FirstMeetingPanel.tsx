@@ -2,13 +2,26 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { EmailDraftTemplateSection } from "@/components/EmailDraftTemplateSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { StageInputs, StageStepper } from "@/components/StageChrome";
 import { useAuth } from "@/components/AuthProvider";
-import { getOpportunity, listTranscripts, updateOpportunity, uploadTranscript, type TranscriptResponse } from "@/lib/api";
+import {
+  generateStage2Outputs,
+  getOpportunity,
+  getStage2Outputs,
+  listTranscripts,
+  updateOpportunity,
+  uploadTranscript,
+  type TranscriptResponse,
+} from "@/lib/api";
+import {
+  applyStage2OutputsToDraft,
+  meetingSectionEmpty,
+  stage2NeedsRefresh,
+} from "@/lib/firstMeetingFromTranscript";
 import {
   draftFromNotes,
   emptyPitchDraft,
@@ -32,6 +45,31 @@ export function FirstMeetingPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedNote, setSavedNote] = useState("");
+  const [extracting, setExtracting] = useState(false);
+
+  const syncMeetingDetailsFromTranscript = useCallback(
+    async (
+      baseDraft: PitchDraft,
+      transcriptList: TranscriptResponse[],
+      overwriteMeeting: boolean,
+    ): Promise<PitchDraft> => {
+      if (!accessToken || !opportunityId || transcriptList.length === 0) {
+        return baseDraft;
+      }
+      const latestTranscriptId = transcriptList[transcriptList.length - 1]?.id;
+      setExtracting(true);
+      try {
+        let envelope = await getStage2Outputs(accessToken, opportunityId);
+        if (stage2NeedsRefresh(latestTranscriptId, envelope)) {
+          envelope = await generateStage2Outputs(accessToken, opportunityId);
+        }
+        return applyStage2OutputsToDraft(baseDraft, envelope, { overwriteMeeting });
+      } finally {
+        setExtracting(false);
+      }
+    },
+    [accessToken, opportunityId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -43,15 +81,23 @@ export function FirstMeetingPanel() {
       setLoading(true);
       try {
         const opportunity = await getOpportunity(accessToken, opportunityId);
+        const transcriptList = await listTranscripts(accessToken, opportunityId);
         const stored = loadPitchDraft(opportunityId) ?? draftFromNotes(opportunity.additional_client_information?.notes);
-        if (!cancelled) {
-          setClientName(opportunity.client_name);
-          setDraft(stored ?? emptyPitchDraft({
+        let nextDraft =
+          stored ??
+          emptyPitchDraft({
             client: opportunity.client_name,
             pitchTitle: opportunity.opportunity_name,
             service: opportunity.department,
-          }));
-          setTranscripts(await listTranscripts(accessToken, opportunityId));
+          });
+        if (transcriptList.length > 0 && meetingSectionEmpty(nextDraft)) {
+          nextDraft = await syncMeetingDetailsFromTranscript(nextDraft, transcriptList, false);
+          savePitchDraft(opportunityId, nextDraft);
+        }
+        if (!cancelled) {
+          setClientName(opportunity.client_name);
+          setDraft(nextDraft);
+          setTranscripts(transcriptList);
         }
       } catch (loadError) {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : "The meeting could not be loaded.");
@@ -63,7 +109,7 @@ export function FirstMeetingPanel() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, opportunityId]);
+  }, [accessToken, opportunityId, syncMeetingDetailsFromTranscript]);
 
   function update(key: keyof PitchDraft, value: string) {
     setDraft((current) => (current ? { ...current, [key]: value } : current));
@@ -107,8 +153,16 @@ export function FirstMeetingPanel() {
     setError(null);
     try {
       await uploadTranscript(accessToken, opportunityId, file);
-      setTranscripts(await listTranscripts(accessToken, opportunityId));
-      setSavedNote("Transcript received");
+      const transcriptList = await listTranscripts(accessToken, opportunityId);
+      setTranscripts(transcriptList);
+      if (draft) {
+        const enriched = await syncMeetingDetailsFromTranscript(draft, transcriptList, true);
+        savePitchDraft(opportunityId, enriched);
+        setDraft(enriched);
+        setSavedNote("Transcript received · Meeting details updated from transcript");
+      } else {
+        setSavedNote("Transcript received");
+      }
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "The transcript could not be uploaded.");
     } finally {
@@ -133,6 +187,7 @@ export function FirstMeetingPanel() {
         ) : null}
         {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
         {loading ? <p>Loading the meeting...</p> : null}
+        {extracting && !loading ? <p className="pitch-subtle">Extracting meeting details from transcript…</p> : null}
         {draft && opportunityId ? (
           <>
             <p className="pitch-breadcrumb">

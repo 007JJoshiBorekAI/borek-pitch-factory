@@ -402,6 +402,8 @@ def _anthropic_complete(system: str, user: str, schema: dict[str, Any]) -> dict[
 
 def build_synthesis_system_prompt() -> str:
     """ES-30 — role + schema contract + ES-14..27 checklist + tone/guardrails from config."""
+    from services.presentation.opportunity_master import framework_synthesis_master_block
+
     template = _PROMPT_PATH.read_text(encoding="utf-8")
     titles = "\n".join(f"{chapter_id}. {title}" for chapter_id, title in _registry_specs())
     return (
@@ -414,6 +416,7 @@ def build_synthesis_system_prompt() -> str:
         "and must not be duplicated elsewhere — see CROSS-CHAPTER AI CONSISTENCY above.\n"
         + _format_tone_and_guardrails(tone_voice())
         + f"\n\nPinned model: {sonnet_model()}. Temperature: 0."
+        + framework_synthesis_master_block()
     )
 
 
