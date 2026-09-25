@@ -1,0 +1,439 @@
+/* Body / Opportunity form */
+
+position: absolute;
+width: 534px;
+height: 654px;
+left: 558px;
+top: 366px;
+
+
+
+/* Section title */
+
+position: absolute;
+width: 380px;
+height: 34px;
+left: 0px;
+top: 0px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 24px;
+line-height: 34px;
+/* identical to box height, or 140% */
+
+color: #0D1240;
+
+
+
+/* Section helper */
+
+position: absolute;
+width: 520px;
+height: 19px;
+left: 0px;
+top: 36px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Field / Business opportunity */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 534px;
+height: 96px;
+left: 0px;
+top: 76px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Business opportunity */
+
+position: absolute;
+width: 506px;
+height: 14px;
+left: 14px;
+top: 87px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Business opportunity */
+
+position: absolute;
+width: 506px;
+height: 19px;
+left: 14px;
+top: 108px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Proposed solution */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 534px;
+height: 96px;
+left: 0px;
+top: 188px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Proposed solution */
+
+position: absolute;
+width: 506px;
+height: 14px;
+left: 14px;
+top: 199px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Proposed solution */
+
+position: absolute;
+width: 506px;
+height: 37px;
+left: 14px;
+top: 220px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Relevant services */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 534px;
+height: 82px;
+left: 0px;
+top: 300px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Relevant services */
+
+position: absolute;
+width: 506px;
+height: 14px;
+left: 14px;
+top: 311px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Relevant services */
+
+position: absolute;
+width: 506px;
+height: 37px;
+left: 14px;
+top: 332px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Scope */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 258px;
+height: 76px;
+left: 0px;
+top: 398px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Scope */
+
+position: absolute;
+width: 230px;
+height: 14px;
+left: 14px;
+top: 409px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Scope */
+
+position: absolute;
+width: 230px;
+height: 19px;
+left: 14px;
+top: 430px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Timeline */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 258px;
+height: 76px;
+left: 276px;
+top: 398px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Timeline */
+
+position: absolute;
+width: 230px;
+height: 14px;
+left: 290px;
+top: 409px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Timeline */
+
+position: absolute;
+width: 230px;
+height: 19px;
+left: 290px;
+top: 430px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Budget */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 534px;
+height: 72px;
+left: 0px;
+top: 490px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Budget */
+
+position: absolute;
+width: 506px;
+height: 14px;
+left: 14px;
+top: 501px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Budget */
+
+position: absolute;
+width: 506px;
+height: 19px;
+left: 14px;
+top: 522px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 142% */
+
+color: #124F94;
+
+
+
+/* Secondary button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 138px;
+height: 44px;
+left: 0px;
+top: 590px;
+
+border: 1px solid #E2E4EC;
+
+
+/* Secondary button label */
+
+position: absolute;
+width: 102px;
+height: 20px;
+left: 20px;
+top: 600px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 20px;
+/* identical to box height, or 140% */
+
+color: #0D1240;
+
+
+
+/* Primary button */
+
+position: absolute;
+width: 252px;
+height: 44px;
+left: 282px;
+top: 590px;
+
+background: #0D1240;
+
+
+/* Primary button label */
+
+position: absolute;
+width: 218px;
+height: 20px;
+left: 300px;
+top: 600px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 20px;
+/* identical to box height, or 140% */
+
+color: #FFFFFF;
+
+
+
+/* Autosave */
+
+position: absolute;
+width: 300px;
+height: 16px;
+left: 0px;
+top: 640px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 15px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+

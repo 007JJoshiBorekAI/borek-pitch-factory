@@ -1,6 +1,6 @@
 # BT-35 — First contact client document pipeline
 
-**Owner:** Blenard Tahiraj  
+**Owner:** Mayank Somwani
 **Phase:** 3 · **Priority:** P0  
 **Added:** 21 September 2026 — Feature redefinition sprint  
 **Source:** `Pitch Factory input_output.docx` — Stage 1 document-based prep

@@ -22,13 +22,11 @@ out/
 dist/
 *.tsbuildinfo
 
-# Generated (AT-4 / AT-5 output � do not commit hand-edits)
-generated/python/
-generated/typescript/
 
 # IDE / OS
 .idea/
 .vscode/
+.cursor/
 *.swp
 .DS_Store
 Thumbs.db
@@ -39,6 +37,7 @@ local_es_harness/
 # Render / test artifacts
 *.pptx
 *.pdf
+!samples/**/*.pdf
 !tests/fixtures/**/*.pptx
 tests/golden_deck/**/output/
 tmp/

@@ -1,10 +1,14 @@
-import { RecentPresentationsPanel } from "@/components/RecentPresentationsPanel";
+import { Suspense } from "react";
+
+import { NewPitchPanel } from "@/components/NewPitchPanel";
 import { RequireAuth } from "@/components/RequireAuth";
 
 export default function HomePage() {
   return (
     <RequireAuth>
-      <RecentPresentationsPanel />
+      <Suspense fallback={null}>
+        <NewPitchPanel />
+      </Suspense>
     </RequireAuth>
   );
 }

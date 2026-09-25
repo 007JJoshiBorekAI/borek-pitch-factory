@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/stage2_outputs.schema.json",
+  "title": "Stage2OutputsEnvelope",
+  "description": "BT-36 Deepening retrieval envelope for MS-35. Call summary and MOM are grounded in TRANSCRIPT_SUMMARY plus meeting feedback.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "opportunity_id", "status", "outputs"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["not_generated", "ready"]
+    },
+    "outputs": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "call_summary",
+        "mom",
+        "presentation",
+        "transcript_summary",
+        "generated_at"
+      ],
+      "properties": {
+        "call_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mom": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "participants",
+            "decisions",
+            "action_items",
+            "open_questions",
+            "meeting_feedback"
+          ],
+          "properties": {
+            "title": { "type": "string", "minLength": 1 },
+            "participants": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "decisions": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "action_items": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "open_questions": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "meeting_feedback": {
+              "type": ["string", "null"]
+            }
+          }
+        },
+        "presentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "code", "presentation_id", "download_url"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["unfrozen", "ready"]
+            },
+            "code": {
+              "type": ["string", "null"]
+            },
+            "presentation_id": {
+              "type": ["string", "null"],
+              "format": "uuid"
+            },
+            "download_url": {
+              "type": ["string", "null"]
+            }
+          }
+        },
+        "transcript_summary": {
+          "type": "object"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

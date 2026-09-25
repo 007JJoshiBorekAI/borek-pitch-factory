@@ -1,0 +1,439 @@
+/* Body / First meeting form */
+
+position: absolute;
+width: 534px;
+height: 654px;
+left: 558px;
+top: 366px;
+
+
+
+/* Section title */
+
+position: absolute;
+width: 300px;
+height: 34px;
+left: 0px;
+top: 0px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 24px;
+line-height: 34px;
+/* identical to box height, or 140% */
+
+color: #0D1240;
+
+
+
+/* Section helper */
+
+position: absolute;
+width: 500px;
+height: 19px;
+left: 0px;
+top: 36px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Field / Meeting date */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 226px;
+height: 70px;
+left: 0px;
+top: 76px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Meeting date */
+
+position: absolute;
+width: 198px;
+height: 14px;
+left: 14px;
+top: 87px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Meeting date */
+
+position: absolute;
+width: 198px;
+height: 37px;
+left: 14px;
+top: 108px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Participants */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 292px;
+height: 70px;
+left: 242px;
+top: 76px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Participants */
+
+position: absolute;
+width: 264px;
+height: 14px;
+left: 256px;
+top: 87px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Participants */
+
+position: absolute;
+width: 264px;
+height: 19px;
+left: 256px;
+top: 108px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Summary */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 534px;
+height: 96px;
+left: 0px;
+top: 162px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Summary */
+
+position: absolute;
+width: 506px;
+height: 14px;
+left: 14px;
+top: 173px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Summary */
+
+position: absolute;
+width: 506px;
+height: 56px;
+left: 14px;
+top: 194px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Pain points */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 258px;
+height: 140px;
+left: 0px;
+top: 274px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Pain points */
+
+position: absolute;
+width: 230px;
+height: 14px;
+left: 14px;
+top: 285px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Pain points */
+
+position: absolute;
+width: 230px;
+height: 74px;
+left: 14px;
+top: 306px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Requirements */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 258px;
+height: 140px;
+left: 276px;
+top: 274px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Requirements */
+
+position: absolute;
+width: 230px;
+height: 14px;
+left: 290px;
+top: 285px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Requirements */
+
+position: absolute;
+width: 230px;
+height: 56px;
+left: 290px;
+top: 306px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* or 142% */
+
+color: #0D1240;
+
+
+
+/* Field / Concerns */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 534px;
+height: 116px;
+left: 0px;
+top: 430px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Label / Concerns */
+
+position: absolute;
+width: 506px;
+height: 14px;
+left: 14px;
+top: 441px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 10px;
+line-height: 14px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+
+
+
+/* Value / Concerns */
+
+position: absolute;
+width: 506px;
+height: 37px;
+left: 14px;
+top: 462px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* or 142% */
+
+color: #0D1240;
+
+
+
+/* Secondary button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 150px;
+height: 44px;
+left: 0px;
+top: 574px;
+
+border: 1px solid #E2E4EC;
+
+
+/* Secondary button label */
+
+position: absolute;
+width: 116px;
+height: 20px;
+left: 18px;
+top: 584px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 20px;
+/* identical to box height, or 140% */
+
+color: #0D1240;
+
+
+
+/* Primary button */
+
+position: absolute;
+width: 236px;
+height: 44px;
+left: 298px;
+top: 574px;
+
+background: #0D1240;
+
+
+/* Primary button label */
+
+position: absolute;
+width: 204px;
+height: 20px;
+left: 314px;
+top: 584px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 20px;
+/* identical to box height, or 140% */
+
+color: #FFFFFF;
+
+
+
+/* Autosave */
+
+position: absolute;
+width: 260px;
+height: 16px;
+left: 0px;
+top: 630px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 15px;
+/* identical to box height, or 140% */
+
+color: #5C6178;
+

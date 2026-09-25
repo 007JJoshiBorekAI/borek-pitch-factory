@@ -38,6 +38,15 @@ def headers(owner: UUID = OWNER) -> dict[str, str]:
     }
 
 
+def upload_client_doc(client: TestClient, opportunity_id: str) -> None:
+    response = client.post(
+        f"/opportunities/{opportunity_id}/client-documents",
+        headers=headers(),
+        files={"file": ("brief.txt", b"Client background material.", "text/plain")},
+    )
+    assert response.status_code == 201, response.text
+
+
 def create(client: TestClient, **extra: object) -> dict:
     response = client.post(
         "/opportunities",
@@ -172,6 +181,7 @@ def test_voice_empty_and_unavailable_preserve_topic_and_auth():
 def test_research_missing_provider_and_ownership():
     with TestClient(create_app()) as client:
         row = create(client, stage1_intake=INTAKE)
+        upload_client_doc(client, row["id"])
         path = f"/opportunities/{row['id']}/stage1-research"
         response = client.post(path, headers=headers())
         assert response.status_code == 200, response.text
@@ -203,6 +213,7 @@ def test_research_provider_dependency_is_wired_and_errors_are_safe():
     app.dependency_overrides[get_company_research_provider] = lambda: Provider()
     with TestClient(app) as client:
         row = create(client, stage1_intake=INTAKE)
+        upload_client_doc(client, row["id"])
         path = f"/opportunities/{row['id']}/stage1-research"
         assert (
             client.post(path, headers=headers()).json()["company_facts"][

@@ -16,10 +16,10 @@ export function BrandLogo({
   const logo = (
     <>
       <Image
-        src="/logo.webp"
+        src="/logo.png"
         alt="Borek Solutions Group"
-        width={180}
-        height={36}
+        width={220}
+        height={48}
         className="brand-logo-image"
         priority
       />

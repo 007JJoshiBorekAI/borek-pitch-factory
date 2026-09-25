@@ -14,8 +14,15 @@ export function AuthShell({ title, subtitle, children }: AuthShellProps) {
           <BrandLogo href="/login" />
           <p className="auth-product-name">Pitch Factory</p>
           <p className="auth-tagline">
-            Framework and presentation generation for sales engineering teams.
+            From client research to an approved follow-up, all in one focused workspace.
           </p>
+          <div className="auth-splash" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <p className="auth-footer-brand">Internal · Borek Solutions</p>
         </aside>
 
         <main className="auth-main">

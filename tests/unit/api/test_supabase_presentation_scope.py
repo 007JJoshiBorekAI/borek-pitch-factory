@@ -82,7 +82,6 @@ def test_list_presentations_for_opportunity_scopes_service_role_reads() -> None:
             {
                 "select": "*",
                 "id": f"eq.{OPPORTUNITY_ID}",
-                "created_by": f"eq.{USER_ID}",
                 "limit": "1",
             },
         ),

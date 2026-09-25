@@ -82,11 +82,22 @@ def _confirm_framework(client: TestClient, opportunity_id: str) -> str:
     return confirm.json()["id"]
 
 
+def _upload_deepening_transcript(client: TestClient, opportunity_id: str) -> None:
+    response = client.post(
+        f"/opportunities/{opportunity_id}/transcripts",
+        headers=_headers(),
+        files={"file": ("meeting.txt", b"Speaker 1: Deepening meeting notes", "text/plain")},
+    )
+    assert response.status_code == 201, response.text
+
+
 def _generate_stage(
     client: TestClient,
     opportunity_id: str,
     journey_stage: str,
 ) -> dict:
+    if journey_stage == "deepening":
+        _upload_deepening_transcript(client, opportunity_id)
     framework_version_id = _confirm_framework(client, opportunity_id)
     plan = client.post(
         f"/opportunities/{opportunity_id}/presentation-plan/generate",

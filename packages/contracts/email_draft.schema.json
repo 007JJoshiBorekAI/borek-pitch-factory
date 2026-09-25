@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/email_draft.schema.json",
+  "title": "EmailDraftEnvelope",
+  "description": "TSK-013: three draft lengths persist in the API. Confirm never sends mail.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "opportunity_id", "journey_stage", "draft"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "journey_stage": {
+      "type": "string",
+      "enum": ["first_contact", "deepening", "concretisation"]
+    },
+    "draft": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "send_status",
+        "selected_length",
+        "lengths",
+        "confirmed_at",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "confirmed"]
+        },
+        "send_status": {
+          "const": "not_sent"
+        },
+        "selected_length": {
+          "type": ["string", "null"],
+          "enum": ["short", "medium", "extensive", null]
+        },
+        "lengths": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["short", "medium", "extensive"],
+          "properties": {
+            "short": { "$ref": "#/$defs/LengthBody" },
+            "medium": { "$ref": "#/$defs/LengthBody" },
+            "extensive": { "$ref": "#/$defs/LengthBody" }
+          }
+        },
+        "confirmed_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "LengthBody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "body", "word_count"],
+      "properties": {
+        "subject": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "word_count": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

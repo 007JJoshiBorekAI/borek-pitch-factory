@@ -1,6 +1,6 @@
 # BT-36 — Stage 1 & 2 output pipelines (docx expected outputs)
 
-**Owner:** Blenard Tahiraj  
+**Owner:** Mayank Somwani
 **Phase:** 4 · **Priority:** P0  
 **Added:** 21 September 2026 — Feature redefinition sprint  
 **Source:** `Pitch Factory input_output.docx` — both stages' expected outputs

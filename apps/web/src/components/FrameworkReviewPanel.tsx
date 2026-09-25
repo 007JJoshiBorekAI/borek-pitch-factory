@@ -37,6 +37,7 @@ import {
   waitForJob,
 } from "@/lib/api";
 import type { JobResponse } from "@/lib/api";
+import { persistOpportunityContext } from "@/lib/opportunityContextSync";
 import { startFrameworkReviewParallelLoad } from "@/lib/frameworkReviewLoad";
 import {
   buildFrameworkDownloadFilename,
@@ -563,6 +564,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setInfo(null);
     setRetryJobId(null);
     try {
+      await persistOpportunityContext(accessToken, opportunityId);
       const generated = await generateFramework(accessToken, opportunityId);
       setInfo(generationProgressMessage("framework", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("framework", generated.job_id));

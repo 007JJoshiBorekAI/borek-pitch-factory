@@ -66,9 +66,9 @@ export function ArchiveHistoryView({
   return (
     <div className="archive-page">
       <AppPageHeader
-        kicker="Your workspace"
-        title="Archive"
-        lead="Find a previously filed presentation by client, date, or opportunity name."
+        kicker="Released work"
+        title="Library"
+        lead="Archive of filed presentations. Find one by client, date, or opportunity name."
       />
 
       <p className="archive-o2-note">{ARCHIVE_O2_NOTE}</p>

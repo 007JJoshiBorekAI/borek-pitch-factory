@@ -268,11 +268,11 @@ export async function apiFetchBlob(
 }
 
 export interface Stage1Intake {
-  client_web_page: string | null;
-  poc_name: string | null;
-  poc_position: string | null;
-  sales_topic_description: string | null;
-  about_company: string | null;
+  client_web_page?: string | null;
+  poc_name?: string | null;
+  poc_position?: string | null;
+  sales_topic_description?: string | null;
+  about_company?: string | null;
 }
 
 export interface Stage1VoiceResponse {
@@ -286,6 +286,8 @@ export interface OpportunityCreatePayload {
   department: string;
   language: string;
   pii_redaction_enabled?: boolean;
+  pitch_description?: string;
+  team_members_text?: string;
   additional_client_information?: AdditionalClientInformation;
   followup_statics?: FollowupProjectStatics;
   stage1_intake?: Stage1Intake | null;
@@ -1068,4 +1070,71 @@ export async function confirmEmailDraft(
       body: JSON.stringify(payload),
     },
   );
+}
+
+export type JourneyEmailStage = "first_contact" | "deepening" | "concretisation";
+
+export interface EmailDraftBody {
+  subject: string;
+  body: string;
+  word_count: number;
+}
+
+export interface ClientPreparationEmailEnvelope {
+  schema_version: string;
+  opportunity_id: string;
+  status: "not_generated" | "ready";
+  email: (EmailDraftBody & { generated_at: string }) | null;
+}
+
+export interface TranscriptSummary {
+  schema_version: string;
+  opportunity_id: string;
+  transcript_id: string;
+  participants: string[];
+  decisions: string[];
+  action_items: Array<{ text: string; owner?: string | null; due?: string | null }>;
+  open_questions: string[];
+  client_terms: string[];
+  narrative: string;
+  summary_truncated: boolean;
+}
+
+export type { Stage1Fact } from "./stage1Contracts";
+
+export async function getClientPreparationEmail(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientPreparationEmailEnvelope> {
+  return apiFetch<ClientPreparationEmailEnvelope>(
+    `${opportunityPath(opportunityId)}/client-preparation-email`,
+    accessToken,
+  );
+}
+
+export async function generateClientPreparationEmail(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientPreparationEmailEnvelope> {
+  return apiFetch<ClientPreparationEmailEnvelope>(
+    `${opportunityPath(opportunityId)}/client-preparation-email/generate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function getEmailDrafts(
+  accessToken: string,
+  opportunityId: string,
+  journeyStage: JourneyEmailStage,
+): Promise<EmailDraftEnvelope> {
+  return getEmailDraft(accessToken, opportunityId, journeyStage);
+}
+
+export async function generateEmailDrafts(
+  accessToken: string,
+  opportunityId: string,
+  journeyStage: JourneyEmailStage,
+): Promise<EmailDraftEnvelope> {
+  return generateEmailDraft(accessToken, opportunityId, { journey_stage: journeyStage });
 }

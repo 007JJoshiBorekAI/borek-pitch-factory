@@ -158,7 +158,7 @@ export function AuthCard({ mode: initialMode }: AuthCardProps) {
         disabled={busy}
         onClick={() => void handleMicrosoftSignIn()}
       >
-        {busy ? "Please wait…" : "Sign in with Microsoft 365"}
+        {busy ? "Please wait…" : "Continue with Microsoft"}
       </button>
 
       {ssoOnly ? (

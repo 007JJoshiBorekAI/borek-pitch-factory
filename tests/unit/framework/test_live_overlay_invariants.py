@@ -10,6 +10,7 @@ from services.framework.chapter_builder import overlay_llm_chapters, reconcile_c
 from services.framework.chapter_validators import validate_all_chapters
 from services.framework.chapter_validators.ch00_about import has_eight_decision_questions
 from services.framework.chapter_validators.ch03_aim_success import has_conservative_marker, validate as validate_ch03
+from services.framework.chapter_validators.ch05_how_it_works import has_never_autonomous_statement
 from services.framework.chapter_validators.ch06_how_built import has_building_protection, validate as validate_ch06
 from services.framework.company_facts import ground_company_facts
 from services.framework.pipeline import generate_customer_framework
@@ -212,6 +213,121 @@ def test_overlay_restores_chapter_0_decision_questions() -> None:
     merged = overlay_llm_chapters(base["chapters"], draft["chapters"])
     chapter = _chapter(merged, "0")
     assert has_eight_decision_questions(chapter)
+
+
+def test_citation_metadata_does_not_count_as_never_autonomous() -> None:
+    assert not has_never_autonomous_statement(
+        {
+            "body": [
+                {
+                    "block": "callout",
+                    "kind": "important",
+                    "text": "Exceptions are queued for a person to review.",
+                    "source_claims": [
+                        {"claim": "The team decides; the agent never acts on its own."}
+                    ],
+                }
+            ]
+        }
+    )
+
+
+def test_overlay_restores_chapter_5_when_marker_is_only_in_a_citation() -> None:
+    base = _base_framework()
+    draft = _draft_from_framework(base)
+    chapter = _chapter(draft["chapters"], "5")
+    rewritten = []
+    for block in chapter["body"]:
+        if isinstance(block, dict) and block.get("block") == "callout":
+            rewritten.append(
+                {
+                    "block": "callout",
+                    "kind": "important",
+                    "text": "Exceptions are queued for a person to review.",
+                    "source_claims": [
+                        {
+                            "path": "/text",
+                            "claim": "The team decides; the agent never acts on its own.",
+                        }
+                    ],
+                }
+            )
+            continue
+        rewritten.append(block)
+    chapter["body"] = rewritten
+    merged = overlay_llm_chapters(base["chapters"], draft["chapters"])
+    assert has_never_autonomous_statement(_chapter(merged, "5"))
+
+
+def test_reconcile_restores_chapter_5_never_autonomous_statement() -> None:
+    framework = _base_framework()
+    base_chapters = copy.deepcopy(framework["chapters"])
+    chapter = _chapter(framework["chapters"], "5")
+    for block in chapter["body"]:
+        if isinstance(block, dict) and block.get("block") == "callout":
+            block["text"] = "Exceptions are queued for a person to review."
+            block.pop("source_claims", None)
+    assert not has_never_autonomous_statement(chapter)
+    framework["chapters"] = reconcile_chapter_invariants(framework["chapters"], base_chapters)
+    assert has_never_autonomous_statement(_chapter(framework["chapters"], "5"))
+    validate_all_chapters(framework)
+
+
+def test_live_synthesis_survives_chapter_5_citation_only_autonomy_wording() -> None:
+    models, overrides = _golden()
+    base = _base_framework()
+    entry = next(
+        item
+        for item in base.get("source_entries") or []
+        if item.get("entry_id") and item.get("statement") and item.get("source_refs")
+        and not has_never_autonomous_statement({"body": [{"block": "prose", "text": str(item.get("statement"))}]})
+    )
+    statement = str(entry["statement"]).strip()
+    draft = _draft_from_framework(base)
+    chapter = _chapter(draft["chapters"], "5")
+    rewritten = []
+    inserted = False
+    for block in chapter["body"]:
+        if isinstance(block, dict) and block.get("block") == "callout":
+            rewritten.append(
+                {
+                    "block": "callout",
+                    "kind": "important",
+                    "text": "Exceptions are queued for a person to review.",
+                }
+            )
+            inserted = True
+            continue
+        rewritten.append(block)
+    assert inserted
+    rewritten.append(
+        {
+            "block": "prose",
+            "text": statement,
+            "source_claims": [
+                {
+                    "path": "/text",
+                    "claim": "The team decides; the agent never acts on its own.",
+                    "knowledge_entry_ids": [entry["entry_id"]],
+                }
+            ],
+        }
+    )
+    chapter["body"] = rewritten
+
+    def complete(system: str, user: str, schema: dict) -> dict:
+        return draft
+
+    framework = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=True,
+        complete=complete,
+        engine_overrides=overrides,
+    )
+    assert has_never_autonomous_statement(_chapter(framework["chapters"], "5"))
+    validate_all_chapters(framework)
 
 
 def test_reconcile_restores_markers_lost_after_prepare_for_confirm() -> None:

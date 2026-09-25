@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from services.framework.chapter_validators.base import ChapterIssue
+from services.framework.chapter_validators.ch05_how_it_works import text_has_never_autonomous_marker
 
 _FACTUAL_BLOCKS = frozenset(
     {
@@ -533,6 +534,11 @@ def _block_requires_traceability(block: dict[str, Any]) -> bool:
         return False
     if "team decides" in text or "on its own" in text or "from the conversations" in text:
         return False
+    # ES-19 boilerplate is report structure. A citation must not be required, and
+    # rewriting that citation must not delete the only copy of the sentence.
+    if str(block.get("block") or "") == "callout" and text_has_never_autonomous_marker(text):
+        if not re.search(r"\d", text):
+            return False
     if any(
         marker in text
         for marker in (

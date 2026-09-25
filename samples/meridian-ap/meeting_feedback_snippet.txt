@@ -1,0 +1,5 @@
+Works council has not been involved yet. Sandra asked for a written workshop agenda at least two weeks before any session where union observers might attend. Do not demo SAP posting (even sandbox) until that agenda is approved.
+
+Thomas flagged ERP write access — design doc required before technical user approval. Eva (CFO) wants assistive-first messaging in any client-facing deck.
+
+Internal note: duplicate posting incident in 2025 is sensitive — mention detection goals, not blame.

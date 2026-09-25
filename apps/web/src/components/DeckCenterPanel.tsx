@@ -73,11 +73,13 @@ interface DeckCenterPanelProps {
   opportunityId: string;
   presentationId?: string;
   presentationVersionId?: string;
+  chromeVariant?: "pipeline" | "stage2";
 }
 
 export function DeckCenterPanel({
   opportunityId,
   presentationId: requestedPresentationId,
+  chromeVariant: _chromeVariant = "pipeline",
 }: DeckCenterPanelProps) {
   const { accessToken, isAuthenticated, loading } = useAuth();
   const searchParams = useSearchParams();

@@ -1,6 +1,6 @@
 # MS-34 — Client document upload for First contact
 
-**Owner:** Mayank Somwani  
+**Owner:** Blenard Tahiraj  
 **Phase:** 3 · **Priority:** P0  
 **Added:** 21 September 2026 — Feature redefinition sprint  
 **Source:** `Pitch Factory input_output.docx` — Stage 1 uses sales-provided material, not meeting transcripts

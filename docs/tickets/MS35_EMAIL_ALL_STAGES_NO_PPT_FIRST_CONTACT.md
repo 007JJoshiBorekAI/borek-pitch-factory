@@ -1,6 +1,6 @@
 # MS-35 — Stage output review UI + email on all 3 stages
 
-**Owner:** Mayank Somwani  
+**Owner:** Blenard Tahiraj  
 **Phase:** 4 · **Priority:** P0  
 **Added:** 21 September 2026 — Feature redefinition sprint  
 **Source:** `Pitch Factory input_output.docx` — Stage 1 & 2 expected outputs

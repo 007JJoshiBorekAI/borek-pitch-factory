@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
 
 import "./globals.css";
+import "./pitch-shell.css";
 
 const inter = Inter({
   subsets: ["latin"],
