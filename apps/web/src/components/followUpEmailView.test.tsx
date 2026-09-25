@@ -37,6 +37,10 @@ const statics: FollowupProjectStatics = {
 
 const draft = renderFollowupDraft(workshopClear as FollowupExtraction, statics);
 const checklist = emptyFollowupChecklist();
+const readyChecklist = { ...checklist };
+for (const key of Object.keys(readyChecklist) as Array<keyof typeof readyChecklist>) {
+  readyChecklist[key] = true;
+}
 const deepeningContext = getStageEmailReviewContext("deepening", false);
 const demoContext = getStageEmailReviewContext("deepening", true);
 const opportunityId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -82,8 +86,18 @@ assert.match(html, /data-testid="follow-up-subject"/);
 assert.match(html, /data-testid="follow-up-body"/);
 assert.match(html, /data-testid="follow-up-readiness-checklist"/);
 assert.match(html, /data-testid="follow-up-readiness-state"/);
-assert.match(html, /READY TO CONFIRM/);
+assert.match(html, /MISSING INFORMATION/);
+assert.match(html, /Complete review/);
 assert.match(html, /Confirm email/);
+assert.match(html, /disabled=""/);
+
+const readyHtml = render({
+  checklist: readyChecklist,
+  acknowledgedFlags: new Set(draft.review_flags),
+});
+assert.match(readyHtml, /READY TO CONFIRM/);
+assert.match(readyHtml, /Ready to confirm/);
+assert.doesNotMatch(readyHtml, /disabled="" data-testid="followup-confirm-review"/);
 assert.doesNotMatch(html, />Send email</);
 assert.match(html, /Back to meeting input/);
 assert.match(

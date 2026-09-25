@@ -28,7 +28,7 @@ assert.match(panelSource, /summarizeClientDirectory/);
 assert.match(panelSource, /Loading clients/);
 assert.match(panelSource, /newClientWorkflowState/);
 assert.match(panelSource, /clients-new-client-state/);
-assert.match(panelSource, /Start with the essentials/);
+assert.match(panelSource, /WorkflowStateCard/);
 assert.match(panelSource, /No matching clients/);
 assert.match(panelSource, /Retry/);
 assert.match(panelSource, /href="\/upload\?new=1"/);
