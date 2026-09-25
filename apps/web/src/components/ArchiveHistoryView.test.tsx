@@ -66,10 +66,11 @@ assert.match(emptyHtml, /Archive/);
 assert.match(emptyHtml, /Client or opportunity/);
 assert.match(emptyHtml, /From date/);
 assert.match(emptyHtml, /To date/);
-assert.match(emptyHtml, /Nothing filed yet/);
-assert.match(emptyHtml, /Filed presentations will appear here/);
+assert.match(emptyHtml, /ARCHIVED/);
+assert.match(emptyHtml, /Workspace archived/);
 assert.match(emptyHtml, /These files are stored in Pitch Factory/);
-assert.match(emptyHtml, /Recent presentations/);
+assert.match(emptyHtml, /Recent presentations →/);
+assert.doesNotMatch(emptyHtml, /Restore/);
 assert.doesNotMatch(emptyHtml, forbidden);
 assert.doesNotMatch(emptyHtml, /opportunity UUID/i);
 
@@ -90,9 +91,11 @@ assert.ok(listHtml.includes(`href="${filed.openHref.replaceAll("&", "&amp;")}"`)
 assert.doesNotMatch(listHtml, forbidden);
 assert.doesNotMatch(listHtml, />22222222-2222-4222-8222-222222222222</);
 
-const headerSource = readFileSync(fileURLToPath(new URL("./SiteHeader.tsx", import.meta.url)), "utf8");
-assert.match(headerSource, /href: "\/archive"/);
-assert.match(headerSource, /Library/);
+const topBarSource = readFileSync(
+  fileURLToPath(new URL("./WorkspaceTopBar.tsx", import.meta.url)),
+  "utf8",
+);
+assert.match(topBarSource, /href="\/archive"[\s\S]*Archive/);
 
 const css = readFileSync(fileURLToPath(new URL("../app/globals.css", import.meta.url)), "utf8");
 assert.match(css, /\.archive-filters\s*\{[\s\S]*grid-template-columns:/);

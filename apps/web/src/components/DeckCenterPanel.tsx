@@ -1,20 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
-import { JourneyStageChoice } from "@/components/JourneyStageSelector";
-import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
-import { PitchReviewSlideSidebar, PitchReviewView } from "@/components/PitchReviewView";
+import { PitchGenerationView } from "@/components/PitchGenerationView";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
-import { SiteHeader } from "@/components/SiteHeader";
-import { WorkflowActionBar } from "@/components/WorkflowActionBar";
-import { StageStepper } from "@/components/StageChrome";
-import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import {
   ApiRequestError,
+  changePresentationSlideLayout,
   downloadPresentationFile,
   FRAMEWORK_JOB_TIMEOUT_MS,
   generatePresentation,
@@ -25,7 +21,6 @@ import {
   getLatestPresentationPlan,
   getOpportunity,
   getPresentation,
-  getPresentationPlan,
   regeneratePresentationSlide,
   retryJob,
   waitForJob,
@@ -37,17 +32,19 @@ import {
   isMissingPresentationPlanError,
   isPresentationNotReadyError,
 } from "@/lib/apiErrors";
-import { buildDownloadFilename, mapDeckSlides, waitForDeckCenter } from "@/lib/deckCenter";
+import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
 import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
-import { draftFromNotes, loadPitchDraft, type PitchDraft } from "@/lib/pitchDraft";
-import { buildPitchReviewSlides, pitchReviewStatusLabel } from "@/lib/pitchReview";
+import { snapshotFromJob, type JobProgressSnapshot } from "@/lib/jobProgress";
+import { extractSlidePreviewRows } from "@/lib/planPreview";
 import type { PresentationPlanResponse } from "@/lib/planTypes";
 import {
-  buildJobProgressView,
-  jobStageLabel,
-  snapshotFromJob,
-  type JobProgressSnapshot,
-} from "@/lib/jobProgress";
+  buildPitchGenerationProgress,
+  buildPitchSlideRows,
+  formatPitchEyebrow,
+  isPitchDownloadReady,
+  pitchGenerationTitle,
+  resolveStableSelectedSlideKey,
+} from "@/lib/pitchGeneration";
 import {
   generationProgressMessage,
   inspectActiveJob,
@@ -55,15 +52,13 @@ import {
 } from "@/lib/jobReconnect";
 import { startPipelineParallelLoad } from "@/lib/pipelineParallelLoad";
 import { journeyStageForGenerate } from "@/lib/journeyStageSelection";
-import { opportunityLabel, pipelineHref } from "@/lib/pipelineContext";
+import { opportunityLabel } from "@/lib/pipelineContext";
 import {
-  ARTIFACTS_PARTIAL_LABEL,
-  DOWNLOAD_PDF_LABEL,
-  DOWNLOAD_POWERPOINT_LABEL,
-  formatGeneratedAt,
-  slideCountLabel,
-  versionLabel,
-} from "@/lib/presentationReady";
+  followupReviewHref,
+  shouldShowConcretisationEmailReviewLink,
+} from "@/lib/stageEmailReview";
+import { isStageOutputDemoMode } from "@/lib/stageOutputReview";
+import { ARTIFACTS_PARTIAL_LABEL } from "@/lib/presentationReady";
 import {
   jobFailureRecoveryNotice,
   recoveryActionHref,
@@ -84,56 +79,95 @@ interface DeckCenterPanelProps {
 export function DeckCenterPanel({
   opportunityId,
   presentationId: requestedPresentationId,
-  chromeVariant = "pipeline",
+  chromeVariant: _chromeVariant = "pipeline",
 }: DeckCenterPanelProps) {
-  const router = useRouter();
-  const { accessToken, isAuthenticated, loading, session } = useAuth();
+  const { accessToken, isAuthenticated, loading } = useAuth();
+  const searchParams = useSearchParams();
+  const demoMode = isStageOutputDemoMode(searchParams);
   const [presentation, setPresentation] = useState<PresentationResponse | null>(null);
+  const [plan, setPlan] = useState<PresentationPlanResponse | null>(null);
   const [deck, setDeck] = useState<DeckCenterResponse | null>(null);
   const [opportunityName, setOpportunityName] = useState<string | null>(null);
-  const [clientName, setClientName] = useState<string>("Client");
-  const [pitchDraft, setPitchDraft] = useState<PitchDraft | null>(null);
-  const [plan, setPlan] = useState<PresentationPlanResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [contentLoading, setContentLoading] = useState(true);
   const [jobPolling, setJobPolling] = useState(false);
-  const [jobStage, setJobStage] = useState<string | null>(null);
   const [jobSnapshot, setJobSnapshot] = useState<JobProgressSnapshot | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
-  const [featuredSlideId, setFeaturedSlideId] = useState<string | null>(null);
+  const [selectedSlideKey, setSelectedSlideKey] = useState<string | null>(null);
+  const [activeSlideJobSlideId, setActiveSlideJobSlideId] = useState<string | null>(null);
   const [pptxAvailable, setPptxAvailable] = useState(true);
   const [pdfAvailable, setPdfAvailable] = useState(true);
   const [partialArtifacts, setPartialArtifacts] = useState(false);
   const [recoveryTarget, setRecoveryTarget] = useState<"job" | "download-pptx" | "download-pdf">(
     "job",
   );
-  const autoBuildRef = useRef(false);
 
   const trackJob = useCallback((job: JobResponse) => {
     setJobSnapshot(snapshotFromJob(job));
   }, []);
 
-  const progressView = useMemo(
-    () => buildJobProgressView({ snapshot: jobSnapshot }),
-    [jobSnapshot],
+  const plannedSlides = useMemo(
+    () => (plan ? extractSlidePreviewRows(plan.plan_json) : []),
+    [plan],
   );
-  const isStage2Chrome = chromeVariant === "stage2";
-  const backHref = isStage2Chrome
-    ? `/meeting-preparation?opportunityId=${encodeURIComponent(opportunityId)}`
-    : pipelineHref("/plan-preview", opportunityId);
-  const backLabel = isStage2Chrome ? "Back to meeting preparation" : "Back to plan";
-
   const slideTiles = useMemo(() => (deck ? mapDeckSlides(deck) : []), [deck]);
-  const reviewSlides = useMemo(
-    () => buildPitchReviewSlides(slideTiles, plan?.plan_json.slides ?? [], pitchDraft),
-    [pitchDraft, plan, slideTiles],
+  const pitchSlides = useMemo(
+    () =>
+      buildPitchSlideRows({
+        plannedSlides,
+        deckTiles: slideTiles,
+        regeneratingSlideId: activeSlideJobSlideId,
+        jobSnapshot,
+      }),
+    [activeSlideJobSlideId, slideTiles, jobSnapshot, plannedSlides],
   );
-  const reviewStatus = pitchReviewStatusLabel(reviewSlides);
-  const ready = Boolean(presentation && (deck || (isStage2Chrome && reviewSlides.length > 0)));
-  const generatedAt = formatGeneratedAt(presentation?.created_at);
-  const version = versionLabel(deck?.version_number);
+  const pitchProgress = useMemo(
+    () =>
+      buildPitchGenerationProgress({
+        slides: pitchSlides,
+        jobSnapshot,
+        pptxAvailable,
+      }),
+    [jobSnapshot, pitchSlides, pptxAvailable],
+  );
+
+  useEffect(() => {
+    setSelectedSlideKey((current) => resolveStableSelectedSlideKey(pitchSlides, current));
+  }, [pitchSlides]);
+
+  const ready = Boolean(deck && presentation);
+  const activeJourneyStage = journeyStageForGenerate(opportunityId);
+  const showConcretisationEmailReview = shouldShowConcretisationEmailReviewLink(
+    activeJourneyStage,
+    ready,
+  );
+  const concretisationEmailReviewHref = followupReviewHref(
+    opportunityId,
+    "concretisation",
+    demoMode,
+  );
+  const downloadEnabled = isPitchDownloadReady({
+    slides: pitchSlides,
+    pptxAvailable,
+    busy,
+  });
+
+  const applyLatestPlan = useCallback(async () => {
+    if (!accessToken) {
+      return;
+    }
+    try {
+      const latest = await getLatestPresentationPlan(accessToken, opportunityId);
+      setPlan(latest);
+    } catch (loadError) {
+      setPlan(null);
+      if (!isMissingPresentationPlanError(loadError)) {
+        throw loadError;
+      }
+    }
+  }, [accessToken, opportunityId]);
 
   const loadDeck = useCallback(
     async (presentationId: string) => {
@@ -141,19 +175,11 @@ export function DeckCenterPanel({
         return;
       }
       try {
-        const center = await waitForDeckCenter(
-          () => getDeckCenter(accessToken, presentationId),
-          { isNotReady: isPresentationNotReadyError },
-        );
+        const center = await getDeckCenter(accessToken, presentationId);
         setDeck(center);
         setPartialArtifacts(center.slides.length === 0);
         setPptxAvailable(Boolean(center.pptx_download_url));
         setPdfAvailable(Boolean(center.pdf_download_url));
-        const firstWithPreview = center.slides
-          .slice()
-          .sort((left, right) => left.slide_index - right.slide_index)
-          .find((slide) => slide.preview_url);
-        setFeaturedSlideId(firstWithPreview?.slide_id ?? center.slides[0]?.slide_id ?? null);
       } catch (loadError) {
         setDeck(null);
         if (isPresentationNotReadyError(loadError)) {
@@ -170,6 +196,7 @@ export function DeckCenterPanel({
     if (!accessToken) {
       return;
     }
+    await applyLatestPlan();
     try {
       const latest = requestedPresentationId
         ? await getPresentation(accessToken, requestedPresentationId)
@@ -189,7 +216,7 @@ export function DeckCenterPanel({
         setPartialArtifacts(true);
       }
     }
-  }, [accessToken, loadDeck, opportunityId, requestedPresentationId]);
+  }, [accessToken, applyLatestPlan, loadDeck, opportunityId, requestedPresentationId]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -200,11 +227,6 @@ export function DeckCenterPanel({
       .then((opportunity) => {
         if (!cancelled) {
           setOpportunityName(opportunityLabel(opportunity));
-          setClientName(opportunity.client_name?.trim() || "Client");
-          const stored =
-            loadPitchDraft(opportunityId) ??
-            draftFromNotes(opportunity.additional_client_information?.notes);
-          setPitchDraft(stored);
         }
       })
       .catch(() => {
@@ -218,35 +240,6 @@ export function DeckCenterPanel({
   }, [accessToken, opportunityId]);
 
   useEffect(() => {
-    if (!accessToken || !presentation) {
-      return;
-    }
-    let cancelled = false;
-    void getPresentationPlan(accessToken, presentation.presentation_plan_id)
-      .then((latest) => {
-        if (!cancelled) setPlan(latest);
-      })
-      .catch(async (loadError) => {
-        if (cancelled) {
-          return;
-        }
-        if (isMissingPresentationPlanError(loadError)) {
-          try {
-            const latest = await getLatestPresentationPlan(accessToken, opportunityId);
-            if (!cancelled) setPlan(latest);
-          } catch {
-            setPlan(null);
-          }
-          return;
-        }
-        setPlan(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, opportunityId, presentation]);
-
-  useEffect(() => {
     if (loading || !accessToken) {
       return;
     }
@@ -255,11 +248,11 @@ export function DeckCenterPanel({
 
     setContentLoading(true);
     setJobPolling(false);
-    setJobStage(null);
     setJobSnapshot(null);
     setNotice(null);
     setInfo(null);
     setRetryJobId(null);
+    setActiveSlideJobSlideId(null);
 
     const cancel = startPipelineParallelLoad(
       "deck",
@@ -275,26 +268,24 @@ export function DeckCenterPanel({
         onContentLoadError: (message) => {
           setNotice(recoveryNoticeFromError(new Error(message), "deck"));
         },
-        onJobPollingStart: (message, stage, jobId) => {
+        onJobPollingStart: (message, _stage, jobId) => {
           setJobPolling(true);
           setInfo(message);
-          setJobStage(stage);
           setNotice(runningRecoveryNotice("deck", jobId));
         },
-        onJobStageUpdate: (stage) => {
-          setJobStage(stage);
-        },
+        onJobStageUpdate: () => {},
         onJobSnapshot: setJobSnapshot,
         onJobPollingFinished: () => {
           setJobPolling(false);
           setInfo(null);
-          setJobStage(null);
           setJobSnapshot(null);
           setNotice(null);
+          setActiveSlideJobSlideId(null);
         },
         onJobFailed: (error, failedJobId) => {
           setNotice(recoveryNoticeFromError(error, "deck"));
           setRetryJobId(failedJobId);
+          setActiveSlideJobSlideId(null);
         },
       },
       {
@@ -325,13 +316,9 @@ export function DeckCenterPanel({
     setNotice(null);
     setInfo(null);
     setRetryJobId(null);
+    setActiveSlideJobSlideId(null);
     try {
-      const generated = await generatePresentation(
-        accessToken,
-        opportunityId,
-        undefined,
-        journeyStageForGenerate(opportunityId),
-      );
+      const generated = await generatePresentation(accessToken, opportunityId);
       setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("deck", generated.job_id));
       setJobPolling(true);
@@ -352,35 +339,9 @@ export function DeckCenterPanel({
     } finally {
       setBusy(false);
       setJobPolling(false);
+      setActiveSlideJobSlideId(null);
     }
   }
-
-  useEffect(() => {
-    if (
-      !isStage2Chrome ||
-      autoBuildRef.current ||
-      loading ||
-      !accessToken ||
-      contentLoading ||
-      jobPolling ||
-      busy ||
-      presentation ||
-      notice
-    ) {
-      return;
-    }
-    autoBuildRef.current = true;
-    void handleGenerateDeck();
-  }, [
-    accessToken,
-    busy,
-    contentLoading,
-    isStage2Chrome,
-    jobPolling,
-    loading,
-    notice,
-    presentation,
-  ]);
 
   async function handleRetry() {
     if (!accessToken || !retryJobId) {
@@ -391,6 +352,7 @@ export function DeckCenterPanel({
     setBusy(true);
     setNotice(retryingRecoveryNotice("deck", retryJobId));
     setInfo("Retrying generation from the last failed stage…");
+    setActiveSlideJobSlideId(null);
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
@@ -412,6 +374,7 @@ export function DeckCenterPanel({
     } finally {
       setBusy(false);
       setJobPolling(false);
+      setActiveSlideJobSlideId(null);
     }
   }
 
@@ -455,6 +418,7 @@ export function DeckCenterPanel({
     } finally {
       setBusy(false);
       setJobPolling(false);
+      setActiveSlideJobSlideId(null);
     }
   }
 
@@ -483,35 +447,20 @@ export function DeckCenterPanel({
     }
   }
 
-  async function handleDownload(kind: "pptx" | "pdf") {
-    if (!accessToken || !presentation) {
+  async function handleDownload(kind: "pptx" | "pdf" = "pptx") {
+    if (!accessToken || !deck) {
       return;
     }
     setRecoveryTarget(kind === "pptx" ? "download-pptx" : "download-pdf");
     setBusy(true);
     setNotice(null);
     try {
-      const center = await waitForDeckCenter(
-        () => getDeckCenter(accessToken, presentation.id),
-        { isNotReady: isPresentationNotReadyError, attempts: 8, intervalMs: 1000 },
-      );
-      setDeck(center);
-      setPptxAvailable(Boolean(center.pptx_download_url));
-      setPdfAvailable(Boolean(center.pdf_download_url));
-      const path = kind === "pptx" ? center.pptx_download_url : center.pdf_download_url;
-      if (!path) {
-        throw new ApiRequestError(
-          "The PowerPoint file is still being written. Try again in a moment.",
-          409,
-          "PRESENTATION_NOT_READY",
-          { retryable: true },
-        );
-      }
+      const path = kind === "pptx" ? deck.pptx_download_url : deck.pdf_download_url;
       const blob = await downloadPresentationFile(accessToken, path);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = buildDownloadFilename(center.presentation_name, kind);
+      anchor.download = buildDownloadFilename(deck.presentation_name, kind);
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
@@ -540,6 +489,7 @@ export function DeckCenterPanel({
     setRecoveryTarget("job");
     setBusy(true);
     setNotice(null);
+    setActiveSlideJobSlideId(slideId);
     try {
       const queued = await regeneratePresentationSlide(accessToken, presentation.id, slideId);
       setInfo("Updating this slide…");
@@ -559,116 +509,98 @@ export function DeckCenterPanel({
     } finally {
       setBusy(false);
       setJobPolling(false);
+      setActiveSlideJobSlideId(null);
     }
   }
 
-  const metaParts = [
-    opportunityName,
-    deck ? slideCountLabel(slideTiles.length) : null,
-    version,
-    generatedAt ? `Generated ${generatedAt}` : null,
-  ].filter(Boolean);
-
-  const progressSurfaceVisible = Boolean(jobPolling || progressView?.failed);
-  const surfacePrecedence = recoverySurfacePrecedence(notice, progressSurfaceVisible);
-
-  function handleUseVersion() {
-    router.push(`/approvals?opportunityId=${encodeURIComponent(opportunityId)}`);
+  async function handleChangeLayout(slideId: string, layoutId: string) {
+    if (!accessToken || !presentation) {
+      return;
+    }
+    setRecoveryTarget("job");
+    setBusy(true);
+    setNotice(null);
+    setActiveSlideJobSlideId(slideId);
+    try {
+      const queued = await changePresentationSlideLayout(
+        accessToken,
+        presentation.id,
+        slideId,
+        layoutId,
+      );
+      setInfo("Updating this slide layout…");
+      setNotice(runningRecoveryNotice("deck", queued.job_id));
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
+      await loadDeck(presentation.id);
+      setNotice(null);
+      setInfo(null);
+    } catch (layoutError) {
+      setInfo(null);
+      setNotice(recoveryNoticeFromError(layoutError, "deck"));
+    } finally {
+      setBusy(false);
+      setJobPolling(false);
+      setActiveSlideJobSlideId(null);
+    }
   }
 
+  const progressSurfaceVisible = Boolean(jobPolling || jobSnapshot?.status === "FAILED");
+  const surfacePrecedence = recoverySurfacePrecedence(notice, progressSurfaceVisible);
+  const showWorkspace =
+    pitchSlides.length > 0 || Boolean(presentation) || Boolean(plan) || jobPolling;
+  const showBuildPrompt =
+    !contentLoading &&
+    !presentation &&
+    !plan &&
+    isAuthenticated &&
+    !notice &&
+    !jobPolling;
+
   return (
-    <div className="app-workspace">
-      <SiteHeader
-        signedInEmail={session?.user.email}
-        opportunityId={opportunityId}
-        progressVariant={ready ? "review" : "default"}
-        sidebarExtra={
-          ready ? (
-            <PitchReviewSlideSidebar
-              slides={reviewSlides}
-              selectedSlideId={featuredSlideId}
-              onSelectSlide={setFeaturedSlideId}
-              versionLabel={version}
-            />
-          ) : null
-        }
-      />
+    <WorkspaceShell activeSection="pre-meeting">
+      {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
-      <div className="app-shell app-workspace-body">
-        {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
-
-        {!loading && !isAuthenticated ? (
-          <div className="upload-banner upload-banner-info">
-            <div>
-              <strong>Authentication required</strong>
-              <p>Sign in to preview and download this presentation.</p>
-            </div>
-            <div className="upload-banner-actions">
-              <Link href="/login" className="btn btn-primary">
-                Sign in
-              </Link>
-            </div>
+      {!loading && !isAuthenticated ? (
+        <div className="upload-banner upload-banner-info app-shell app-workspace-body">
+          <div>
+            <strong>Authentication required</strong>
+            <p>Sign in to preview and download this presentation.</p>
           </div>
-        ) : null}
-
-        {!(isStage2Chrome && ready) ? (
-        <WorkflowActionBar
-          backHref={backHref}
-          backLabel={backLabel}
-          contextLabel="Current presentation"
-          context={
-            <>
-              <strong>{opportunityName ?? (ready ? "Presentation ready" : "Presentation")}</strong>
-              <JourneyStageChoice stage={journeyStageForGenerate(opportunityId) ?? null} />
-            </>
-          }
-        >
-          {ready ? (
-            <>
-              <button
-                type="button"
-                className="btn btn-primary"
-                data-testid="download-powerpoint"
-                disabled={busy || !pptxAvailable}
-                onClick={() => void handleDownload("pptx")}
-              >
-                {DOWNLOAD_POWERPOINT_LABEL}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                data-testid="download-pdf"
-                disabled={busy || !pdfAvailable}
-                onClick={() => void handleDownload("pdf")}
-              >
-                {DOWNLOAD_PDF_LABEL}
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy || jobPolling || !isAuthenticated}
-              onClick={() => void handleGenerateDeck()}
-            >
-              {jobPolling ? "Building presentation..." : "Build presentation"}
-            </button>
-          )}
-        </WorkflowActionBar>
-        ) : null}
-        {isStage2Chrome ? (
-          <>
-            <p className="pitch-breadcrumb">
-              <Link href="/clients">Clients</Link> / <span>{clientName}</span> / <span>Pitch</span>
-            </p>
-            <StageStepper activeIndex={5} />
-          </>
-        ) : (
-          <WorkflowStepIndicator currentStep={4} />
-        )}
-
-        <div className="intake-main">
-            {notice && surfacePrecedence.showRecovery ? (
+          <div className="upload-banner-actions">
+            <Link href="/login" className="btn btn-primary">
+              Sign in
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <PitchGenerationView
+          eyebrow={formatPitchEyebrow(opportunityName)}
+          title={pitchGenerationTitle(pitchProgress.isComplete)}
+          progress={pitchProgress}
+          slides={pitchSlides}
+          selectedSlideKey={selectedSlideKey}
+          onSelectSlide={setSelectedSlideKey}
+          accessToken={accessToken}
+          busy={busy}
+          downloadEnabled={downloadEnabled}
+          onDownload={() => void handleDownload("pptx")}
+          pdfDownloadEnabled={downloadEnabled && pdfAvailable}
+          onDownloadPdf={() => void handleDownload("pdf")}
+          onRegenerate={presentation && deck ? (slideId) => void handleRegenerateSlide(slideId) : undefined}
+          onChangeLayout={presentation && deck ? (slideId, layoutId) => void handleChangeLayout(slideId, layoutId) : undefined}
+          followUpReviewHref={showConcretisationEmailReview ? concretisationEmailReviewHref : null}
+          showBuildPrompt={showBuildPrompt}
+          onBuild={() => void handleGenerateDeck()}
+          buildDisabled={busy || jobPolling || !isAuthenticated}
+          loading={contentLoading && !showWorkspace}
+          emptyMessage="After the slide plan is ready, build the presentation. The preview loads automatically when generation completes."
+          recoveryBanner={
+            notice && surfacePrecedence.showRecovery ? (
               <RecoveryBanner
                 notice={
                   recoveryActionHref(notice, opportunityId)
@@ -684,101 +616,20 @@ export function DeckCenterPanel({
                 busy={busy}
                 onAction={handleRecoveryAction}
               />
-            ) : null}
-            {info && surfacePrecedence.showSecondary ? (
+            ) : null
+          }
+          infoBanner={
+            info && surfacePrecedence.showSecondary ? (
               <div className="upload-banner upload-banner-success">{info}</div>
-            ) : null}
-            {partialArtifacts && ready && surfacePrecedence.showSecondary ? (
+            ) : null
+          }
+          partialArtifactsBanner={
+            partialArtifacts && ready && surfacePrecedence.showSecondary ? (
               <div className="upload-banner upload-banner-info">{ARTIFACTS_PARTIAL_LABEL}</div>
-            ) : null}
-
-            {contentLoading && !presentation && !deck ? (
-              <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint" data-testid="deck-loading">
-                  Loading presentation…
-                </p>
-              </section>
-            ) : null}
-
-            {surfacePrecedence.showProgress ? (
-              progressView && (jobPolling || progressView.failed) ? (
-                <LiveGenerationProgress view={progressView} />
-              ) : jobPolling ? (
-                <section className="upload-panel pipeline-panel-loading">
-                  <p className="upload-hint" data-testid="pipeline-job-progress">
-                    {info ?? "Presentation rendering is running…"}
-                    {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
-                  </p>
-                </section>
-              ) : null
-            ) : null}
-
-            {!contentLoading && !presentation && isAuthenticated && !notice ? (
-              <section className="upload-panel pipeline-empty-panel">
-                <header className="upload-panel-header">
-                  <div>
-                    <h2>Build the presentation</h2>
-                    <p>
-                      After the slide plan is ready, build the presentation. The preview loads
-                      automatically when generation completes.
-                    </p>
-                  </div>
-                </header>
-                <div className="pipeline-empty-body">
-                  <p>No presentation exists yet for this opportunity. Build it from the bar above.</p>
-                </div>
-              </section>
-            ) : null}
-
-            {presentation && !deck && isAuthenticated && !contentLoading && !busy && !notice && !isStage2Chrome ? (
-              <section className="upload-panel pipeline-empty-panel">
-                <header className="upload-panel-header">
-                  <div>
-                    <h2>Preview isn’t ready yet</h2>
-                    <p>
-                      The presentation exists, but some files are still missing. You can wait for
-                      generation to finish or try building again.
-                    </p>
-                  </div>
-                </header>
-                <div className="pipeline-empty-body">
-                  {metaParts.length > 0 ? (
-                    <p className="upload-hint">{metaParts.join(" · ")}</p>
-                  ) : null}
-                </div>
-              </section>
-            ) : null}
-
-            {((deck && presentation) || (isStage2Chrome && presentation && reviewSlides.length > 0)) && accessToken ? (
-              <section
-                className={isStage2Chrome ? "pitch-review-stage" : "upload-panel presentation-ready-panel"}
-                data-testid="presentation-ready"
-              >
-                <PitchReviewView
-                  accessToken={accessToken}
-                  clientName={clientName}
-                  opportunityId={opportunityId}
-                  presentationName={deck?.presentation_name || pitchDraft?.pitchTitle || "Pitch"}
-                  versionLabel={version}
-                  statusLabel={reviewStatus}
-                  slides={reviewSlides}
-                  selectedSlideId={featuredSlideId}
-                  draft={pitchDraft}
-                  busy={busy}
-                  pptxAvailable={pptxAvailable}
-                  pdfAvailable={pdfAvailable}
-                  onRegenerate={(slideId) => void handleRegenerateSlide(slideId)}
-                  onDownloadPptx={() => void handleDownload("pptx")}
-                  onDownloadPdf={() => void handleDownload("pdf")}
-                  onUseVersion={handleUseVersion}
-                />
-                {metaParts.length > 0 ? (
-                  <p className="upload-hint presentation-ready-meta">{metaParts.join(" · ")}</p>
-                ) : null}
-              </section>
-            ) : null}
-        </div>
-      </div>
-    </div>
+            ) : null
+          }
+        />
+      )}
+    </WorkspaceShell>
   );
 }

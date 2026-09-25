@@ -112,7 +112,7 @@ export function EmailDraftTemplateSection({
         accessToken,
         opportunityId,
         journeyDraft.draft.id,
-        selectedLength,
+        { selected_length: selectedLength },
       );
       setJourneyDraft(updated);
       setConfirmedNote(`Saved ${LENGTH_LABELS[selectedLength]} draft for review (not sent).`);

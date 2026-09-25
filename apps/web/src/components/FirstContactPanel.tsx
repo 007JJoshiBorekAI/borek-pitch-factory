@@ -15,6 +15,7 @@ import {
   listClientDocuments,
   type Stage1OutputsEnvelope,
 } from "@/lib/api";
+import type { Stage1Research } from "@/lib/stage1Contracts";
 import { formatStage1Fact } from "@/lib/stage1Display";
 
 export function FirstContactPanel() {
@@ -73,7 +74,9 @@ export function FirstContactPanel() {
   }
 
   const ready = envelope?.status === "ready" && envelope.outputs;
-  const research = ready ? envelope.outputs?.research : null;
+  const research = ready
+    ? ((envelope.outputs?.research as Stage1Research | null | undefined) ?? null)
+    : null;
   const facts = research?.company_facts;
   const questionCount = ready ? envelope.outputs?.discovery_questions.length ?? 0 : 0;
 

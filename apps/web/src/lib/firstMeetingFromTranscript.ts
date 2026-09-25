@@ -134,7 +134,7 @@ export interface MeetingDraftSuggestions {
 export function meetingDraftSuggestionsFromStage2(
   outputs: NonNullable<Stage2OutputsEnvelope["outputs"]>,
 ): MeetingDraftSuggestions {
-  const summary = outputs.transcript_summary as TranscriptSummary;
+  const summary = outputs.transcript_summary as unknown as TranscriptSummary;
   return {
     meetingDate: meetingDateFromSummary(summary),
     participants: (summary.participants ?? []).join(", "),
@@ -155,7 +155,7 @@ export function stage2NeedsRefresh(
 ): boolean {
   if (!latestTranscriptId) return false;
   if (!envelope || envelope.status !== "ready" || !envelope.outputs) return true;
-  const summary = envelope.outputs.transcript_summary as TranscriptSummary | undefined;
+  const summary = envelope.outputs.transcript_summary as unknown as TranscriptSummary | undefined;
   if (!summary?.transcript_id) return true;
   return summary.transcript_id !== latestTranscriptId;
 }

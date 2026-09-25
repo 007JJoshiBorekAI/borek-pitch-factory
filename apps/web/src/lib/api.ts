@@ -21,6 +21,15 @@ import type {
   EmployeeRole,
   EmployeeRoleRow,
 } from "./employeeRoles";
+import type {
+  EmailDraftConfirmRequest,
+  EmailDraftEnvelope,
+  EmailDraftGenerateRequest,
+  MeetingFeedbackResponse,
+  MeetingFeedbackUpdateRequest,
+  Stage1OutputsEnvelope,
+  Stage2OutputsEnvelope,
+} from "./journeyOutputsContracts";
 
 export function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || DEFAULT_API_URL;
@@ -266,60 +275,9 @@ export interface Stage1Intake {
   about_company?: string | null;
 }
 
-export interface Stage1Fact {
-  status: "verified" | "unknown";
-  origin: string;
-  value: string | null;
-  source_refs: Array<{ source_id: string; locator: string; excerpt: string }>;
-}
-
-export interface Stage1Research {
-  schema_version: string;
-  opportunity_id: string;
-  client_name: string;
-  company_facts: {
-    description: Stage1Fact;
-    headquarters: Stage1Fact;
-    employee_headcount: Stage1Fact;
-    decision_makers: Stage1Fact;
-    revenue: Stage1Fact;
-  };
-  hypothesis: { status: string; text: string | null; basis: string[] };
-  product_relevance: { status: string; text: string | null; basis: string[] };
-  dependencies?: string[];
-}
-
-export interface Stage1OutputsEnvelope {
-  schema_version: string;
-  opportunity_id: string;
-  status: "not_generated" | "ready";
-  outputs: {
-    hypothesis: { statement: string; origin: string };
-    product_relevance: { statement: string; origin: string };
-    discovery_questions: Array<{ id: string; text: string }>;
-    use_cases: Array<{ title: string; rationale: string; availability: string }>;
-    agenda: { title: string; items: Array<{ order: number; label: string }> };
-    presentation: {
-      status: string;
-      profile: string;
-      code: string | null;
-      presentation_id: string | null;
-      download_url: string | null;
-    };
-    research: Stage1Research | null;
-    generated_at: string;
-  } | null;
-}
-
-export interface ClientDocumentResponse {
-  id: string;
-  opportunity_id: string;
-  file_name: string;
-  mime_type: string;
-  document_key: string;
-  processing_status: string;
-  section_count: number;
-  created_at: string;
+export interface Stage1VoiceResponse {
+  status: "not_provided" | "transcribed";
+  transcript: string | null;
 }
 
 export interface OpportunityCreatePayload {
@@ -429,6 +387,17 @@ export async function getOpportunity(
   return apiFetch<OpportunityResponse>(`/opportunities/${opportunityId}`, accessToken);
 }
 
+export async function generateStage1Research(
+  accessToken: string,
+  opportunityId: string,
+): Promise<import("./stage1Contracts").Stage1Research> {
+  return apiFetch<import("./stage1Contracts").Stage1Research>(
+    `/opportunities/${opportunityId}/stage1-research`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
 export async function uploadClientLogo(
   accessToken: string,
   opportunityId: string,
@@ -440,6 +409,83 @@ export async function uploadClientLogo(
     `/opportunities/${opportunityId}/client-logo`,
     accessToken,
     { method: "PUT", body: formData },
+  );
+}
+
+export async function uploadStage1Voice(
+  accessToken: string,
+  opportunityId: string,
+  file: File,
+): Promise<Stage1VoiceResponse> {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  return apiFetch<Stage1VoiceResponse>(
+    `/opportunities/${opportunityId}/stage1-voice`,
+    accessToken,
+    { method: "POST", body: formData },
+  );
+}
+
+export interface ClientDocument {
+  id: string;
+  opportunity_id: string;
+  file_name: string;
+  mime_type: string;
+  document_key: string;
+  processing_status: string;
+  section_count: number;
+  created_at: string;
+}
+
+export interface ClientDocumentUploadResponse {
+  document: ClientDocument;
+  processing_status: string;
+}
+
+export async function uploadClientDocument(
+  accessToken: string,
+  opportunityId: string,
+  file: File,
+): Promise<ClientDocumentUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  return apiFetch<ClientDocumentUploadResponse>(
+    `/opportunities/${opportunityId}/client-documents`,
+    accessToken,
+    { method: "POST", body: formData },
+  );
+}
+
+export async function listClientDocuments(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientDocument[]> {
+  return apiFetch<ClientDocument[]>(
+    `/opportunities/${opportunityId}/client-documents`,
+    accessToken,
+  );
+}
+
+export async function getClientDocument(
+  accessToken: string,
+  opportunityId: string,
+  documentId: string,
+): Promise<ClientDocument> {
+  return apiFetch<ClientDocument>(
+    `/opportunities/${opportunityId}/client-documents/${documentId}`,
+    accessToken,
+  );
+}
+
+export async function deleteClientDocument(
+  accessToken: string,
+  opportunityId: string,
+  documentId: string,
+): Promise<void> {
+  await apiFetch<void>(
+    `/opportunities/${opportunityId}/client-documents/${documentId}`,
+    accessToken,
+    { method: "DELETE" },
   );
 }
 
@@ -560,204 +606,6 @@ export async function uploadTranscript(
     {
       method: "POST",
       body: formData,
-    },
-  );
-}
-
-export async function uploadClientDocument(
-  accessToken: string,
-  opportunityId: string,
-  file: File,
-): Promise<{ document: ClientDocumentResponse; processing_status: string }> {
-  const formData = new FormData();
-  formData.append("file", file, file.name);
-  return apiFetch(`/opportunities/${opportunityId}/client-documents`, accessToken, {
-    method: "POST",
-    body: formData,
-  });
-}
-
-export async function listClientDocuments(
-  accessToken: string,
-  opportunityId: string,
-): Promise<ClientDocumentResponse[]> {
-  return apiFetch<ClientDocumentResponse[]>(
-    `/opportunities/${opportunityId}/client-documents`,
-    accessToken,
-  );
-}
-
-export async function getStage1Outputs(
-  accessToken: string,
-  opportunityId: string,
-): Promise<Stage1OutputsEnvelope> {
-  return apiFetch<Stage1OutputsEnvelope>(
-    `/opportunities/${opportunityId}/stage1-outputs`,
-    accessToken,
-  );
-}
-
-export async function generateStage1Outputs(
-  accessToken: string,
-  opportunityId: string,
-): Promise<Stage1OutputsEnvelope> {
-  return apiFetch<Stage1OutputsEnvelope>(
-    `/opportunities/${opportunityId}/stage1-outputs/generate`,
-    accessToken,
-    { method: "POST" },
-  );
-}
-
-export interface TranscriptSummary {
-  schema_version: string;
-  opportunity_id: string;
-  transcript_id: string;
-  participants: string[];
-  decisions: string[];
-  action_items: Array<{ text: string; owner?: string | null; due?: string | null }>;
-  open_questions: string[];
-  client_terms: string[];
-  narrative: string;
-  summary_truncated: boolean;
-}
-
-export interface Stage2OutputsEnvelope {
-  schema_version: string;
-  opportunity_id: string;
-  status: "not_generated" | "ready";
-  outputs: {
-    call_summary: string;
-    mom: {
-      title: string;
-      participants: string[];
-      decisions: string[];
-      action_items: string[];
-      open_questions: string[];
-      meeting_feedback: string | null;
-    };
-    presentation: {
-      status: string;
-      code: string | null;
-      presentation_id: string | null;
-      download_url: string | null;
-    };
-    transcript_summary: TranscriptSummary;
-    generated_at: string;
-  } | null;
-}
-
-export async function getStage2Outputs(
-  accessToken: string,
-  opportunityId: string,
-): Promise<Stage2OutputsEnvelope> {
-  return apiFetch<Stage2OutputsEnvelope>(
-    `/opportunities/${opportunityId}/stage2-outputs`,
-    accessToken,
-  );
-}
-
-export async function generateStage2Outputs(
-  accessToken: string,
-  opportunityId: string,
-): Promise<Stage2OutputsEnvelope> {
-  return apiFetch<Stage2OutputsEnvelope>(
-    `/opportunities/${opportunityId}/stage2-outputs/generate`,
-    accessToken,
-    { method: "POST" },
-  );
-}
-
-export type JourneyEmailStage = "first_contact" | "deepening" | "concretisation";
-export type EmailDraftLength = "short" | "medium" | "extensive";
-
-export interface EmailDraftBody {
-  subject: string;
-  body: string;
-  word_count: number;
-}
-
-export interface EmailDraftEnvelope {
-  schema_version: string;
-  opportunity_id: string;
-  journey_stage: JourneyEmailStage;
-  draft: {
-    id: string;
-    status: "draft" | "confirmed";
-    send_status: "not_sent";
-    selected_length: EmailDraftLength | null;
-    lengths: Record<EmailDraftLength, EmailDraftBody>;
-    confirmed_at: string | null;
-    created_at: string;
-    updated_at: string;
-  } | null;
-}
-
-export interface ClientPreparationEmailEnvelope {
-  schema_version: string;
-  opportunity_id: string;
-  status: "not_generated" | "ready";
-  email: (EmailDraftBody & { generated_at: string }) | null;
-}
-
-export async function getClientPreparationEmail(
-  accessToken: string,
-  opportunityId: string,
-): Promise<ClientPreparationEmailEnvelope> {
-  return apiFetch<ClientPreparationEmailEnvelope>(
-    `/opportunities/${opportunityId}/client-preparation-email`,
-    accessToken,
-  );
-}
-
-export async function generateClientPreparationEmail(
-  accessToken: string,
-  opportunityId: string,
-): Promise<ClientPreparationEmailEnvelope> {
-  return apiFetch<ClientPreparationEmailEnvelope>(
-    `/opportunities/${opportunityId}/client-preparation-email/generate`,
-    accessToken,
-    { method: "POST" },
-  );
-}
-
-export async function getEmailDrafts(
-  accessToken: string,
-  opportunityId: string,
-  journeyStage: JourneyEmailStage,
-): Promise<EmailDraftEnvelope> {
-  return apiFetch<EmailDraftEnvelope>(
-    `/opportunities/${opportunityId}/email-drafts?journey_stage=${encodeURIComponent(journeyStage)}`,
-    accessToken,
-  );
-}
-
-export async function generateEmailDrafts(
-  accessToken: string,
-  opportunityId: string,
-  journeyStage: JourneyEmailStage,
-): Promise<EmailDraftEnvelope> {
-  return apiFetch<EmailDraftEnvelope>(
-    `/opportunities/${opportunityId}/email-drafts/generate`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify({ journey_stage: journeyStage }),
-    },
-  );
-}
-
-export async function confirmEmailDraft(
-  accessToken: string,
-  opportunityId: string,
-  draftId: string,
-  selectedLength: EmailDraftLength,
-): Promise<EmailDraftEnvelope> {
-  return apiFetch<EmailDraftEnvelope>(
-    `/opportunities/${opportunityId}/email-drafts/${draftId}/confirm`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify({ selected_length: selectedLength }),
     },
   );
 }
@@ -1093,4 +941,200 @@ export async function assignEmployeeRole(
     method: "PATCH",
     body: JSON.stringify({ role, email }),
   });
+}
+
+export type {
+  EmailDraftConfirmRequest,
+  EmailDraftEnvelope,
+  EmailDraftGenerateRequest,
+  EmailDraftLength,
+  EmailDraftRecord,
+  EmailLengthBody,
+  JourneyOutputsErrorCode,
+  MeetingFeedbackResponse,
+  MeetingFeedbackUpdateRequest,
+  Stage1OutputsEnvelope,
+  Stage2OutputsEnvelope,
+} from "./journeyOutputsContracts";
+
+function opportunityPath(opportunityId: string): string {
+  return `/opportunities/${opportunityId}`;
+}
+
+export async function getStage1Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch<Stage1OutputsEnvelope>(
+    `${opportunityPath(opportunityId)}/stage1-outputs`,
+    accessToken,
+  );
+}
+
+export async function generateStage1Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch<Stage1OutputsEnvelope>(
+    `${opportunityPath(opportunityId)}/stage1-outputs/generate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function getStage2Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage2OutputsEnvelope> {
+  return apiFetch<Stage2OutputsEnvelope>(
+    `${opportunityPath(opportunityId)}/stage2-outputs`,
+    accessToken,
+  );
+}
+
+export async function generateStage2Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage2OutputsEnvelope> {
+  return apiFetch<Stage2OutputsEnvelope>(
+    `${opportunityPath(opportunityId)}/stage2-outputs/generate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function getMeetingFeedback(
+  accessToken: string,
+  opportunityId: string,
+): Promise<MeetingFeedbackResponse> {
+  return apiFetch<MeetingFeedbackResponse>(
+    `${opportunityPath(opportunityId)}/meeting-feedback`,
+    accessToken,
+  );
+}
+
+export async function updateMeetingFeedback(
+  accessToken: string,
+  opportunityId: string,
+  payload: MeetingFeedbackUpdateRequest,
+): Promise<MeetingFeedbackResponse> {
+  return apiFetch<MeetingFeedbackResponse>(
+    `${opportunityPath(opportunityId)}/meeting-feedback`,
+    accessToken,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function getEmailDraft(
+  accessToken: string,
+  opportunityId: string,
+  journeyStage: JourneyStageName,
+): Promise<EmailDraftEnvelope> {
+  const query = `?journey_stage=${encodeURIComponent(journeyStage)}`;
+  return apiFetch<EmailDraftEnvelope>(
+    `${opportunityPath(opportunityId)}/email-drafts${query}`,
+    accessToken,
+  );
+}
+
+export async function generateEmailDraft(
+  accessToken: string,
+  opportunityId: string,
+  payload: EmailDraftGenerateRequest,
+): Promise<EmailDraftEnvelope> {
+  return apiFetch<EmailDraftEnvelope>(
+    `${opportunityPath(opportunityId)}/email-drafts/generate`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+/** Persist reviewed length only — never sends mail (send endpoint is forbidden). */
+export async function confirmEmailDraft(
+  accessToken: string,
+  opportunityId: string,
+  draftId: string,
+  payload: EmailDraftConfirmRequest,
+): Promise<EmailDraftEnvelope> {
+  return apiFetch<EmailDraftEnvelope>(
+    `${opportunityPath(opportunityId)}/email-drafts/${draftId}/confirm`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export type JourneyEmailStage = "first_contact" | "deepening" | "concretisation";
+
+export interface EmailDraftBody {
+  subject: string;
+  body: string;
+  word_count: number;
+}
+
+export interface ClientPreparationEmailEnvelope {
+  schema_version: string;
+  opportunity_id: string;
+  status: "not_generated" | "ready";
+  email: (EmailDraftBody & { generated_at: string }) | null;
+}
+
+export interface TranscriptSummary {
+  schema_version: string;
+  opportunity_id: string;
+  transcript_id: string;
+  participants: string[];
+  decisions: string[];
+  action_items: Array<{ text: string; owner?: string | null; due?: string | null }>;
+  open_questions: string[];
+  client_terms: string[];
+  narrative: string;
+  summary_truncated: boolean;
+}
+
+export type { Stage1Fact } from "./stage1Contracts";
+
+export async function getClientPreparationEmail(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientPreparationEmailEnvelope> {
+  return apiFetch<ClientPreparationEmailEnvelope>(
+    `${opportunityPath(opportunityId)}/client-preparation-email`,
+    accessToken,
+  );
+}
+
+export async function generateClientPreparationEmail(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientPreparationEmailEnvelope> {
+  return apiFetch<ClientPreparationEmailEnvelope>(
+    `${opportunityPath(opportunityId)}/client-preparation-email/generate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function getEmailDrafts(
+  accessToken: string,
+  opportunityId: string,
+  journeyStage: JourneyEmailStage,
+): Promise<EmailDraftEnvelope> {
+  return getEmailDraft(accessToken, opportunityId, journeyStage);
+}
+
+export async function generateEmailDrafts(
+  accessToken: string,
+  opportunityId: string,
+  journeyStage: JourneyEmailStage,
+): Promise<EmailDraftEnvelope> {
+  return generateEmailDraft(accessToken, opportunityId, { journey_stage: journeyStage });
 }

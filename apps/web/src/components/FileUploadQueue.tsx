@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 
 import {
   ABC_SYSTEMS_Q2_SAMPLE_FILENAME,
@@ -8,6 +8,11 @@ import {
 } from "@/lib/abcSystemsQ2Transcript";
 import { uploadErrorMessage } from "@/lib/apiErrors";
 import { ALLOWED_TRANSCRIPT_EXTENSIONS } from "@/lib/transcriptFormats";
+import { WorkflowStateCard } from "@/components/WorkflowStateCard";
+import {
+  transcriptProcessingWorkflowState,
+  transcriptReadyWorkflowState,
+} from "@/lib/workflowState";
 import {
   createQueueItems,
   getUploadableItems,
@@ -23,6 +28,11 @@ interface FileUploadQueueProps {
   uploadDisabled?: boolean;
   onItemsChange: (items: TranscriptQueueItem[]) => void;
   onUpload: (items: TranscriptQueueItem[]) => Promise<void>;
+  variant?: "default" | "compact";
+  transcriptTitle?: string;
+  transcriptMeta?: string;
+  transcriptReady?: boolean;
+  transcriptProcessing?: boolean;
 }
 
 function statusClassName(status: TranscriptQueueItem["status"]): string {
@@ -44,6 +54,11 @@ export function FileUploadQueue({
   uploadDisabled = false,
   onItemsChange,
   onUpload,
+  variant = "default",
+  transcriptTitle,
+  transcriptMeta,
+  transcriptReady = false,
+  transcriptProcessing = false,
 }: FileUploadQueueProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -136,6 +151,127 @@ export function FileUploadQueue({
       onChange={(event) => addFiles(event.target.files)}
     />
   );
+
+  if (variant === "compact" && transcriptProcessing) {
+    return (
+      <div className="post-meeting-upload-compact post-meeting-upload-compact-processing">
+        <WorkflowStateCard
+          presentation={transcriptProcessingWorkflowState({
+            title: transcriptTitle ?? "Processing the meeting",
+            description: transcriptMeta ?? "Processing transcript…",
+            sourceLabel: transcriptTitle ? `${transcriptTitle} · received` : undefined,
+          })}
+          variant="compact"
+          dataTestId="transcript-processing-state"
+        />
+      </div>
+    );
+  }
+
+  if (variant === "compact" && transcriptReady && settled) {
+    return (
+      <div className="post-meeting-transcript-state">
+        <WorkflowStateCard
+          presentation={transcriptReadyWorkflowState({
+            title: transcriptTitle ?? "Meeting transcript",
+            description: transcriptMeta ?? "Transcript processed",
+            meta: "Ready",
+          })}
+          variant="compact"
+          dataTestId="transcript-ready-state"
+        />
+        <div className="post-meeting-transcript-actions">
+          <button
+            type="button"
+            className="post-meeting-text-button"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            Replace
+          </button>
+          {fileInput}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "compact") {
+    return (
+      <div
+        className={`post-meeting-upload-compact${dragActive ? " is-active" : ""}${
+          hasErrors ? " has-errors" : ""
+        }`}
+      >
+        <div
+          className="post-meeting-upload-dropzone"
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setDragActive(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragActive(false);
+            addFiles(event.dataTransfer.files);
+          }}
+        >
+          <p>Drop transcript files here or browse</p>
+          <button
+            type="button"
+            className="post-meeting-text-button"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            Browse files
+          </button>
+          {fileInput}
+        </div>
+
+        {items.length > 0 && !transcriptReady ? (
+          <ul className="post-meeting-upload-queue" aria-label="Queued transcript files">
+            {items.map((item) => (
+              <li key={item.id}>
+                <span>{item.fileName}</span>
+                <span className="post-meeting-status-badge">{statusLabel(item.status)}</span>
+                {item.status === "error" ? (
+                  <button
+                    type="button"
+                    className="post-meeting-text-button"
+                    disabled={busy || uploadDisabled}
+                    onClick={() => void handleRetry(item)}
+                  >
+                    Retry
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {error ? <div className="alert alert-error">{error}</div> : null}
+
+        {canSubmit || busy ? (
+          <div className="post-meeting-upload-actions">
+            <button
+              type="button"
+              className="post-meeting-primary-inline-button"
+              disabled={busy || !canSubmit || uploadDisabled}
+              onClick={() => void handleUploadClick()}
+            >
+              {busy ? "Uploading…" : `Upload ${uploadableCount} file${uploadableCount === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div

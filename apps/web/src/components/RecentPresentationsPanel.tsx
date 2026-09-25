@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { JourneyStartPanel } from "@/components/JourneyStartPanel";
-import { displayNameFromEmail, SiteHeader } from "@/components/SiteHeader";
+import { displayNameFromEmail } from "@/components/SiteHeader";
 import { useRecentWork } from "@/components/useRecentWork";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { formatRecentDate, type RecentLifecycle, type RecentWorkItem } from "@/lib/recentPresentations";
 
 const ATTENTION: RecentLifecycle[] = ["needs_review", "needs_attention"];
@@ -78,8 +79,7 @@ export function RecentPresentationsPanel() {
   const attention = items.filter((item) => ATTENTION.includes(item.lifecycle));
 
   return (
-    <div className="app-workspace recent-page">
-      <SiteHeader signedInEmail={email} onNewPresentation={openJourneyStart} />
+    <WorkspaceShell className="recent-page">
       <main className="app-shell app-workspace-body">
         <div className="pitch-greet-row">
           <div>
@@ -186,6 +186,6 @@ export function RecentPresentationsPanel() {
           </section>
         ) : null}
       </main>
-    </div>
+    </WorkspaceShell>
   );
 }

@@ -6,11 +6,15 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
+import { ClientDocumentUploadPanel } from "@/components/ClientDocumentUploadPanel";
 import { ClientLogoUpload } from "@/components/ClientLogoUpload";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneyStageSelector";
 import { OpportunityForm } from "@/components/OpportunityForm";
-import { SiteHeader } from "@/components/SiteHeader";
+import { MeetingFeedbackPanel } from "@/components/MeetingFeedbackPanel";
+import { PostMeetingIntakeView } from "@/components/PostMeetingIntakeView";
+import { PreMeetingIntakeView } from "@/components/PreMeetingIntakeView";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
 import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
@@ -18,12 +22,14 @@ import {
   getJourneyStageEligibility,
   getOpportunity,
   listTranscripts,
+  updateOpportunity,
   uploadTranscript,
   type AdditionalClientInformation,
   type JourneyStageEligibilityResponse,
   type JourneyStageName,
   type OpportunityCreatePayload,
   type OpportunityResponse,
+  type Stage1Intake,
 } from "@/lib/api";
 import { isMissingOpportunityError, uploadErrorMessage } from "@/lib/apiErrors";
 import {
@@ -53,9 +59,18 @@ import { persistOpportunityContext } from "@/lib/opportunityContextSync";
 import { countByStatus } from "@/lib/uploadQueue";
 import type { TranscriptQueueItem } from "@/lib/uploadQueue";
 import { createRestoredQueueItem, updateQueueItem } from "@/lib/uploadQueue";
+import {
+  EMPTY_STAGE1_FORM,
+  buildStage1IntakePayload,
+  hasStage1IntakeContent,
+  stage1IntakeToFormValues,
+  validateStage1IntakeForm,
+  type Stage1IntakeFormValues,
+} from "@/lib/stage1Intake";
 
 interface TranscriptUploadPanelProps {
   initialOpportunityId?: string | null;
+  initialJourneyStage?: JourneyStageName | null;
   startFresh?: boolean;
 }
 
@@ -68,6 +83,7 @@ function storedFromResponse(opportunity: OpportunityResponse) {
     language: opportunity.language,
     pii_redaction_enabled: opportunity.pii_redaction_enabled !== false,
     additional_client_information: opportunity.additional_client_information ?? null,
+    stage1_intake: opportunity.stage1_intake ?? null,
   };
 }
 
@@ -82,16 +98,23 @@ function mergeQueue(
   return extras.length === 0 ? cached : [...cached, ...extras];
 }
 
-function initialJourneyStage(startFresh: boolean): JourneyStageName | null {
+function initialJourneyStage(
+  startFresh: boolean,
+  requestedStage?: JourneyStageName | null,
+): JourneyStageName | null {
   const stored = loadSelectedJourneyStage();
   if (startFresh && stored?.opportunityId) {
     return defaultStartableStage(NEW_CLIENT_ELIGIBILITY);
+  }
+  if (requestedStage) {
+    return requestedStage;
   }
   return stored?.journeyStage ?? defaultStartableStage(NEW_CLIENT_ELIGIBILITY);
 }
 
 export function TranscriptUploadPanel({
   initialOpportunityId = null,
+  initialJourneyStage: requestedJourneyStage = null,
   startFresh = false,
 }: TranscriptUploadPanelProps) {
   const router = useRouter();
@@ -115,16 +138,28 @@ export function TranscriptUploadPanel({
   const [eligibility, setEligibility] =
     useState<JourneyStageEligibilityResponse>(NEW_CLIENT_ELIGIBILITY);
   const [journeyStage, setJourneyStage] = useState<JourneyStageName | null>(() =>
-    initialJourneyStage(startFresh),
+    initialJourneyStage(startFresh, requestedJourneyStage),
   );
   const [eligibilityLoading, setEligibilityLoading] = useState(false);
   const [eligibilityError, setEligibilityError] = useState<string | null>(null);
   const [eligibilityReloadKey, setEligibilityReloadKey] = useState(0);
+  const [stage1Draft, setStage1Draft] = useState<Stage1IntakeFormValues>(EMPTY_STAGE1_FORM);
+  const [stage1CreateError, setStage1CreateError] = useState<string | null>(null);
 
+  const isFirstContact = journeyStage === "first_contact";
+  const isDeepening = journeyStage === "deepening";
   const contextMatchesRequest = !initialOpportunityId || opportunityId === initialOpportunityId;
   const canUpload =
     isAuthenticated && !startFresh && Boolean(opportunityId) && contextMatchesRequest;
   const statusCounts = useMemo(() => countByStatus(queueItems), [queueItems]);
+
+  useEffect(() => {
+    if (!requestedJourneyStage || startFresh) {
+      return;
+    }
+    setJourneyStage(requestedJourneyStage);
+    saveSelectedJourneyStage(requestedJourneyStage, initialOpportunityId ?? opportunityId);
+  }, [initialOpportunityId, opportunityId, requestedJourneyStage, startFresh]);
 
   useEffect(() => {
     if (!startFresh) {
@@ -242,6 +277,7 @@ export function TranscriptUploadPanel({
         const stored = storedFromResponse(loaded);
         setOpportunity(loaded);
         setOpportunityId(loaded.id);
+        setStage1Draft(stage1IntakeToFormValues(loaded.stage1_intake));
         saveActiveOpportunity(stored);
         clearOpportunityDraft();
         router.replace(pipelineHref("/upload", loaded.id));
@@ -289,10 +325,30 @@ export function TranscriptUploadPanel({
     if (!accessToken) {
       throw new Error("Sign in is required before creating an opportunity.");
     }
-    const created = await createOpportunity(accessToken, values);
+    setStage1CreateError(null);
+    let payload = values;
+    if (isFirstContact) {
+      const intakeValues = values.stage1_intake
+        ? stage1IntakeToFormValues(values.stage1_intake)
+        : stage1Draft;
+      const validationError = validateStage1IntakeForm(intakeValues);
+      if (validationError) {
+        setStage1CreateError(validationError);
+        throw new Error(validationError);
+      }
+      if (!values.stage1_intake) {
+        const stage1Payload = buildStage1IntakePayload(stage1Draft);
+        payload = {
+          ...values,
+          ...(hasStage1IntakeContent(stage1Payload) ? { stage1_intake: stage1Payload } : {}),
+        };
+      }
+    }
+    const created = await createOpportunity(accessToken, payload);
     const stored = storedFromResponse(created);
     setOpportunity(created);
     setOpportunityId(created.id);
+    setStage1Draft(stage1IntakeToFormValues(created.stage1_intake));
     setUploadSummary(null);
     saveActiveOpportunity(stored);
     bindSelectedJourneyStage(created.id);
@@ -306,6 +362,25 @@ export function TranscriptUploadPanel({
       summary: null,
     });
     router.replace(pipelineHref("/upload", created.id));
+    return created.id;
+  }
+
+  async function handleSaveStage1Intake(stage1Intake: Stage1Intake) {
+    if (!accessToken || !opportunityId) {
+      throw new Error("Create an opportunity before saving pre-meeting information.");
+    }
+    const updated = await updateOpportunity(accessToken, opportunityId, {
+      stage1_intake: stage1Intake,
+    });
+    const stored = storedFromResponse(updated);
+    setOpportunity(updated);
+    setStage1Draft(stage1IntakeToFormValues(updated.stage1_intake));
+    saveActiveOpportunity(stored);
+    rememberUploadSession({
+      opportunity: stored,
+      queue: queueItems,
+      summary: uploadSummary,
+    });
   }
 
   async function handleUpdateClientInformation(
@@ -384,10 +459,52 @@ export function TranscriptUploadPanel({
     }
   }
 
-  return (
-    <div className="app-workspace">
-      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
+  if (isFirstContact) {
+    return (
+      <WorkspaceShell>
+        <div className="app-shell app-workspace-body pre-meeting-workspace">
+          {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
+          <PreMeetingIntakeView
+            disabled={!isAuthenticated || loading}
+            accessToken={accessToken}
+            opportunity={opportunity}
+            opportunityId={opportunityId}
+            onCreateOpportunity={handleCreateOpportunity}
+            onSaveStage1Intake={handleSaveStage1Intake}
+            onNavigateToReview={(id) => router.push(pipelineHref("/first-contact/review", id))}
+          />
+        </div>
+      </WorkspaceShell>
+    );
+  }
 
+  if (isDeepening) {
+    return (
+      <WorkspaceShell activeSection="post-meeting" pageTitle="Post-meeting">
+        <div className="app-shell app-workspace-body post-meeting-workspace">
+          {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
+          <PostMeetingIntakeView
+            disabled={!isAuthenticated || loading}
+            accessToken={accessToken}
+            opportunity={opportunity}
+            opportunityId={opportunityId}
+            queueItems={queueItems}
+            uploadSummary={uploadSummary}
+            canUpload={canUpload}
+            onQueueItemsChange={(items) => {
+              setQueueItems(items);
+              setUploadSummary(null);
+            }}
+            onUploadBatch={handleUploadBatch}
+            onNavigateToReview={(id) => router.push(pipelineHref("/deepening/review", id))}
+          />
+        </div>
+      </WorkspaceShell>
+    );
+  }
+
+  return (
+    <WorkspaceShell>
       <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
@@ -485,24 +602,17 @@ export function TranscriptUploadPanel({
                       }
                     : null
                 }
-                onSubmit={handleCreateOpportunity}
+                onSubmit={async (values) => {
+                  await handleCreateOpportunity(values);
+                }}
                 onUpdateClientInformation={handleUpdateClientInformation}
-                personalisationHint={
-                  journeyStage === "first_contact"
-                    ? "Save confirmed context for later. First contact stays generic and will not use client-specific references or branding."
-                    : undefined
-                }
                 personalisation={
-                  accessToken && opportunityId && journeyStage !== "first_contact" ? (
+                  accessToken && opportunityId ? (
                     <ClientLogoUpload
                       accessToken={accessToken}
                       opportunityId={opportunityId}
                       clientName={opportunity?.client_name}
                     />
-                  ) : journeyStage === "first_contact" ? (
-                    <p className="client-information-stage-note">
-                      Client branding becomes available for tailored presentations after First contact.
-                    </p>
                   ) : (
                     <p className="client-information-stage-note">
                       Create the opportunity to add an optional client logo.
@@ -510,51 +620,70 @@ export function TranscriptUploadPanel({
                   )
                 }
               />
-            </section>
-
-            <section
-              className={`upload-panel${
-                statusCounts.success > 0 && statusCounts.pending === 0 ? " upload-panel-settled" : ""
-              }`}
-            >
-              <header className="upload-panel-header">
-                <div>
-                  <h2>Transcript files</h2>
-                  <p>
-                    {uploadSummary
-                      ? uploadSummary
-                      : "Select or drop multiple files. Each file is validated and tracked individually."}
-                  </p>
-                </div>
-                {queueItems.length > 0 && statusCounts.pending > 0 ? (
-                  <div className="upload-stat-strip" aria-label="File queue summary">
-                    {statusCounts.pending > 0 ? <span>{statusCounts.pending} ready</span> : null}
-                    {statusCounts.rejected > 0 ? <span>{statusCounts.rejected} rejected</span> : null}
-                    {statusCounts.success > 0 ? <span>{statusCounts.success} uploaded</span> : null}
-                    {statusCounts.error > 0 ? <span>{statusCounts.error} failed</span> : null}
-                  </div>
-                ) : null}
-              </header>
-
-              {!canUpload && isAuthenticated ? (
-                <p className="upload-hint">
-                  You may queue files now. Upload is enabled once an opportunity is created above.
-                </p>
+              {stage1CreateError ? (
+                <div className="alert alert-error">{stage1CreateError}</div>
               ) : null}
-
-              <FileUploadQueue
-                items={queueItems}
-                uploadDisabled={!canUpload || loading}
-                onItemsChange={(items) => {
-                  setQueueItems(items);
-                  setUploadSummary(null);
-                }}
-                onUpload={handleUploadBatch}
-              />
-
             </section>
+
+            <>
+                <MeetingFeedbackPanel
+                  accessToken={accessToken}
+                  opportunityId={opportunityId}
+                  disabled={!isAuthenticated || loading}
+                />
+                <section
+                  className={`upload-panel${
+                    statusCounts.success > 0 && statusCounts.pending === 0
+                      ? " upload-panel-settled"
+                      : ""
+                  }`}
+                >
+                  <header className="upload-panel-header">
+                    <div>
+                      <h2>Transcript files</h2>
+                    <p>
+                      {uploadSummary
+                        ? uploadSummary
+                        : "Select or drop multiple files. Each file is validated and tracked individually."}
+                    </p>
+                  </div>
+                  {queueItems.length > 0 && statusCounts.pending > 0 ? (
+                    <div className="upload-stat-strip" aria-label="File queue summary">
+                      {statusCounts.pending > 0 ? <span>{statusCounts.pending} ready</span> : null}
+                      {statusCounts.rejected > 0 ? <span>{statusCounts.rejected} rejected</span> : null}
+                      {statusCounts.success > 0 ? <span>{statusCounts.success} uploaded</span> : null}
+                      {statusCounts.error > 0 ? <span>{statusCounts.error} failed</span> : null}
+                    </div>
+                  ) : null}
+                </header>
+
+                {!canUpload && isAuthenticated ? (
+                  <p className="upload-hint">
+                    You may queue files now. Upload is enabled once an opportunity is created above.
+                  </p>
+                ) : null}
+
+                  <FileUploadQueue
+                    items={queueItems}
+                    uploadDisabled={!canUpload || loading}
+                    onItemsChange={(items) => {
+                      setQueueItems(items);
+                      setUploadSummary(null);
+                    }}
+                    onUpload={handleUploadBatch}
+                  />
+                </section>
+                <ClientDocumentUploadPanel
+                  accessToken={accessToken}
+                  opportunityId={opportunityId}
+                  disabled={!isAuthenticated || loading}
+                  heading="Optional client documents"
+                  description="Upload optional background material (PDF, DOCX, or TXT). These are client documents, not meeting transcripts."
+                  scopeNote="Documents are listed per opportunity. The API does not separate uploads by journey stage, so files from First contact appear here too."
+                />
+            </>
         </div>
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }
