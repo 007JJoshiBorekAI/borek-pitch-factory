@@ -15,6 +15,7 @@
     "test:grid": "tsx design_system/tokens/grid.test.ts",
     "test:borders": "tsx design_system/tokens/borders.test.ts",
     "test:branding": "tsx design_system/tokens/branding.test.ts",
+    "test:tsk010": "tsx design_system/tokens/presentationBranding.test.ts",
     "test:at14": "tsx design_system/masters/MASTER_DEFAULT.test.ts",
     "test:at15": "tsx design_system/masters/MASTER_COVER.test.ts",
     "test:at16": "tsx design_system/masters/MASTER_SECTION.test.ts",

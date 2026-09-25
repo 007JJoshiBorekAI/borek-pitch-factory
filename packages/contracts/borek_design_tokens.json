@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "description": "TSK-010: Approved Borek presentation branding from JJ-26 CI. Consumed by the Design Agent (TSK-014). Distinct from fallback renderer technical tokens in apps/renderer/design_system/tokens/.",
+  "authority": {
+    "presentation_engine": "gamma",
+    "documents": [
+      {
+        "path": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md",
+        "role": "primary_ci"
+      },
+      {
+        "path": "packages/contracts/gamma_template.json",
+        "role": "gamma_template_contract"
+      },
+      {
+        "path": "docs/spikes/PHASE2_RAG_GAMMA_SPIKE.md",
+        "role": "gamma_theme_build_notes"
+      }
+    ]
+  },
+  "colors": {
+    "primary": {
+      "hex": "2C567A",
+      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+    },
+    "heading": {
+      "hex": "0D1D51",
+      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+    },
+    "accent": {
+      "hex": "0072C7",
+      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+    },
+    "card_background": {
+      "hex": "FFFFFF",
+      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet",
+      "notes": "White presentation cards"
+    }
+  },
+  "surfaces": {
+    "cover": {
+      "appearance": "dark",
+      "hex": null,
+      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet",
+      "notes": "CI specifies a dark cover without an exact hex value"
+    }
+  },
+  "typography": {
+    "heading_font": {
+      "family": "Inter",
+      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+    },
+    "body_font": {
+      "family": "Inter",
+      "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+    }
+  },
+  "borek_logo": {
+    "placement": "bottom_left_header_footer",
+    "every_card": true,
+    "runtime_overridable": false,
+    "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet"
+  },
+  "client_logo": {
+    "source": "packages/contracts/gamma_template.json#client_logo",
+    "slot": "cover.client_logo",
+    "cards": ["cover", "closing"],
+    "position": "bottom_right",
+    "max_height_pct": 6.0,
+    "min_clear_space_pct": 3.0,
+    "co_brand_with_borek_logo": true,
+    "enabled_by_stage_profile_field": "client_logo"
+  },
+  "gamma_branding": {
+    "locked": true,
+    "locked_keys": [
+      "brand_color",
+      "theme",
+      "font",
+      "logo_override",
+      "template_css",
+      "master_id"
+    ],
+    "locked_keys_source": "packages/contracts/gamma_template.json#branding.locked_keys",
+    "theme_id_setting": "GAMMA_THEME_ID",
+    "template_id_setting": "GAMMA_TEMPLATE_ID",
+    "request_override_forbidden": true,
+    "source": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md"
+  },
+  "fallback_renderer": {
+    "token_path": "apps/renderer/design_system/tokens/",
+    "purpose": "Feature-flagged PPTX fallback and Framework export; not approved JJ-26 presentation CI",
+    "equivalent_mappings": [
+      {
+        "approved_token": "colors.primary",
+        "approved_hex": "2C567A",
+        "fallback_token": "BorekColors.primary",
+        "fallback_hex": "0057B8"
+      },
+      {
+        "approved_token": "colors.heading",
+        "approved_hex": "0D1D51",
+        "fallback_token": "BorekColors.text",
+        "fallback_hex": "182230"
+      },
+      {
+        "approved_token": "colors.accent",
+        "approved_hex": "0072C7",
+        "fallback_token": null,
+        "fallback_hex": null,
+        "notes": "No dedicated accent token in fallback renderer"
+      },
+      {
+        "approved_token": "typography.heading_font",
+        "approved_family": "Inter",
+        "fallback_token": "BorekFontFamilies.heading",
+        "fallback_family": "Aptos Display"
+      },
+      {
+        "approved_token": "typography.body_font",
+        "approved_family": "Inter",
+        "fallback_token": "BorekFontFamilies.body",
+        "fallback_family": "Aptos"
+      },
+      {
+        "approved_token": "borek_logo.placement",
+        "approved_value": "bottom_left_header_footer",
+        "fallback_token": "BorekBranding.logo",
+        "fallback_value": "top_left_margin"
+      }
+    ]
+  }
+}
