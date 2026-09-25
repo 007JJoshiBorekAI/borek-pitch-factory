@@ -579,7 +579,292 @@ samp {
   cursor: not-allowed;
 }
 
-/* ——— Auth pages ——— */
+/* ——— FIGMA-01 login (node 301:814) ——— */
+.figma-login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  background: var(--shell-canvas);
+}
+
+.figma-login-brand {
+  position: relative;
+  min-height: 100vh;
+  background: var(--shell-action-default);
+  color: var(--shell-text-inverse);
+  overflow: hidden;
+}
+
+.figma-login-artwork {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: min(523px, 51.17vh);
+}
+
+.figma-login-artwork-image {
+  object-fit: cover;
+}
+
+.figma-login-artwork-gradient {
+  position: absolute;
+  top: min(390px, 38.09vh);
+  left: 0;
+  right: 0;
+  height: min(190px, 18.55vh);
+  background: linear-gradient(
+    180deg,
+    rgba(13, 18, 64, 0) 0%,
+    rgba(13, 18, 64, 0.18) 48%,
+    rgba(13, 18, 64, 0.72) 78%,
+    rgb(13, 18, 64) 100%
+  );
+  pointer-events: none;
+}
+
+.figma-login-brand-inner {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto auto;
+  padding: 76px 77px 88px 88px;
+}
+
+.figma-login-logo {
+  width: 184px;
+  height: auto;
+}
+
+.figma-login-product {
+  margin: 21px 0 0 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.figma-login-headline {
+  margin: 0;
+  align-self: end;
+  max-width: 540px;
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  font-weight: 300;
+  line-height: 1.18;
+}
+
+.figma-login-subcopy {
+  margin: 16px 0 0;
+  max-width: 520px;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.figma-login-footer {
+  margin: 24px 0 0 11px;
+  font-size: 12px;
+  opacity: 0.95;
+}
+
+.figma-login-auth {
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+  padding: 96px;
+  background: var(--shell-canvas);
+}
+
+.figma-login-auth-inner {
+  width: 100%;
+  max-width: 448px;
+}
+
+.figma-login-welcome {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 300;
+  line-height: 1.2;
+  color: var(--shell-text-primary);
+}
+
+.figma-login-lead {
+  margin: 10px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--shell-text-secondary);
+}
+
+.figma-login-alert {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.figma-login-alert-error {
+  border: 1px solid #fecdca;
+  background: #fef3f2;
+  color: var(--color-danger);
+}
+
+.figma-login-alert-info {
+  border: 1px solid var(--shell-border);
+  background: var(--shell-subtle);
+  color: var(--shell-text-secondary);
+}
+
+.figma-login-microsoft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 54px;
+  padding: 14px 20px;
+  border: 1px solid var(--shell-border);
+  border-radius: 8px;
+  background: var(--shell-action-default);
+  color: var(--shell-text-inverse);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.figma-login-microsoft:hover:not(:disabled) {
+  background: var(--borek-navy-dark);
+}
+
+.figma-login-microsoft:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.figma-login-microsoft-icon {
+  flex-shrink: 0;
+}
+
+.figma-login-remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  color: var(--shell-text-secondary);
+  font-size: 12px;
+  cursor: default;
+}
+
+.figma-login-remember input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--shell-action-active);
+}
+
+.figma-login-divider {
+  margin: 32px 0 0;
+  border: 0;
+  border-top: 1px solid var(--shell-border);
+}
+
+.figma-login-language-label {
+  margin: 34px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--shell-text-secondary);
+}
+
+.figma-login-language-options {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.figma-login-language-active {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--shell-action-active);
+}
+
+.figma-login-language-option {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--shell-text-primary);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.figma-login-support {
+  margin: 130px 0 0;
+  font-size: 13px;
+  color: var(--shell-text-secondary);
+}
+
+.figma-login-status {
+  margin: 0;
+  font-size: 16px;
+  color: var(--shell-text-secondary);
+}
+
+@media (max-width: 1280px) {
+  .figma-login-auth {
+    padding: 72px 64px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .figma-login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .figma-login-brand {
+    min-height: auto;
+  }
+
+  .figma-login-brand-inner {
+    min-height: auto;
+    padding: 48px 32px 40px;
+    grid-template-rows: auto auto auto auto auto;
+  }
+
+  .figma-login-artwork {
+    height: min(320px, 42vh);
+  }
+
+  .figma-login-headline {
+    font-size: clamp(1.75rem, 7vw, 2.5rem);
+  }
+
+  .figma-login-auth {
+    min-height: auto;
+    padding: 40px 32px 56px;
+  }
+
+  .figma-login-support {
+    margin-top: 48px;
+  }
+}
+
+@media (max-width: 640px) {
+  .figma-login-auth {
+    padding: 32px 20px 48px;
+  }
+
+  .figma-login-brand-inner {
+    padding: 32px 20px 28px;
+  }
+
+  .figma-login-welcome {
+    font-size: 32px;
+  }
+}
+
+/* ——— Auth pages (register / legacy shell) ——— */
 .auth-page {
   min-height: 100vh;
   background: var(--color-bg);
