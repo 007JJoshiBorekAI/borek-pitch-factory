@@ -58,14 +58,20 @@ const uploadPanelSource = readFileSync(
 assert.match(uploadPanelSource, /ClientDocumentUploadPanel/);
 assert.match(uploadPanelSource, /PreMeetingIntakeView/);
 
-const firstContactBlock = uploadPanelSource.slice(
-  uploadPanelSource.indexOf("if (isFirstContact)"),
-  uploadPanelSource.indexOf('return (\n    <WorkspaceShell>\n      <div className="app-shell app-workspace-body">'),
+const normalizedUploadPanel = uploadPanelSource.replace(/\r\n/g, "\n");
+const firstContactReturnStart = normalizedUploadPanel.indexOf("if (isFirstContact) {\n    return (");
+assert.notEqual(firstContactReturnStart, -1);
+const deepeningReturnStart = normalizedUploadPanel.indexOf(
+  'return (\n    <WorkspaceShell>\n      <div className="app-shell app-workspace-body">',
+  firstContactReturnStart + 1,
 );
+assert.notEqual(deepeningReturnStart, -1);
+const firstContactBlock = normalizedUploadPanel.slice(firstContactReturnStart, deepeningReturnStart);
 assert.match(firstContactBlock, /PreMeetingIntakeView/);
+assert.match(firstContactBlock, /first-contact\/review/);
 assert.doesNotMatch(firstContactBlock, /FileUploadQueue/);
 
-const deepeningBlock = uploadPanelSource.slice(uploadPanelSource.indexOf("<MeetingFeedbackPanel"));
+const deepeningBlock = normalizedUploadPanel.slice(deepeningReturnStart);
 assert.match(deepeningBlock, /MeetingFeedbackPanel/);
 assert.match(deepeningBlock, /Transcript files/);
 assert.match(deepeningBlock, /FileUploadQueue/);
@@ -73,6 +79,7 @@ assert.match(deepeningBlock, /ClientDocumentUploadPanel/);
 assert.match(deepeningBlock, /Optional client documents/);
 assert.match(deepeningBlock, /not meeting transcripts/i);
 assert.match(deepeningBlock, /does not separate uploads by journey stage/i);
+assert.doesNotMatch(deepeningBlock, /PreMeetingIntakeView/);
 
 const apiSource = readFileSync(
   fileURLToPath(new URL("../lib/api.ts", import.meta.url)),

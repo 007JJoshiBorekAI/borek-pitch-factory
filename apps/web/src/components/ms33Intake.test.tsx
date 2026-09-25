@@ -63,18 +63,26 @@ assert.match(uploadPanelSource, /isFirstContact/);
 assert.match(uploadPanelSource, /first-contact\/review/);
 assert.doesNotMatch(uploadPanelSource, /Next step not available yet/);
 
-const firstContactBlock = uploadPanelSource.slice(
-  uploadPanelSource.indexOf("if (isFirstContact)"),
-  uploadPanelSource.indexOf("return (\n    <WorkspaceShell>\n      <div className=\"app-shell app-workspace-body\">"),
+const normalizedUploadPanel = uploadPanelSource.replace(/\r\n/g, "\n");
+const firstContactReturnStart = normalizedUploadPanel.indexOf("if (isFirstContact) {\n    return (");
+assert.notEqual(firstContactReturnStart, -1);
+const deepeningReturnStart = normalizedUploadPanel.indexOf(
+  'return (\n    <WorkspaceShell>\n      <div className="app-shell app-workspace-body">',
+  firstContactReturnStart + 1,
 );
+assert.notEqual(deepeningReturnStart, -1);
+const firstContactBlock = normalizedUploadPanel.slice(firstContactReturnStart, deepeningReturnStart);
 assert.match(firstContactBlock, /PreMeetingIntakeView/);
+assert.match(firstContactBlock, /first-contact\/review/);
 assert.doesNotMatch(firstContactBlock, /FileUploadQueue/);
+assert.match(normalizedUploadPanel.slice(normalizedUploadPanel.indexOf("async function handleCreateOpportunity")), /stage1_intake/);
 
-const deepeningBlock = uploadPanelSource.slice(uploadPanelSource.indexOf("!isFirstContact ? ("));
+const deepeningBlock = normalizedUploadPanel.slice(deepeningReturnStart);
 assert.match(deepeningBlock, /MeetingFeedbackPanel/);
 assert.match(deepeningBlock, /Transcript files/);
 assert.match(deepeningBlock, /FileUploadQueue/);
 assert.match(deepeningBlock, /Optional client documents/);
+assert.doesNotMatch(deepeningBlock, /PreMeetingIntakeView/);
 
 const apiSource = readFileSync(
   fileURLToPath(new URL("../lib/api.ts", import.meta.url)),

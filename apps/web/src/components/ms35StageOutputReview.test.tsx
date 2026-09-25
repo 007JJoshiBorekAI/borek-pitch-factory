@@ -89,9 +89,10 @@ const uploadSource = readFileSync(
   fileURLToPath(new URL("./TranscriptUploadPanel.tsx", import.meta.url)),
   "utf8",
 );
-assert.match(uploadSource, /Stage1IntakePanel/);
+assert.match(uploadSource, /PreMeetingIntakeView/);
 assert.match(uploadSource, /ClientDocumentUploadPanel/);
-assert.doesNotMatch(uploadSource, /first-contact\/review/);
+assert.match(uploadSource, /first-contact\/review/);
+assert.match(uploadSource, /onNavigateToReview/);
 
 const reviewPageSource = readFileSync(
   fileURLToPath(new URL("../app/first-contact/review/page.tsx", import.meta.url)),
