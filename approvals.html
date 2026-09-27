@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Approvals · Borek AI Pitch</title>
+<style>
+:root{--navy:#12224a;--navy-dark:#0e1a38;--blue:#2f5fd1;--blue-light:#eaf0ff;--gray-50:#f6f7f9;--gray-100:#eef0f3;--gray-200:#e3e5ea;--gray-500:#767e8c;--gray-600:#5b6472;--orange:#e08a2b;--red:#d3452b;--teal:#14a394;}
+*{box-sizing:border-box;}html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--navy);font-size:15px;line-height:1.5;}
+a{color:var(--blue);text-decoration:none;font-weight:600;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;border-right:1px solid var(--gray-200);padding:32px 24px;}
+.btn-new{display:block;width:100%;background:var(--navy-dark);color:#fff;border-radius:6px;padding:13px 16px;font-weight:600;text-decoration:none;margin-bottom:20px;}
+nav ul{list-style:none;margin:0;padding:0;}
+nav a{display:block;padding:11px 14px;color:var(--gray-600);border-left:3px solid transparent;text-decoration:none;}
+nav a.active{font-weight:600;background:var(--gray-50);border-left-color:var(--blue);color:var(--navy);}
+.main{flex:1;padding:36px 48px 60px;}
+.progress-bar{display:flex;height:5px;margin:22px 0;border-radius:3px;overflow:hidden;}
+.progress-bar span{display:block;height:100%;}
+.breadcrumb{color:var(--gray-500);font-size:14px;}
+h2.big{font-size:32px;font-weight:400;margin:12px 0;}
+.meta-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
+.status{display:flex;align-items:center;gap:8px;font-weight:600;}
+.status .sq{width:8px;height:8px;background:var(--navy);border-radius:2px;}
+.submitted{color:var(--gray-500);font-size:14px;}
+.package-bar{background:var(--gray-50);padding:14px 20px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:28px;}
+.package-bar strong{font-size:15px;}
+.trace{color:var(--gray-500);font-size:13px;}
+.layout{display:grid;grid-template-columns:1fr 320px;gap:32px;}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--gray-500);text-transform:uppercase;margin-bottom:14px;}
+.check-row{display:flex;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--gray-100);font-size:14px;}
+.check-row span:first-child{font-weight:600;}
+.check-status{color:var(--blue);font-weight:600;}
+.doc-row{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--gray-100);}
+.doc-meta{color:var(--gray-500);font-size:13px;}
+.decision{background:var(--blue-light);border-radius:8px;padding:24px;}
+.decision h3{font-size:20px;margin:8px 0 12px;}
+.decision p{color:var(--gray-600);font-size:14px;}
+.decision .fine{font-size:12px;color:var(--gray-500);margin:16px 0;}
+.btn-row{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+.btn-outline{background:#fff;border:1px solid var(--gray-200);border-radius:6px;padding:13px;font-weight:600;cursor:pointer;}
+.btn-primary{background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px;font-weight:600;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <strong>BOREK</strong><div style="font-size:12px;color:var(--blue);font-weight:700;margin:6px 0 28px;">AI PITCH</div>
+    <a href="new-pitch.html" class="btn-new">+ New pitch</a>
+    <nav><ul>
+      <li><a href="dashboard.html">Overview</a></li>
+      <li><a href="clients.html">Clients</a></li>
+      <li><a href="approvals.html" class="active">Approvals</a></li>
+      <li><a href="library.html">Library</a></li>
+    </ul></nav>
+  </aside>
+  <main class="main">
+    <h1 style="font-size:32px;margin:0;">Approvals</h1>
+    <div class="progress-bar"><span style="width:25%;background:var(--orange)"></span><span style="width:25%;background:var(--blue)"></span><span style="width:25%;background:var(--navy)"></span><span style="width:25%;background:var(--teal)"></span></div>
+    <div class="breadcrumb">Approvals / Acme GmbH</div>
+    <h2 class="big">Release client-facing material</h2>
+    <div class="meta-row">
+      <div class="status"><span class="sq"></span> Awaiting Managing Partner approval</div>
+      <span class="submitted">Submitted by Elena Krasniqi · 21 Sep 2026, 11:42</span>
+    </div>
+    <div class="package-bar">
+      <div><span class="eyebrow" style="margin:0;display:inline;">Package</span><br><strong>Follow-up email · Minutes of Meeting · Updated pitch v4</strong></div>
+      <span class="trace">Trace ID PF-ACM-0921-04</span>
+    </div>
+    <div class="layout">
+      <div>
+        <div class="eyebrow">Release checks</div>
+        <div class="check-row"><span>Sales factual review</span><span><span class="check-status">Complete</span> · Elena · 11:38</span></div>
+        <div class="check-row"><span>Claims and sources</span><span><span class="check-status">Complete</span> · 4 sources attached</span></div>
+        <div class="check-row"><span>Commercial content</span><span>Not included · No rate-card data used</span></div>
+        <div class="check-row"><span>Confidential information</span><span><span class="check-status">Clear</span> · No masked content</span></div>
+        <div class="check-row"><span>File formats</span><span><span class="check-status">Ready</span> · PPTX master + PDF</span></div>
+        <div class="eyebrow" style="margin-top:32px;">Documents to release</div>
+        <div class="doc-row"><div><strong>Follow-up email</strong><div class="doc-meta">Short · editable draft</div></div><a href="#">Preview →</a></div>
+        <div class="doc-row"><div><strong>Acme x Borek pitch v4</strong><div class="doc-meta">PPTX master · PDF send copy</div></div><a href="#">Preview →</a></div>
+      </div>
+      <div class="decision">
+        <div class="eyebrow" style="color:var(--blue);">Decision</div>
+        <h3>Everything required for release is available.</h3>
+        <p>Releasing does not send anything. It marks the package as ready for the sales owner to send manually.</p>
+        <p class="fine">Your name and timestamp will be added to the activity log.</p>
+        <div class="btn-row">
+          <button class="btn-outline">Request changes</button>
+          <button class="btn-primary">Release as ready →</button>
+        </div>
+        <p class="fine" style="margin-top:16px;">No automatic client sending</p>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

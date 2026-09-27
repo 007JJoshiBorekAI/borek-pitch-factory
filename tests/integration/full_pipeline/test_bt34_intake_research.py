@@ -49,6 +49,12 @@ def test_intake_research_and_existing_framework_context_are_connected():
         path = f"/opportunities/{opportunity_id}"
         saved = client.get(path, headers=headers).json()
         assert saved["stage1_intake"]["about_company"] == "Sales description"
+        upload = client.post(
+            path + "/client-documents",
+            headers=headers,
+            files={"file": ("brief.txt", b"Client supplied background.", "text/plain")},
+        )
+        assert upload.status_code == 201
         response = client.post(path + "/stage1-research", headers=headers)
         assert response.status_code == 200
         research = response.json()

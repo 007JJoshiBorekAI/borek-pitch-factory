@@ -74,6 +74,7 @@ def synthesize_customer_draft(
     client_pack: dict[str, Any] | None = None,
     company_facts: dict[str, Any] | None = None,
     stage1_intake: dict[str, Any] | None = None,
+    journey_context_block: str | None = None,
 ) -> dict[str, Any]:
     """One structured Claude call. The draft must contain all 14 registry chapters."""
     system = _system_prompt()
@@ -85,6 +86,7 @@ def synthesize_customer_draft(
         client_pack=client_pack,
         company_facts=company_facts,
         stage1_intake=stage1_intake,
+        journey_context_block=journey_context_block,
     )
     schema = load_customer_report_schema()
     runner = complete or _anthropic_complete
@@ -400,6 +402,8 @@ def _anthropic_complete(system: str, user: str, schema: dict[str, Any]) -> dict[
 
 def build_synthesis_system_prompt() -> str:
     """ES-30 — role + schema contract + ES-14..27 checklist + tone/guardrails from config."""
+    from services.presentation.opportunity_master import framework_synthesis_master_block
+
     template = _PROMPT_PATH.read_text(encoding="utf-8")
     titles = "\n".join(f"{chapter_id}. {title}" for chapter_id, title in _registry_specs())
     return (
@@ -412,6 +416,7 @@ def build_synthesis_system_prompt() -> str:
         "and must not be duplicated elsewhere — see CROSS-CHAPTER AI CONSISTENCY above.\n"
         + _format_tone_and_guardrails(tone_voice())
         + f"\n\nPinned model: {sonnet_model()}. Temperature: 0."
+        + framework_synthesis_master_block()
     )
 
 
@@ -462,6 +467,7 @@ def _user_prompt(
     client_pack: dict[str, Any] | None = None,
     company_facts: dict[str, Any] | None = None,
     stage1_intake: dict[str, Any] | None = None,
+    journey_context_block: str | None = None,
 ) -> str:
     pack_block = format_client_pack_for_prompt(client_pack or skeleton.get("client_pack"))
     facts_block = format_company_facts_for_prompt(company_facts or skeleton.get("company_facts"))
@@ -508,6 +514,9 @@ def _user_prompt(
     intake_section = f"{intake_block}\n\n" if intake_block else ""
     pack_section = f"{pack_block}\n\n" if pack_block else ""
     facts_section = f"{facts_block}\n\n" if facts_block else ""
+    journey_section = (
+        f"{journey_context_block.strip()}\n\n" if journey_context_block and journey_context_block.strip() else ""
+    )
     return (
         f"prompt_version: {PROMPT_VERSION}\n"
         "Use ONLY these knowledge entries. If a field is missing, write an open_item — do not invent it.\n"
@@ -517,6 +526,7 @@ def _user_prompt(
         f"{intake_section}"
         f"{pack_section}"
         f"{facts_section}"
+        f"{journey_section}"
         f"SKELETON:\n{json.dumps(safe_skeleton, ensure_ascii=False, indent=2)}\n\n"
         f"KNOWLEDGE ENTRIES:\n{json.dumps(entries, ensure_ascii=False, indent=2)}\n\n"
         "ENGINE OUTPUTS (copy numbers exactly; do not recalculate):\n"

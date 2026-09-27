@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { loadActiveOpportunity, pipelineHref } from "@/lib/pipelineContext";
 
 interface StageReviewContextMissingProps {
@@ -29,8 +29,7 @@ export function StageReviewContextMissing({ title, detail }: StageReviewContextM
   }, [pathname, router]);
 
   return (
-    <div className="app-workspace">
-      <SiteHeader />
+    <WorkspaceShell>
       <div className="app-shell app-workspace-body">
         <AppPageHeader kicker="Stage output review" title={title} lead={detail} />
         <div className="upload-panel pipeline-empty-panel">
@@ -50,6 +49,6 @@ export function StageReviewContextMissing({ title, detail }: StageReviewContextM
           </div>
         </div>
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }

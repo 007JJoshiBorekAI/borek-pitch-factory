@@ -103,6 +103,34 @@
               "pattern": "\\S"
             }
           }
+        },
+        "client_documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "document_key",
+              "file_name",
+              "section_count"
+            ],
+            "properties": {
+              "document_key": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^D\\d+$"
+              },
+              "file_name": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "section_count": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
         }
       }
     },

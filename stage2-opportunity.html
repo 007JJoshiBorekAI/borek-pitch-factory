@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Complete Stage 2 · Borek AI Pitch</title>
+<style>
+:root{
+  --navy:#12224a; --navy-dark:#0e1a38; --blue:#2f5fd1; --blue-light:#eaf0ff;
+  --gray-25:#fafbfc; --gray-50:#f6f7f9; --gray-100:#eef0f3; --gray-200:#e3e5ea;
+  --gray-400:#9aa1ae; --gray-500:#767e8c; --gray-600:#5b6472; --gray-800:#333c4d;
+  --orange:#e08a2b; --red:#d3452b; --teal:#14a394;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--navy);background:#fff;font-size:15px;line-height:1.5;}
+a{color:var(--blue);text-decoration:none;font-weight:600;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;border-right:1px solid var(--gray-200);padding:32px 24px;}
+.logo{display:flex;align-items:center;gap:8px;margin-bottom:2px;}
+.logo-name{font-size:19px;font-weight:800;letter-spacing:.2px;color:var(--navy);}
+.logo-sub{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--blue);margin:6px 0 28px 28px;}
+.btn-new{display:block;width:100%;background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 16px;font-size:14px;font-weight:600;text-align:left;cursor:pointer;margin-bottom:20px;}
+nav ul{list-style:none;margin:0;padding:0;}
+nav li{padding:11px 14px;font-size:15px;color:var(--gray-600);border-left:3px solid transparent;cursor:pointer;border-radius:0 4px 4px 0;}
+nav li.active{color:var(--navy);font-weight:600;background:var(--gray-50);border-left-color:var(--blue);}
+.main{flex:1;padding:36px 48px 60px;max-width:1560px;}
+.topline{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;}
+h1.page-title{font-size:32px;font-weight:700;margin:4px 0 0;color:var(--navy);}
+.header-actions{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+.lang-toggle{display:flex;border:1px solid var(--gray-200);border-radius:6px;overflow:hidden;}
+.lang-toggle span{padding:6px 11px;font-size:13px;font-weight:700;color:var(--gray-500);}
+.lang-toggle span.active{background:var(--blue-light);color:var(--blue);}
+.icon-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--gray-500);position:relative;}
+.icon-btn .dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--red);border-radius:50%;}
+.user{display:flex;align-items:center;gap:8px;cursor:pointer;}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--navy);}
+.user-name{font-size:14px;font-weight:600;color:var(--navy);}
+.progress-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;margin:22px 0 26px;}
+.progress-bar span{display:block;height:100%;}
+.breadcrumb{color:var(--gray-500);font-size:14px;margin-bottom:8px;}
+.breadcrumb a{color:var(--gray-500);font-weight:400;}
+h2.big-title{font-size:34px;font-weight:400;margin:0 0 12px;color:var(--navy);}
+.status-line{display:flex;align-items:center;gap:8px;color:var(--blue);font-weight:600;font-size:14px;margin-bottom:10px;}
+.status-line .status-dot{width:8px;height:8px;border-radius:2px;background:var(--navy);}
+.subtle{color:var(--gray-500);font-size:15px;margin:0 0 30px;}
+
+.stepper{display:flex;align-items:flex-start;margin-bottom:38px;position:relative;}
+.step-item{flex:1;position:relative;text-align:left;}
+.step-item .line{position:absolute;top:6px;left:0;right:0;height:2px;background:var(--gray-200);}
+.step-item:first-child .line{left:50%;}
+.step-item:last-child .line{right:50%;}
+.step-marker{width:13px;height:13px;position:relative;z-index:1;margin-bottom:12px;}
+.step-marker.done{background:var(--navy);}
+.step-marker.current{background:#fff;border:3px solid var(--blue);}
+.step-marker.later{background:#fff;border:2px solid var(--gray-300, #d7dae0);}
+.step-name{font-weight:700;color:var(--navy);font-size:15px;}
+.step-name.muted{color:var(--gray-500);font-weight:600;}
+.step-state{font-size:13px;color:var(--gray-500);}
+.step-state.current{color:var(--blue);font-weight:600;}
+
+.body-cols{display:flex;gap:36px;align-items:flex-start;}
+.left-col{width:260px;flex-shrink:0;}
+.mid-col{flex:1;min-width:0;}
+.right-col{width:320px;flex-shrink:0;}
+
+.panel-label{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--gray-500);text-transform:uppercase;margin-bottom:6px;}
+.panel-desc{color:var(--gray-500);font-size:13px;margin-bottom:18px;}
+.input-item{padding:14px;border-radius:6px;margin-bottom:6px;}
+.input-item.active{background:#fff;border-left:3px solid var(--blue);box-shadow:0 0 0 1px var(--gray-200);}
+.input-item .name{font-weight:700;color:var(--navy);font-size:14px;}
+.input-item .meta{font-size:12.5px;color:var(--gray-500);margin-top:2px;}
+.input-item .meta.blue{color:var(--blue);font-weight:600;}
+.left-divider{border-top:1px solid var(--gray-200);margin:22px 0 16px;}
+.source-title{font-weight:700;color:var(--navy);margin-bottom:6px;}
+.source-desc{color:var(--gray-500);font-size:13px;}
+
+h3.mid-title{font-size:26px;font-weight:700;margin:0 0 6px;color:var(--navy);}
+.mid-sub{color:var(--gray-500);font-size:14px;margin:0 0 22px;}
+.card{border:1px solid var(--gray-200);border-radius:8px;padding:18px 20px;margin-bottom:16px;}
+.card-row{display:flex;gap:16px;}
+.card-row .card{flex:1;}
+.card-label{font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--gray-500);text-transform:uppercase;margin-bottom:8px;}
+.card-value{font-size:14.5px;color:var(--gray-800);}
+.card-value.link{color:var(--blue);font-weight:600;}
+.card ul{margin:0;padding-left:18px;}
+.card li{margin-bottom:4px;}
+.bottom-actions{display:flex;gap:14px;margin-top:10px;}
+.btn-outline{background:#fff;color:var(--navy);border:1px solid var(--gray-200);border-radius:6px;padding:13px 20px;font-size:14px;font-weight:600;cursor:pointer;}
+.btn-primary{background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;}
+.saved-note{color:var(--gray-500);font-size:13px;margin-top:10px;}
+
+.right-panel{border:1px solid var(--gray-200);border-radius:8px;padding:22px;}
+.panel-label.side{margin-bottom:16px;}
+.stake-group{margin-bottom:16px;}
+.stake-label{font-size:11.5px;font-weight:700;letter-spacing:.5px;color:var(--gray-500);text-transform:uppercase;margin-bottom:6px;}
+.stake-value{font-size:14.5px;color:var(--navy);font-weight:600;}
+.right-divider{border-top:1px solid var(--gray-200);margin:18px 0;}
+.btn-block{display:block;width:100%;background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:14px;font-size:14px;font-weight:600;cursor:pointer;margin:16px 0 8px;text-align:center;}
+.next-note{color:var(--blue);font-weight:700;font-size:13.5px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 20 20"><circle cx="4" cy="6" r="2" fill="#12224a"/><circle cx="10" cy="3" r="2" fill="#12224a"/><circle cx="16" cy="6" r="2" fill="#12224a"/><circle cx="4" cy="14" r="2" fill="#12224a"/><circle cx="10" cy="17" r="2" fill="#12224a"/><circle cx="16" cy="14" r="2" fill="#12224a"/><circle cx="10" cy="10" r="2" fill="#12224a"/></svg>
+      <span class="logo-name">BOREK</span>
+    </div>
+    <div class="logo-sub">AI PITCH</div>
+    <button class="btn-new">+ New pitch</button>
+    <nav><ul>
+      <li>Overview</li>
+      <li class="active">Clients</li>
+      <li>Approvals</li>
+      <li>Library</li>
+    </ul></nav>
+  </aside>
+  <main class="main">
+    <div class="topline">
+      <h1 class="page-title">Stage 2</h1>
+      <div class="header-actions">
+        <div class="lang-toggle"><span>DE</span><span class="active">EN</span></div>
+        <div class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="dot"></span></div>
+        <div class="user"><div class="avatar">EK</div><span class="user-name">Elena Manovska</span></div>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <span style="width:14%;background:var(--orange)"></span>
+      <span style="width:16%;background:var(--red)"></span>
+      <span style="width:45%;background:var(--navy)"></span>
+      <span style="width:25%;background:var(--teal)"></span>
+    </div>
+
+    <div class="breadcrumb"><a href="#">Clients</a> / <a href="#">Acme GmbH</a> / <a href="#">Customer operations</a></div>
+    <h2 class="big-title">Complete Stage 2</h2>
+    <div class="status-line"><span class="status-dot"></span> First meeting reviewed · Opportunity details suggested from transcript</div>
+    <p class="subtle">Confirm the opportunity, stakeholders and next steps before creating the pitch.</p>
+
+    <div class="stepper">
+      <div class="step-item"><div class="line"></div><div class="step-marker done"></div><div class="step-name">Stage 1</div><div class="step-state">Complete</div></div>
+      <div class="step-item"><div class="line"></div><div class="step-marker done"></div><div class="step-name">First meeting</div><div class="step-state">Complete</div></div>
+      <div class="step-item"><div class="line"></div><div class="step-marker current"></div><div class="step-name">Stage 2</div><div class="step-state current">Current</div></div>
+      <div class="step-item"><div class="line"></div><div class="step-marker later"></div><div class="step-name muted">Create pitch</div><div class="step-state">Next</div></div>
+      <div class="step-item"><div class="line"></div><div class="step-marker later"></div><div class="step-name muted">Prepare</div><div class="step-state">Later</div></div>
+      <div class="step-item"><div class="line"></div><div class="step-marker later"></div><div class="step-name muted">Present</div><div class="step-state">Later</div></div>
+    </div>
+
+    <div class="body-cols">
+      <div class="left-col">
+        <div class="panel-label">Stage 2 inputs</div>
+        <div class="panel-desc">Review what was captured from the meeting.</div>
+        <div class="input-item"><div class="name">01 First meeting</div><div class="meta">Reviewed · 6 fields</div></div>
+        <div class="input-item active"><div class="name">02 Opportunity</div><div class="meta">Current · 6 fields</div></div>
+        <div class="input-item"><div class="name">03 Stakeholders</div><div class="meta">Ready to review · 3 fields</div></div>
+        <div class="input-item"><div class="name">04 Next steps</div><div class="meta blue">2 missing · 4 fields</div></div>
+        <div class="left-divider"></div>
+        <div class="panel-label">Source</div>
+        <div class="source-title">Jamie.ai transcript</div>
+        <div class="source-desc">Manual edits stay linked to this meeting and are added to activity.</div>
+      </div>
+
+      <div class="mid-col">
+        <h3 class="mid-title">Opportunity understanding</h3>
+        <p class="mid-sub">Confirm the commercial understanding that should shape the next pitch.</p>
+
+        <div class="card">
+          <div class="card-label">Business opportunity</div>
+          <div class="card-value">Create a measurable multilingual operating model that can scale beyond the pilot.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Proposed solution</div>
+          <div class="card-value">A 12-week pilot combining a dedicated delivery team, multilingual QA and weekly performance reporting.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Relevant Borek services</div>
+          <div class="card-value">AI Operations &amp; Multilingual Support<br>Managed Assurance &amp; Compliance</div>
+        </div>
+        <div class="card-row">
+          <div class="card"><div class="card-label">Estimated scope</div><div class="card-value">DE/EN pilot · 8–12 specialists</div></div>
+          <div class="card"><div class="card-label">Expected timeline · if discussed</div><div class="card-value">Pilot target · Q4 2026</div></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Estimated budget · if discussed</div>
+          <div class="card-value link">Not discussed</div>
+        </div>
+
+        <div class="bottom-actions">
+          <button class="btn-outline">Save draft</button>
+          <button class="btn-primary">Review stakeholders →</button>
+        </div>
+        <div class="saved-note">Suggested values remain editable and traceable.</div>
+      </div>
+
+      <div class="right-col">
+        <div class="right-panel">
+          <div class="panel-label side">Stakeholders</div>
+          <div class="stake-group"><div class="stake-label">Decision makers</div><div class="stake-value">Mira Koch · COO</div></div>
+          <div class="stake-group"><div class="stake-label">Key stakeholders</div><div class="stake-value">Leon Weber · Head of CX<br>Procurement</div></div>
+          <div class="stake-group"><div class="stake-label">Primary point of contact</div><div class="stake-value">Mira Koch · COO</div></div>
+          <div class="right-divider"></div>
+          <div class="panel-label side">Next steps</div>
+          <div class="stake-group"><div class="stake-label">Next steps</div><div class="stake-value" style="font-weight:400;">Borek sends pilot outline; Acme validates scope.</div></div>
+          <div class="stake-group"><div class="stake-label">Next meeting date</div><div class="stake-value">24 Sep 2026 · solution review</div></div>
+          <div class="stake-group"><div class="stake-label">Action items</div><div class="stake-value" style="font-weight:400;">Pilot outline · Borek<br>Volume data · Acme</div></div>
+          <div class="stake-group"><div class="stake-label">Responsible team member</div><div class="stake-value">Elena Manovska</div></div>
+          <button class="btn-block">Complete Stage 2 →</button>
+          <div class="next-note">Next: create the client pitch</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

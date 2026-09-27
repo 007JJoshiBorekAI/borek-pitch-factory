@@ -37,8 +37,20 @@ Rules:
   when process-flow evidence is weak, thin, or redundant.
 - Treat chapterLayoutGuidance as recommendations; decide the appropriate ordered
   presentation structure in this single planning operation.
-- Do not invent unsupported slides, facts, customer claims, requirements, metrics,
-  or assumptions.
+- The deck is an opportunity-analysis discussion basis, not a commitment.
+  Order slides to follow the discussion paper: cover; core thesis; situation
+  today versus the assistance layer; opportunity map; deep dive (solution, how
+  it works, result); discovery questions and opportunity signals; a workflow
+  chain only when PROCESS_FLOW_01 is justified; assistance layer on existing
+  systems; roles as relief rather than replacement; baseline, pilot, and
+  scaling; open discovery questions; human control; non-commercial operating
+  outcomes; closing three-step next steps.
+- Each slide purpose must name the discussion-paper part it carries (overview,
+  deep dive, processes outside the systems, target picture, roles, decision
+  map, or closing). Use only facts in the confirmed FrameworkObject.
+- Impact figures stay industry benchmarks or working hypotheses. Never state
+  them as customer commitments. Do not invent unsupported slides, facts,
+  customer claims, requirements, metrics, or assumptions.
 - Keep every slide grounded in its frameworkReferences and choose a layout that is
   appropriate to those referenced Framework chapters.
 - When a guidance mapping has excludeMonetaryFields=true, exclude pricing,

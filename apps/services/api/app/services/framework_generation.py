@@ -25,6 +25,7 @@ from app.services.framework_versioning import (
     framework_source_revision,
     framework_transition_id,
 )
+from app.services.first_contact_inputs import assert_framework_generation_inputs
 from app.services.stage_a_orchestration import generate_framework_from_transcripts
 from app.services.stage_a_orchestration import regenerate_framework_chapter_from_transcripts
 from services.framework.regenerate_chapter import build_regenerated_framework
@@ -43,6 +44,11 @@ from packages.contracts.schema_consumer import (
 
 def enqueue_framework_generate(store: DataStore, *, opportunity_id: UUID, user_id: UUID):
     store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    assert_framework_generation_inputs(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+    )
     transcript_ids = [
         str(source["id"])
         for source in store.list_transcript_sources(

@@ -12,7 +12,7 @@ import { FrameworkReviewSummary } from "@/components/FrameworkReviewSummary";
 import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel";
 import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
 import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
@@ -37,6 +37,7 @@ import {
   waitForJob,
 } from "@/lib/api";
 import type { JobResponse } from "@/lib/api";
+import { persistOpportunityContext } from "@/lib/opportunityContextSync";
 import { startFrameworkReviewParallelLoad } from "@/lib/frameworkReviewLoad";
 import {
   buildFrameworkDownloadFilename,
@@ -563,6 +564,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setInfo(null);
     setRetryJobId(null);
     try {
+      await persistOpportunityContext(accessToken, opportunityId);
       const generated = await generateFramework(accessToken, opportunityId);
       setInfo(generationProgressMessage("framework", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("framework", generated.job_id));
@@ -1009,9 +1011,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   );
 
   return (
-    <div className="app-workspace">
-      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
-
+    <WorkspaceShell>
       <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
@@ -1483,7 +1483,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
             ) : null}
         </div>
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }
 

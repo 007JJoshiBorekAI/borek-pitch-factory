@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/jamie_ingest.schema.json",
+  "title": "JamieIngest",
+  "description": "TSK-009: Pitch Factory's meeting ingest shape. Dummy fixtures and the live Jamie mapper both emit this. Downstream (transcript store, MOM, follow-up) never reads vendor JSON.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "jamie_meeting_id",
+    "opportunity_id",
+    "ended_at",
+    "participants",
+    "actions",
+    "speaker_turns"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "source": {
+      "type": "string",
+      "enum": ["dummy", "jamie"],
+      "description": "dummy = fixture adapter. jamie = live connector. Never claim jamie without a real finished meeting."
+    },
+    "jamie_meeting_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Required until Control Tower maps meetings. Dummy payloads must name a real opportunity in tests."
+    },
+    "ended_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Meeting end, UTC. Live SLA is ingest within 10 minutes of this instant."
+    },
+    "title": {
+      "type": ["string", "null"]
+    },
+    "participants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "email": { "type": ["string", "null"] },
+          "organisation": { "type": ["string", "null"] },
+          "role": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action"],
+        "properties": {
+          "action": { "type": "string", "minLength": 1 },
+          "owner": { "type": ["string", "null"] },
+          "due": { "type": ["string", "null"], "description": "DD.MM.YYYY or null" }
+        }
+      }
+    },
+    "speaker_turns": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Stored for audit and human review. Never inject these raw turns into LLM prompts (BT-36).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["turn_index", "speaker", "text"],
+        "properties": {
+          "turn_index": { "type": "integer", "minimum": 0 },
+          "speaker": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

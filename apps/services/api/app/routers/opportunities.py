@@ -21,12 +21,14 @@ from app.schemas.opportunities import (
     OpportunityUpdateRequest,
     RecentWorkSnapshot,
 )
+from app.services.pitch_owner import employee_pitch_owner, parse_team_members
 from app.services.recent_work import list_recent_work_snapshots
 from app.services import job_service
 from app.services.api_errors import not_found
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.client_logos import MAX_CLIENT_LOGO_BYTES, validate_client_logo
 from app.services.api_errors import service_unavailable
+from app.services.first_contact_inputs import require_first_contact_client_documents
 from app.services.knowledge_access import resolve_active_corpus
 from app.services.stage1 import get_company_research_provider
 from services.framework.stage1_research import (
@@ -54,6 +56,9 @@ def create_opportunity(
         opportunity_name=body.opportunity_name,
         department=body.department,
         language=body.language,
+        pitch_owner=employee_pitch_owner(user.id),
+        team_members=parse_team_members(body.team_members_text),
+        pitch_description=body.pitch_description,
         pii_redaction_enabled=body.pii_redaction_enabled,
         additional_client_information=(
             body.additional_client_information.model_dump()
@@ -93,6 +98,11 @@ def generate_company_research(
     provider: CompanyResearchProvider | None = Depends(get_company_research_provider),
 ) -> dict:
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    client_document_sources = require_first_contact_client_documents(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
     record_audit_event(
         store,
         actor_id=user.id,
@@ -107,6 +117,7 @@ def generate_company_research(
                 corpus=resolve_active_corpus(store),
                 provider=provider,
                 use_llm=settings.AI_EXECUTION_MODE == "live",
+                client_document_sources=client_document_sources,
             )
     except Exception as exc:
         raise HTTPException(

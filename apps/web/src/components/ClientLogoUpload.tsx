@@ -184,7 +184,7 @@ export function ClientLogoUpload({
         <span className="client-logo-card-kicker">Cover</span>
         <footer className="client-logo-card-footer">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="client-logo-borek" src="/logo.webp" alt="Borek" />
+          <img className="client-logo-borek" src="/logo.png" alt="Borek Solutions Group" />
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img className="client-logo-client" src={previewUrl} alt="Client logo preview" />

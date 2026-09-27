@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Clients · Borek AI Pitch</title>
+<style>
+:root{
+  --navy:#12224a; --navy-dark:#0e1a38; --blue:#2f5fd1; --blue-light:#eaf0ff;
+  --gray-25:#fafbfc; --gray-50:#f6f7f9; --gray-100:#eef0f3; --gray-200:#e3e5ea;
+  --gray-400:#9aa1ae; --gray-500:#767e8c; --gray-600:#5b6472; --gray-800:#333c4d;
+  --orange:#e08a2b; --red:#d3452b; --teal:#14a394;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--navy);background:#fff;font-size:15px;line-height:1.5;}
+a{color:var(--blue);text-decoration:none;font-weight:600;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;border-right:1px solid var(--gray-200);padding:32px 24px;}
+.logo{display:flex;align-items:center;gap:8px;margin-bottom:2px;}
+.logo-name{font-size:19px;font-weight:800;letter-spacing:.2px;color:var(--navy);}
+.logo-sub{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--blue);margin:6px 0 28px 28px;}
+.btn-new{display:block;width:100%;background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 16px;font-size:14px;font-weight:600;text-align:left;cursor:pointer;margin-bottom:20px;}
+nav ul{list-style:none;margin:0;padding:0;}
+nav li{padding:11px 14px;font-size:15px;color:var(--gray-600);border-left:3px solid transparent;cursor:pointer;border-radius:0 4px 4px 0;}
+nav li.active{color:var(--navy);font-weight:600;background:var(--gray-50);border-left-color:var(--blue);}
+.main{flex:1;padding:36px 48px 60px;max-width:1560px;}
+.topline{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;}
+h1.page-title{font-size:32px;font-weight:700;margin:4px 0 0;color:var(--navy);}
+.header-actions{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+.lang-toggle{display:flex;border:1px solid var(--gray-200);border-radius:6px;overflow:hidden;}
+.lang-toggle span{padding:6px 11px;font-size:13px;font-weight:700;color:var(--gray-500);}
+.lang-toggle span.active{background:var(--blue-light);color:var(--blue);}
+.icon-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--gray-500);position:relative;}
+.icon-btn .dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--red);border-radius:50%;}
+.user{display:flex;align-items:center;gap:8px;cursor:pointer;}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--navy);}
+.user-name{font-size:14px;font-weight:600;color:var(--navy);}
+.progress-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;margin:22px 0 34px;}
+.progress-bar span{display:block;height:100%;}
+.btn-primary{background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-top:8px;}
+h2.big-title{font-size:36px;font-weight:400;margin:0 0 6px;color:var(--navy);}
+.subtle{color:var(--gray-500);font-size:15px;margin:0;max-width:640px;}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--blue);text-transform:uppercase;}
+.section-head{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;}
+h2.section-title{font-size:26px;font-weight:700;margin:6px 0 22px;color:var(--navy);}
+.count{color:var(--gray-500);font-size:14px;}
+.toolbar{display:flex;gap:12px;margin-bottom:22px;}
+.search-box{flex:1;border:1px solid var(--gray-200);border-radius:6px;padding:12px 16px;color:var(--gray-500);font-size:14px;}
+.select-box{border:1px solid var(--gray-200);border-radius:6px;padding:12px 16px;color:var(--gray-600);font-size:14px;width:170px;}
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:12px;font-weight:700;letter-spacing:.3px;color:var(--gray-500);text-transform:uppercase;padding:10px 8px;border-bottom:1px solid var(--gray-200);}
+td{padding:18px 8px;border-bottom:1px solid var(--gray-100);font-size:14px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.client-cell{display:flex;align-items:center;gap:12px;}
+.initials{width:38px;height:38px;border-radius:6px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:var(--navy);flex-shrink:0;}
+.client-name{font-weight:700;color:var(--navy);}
+.client-domain{color:var(--gray-500);font-size:13px;}
+.contact-name{font-weight:600;color:var(--navy);}
+.contact-role{color:var(--gray-500);font-size:13px;}
+.status{display:flex;align-items:center;gap:8px;font-weight:600;}
+.status-dot{width:8px;height:8px;border-radius:2px;}
+.footer-row{display:flex;justify-content:space-between;align-items:center;margin-top:22px;}
+.footnote{color:var(--gray-500);font-size:14px;}
+.pagination{display:flex;gap:8px;}
+.pagination span, .pagination .page{border:1px solid var(--gray-200);border-radius:6px;padding:9px 16px;font-size:14px;color:var(--gray-600);cursor:pointer;}
+.pagination .page.active{background:var(--navy-dark);color:#fff;border-color:var(--navy-dark);font-weight:700;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 20 20"><circle cx="4" cy="6" r="2" fill="#12224a"/><circle cx="10" cy="3" r="2" fill="#12224a"/><circle cx="16" cy="6" r="2" fill="#12224a"/><circle cx="4" cy="14" r="2" fill="#12224a"/><circle cx="10" cy="17" r="2" fill="#12224a"/><circle cx="16" cy="14" r="2" fill="#12224a"/><circle cx="10" cy="10" r="2" fill="#12224a"/></svg>
+      <span class="logo-name">BOREK</span>
+    </div>
+    <div class="logo-sub">AI PITCH</div>
+    <button class="btn-new">+ New pitch</button>
+    <nav><ul>
+      <li>Overview</li>
+      <li class="active">Clients</li>
+      <li>Approvals</li>
+      <li>Library</li>
+    </ul></nav>
+  </aside>
+  <main class="main">
+    <div class="topline">
+      <h1 class="page-title">Clients</h1>
+      <div class="header-actions">
+        <div class="lang-toggle"><span>DE</span><span class="active">EN</span></div>
+        <div class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="dot"></span></div>
+        <div class="user"><div class="avatar">EK</div><span class="user-name">Elena Krasniqi</span></div>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <span style="width:14%;background:var(--orange)"></span>
+      <span style="width:16%;background:var(--red)"></span>
+      <span style="width:45%;background:var(--navy)"></span>
+      <span style="width:25%;background:var(--teal)"></span>
+    </div>
+
+    <div class="title-row">
+      <div>
+        <h2 class="big-title">Clients</h2>
+        <p class="subtle">View and manage every client relationship, contact and active engagement in one place.</p>
+      </div>
+      <button class="btn-primary">Add New Client</button>
+    </div>
+
+    <div class="eyebrow" style="margin-top:34px;">Client directory</div>
+    <div class="section-head">
+      <h2 class="section-title">All clients</h2>
+      <span class="count">24 clients</span>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-box">Search by client, company or point of contact</div>
+      <div class="select-box">All industries  ⌄</div>
+      <div class="select-box">All statuses  ⌄</div>
+    </div>
+
+    <table>
+      <thead><tr><th>Client / Company</th><th>Industry</th><th>Primary contact</th><th>Active pitches</th><th>Status</th><th>Last activity</th><th>Open</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="client-cell"><div class="initials">AC</div><div><div class="client-name">Acme GmbH</div><div class="client-domain">acme.de</div></div></div></td>
+          <td>Customer operations</td>
+          <td><div class="contact-name">Mira Koch</div><div class="contact-role">COO</div></td>
+          <td>2 active pitches</td>
+          <td><span class="status"><span class="status-dot" style="background:var(--navy)"></span>Needs review</span></td>
+          <td>Today, 09:42</td>
+          <td><a href="#">Open →</a></td>
+        </tr>
+        <tr>
+          <td><div class="client-cell"><div class="initials">NW</div><div><div class="client-name">NordWerk AG</div><div class="client-domain">nordwerk.de</div></div></div></td>
+          <td>Industrial manufacturing</td>
+          <td><div class="contact-name">Lukas Weber</div><div class="contact-role">Managing Director</div></td>
+          <td>1 active pitch</td>
+          <td><span class="status"><span class="status-dot" style="background:var(--gray-400)"></span>Awaiting approval</span></td>
+          <td>18 Sep</td>
+          <td><a href="#">Open →</a></td>
+        </tr>
+        <tr>
+          <td><div class="client-cell"><div class="initials">HM</div><div><div class="client-name">Helio Mobility</div><div class="client-domain">heliomobility.com</div></div></div></td>
+          <td>Mobility &amp; transport</td>
+          <td><div class="contact-name">Sofia Marin</div><div class="contact-role">VP Strategy</div></td>
+          <td>1 engagement</td>
+          <td><span class="status"><span class="status-dot" style="background:var(--blue)"></span>Ready</span></td>
+          <td>16 Sep</td>
+          <td><a href="#">Open →</a></td>
+        </tr>
+        <tr>
+          <td><div class="client-cell"><div class="initials">RL</div><div><div class="client-name">Rhein Logistics</div><div class="client-domain">rheinlogistics.de</div></div></div></td>
+          <td>Logistics</td>
+          <td><div class="contact-name">Daniel Vogt</div><div class="contact-role">Chief Commercial Officer</div></td>
+          <td>1 active pitch</td>
+          <td><span class="status"><span class="status-dot" style="background:var(--blue)"></span>Ready</span></td>
+          <td>14 Sep</td>
+          <td><a href="#">Open →</a></td>
+        </tr>
+        <tr>
+          <td><div class="client-cell"><div class="initials">VS</div><div><div class="client-name">Valora Systems</div><div class="client-domain">valora.systems</div></div></div></td>
+          <td>Enterprise software</td>
+          <td><div class="contact-name">Amelie Brandt</div><div class="contact-role">Chief Growth Officer</div></td>
+          <td>No active pitches</td>
+          <td><span class="status"><span class="status-dot" style="background:var(--gray-400)"></span>Information missing</span></td>
+          <td>08 Sep</td>
+          <td><a href="#">Open →</a></td>
+        </tr>
+        <tr>
+          <td><div class="client-cell"><div class="initials">AL</div><div><div class="client-name">Atelier Lumen</div><div class="client-domain">atelierlumen.eu</div></div></div></td>
+          <td>Architecture &amp; design</td>
+          <td><div class="contact-name">Nina Laurent</div><div class="contact-role">Founder</div></td>
+          <td>1 engagement</td>
+          <td><span class="status"><span class="status-dot" style="background:var(--navy)"></span>Needs review</span></td>
+          <td>02 Sep</td>
+          <td><a href="#">Open →</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer-row">
+      <span class="footnote">Showing 1–6 of 24 clients</span>
+      <div class="pagination">
+        <span>Previous</span>
+        <span class="page active">1</span>
+        <span class="page">2</span>
+        <span class="page">3</span>
+        <span>Next</span>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

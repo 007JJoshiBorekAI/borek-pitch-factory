@@ -10,6 +10,10 @@ from typing import Any
 from packages.contracts.validators import chapter_specs_from_registry
 from services.framework.chapter_validators.ch00_about import has_eight_decision_questions
 from services.framework.chapter_validators.ch03_aim_success import has_conservative_marker
+from services.framework.chapter_validators.ch05_how_it_works import (
+    ensure_never_autonomous_statement,
+    has_never_autonomous_statement,
+)
 from services.framework.chapter_validators.ch06_how_built import has_building_protection, _protection_cell_filled
 
 
@@ -531,13 +535,18 @@ def reconcile_chapter_invariants(
     current_chapters: list[dict[str, Any]],
     base_chapters: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Surgically restore Ch0/Ch3/Ch6 hard invariants without broad overlay side-effects."""
+    """Surgically restore Ch0/Ch3/Ch5/Ch6 hard invariants without broad overlay side-effects."""
     result = copy.deepcopy(current_chapters)
     base_by_id = {str(chapter.get("chapter_id")): chapter for chapter in base_chapters}
-    for chapter_id in ("0", "3", "6"):
+    for chapter_id in ("0", "3", "5", "6"):
         chapter = next((item for item in result if str(item.get("chapter_id")) == chapter_id), None)
+        if chapter is None:
+            continue
+        if chapter_id == "5":
+            ensure_never_autonomous_statement(chapter)
+            continue
         base = base_by_id.get(chapter_id)
-        if chapter is None or base is None:
+        if base is None:
             continue
         body = list(chapter.get("body") or [])
         base_body = list(base.get("body") or [])
@@ -650,15 +659,13 @@ def _keep_required_blocks(chapter_id: str, base_body: list[dict[str, Any]], llm_
         _ensure_table_purpose(merged, base_body, "exceptions")
         if "conversation" not in blob() and "transcript" not in blob() and "named" not in blob():
             _patch_or_append_prose(merged, base_body)
-        if missing("callout") or not any(
-            token in blob() for token in ("on its own", "people decide", "team decides")
-        ):
+        if not has_never_autonomous_statement({"body": merged}):
             if missing("callout"):
                 append_base("callout")
             else:
                 _patch_callout(
                     merged,
-                    require_any=("on its own", "people decide", "team decides"),
+                    require_any=("on its own", "people decide", "team decides", "never autonomous"),
                     require_one_of=(),
                     fallback=_first_block(base_body, "callout"),
                 )

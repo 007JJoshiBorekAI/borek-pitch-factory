@@ -30,6 +30,7 @@ from services.framework.company_facts import (
     query_text_from_opportunity,
 )
 from services.framework.stage1_intake import intake_from_opportunity, safe_intake_for_llm
+from services.framework.journey_context import build_journey_context_block
 from services.knowledge_model.extraction import PROMPT_VERSION as EXTRACTION_PROMPT_VERSION
 from services.knowledge_model.extraction import extract_knowledge_model
 from services.transcript.conversation_ids import TranscriptIdentity
@@ -101,6 +102,13 @@ def generate_framework_from_transcripts(
         )
 
     redact = opportunity_pii_redaction_enabled(opportunity)
+    journey_context_block = _journey_context_block(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        opportunity=opportunity,
+        redact=redact,
+    )
     checkpoints: dict[str, dict[str, Any]] = {}
     if job_id is not None and hasattr(store, "list_job_knowledge_models"):
         checkpoints = {
@@ -138,6 +146,7 @@ def generate_framework_from_transcripts(
             redact=redact,
             client_pack=client_pack,
             stage1_intake=stage1_intake,
+            journey_context_block=journey_context_block,
         )
         knowledge_models.append(model)
         if job_id is not None and hasattr(store, "upsert_job_knowledge_model"):
@@ -171,6 +180,7 @@ def generate_framework_from_transcripts(
         company_facts=company_facts,
         stage1_intake=stage1_intake,
         stage_callback=stage_callback,
+        journey_context_block=journey_context_block,
     )
     if stage_callback is not None:
         stage_callback("validation")
@@ -228,6 +238,13 @@ def regenerate_framework_chapter_from_transcripts(
     )
     client_pack = normalize_client_pack(opportunity.get("additional_client_information"))
     redact = opportunity_pii_redaction_enabled(opportunity)
+    journey_context_block = _journey_context_block(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        opportunity=opportunity,
+        redact=redact,
+    )
     if stage_callback is not None:
         stage_callback("knowledge")
     knowledge_models: list[dict[str, Any]] = []
@@ -245,6 +262,7 @@ def regenerate_framework_chapter_from_transcripts(
                 redact=redact,
                 client_pack=client_pack,
                 stage1_intake=stage1_intake,
+                journey_context_block=journey_context_block,
             )
         )
     if stage_callback is not None:
@@ -288,6 +306,29 @@ def _corpus_for_store(store: Any):
     if not callable(lister):
         return None
     return resolve_active_corpus(store)
+
+
+def _journey_context_block(
+    store: Any,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    opportunity: dict[str, Any],
+    redact: bool,
+) -> str:
+    lister = getattr(store, "list_client_document_sources", None)
+    sources: list[dict[str, Any]] = []
+    if callable(lister):
+        sources = [
+            row
+            for row in lister(opportunity_id=opportunity_id, user_id=user_id)
+            if str(row.get("processing_status") or "") == "processed"
+        ]
+    return build_journey_context_block(
+        client_document_sources=sources,
+        stage1_outputs=opportunity.get("stage1_outputs"),
+        redact=redact,
+    )
 
 
 def _call_with_optional_kwargs(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:

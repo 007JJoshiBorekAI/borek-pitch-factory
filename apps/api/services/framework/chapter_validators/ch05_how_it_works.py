@@ -16,10 +16,24 @@ _NEVER_AUTO_MARKERS = (
 _NEVER_AUTO_CALLOUT = (
     "On exceptions, people decide — the agent is never autonomous toward counterparties."
 )
+_TRACE_KEYS = {"source_claims", "source_refs", "knowledge_entry_ids"}
+
+
+def _customer_facing_body(value: Any) -> Any:
+    """Citation metadata must not satisfy the customer-facing autonomy sentence."""
+    if isinstance(value, dict):
+        return {
+            key: _customer_facing_body(item)
+            for key, item in value.items()
+            if key not in _TRACE_KEYS
+        }
+    if isinstance(value, list):
+        return [_customer_facing_body(item) for item in value]
+    return value
 
 
 def has_never_autonomous_statement(chapter: dict[str, Any]) -> bool:
-    blob = chapter_blob(chapter).lower()
+    blob = str(_customer_facing_body(chapter.get("body") or "")).lower()
     return text_has_never_autonomous_marker(blob)
 
 

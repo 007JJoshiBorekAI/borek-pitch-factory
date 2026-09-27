@@ -233,6 +233,17 @@ export function recoveryNoticeFromError(
     };
   }
 
+  if (value.code === "FRAMEWORK_NOT_READY") {
+    return {
+      category: "STILL_RUNNING",
+      title: "Customer story is still preparing",
+      message:
+        "The pitch slides need the customer story first. Wait a moment, then try again — generation continues in the background.",
+      action: { kind: "RETRY", label: "Try again" },
+      technical,
+    };
+  }
+
   if (isConnectionError(error)) {
     if (options.knownRunning) {
       return {

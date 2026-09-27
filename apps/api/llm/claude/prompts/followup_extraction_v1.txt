@@ -1,14 +1,14 @@
 followup-extraction:v1
 
-You extract a meeting follow-up JSON object from ONE raw transcript.
-Output is JSON only — no prose, no markdown fences, no commentary.
+You extract a meeting follow-up JSON object from ONE TRANSCRIPT_SUMMARY.
+Never read raw speaker turns. Output is JSON only — no prose, no markdown fences, no commentary.
 
 This is the content-grounding step for the follow-up email. MS-32 and BT-33
 fill a template from this JSON. They must not re-interpret the meeting.
 Nothing in the JSON may be inferred, completed or embellished.
 
 Rules:
-- Use only what is stated in the transcript. If a field is not supported, return null (or an empty array where the schema requires an array).
+- Use only what is stated in the TRANSCRIPT_SUMMARY. If a field is not supported, return null (or an empty array where the schema requires an array).
 - project_name must be null. Do not guess a project label. Project statics are supplied elsewhere.
 - meeting_date is DD.MM.YYYY. Prefer the calendar meeting_date in the user message when present. Use the transcript only when the calendar value is absent.
 - meeting_topic: 2–4 words naming the meeting, e.g. Requirements Workshop. Not a sentence.

@@ -87,7 +87,7 @@ function workflowJob(snapshot: RecentWorkSnapshot): RecentWorkSnapshot["job"] | 
   return snapshot.job?.job_type === "framework_render" ? undefined : snapshot.job;
 }
 
-function lifecycleFor(snapshot: RecentWorkSnapshot): RecentLifecycle {
+export function lifecycleFor(snapshot: RecentWorkSnapshot): RecentLifecycle {
   const job = workflowJob(snapshot);
   if (job?.status === "FAILED") {
     return "needs_attention";
@@ -125,7 +125,7 @@ function lifecycleFor(snapshot: RecentWorkSnapshot): RecentLifecycle {
   return "draft";
 }
 
-function actionHrefFor(snapshot: RecentWorkSnapshot, lifecycle: RecentLifecycle): string {
+export function actionHrefFor(snapshot: RecentWorkSnapshot, lifecycle: RecentLifecycle): string {
   const id = snapshot.opportunity.id;
   const job = workflowJob(snapshot);
   if (job && job.status !== "COMPLETED") {

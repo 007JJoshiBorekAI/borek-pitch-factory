@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { WorkflowStepIndicator, type WorkflowStepId } from "@/components/WorkflowStepIndicator";
 import { loadActiveOpportunity, pipelineHref } from "@/lib/pipelineContext";
 
@@ -30,8 +30,7 @@ export function PipelineContextMissing({ title, detail }: PipelineContextMissing
   }, [pathname, router]);
 
   return (
-    <div className="app-workspace">
-      <SiteHeader />
+    <WorkspaceShell>
       <div className="app-shell app-workspace-body">
         <WorkflowStepIndicator
           currentStep={
@@ -70,6 +69,6 @@ export function PipelineContextMissing({ title, detail }: PipelineContextMissing
           </div>
         </div>
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }

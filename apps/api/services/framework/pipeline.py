@@ -72,6 +72,7 @@ def generate_customer_framework(
     corpus: Any | None = None,
     retrieve_fn: Callable[..., Any] | None = None,
     stage_callback: Callable[[str], None] | None = None,
+    journey_context_block: str | None = None,
 ) -> dict[str, Any]:
     if stage_callback is not None:
         stage_callback("synthesis")
@@ -163,6 +164,7 @@ def generate_customer_framework(
             client_pack=normalize_client_pack(client_pack) or skeleton.get("client_pack"),
             company_facts=grounded_facts,
             stage1_intake=stage1_intake,
+            journey_context_block=journey_context_block,
         )
         chapters = apply_draft_to_chapters(chapters, draft)
         cover.update(draft.get("cover") or {})

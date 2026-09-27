@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { buildDownloadFilename, mapDeckSlides } from "./deckCenter.js";
+import { buildDownloadFilename, mapDeckSlides, waitForDeckCenter } from "./deckCenter.js";
 import type { DeckCenterResponse } from "./deckTypes.js";
 
 const sampleDeck: DeckCenterResponse = {
@@ -37,4 +37,46 @@ assert.equal(
   "Invoice-3-Way-Match.pptx",
 );
 
-console.log("deckCenter tests passed");
+async function main() {
+  let attempts = 0;
+  const deck = await waitForDeckCenter(
+    async () => {
+      attempts += 1;
+      if (attempts < 3) {
+        throw Object.assign(new Error("not ready"), { code: "PRESENTATION_NOT_READY" });
+      }
+      return sampleDeck;
+    },
+    {
+      isNotReady: (error) =>
+        Boolean(error && typeof error === "object" && "code" in error && error.code === "PRESENTATION_NOT_READY"),
+      delay: async () => undefined,
+      attempts: 5,
+    },
+  );
+  assert.equal(deck.presentation_id, sampleDeck.presentation_id);
+  assert.equal(attempts, 3);
+
+  await assert.rejects(
+    () =>
+      waitForDeckCenter(
+        async () => {
+          throw Object.assign(new Error("missing"), { code: "PRESENTATION_NOT_FOUND" });
+        },
+        {
+          isNotReady: (error) =>
+            Boolean(
+              error && typeof error === "object" && "code" in error && error.code === "PRESENTATION_NOT_READY",
+            ),
+          delay: async () => undefined,
+          attempts: 3,
+        },
+      ),
+    (error: unknown) =>
+      Boolean(error && typeof error === "object" && "code" in error && error.code === "PRESENTATION_NOT_FOUND"),
+  );
+
+  console.log("deckCenter tests passed");
+}
+
+void main();

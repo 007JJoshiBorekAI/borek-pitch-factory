@@ -30,7 +30,8 @@ def _complete_with(payload: dict):
     def complete(system: str, user: str, schema: dict) -> dict:
         assert PROMPT_VERSION in system
         assert "JSON only" in system
-        assert "UNTRUSTED_TRANSCRIPT_BEGIN" in user
+        assert "TRANSCRIPT_SUMMARY_BEGIN" in user
+        assert "UNTRUSTED_TRANSCRIPT_BEGIN" not in user
         assert schema["required"]
         return deepcopy(payload)
 

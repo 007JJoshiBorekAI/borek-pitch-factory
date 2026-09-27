@@ -6,7 +6,10 @@ import {
   continueHref,
   journeyStageForGenerate,
   loadSelectedJourneyStage,
+  parseJourneyStageQuery,
+  postMeetingIntakeHref,
   saveSelectedJourneyStage,
+  uploadIntakeHref,
 } from "./journeyStageSelection.js";
 
 const memory = globalThis as typeof globalThis & { sessionStorage?: Storage };
@@ -49,6 +52,15 @@ assert.equal(journeyStageForGenerate("opp-1"), "deepening");
 
 assert.equal(continueHref(null), "/upload?new=1");
 assert.equal(continueHref("opp-1"), "/upload?opportunityId=opp-1");
+
+assert.equal(parseJourneyStageQuery("deepening"), "deepening");
+assert.equal(parseJourneyStageQuery("invalid"), null);
+assert.equal(
+  postMeetingIntakeHref("opp-1"),
+  "/upload?opportunityId=opp-1&journeyStage=deepening",
+);
+assert.equal(postMeetingIntakeHref(null), "/clients");
+assert.equal(uploadIntakeHref("opp-1", "first_contact"), "/upload?opportunityId=opp-1&journeyStage=first_contact");
 
 clearSelectedJourneyStage();
 assert.equal(loadSelectedJourneyStage(), null);

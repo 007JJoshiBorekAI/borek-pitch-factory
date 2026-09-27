@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Pitch — Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --borek-color-background-canvas: #ffffff;
+    --borek-color-background-brand: #0d1240;
+    --borek-color-text-inverse: #ffffff;
+    --borek-color-text-primary: #0d1240;
+    --borek-color-text-secondary: #5c6178;
+    --borek-color-border-default: #e2e4ec;
+    --borek-color-action-active: #124f94;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #f2f2f5;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 0;
+  }
+
+  .screen {
+    position: relative;
+    width: 1440px;
+    height: 1024px;
+    background: var(--borek-color-background-canvas);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .panel-brand {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 760px;
+    height: 1024px;
+    background: var(--borek-color-background-brand);
+  }
+
+  .logo {
+    position: absolute;
+    left: 88px;
+    top: 76px;
+    width: 184px;
+    height: 43px;
+  }
+  .logo img { display: block; width: 100%; height: 100%; }
+
+  .eyebrow {
+    position: absolute;
+    left: 88px;
+    top: 136px;
+    width: 200px;
+    margin: 0;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    color: var(--borek-color-text-inverse);
+  }
+
+  .headline {
+    position: absolute;
+    left: 88px;
+    top: 304px;
+    width: 540px;
+    font-weight: 300;
+    font-size: 56px;
+    line-height: 66px;
+    color: var(--borek-color-text-inverse);
+  }
+  .headline p { margin: 0; }
+
+  .splash {
+    position: absolute;
+    left: 88px;
+    top: 472px;
+    display: flex;
+    height: 7px;
+  }
+  .splash span { width: 71.5px; height: 7px; }
+  .splash span:nth-child(1) { background: #e07e00; }
+  .splash span:nth-child(2) { background: #dd3d00; }
+  .splash span:nth-child(3) { background: #124f94; }
+  .splash span:nth-child(4) { background: #02a69f; }
+
+  .subtext {
+    position: absolute;
+    left: 88px;
+    top: 522px;
+    width: 520px;
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 29px;
+    color: var(--borek-color-text-inverse);
+  }
+  .subtext p { margin: 0; }
+
+  .footer-note {
+    position: absolute;
+    left: 88px;
+    top: 916px;
+    width: 220px;
+    margin: 0;
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--borek-color-text-inverse);
+  }
+
+  .welcome {
+    position: absolute;
+    left: 856px;
+    top: 224px;
+    width: 360px;
+    margin: 0;
+    font-weight: 300;
+    font-size: 40px;
+    color: var(--borek-color-text-primary);
+  }
+
+  .welcome-sub {
+    position: absolute;
+    left: 856px;
+    top: 282px;
+    width: 420px;
+    margin: 0;
+    font-weight: 400;
+    font-size: 16px;
+    color: var(--borek-color-text-secondary);
+  }
+
+  .btn-microsoft {
+    position: absolute;
+    left: 856px;
+    top: 360px;
+    width: 448px;
+    height: 52px;
+    background: var(--borek-color-text-primary);
+    border: 1px solid var(--borek-color-border-default);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+  }
+  .btn-microsoft .ms-icon {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .btn-microsoft .ms-icon img {
+    position: absolute;
+    width: 54px;
+    height: 41px;
+    left: 50%;
+    top: calc(50% + 0.5px);
+    transform: translate(-50%, -50%);
+    max-width: none;
+  }
+  .btn-microsoft span {
+    font-weight: 500;
+    font-size: 15px;
+    color: #ffffff;
+    white-space: nowrap;
+  }
+
+  .keep-signed-in {
+    position: absolute;
+    left: 856px;
+    top: 438px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .keep-signed-in img { width: 18px; height: 18px; display: block; }
+  .keep-signed-in span {
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--borek-color-text-secondary);
+    white-space: nowrap;
+  }
+
+  .divider {
+    position: absolute;
+    left: 856px;
+    top: 508px;
+    width: 448px;
+    height: 1px;
+    background: var(--borek-color-border-default);
+  }
+
+  .language-label {
+    position: absolute;
+    left: 856px;
+    top: 542px;
+    width: 100px;
+    margin: 0;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--borek-color-text-secondary);
+  }
+
+  .language-options {
+    position: absolute;
+    left: 856px;
+    top: 574px;
+    display: flex;
+    gap: 24px;
+    font-weight: 500;
+    font-size: 14px;
+  }
+  .language-options a {
+    color: var(--borek-color-action-active);
+    text-decoration: none;
+  }
+  .language-options a.active { text-decoration: underline; }
+
+  .contact-it {
+    position: absolute;
+    left: 856px;
+    top: 704px;
+    width: 420px;
+    margin: 0;
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--borek-color-text-secondary);
+  }
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="panel-brand"></div>
+
+  <div class="logo">
+    <img src="https://www.figma.com/api/mcp/asset/55b2d551-0c7e-43ee-8a1e-056adc0cd003/4a40a.svg" alt="Borek Solutions Group">
+  </div>
+
+  <p class="eyebrow">AI PITCH</p>
+
+  <div class="headline">
+    <p>Prepare the right</p>
+    <p>conversation.</p>
+  </div>
+
+  <div class="splash">
+    <span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="subtext">
+    <p>From client research to an approved follow-up,</p>
+    <p>all in one focused workspace.</p>
+  </div>
+
+  <p class="footer-note">Internal · Borek Solutions</p>
+
+  <p class="welcome">Welcome</p>
+  <p class="welcome-sub">Sign in with your Borek account to continue.</p>
+
+  <button class="btn-microsoft" type="button">
+    <span class="ms-icon">
+      <img src="https://www.figma.com/api/mcp/asset/55b2d551-0c7e-43ee-8a1e-056adc0cd003/e4272.png" alt="">
+    </span>
+    <span>Continue with Microsoft</span>
+  </button>
+
+  <label class="keep-signed-in">
+    <img src="https://www.figma.com/api/mcp/asset/55b2d551-0c7e-43ee-8a1e-056adc0cd003/0ac90.svg" alt="">
+    <span>Keep me signed in on this device</span>
+  </label>
+
+  <div class="divider"></div>
+
+  <p class="language-label">Language</p>
+  <div class="language-options">
+    <a href="#" class="active">English</a>
+    <a href="#">Deutsch</a>
+  </div>
+
+  <p class="contact-it">Need access? Contact IT Support.</p>
+</div>
+
+</body>
+</html>

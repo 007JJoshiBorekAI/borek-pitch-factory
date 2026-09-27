@@ -97,7 +97,10 @@ const deckCenter = readFileSync(deckCenterPath, "utf8");
 assert.doesNotMatch(deckCenter, /Details for diagnostics/);
 assert.doesNotMatch(deckCenter, /presentation-diagnostics/);
 assert.doesNotMatch(deckCenter, /\bGamma\b/);
-assert.match(deckCenter, /data-testid="download-powerpoint"/);
-assert.match(deckCenter, /WorkflowActionBar/);
+assert.match(deckCenter, /PitchGenerationView/);
+assert.match(
+  readFileSync(fileURLToPath(new URL("../components/PitchGenerationView.tsx", import.meta.url)), "utf8"),
+  /data-testid="download-powerpoint"/,
+);
 
 console.log("readyScreenEngineNeutral tests passed");

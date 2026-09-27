@@ -1,0 +1,51 @@
+Lena Hoffmann (BOREK): Good afternoon Sandra, Thomas — thanks for making time. I am Lena from BOREK, and Jonas is on our AI delivery side. Is it still okay if we record for our internal notes only?
+
+Sandra Krüger (Meridian): Yes, that is fine. I have Thomas from IT here because anything that touches SAP posting needs his team.
+
+Thomas Berg (Meridian): Hello. I will jump in when integration or security comes up.
+
+Lena Hoffmann (BOREK): Perfect. Sandra, you sent the AP brief last week — roughly three thousand invoices a month and a quarter going to exceptions. What triggered the conversation now?
+
+Sandra Krüger (Meridian): Honestly, month-end. We are under pressure to hit a five-day close. AP is not the only problem, but it is the loudest one. Buyers complain we ping them on price differences that are usually discount agreements nobody updated in SAP.
+
+Jonas Richter (BOREK): When you say exceptions, what are the top three categories?
+
+Sandra Krüger (Meridian): Price mismatch without a stored discount, partial delivery, and missing PO. Duplicates are rare but scary — we had two in 2025 that were painful. Credit notes are a separate nightmare; I would keep them out of a first pilot.
+
+Lena Hoffmann (BOREK): Understood. For a first phase, invoice matching only — no credit notes, no warehouse labelling. Does that match your expectation?
+
+Sandra Krüger (Meridian): Yes. If we prove auto-match on the clean rule set, I can take that to Eva, our CFO.
+
+Thomas Berg (Meridian): From IT: data stays in the EU, no long-term storage of raw PDFs, and no autonomous emails to suppliers. We need a technical user with least privilege and a kill switch.
+
+Jonas Richter (BOREK): All standard for us. You mentioned Graph for the shared mailbox and REST for SAP — is the sandbox ready?
+
+Thomas Berg (Meridian): Sandbox yes. Write access for payment posting is not approved yet — I need a design doc before I sign.
+
+Lena Hoffmann (BOREK): We can work assistive-first: suggestions in a review UI, then tighten autonomy once you are comfortable.
+
+Sandra Krüger (Meridian): That is the right narrative for my works council too — they have not been involved yet, but anything that looks like unsupervised posting will trigger questions.
+
+Lena Hoffmann (BOREK): Noted. Open point: works council timing before we demo anything that touches live posting?
+
+Sandra Krüger (Meridian): Yes. I will need a written agenda if we bring union observers to the workshop.
+
+Lena Hoffmann (BOREK): We will send a draft agenda after today. Next step on our side: first-meeting materials and discovery questions. On your side, could you share a sample pack of invoices with bank details masked?
+
+Sandra Krüger (Meridian): I can provide thirty to fifty by mid-October. Thomas, can you confirm the Graph app registration timeline?
+
+Thomas Berg (Meridian): If BOREK fills the security questionnaire, four weeks for app approval.
+
+Lena Hoffmann (BOREK): I will send the questionnaire by Friday 26 September. Shall we book a half-day requirements workshop for 15 October, Hannover or remote?
+
+Sandra Krüger (Meridian): 15 October works, onsite in Hannover if Jonas can travel.
+
+Jonas Richter (BOREK): I can be there.
+
+Lena Hoffmann (BOREK): Great. I will circulate a calendar hold and the pre-read list. Anything we missed?
+
+Thomas Berg (Meridian): Logging. Every automated decision needs traceability for audit.
+
+Jonas Richter (BOREK): Captured. Thank you both — we will follow up by email.
+
+Sandra Krüger (Meridian): Thanks, talk soon.

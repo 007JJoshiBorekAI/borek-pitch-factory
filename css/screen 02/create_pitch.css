@@ -1,0 +1,436 @@
+/* Content / Header */
+
+position: absolute;
+width: 1096px;
+height: 244px;
+left: 272px;
+top: 94px;
+
+
+
+/* Breadcrumb */
+
+position: absolute;
+width: 650px;
+height: 17px;
+left: 0px;
+top: 4px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 16px;
+/* identical to box height, or 135% */
+
+color: #5C6178;
+
+
+
+/* Title */
+
+position: absolute;
+width: 760px;
+height: 44px;
+left: 0px;
+top: 38px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 300;
+font-size: 36px;
+line-height: 43px;
+/* identical to box height, or 120% */
+
+color: #0D1240;
+
+
+
+/* Status dot */
+
+position: absolute;
+width: 8px;
+height: 8px;
+left: 0px;
+top: 96px;
+
+background: #124F94;
+
+
+/* Status */
+
+position: absolute;
+width: 650px;
+height: 17px;
+left: 18px;
+top: 89px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 16px;
+/* identical to box height, or 135% */
+
+color: #124F94;
+
+
+
+/* Guidance */
+
+position: absolute;
+width: 760px;
+height: 21px;
+left: 0px;
+top: 120px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 20px;
+/* identical to box height, or 145% */
+
+color: #5C6178;
+
+
+
+/* Back button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 188px;
+height: 44px;
+left: 908px;
+top: 44px;
+
+border: 1px solid #E2E4EC;
+
+
+/* Back button label */
+
+position: absolute;
+width: 152px;
+height: 19px;
+left: 930px;
+top: 54px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 19px;
+/* identical to box height, or 135% */
+
+color: #0D1240;
+
+
+
+/* Journey line */
+
+position: absolute;
+width: 1096px;
+height: 1px;
+left: 0px;
+top: 184px;
+
+background: #E2E4EC;
+
+
+/* Journey marker / Stage 1 */
+
+position: absolute;
+width: 12px;
+height: 12px;
+left: 0px;
+top: 178px;
+
+background: #0D1240;
+
+
+/* Journey label / Stage 1 */
+
+position: absolute;
+width: 142px;
+height: 18px;
+left: 0px;
+top: 202px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 135% */
+
+color: #0D1240;
+
+
+
+/* Journey state / Stage 1 */
+
+position: absolute;
+width: 142px;
+height: 15px;
+left: 0px;
+top: 224px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 15px;
+/* identical to box height, or 135% */
+
+color: #5C6178;
+
+
+
+/* Journey marker / First meeting */
+
+position: absolute;
+width: 12px;
+height: 12px;
+left: 194px;
+top: 178px;
+
+background: #0D1240;
+
+
+/* Journey label / First meeting */
+
+position: absolute;
+width: 142px;
+height: 18px;
+left: 194px;
+top: 202px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 135% */
+
+color: #0D1240;
+
+
+
+/* Journey state / First meeting */
+
+position: absolute;
+width: 142px;
+height: 15px;
+left: 194px;
+top: 224px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 15px;
+/* identical to box height, or 135% */
+
+color: #5C6178;
+
+
+
+/* Journey marker / Stage 2 */
+
+position: absolute;
+width: 12px;
+height: 12px;
+left: 388px;
+top: 178px;
+
+background: #0D1240;
+
+
+/* Journey label / Stage 2 */
+
+position: absolute;
+width: 142px;
+height: 18px;
+left: 388px;
+top: 202px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 135% */
+
+color: #0D1240;
+
+
+
+/* Journey state / Stage 2 */
+
+position: absolute;
+width: 142px;
+height: 15px;
+left: 388px;
+top: 224px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 15px;
+/* identical to box height, or 135% */
+
+color: #5C6178;
+
+
+
+/* Journey marker / Create pitch */
+
+position: absolute;
+width: 12px;
+height: 12px;
+left: 582px;
+top: 178px;
+
+background: #124F94;
+
+
+/* Journey label / Create pitch */
+
+position: absolute;
+width: 142px;
+height: 18px;
+left: 582px;
+top: 202px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 135% */
+
+color: #0D1240;
+
+
+
+/* Journey state / Create pitch */
+
+position: absolute;
+width: 142px;
+height: 15px;
+left: 582px;
+top: 224px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 15px;
+/* identical to box height, or 135% */
+
+color: #124F94;
+
+
+
+/* Journey marker / Prepare */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 12px;
+height: 12px;
+left: 776px;
+top: 178px;
+
+border: 1px solid #E2E4EC;
+
+
+/* Journey label / Prepare */
+
+position: absolute;
+width: 142px;
+height: 18px;
+left: 776px;
+top: 202px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 135% */
+
+color: #5C6178;
+
+
+
+/* Journey state / Prepare */
+
+position: absolute;
+width: 142px;
+height: 15px;
+left: 776px;
+top: 224px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 15px;
+/* identical to box height, or 135% */
+
+color: #5C6178;
+
+
+
+/* Journey marker / Present */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 12px;
+height: 12px;
+left: 970px;
+top: 178px;
+
+border: 1px solid #E2E4EC;
+
+
+/* Journey label / Present */
+
+position: absolute;
+width: 126px;
+height: 18px;
+left: 970px;
+top: 202px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 18px;
+/* identical to box height, or 135% */
+
+color: #5C6178;
+
+
+
+/* Journey state / Present */
+
+position: absolute;
+width: 126px;
+height: 15px;
+left: 970px;
+top: 224px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 15px;
+/* identical to box height, or 135% */
+
+color: #5C6178;
+

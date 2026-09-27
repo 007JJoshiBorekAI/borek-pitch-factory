@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Profile · Borek AI Pitch</title>
+<style>
+:root{--navy:#12224a;--navy-dark:#0e1a38;--blue:#2f5fd1;--blue-light:#eaf0ff;--gray-50:#f6f7f9;--gray-100:#eef0f3;--gray-200:#e3e5ea;--gray-400:#9aa1ae;--gray-500:#767e8c;--gray-600:#5b6472;--orange:#e08a2b;--red:#d3452b;--teal:#14a394;}
+*{box-sizing:border-box;}html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--navy);background:#fff;font-size:15px;line-height:1.5;}
+a{color:var(--blue);text-decoration:none;font-weight:600;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;border-right:1px solid var(--gray-200);padding:32px 24px;}
+.logo-name{font-size:19px;font-weight:800;color:var(--navy);}
+.logo-sub{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--blue);margin:6px 0 28px 0;}
+.btn-new{display:block;width:100%;background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 16px;font-size:14px;font-weight:600;text-align:left;margin-bottom:20px;text-decoration:none;}
+nav ul{list-style:none;margin:0;padding:0;}
+nav a{display:block;padding:11px 14px;font-size:15px;color:var(--gray-600);border-left:3px solid transparent;text-decoration:none;font-weight:400;}
+.main{flex:1;padding:36px 48px 60px;}
+.topline{display:flex;justify-content:space-between;align-items:flex-start;}
+h1.page-title{font-size:32px;font-weight:700;margin:4px 0 0;}
+.header-actions{display:flex;align-items:center;gap:14px;}
+.lang-toggle{display:flex;border:1px solid var(--gray-200);border-radius:6px;overflow:hidden;}
+.lang-toggle span{padding:6px 11px;font-size:13px;font-weight:700;color:var(--gray-500);}
+.lang-toggle span.active{background:var(--blue-light);color:var(--blue);}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+.progress-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;margin:22px 0 10px;}
+.progress-bar span{display:block;height:100%;}
+.breadcrumb{color:var(--gray-500);font-size:14px;margin-bottom:20px;}
+.title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;}
+h2.big-title{font-size:34px;font-weight:400;margin:0 0 8px;}
+.status-line{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;}
+.status-line .sq{width:8px;height:8px;background:var(--navy);border-radius:2px;}
+.subtle{color:var(--gray-500);}
+.btn-primary{background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;}
+.grid{display:grid;grid-template-columns:280px 1fr 300px;gap:28px;align-items:start;}
+.card-side{background:var(--gray-50);border-radius:8px;padding:24px;}
+.avatar-lg{width:72px;height:72px;border-radius:8px;background:var(--gray-200);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;margin-bottom:14px;}
+.meta-block{margin-top:22px;padding-top:18px;border-top:1px solid var(--gray-200);}
+.meta-block h4{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-500);margin:0 0 10px;}
+.meta-row{display:flex;justify-content:space-between;font-size:14px;margin-bottom:8px;}
+.meta-row span:last-child{font-weight:600;}
+.up-to-date{color:var(--blue);font-size:13px;margin-top:20px;}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--gray-500);text-transform:uppercase;margin:24px 0 12px;}
+label{display:block;font-size:13px;font-weight:600;color:var(--gray-600);margin-bottom:6px;}
+input,select{width:100%;border:1px solid var(--gray-200);border-radius:6px;padding:12px 14px;font-size:14px;margin-bottom:16px;}
+.hint{font-size:12px;color:var(--gray-500);margin:-10px 0 16px;}
+.perm li{margin-bottom:8px;list-style:none;padding-left:14px;position:relative;}
+.perm li::before{content:"";position:absolute;left:0;top:8px;width:6px;height:6px;background:var(--navy);}
+.governance{border:1px solid var(--gray-200);border-radius:8px;padding:22px;}
+.gov-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--gray-100);font-size:14px;}
+.gov-row:last-child{border-bottom:none;}
+.gov-val{color:var(--blue);font-weight:600;}
+.btn-outline{background:#fff;border:1px solid var(--gray-200);border-radius:6px;padding:11px 16px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:10px;}
+.note-box{background:var(--gray-50);padding:14px;border-radius:6px;font-size:13px;color:var(--gray-600);margin-top:20px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo-name">BOREK</div>
+    <div class="logo-sub">AI PITCH</div>
+    <a href="new-pitch.html" class="btn-new">+ New pitch</a>
+    <nav><ul>
+      <li><a href="dashboard.html">Overview</a></li>
+      <li><a href="clients.html">Clients</a></li>
+      <li><a href="approvals.html">Approvals</a></li>
+      <li><a href="library.html">Library</a></li>
+    </ul></nav>
+  </aside>
+  <main class="main">
+    <div class="topline">
+      <h1 class="page-title">Profile</h1>
+      <div class="header-actions">
+        <div class="lang-toggle"><span>DE</span><span class="active">EN</span></div>
+        <div class="avatar">EK</div>
+        <span style="font-weight:600;">Elena Manovska</span>
+      </div>
+    </div>
+    <div class="progress-bar"><span style="width:25%;background:var(--orange)"></span><span style="width:25%;background:var(--red)"></span><span style="width:25%;background:var(--navy)"></span><span style="width:25%;background:var(--teal)"></span></div>
+    <div class="breadcrumb">Account / Profile</div>
+    <div class="title-row">
+      <div>
+        <h2 class="big-title">Elena Manovska</h2>
+        <div class="status-line"><span class="sq"></span> Active named user · Sales</div>
+        <p class="subtle">Manage your identity, language preferences and account access.</p>
+      </div>
+      <button class="btn-primary">Save changes</button>
+    </div>
+    <div class="grid">
+      <div class="card-side">
+        <div class="avatar-lg">EK</div>
+        <strong>Elena Manovska</strong><br><span class="subtle">Sales</span>
+        <div class="meta-block">
+          <h4>Account</h4>
+          <div class="meta-row"><span>Status</span><span style="color:var(--blue);">Active</span></div>
+          <div class="meta-row"><span>Account type</span><span>Named user</span></div>
+          <div class="meta-row"><span>Interface</span><span>English · EN</span></div>
+        </div>
+        <div class="meta-block">
+          <h4>Managed profile</h4>
+          <p class="subtle" style="font-size:13px;">Access is managed centrally by your administrator.</p>
+        </div>
+        <p class="up-to-date">Profile details are up to date</p>
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-top:0;">Profile information</div>
+        <label>Full name</label><input type="text" value="Elena Manovska">
+        <label>Initials</label><input type="text" value="EK">
+        <label>Role</label><input type="text" value="Sales"><p class="hint">Managed by an administrator</p>
+        <div class="eyebrow">Language preferences</div>
+        <label>Interface language</label><select><option>English · EN</option></select>
+        <label>Generated document language</label><select><option>English · EN</option></select>
+        <div class="eyebrow">Role permissions</div>
+        <ul class="perm">
+          <li>Create and edit client workspaces</li>
+          <li>Generate pitches, minutes and follow-ups</li>
+          <li>Submit client-facing documents for approval</li>
+          <li>Managing Partner release still required</li>
+        </ul>
+        <div class="note-box">Role changes affect access and are handled centrally.</div>
+      </div>
+      <div class="governance">
+        <div class="eyebrow" style="margin-top:0;">Named user account</div>
+        <div class="gov-row"><span>Activity logging</span><span class="gov-val">Enabled</span></div>
+        <div class="gov-row"><span>Automatic client sending</span><span class="gov-val">Disabled</span></div>
+        <div class="gov-row"><span>Approval responsibility</span><span>Submitter</span></div>
+        <div class="gov-row"><span>Client-facing release</span><span>Managing Partner</span></div>
+        <div class="eyebrow">Activity</div>
+        <p class="subtle" style="font-size:13px;">Your actions are attributed in the workspace activity log.</p>
+        <button class="btn-outline">View activity log →</button>
+        <p class="subtle" style="margin-top:24px;font-size:13px;">Signed in as Elena Manovska</p>
+        <button class="btn-outline">Sign out</button>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

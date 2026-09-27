@@ -1,6 +1,6 @@
 # MS-33 — Stage 1 sales intake (docx fields + About Company + voice)
 
-**Owner:** Mayank Somwani  
+**Owner:** Blenard Tahiraj  
 **Phase:** 3 · **Priority:** P0  
 **Added:** 21 September 2026 — Feature redefinition sprint  
 **Source:** `Pitch Factory input_output.docx` — Stage 1 Pre-meeting inputs

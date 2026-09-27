@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/client_preparation_email.schema.json",
+  "title": "ClientPreparationEmailEnvelope",
+  "description": "Optional pre-meeting client email on the Stage 1 brief (single template view).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "opportunity_id", "status", "email"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["not_generated", "ready"]
+    },
+    "email": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["subject", "body", "word_count", "generated_at"],
+      "properties": {
+        "subject": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "word_count": { "type": "integer", "minimum": 1 },
+        "generated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

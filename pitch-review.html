@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Review the pitch · Borek AI Pitch</title>
+<style>
+:root{--navy:#12224a;--navy-dark:#0e1a38;--blue:#2f5fd1;--gray-50:#f6f7f9;--gray-200:#e3e5ea;--gray-500:#767e8c;--gray-600:#5b6472;--orange:#e08a2b;--red:#d3452b;--teal:#14a394;}
+*{box-sizing:border-box;}html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--navy);font-size:15px;line-height:1.5;}
+a{color:var(--blue);text-decoration:none;font-weight:600;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:270px;border-right:1px solid var(--gray-200);padding:32px 24px;display:flex;flex-direction:column;}
+.btn-new{background:var(--navy-dark);color:#fff;padding:13px 16px;border-radius:6px;font-weight:600;text-decoration:none;margin-bottom:20px;display:block;}
+nav ul{list-style:none;margin:0;padding:0;}
+nav a{display:block;padding:11px 14px;color:var(--gray-600);border-left:3px solid transparent;text-decoration:none;}
+nav a.active{background:var(--gray-50);border-left-color:var(--blue);font-weight:600;}
+.slides{margin-top:28px;flex:1;}
+.slide-item{padding:10px 12px;font-size:14px;border-radius:4px;display:flex;gap:8px;align-items:center;}
+.slide-item.active{background:#fff;box-shadow:0 0 0 1px var(--gray-200);border-left:3px solid var(--blue);}
+.slide-item .warn{width:6px;height:6px;background:var(--navy);border-radius:1px;}
+.versions{margin-top:20px;font-size:13px;color:var(--gray-500);}
+.main-wrap{flex:1;display:flex;flex-direction:column;}
+.top{flex:1;padding:28px 40px;}
+.topline{display:flex;justify-content:space-between;align-items:flex-start;}
+h1{font-size:32px;margin:0;font-weight:400;}
+.progress-bar{display:flex;height:5px;margin:16px 0;border-radius:3px;overflow:hidden;}
+.progress-bar span{display:block;height:100%;}
+.breadcrumb{color:var(--gray-500);font-size:14px;}
+.toolbar{display:flex;align-items:center;gap:16px;margin-top:12px;}
+.btn-primary{background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:12px 20px;font-weight:600;cursor:pointer;}
+.workspace{display:grid;grid-template-columns:1fr 300px;gap:32px;margin-top:24px;}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--gray-500);text-transform:uppercase;}
+.slide-preview{background:var(--navy-dark);color:#fff;border-radius:8px;padding:28px 32px;margin:12px 0 20px;min-height:200px;}
+.slide-preview .tag{font-size:11px;letter-spacing:1px;opacity:.8;}
+.slide-preview h2{font-family:Georgia,"Times New Roman",serif;font-size:26px;font-weight:400;margin:16px 0;}
+.slide-preview .bar{height:3px;width:48px;background:var(--orange);margin:12px 0 16px;}
+.slide-preview ul{margin:0;padding-left:18px;line-height:1.7;}
+.selected strong{display:block;margin-top:8px;}
+.btn-outline{background:#fff;border:1px solid var(--gray-200);border-radius:6px;padding:11px 16px;font-weight:600;margin-right:8px;cursor:pointer;}
+.links{font-size:13px;color:var(--gray-500);margin-top:14px;}
+.links a{color:var(--gray-500);font-weight:400;margin-right:12px;}
+.aside-section{margin-bottom:24px;font-size:14px;}
+.aside-section h4{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-500);margin:0 0 8px;}
+.quote{font-style:italic;color:var(--gray-600);}
+.source-list{margin:0;padding-left:16px;}
+.check label{display:flex;gap:10px;align-items:center;margin-bottom:10px;font-size:14px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <strong>BOREK</strong><div style="font-size:12px;color:var(--blue);font-weight:700;margin:6px 0 20px;">AI PITCH</div>
+    <a href="new-pitch.html" class="btn-new">+ New pitch</a>
+    <nav><ul>
+      <li><a href="dashboard.html">Overview</a></li>
+      <li><a href="clients.html" class="active">Clients</a></li>
+      <li><a href="approvals.html">Approvals</a></li>
+      <li><a href="library.html">Library</a></li>
+    </ul></nav>
+    <div class="slides">
+      <div class="eyebrow">Slides · 8</div>
+      <div class="slide-item">01 Title</div>
+      <div class="slide-item">02 Context</div>
+      <div class="slide-item">03 Challenge</div>
+      <div class="slide-item active">04 Why Borek</div>
+      <div class="slide-item">05 Relevant case <span class="warn"></span></div>
+      <div class="slide-item">06 Approach</div>
+      <div class="slide-item">07 Timeline</div>
+      <div class="slide-item">08 Next steps</div>
+      <button class="btn-outline" style="width:100%;margin-top:12px;">+ Add slide</button>
+      <div class="versions">v3 · current<br>v2 · before meeting</div>
+    </div>
+  </aside>
+  <div class="main-wrap">
+    <div class="top">
+      <div class="topline">
+        <div>
+          <div style="font-size:14px;color:var(--gray-500);">Presentations</div>
+          <h1>Review the pitch</h1>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:14px;">Draft · 2 items need review</span>
+          <button class="btn-primary">Use this version</button>
+        </div>
+      </div>
+      <div class="progress-bar"><span style="width:33%;background:var(--orange)"></span><span style="width:33%;background:var(--blue)"></span><span style="width:34%;background:var(--teal)"></span></div>
+      <div class="breadcrumb">Acme GmbH / Pitch</div>
+      <div class="workspace">
+        <div>
+          <div class="eyebrow">04 / Why Borek</div>
+          <div class="slide-preview">
+            <div class="tag">WHY BOREK</div>
+            <h2>A precise path from operations to value.</h2>
+            <div class="bar"></div>
+            <ul>
+              <li>Dedicated multilingual delivery</li>
+              <li>AI-supported quality controls</li>
+              <li>German governance, global execution</li>
+            </ul>
+          </div>
+          <strong>Personalised for Acme GmbH</strong>
+          <p style="color:var(--gray-600);">Based on Acme's stated need for multilingual quality and Borek's released capability material.</p>
+          <p class="eyebrow" style="margin-top:16px;">Selected content</p>
+          <p><strong>AI Operations &amp; Multilingual Support</strong><br><strong>Case study: DACH customer operations</strong></p>
+          <button class="btn-outline">Edit slide</button>
+          <button class="btn-outline">Regenerate</button>
+          <div class="links"><a href="#">PPTX master</a><a href="#">PDF preview</a></div>
+        </div>
+        <div>
+          <div class="aside-section">
+            <h4>Why this slide</h4>
+            <p>Connects the client's operating pressure to Borek's strongest relevant capabilities.</p>
+          </div>
+          <div class="aside-section">
+            <h4>Client evidence</h4>
+            <p class="quote">"Consistency across German and Polish support is a priority."</p>
+            <p style="font-size:13px;color:var(--gray-500);">Source: discovery note · 18 Sep</p>
+          </div>
+          <div class="aside-section">
+            <h4>Borek source</h4>
+            <ul class="source-list">
+              <li>Released capabilities deck</li>
+              <li>Case study 2025-04</li>
+              <li>Brand master v2.0</li>
+            </ul>
+          </div>
+          <div class="aside-section">
+            <h4>Review</h4>
+            <div class="check"><label><input type="checkbox"> Claim is accurate</label></div>
+            <div class="check"><label><input type="checkbox"> Case study is relevant</label></div>
+            <p style="font-size:13px;color:var(--gray-500);">2 checks remain</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

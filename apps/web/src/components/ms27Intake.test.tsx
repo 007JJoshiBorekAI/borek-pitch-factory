@@ -89,7 +89,7 @@ assert.match(logoHtml, /5 MiB maximum/);
 assert.match(logoHtml, /cover and closing/);
 assert.match(logoHtml, /bottom-right/);
 assert.match(logoHtml, /Client name/);
-assert.match(logoHtml, /src="\/logo.webp"/);
+assert.match(logoHtml, /src="\/logo.png"/);
 assert.doesNotMatch(logoHtml, /64-4096/);
 assert.doesNotMatch(logoHtml, /Gamma/i);
 
@@ -102,7 +102,8 @@ assert.match(uploadPanelSource, /WorkflowStepIndicator/);
 assert.match(uploadPanelSource, /Selected for this presentation/);
 assert.match(uploadPanelSource, /Change output/);
 assert.match(uploadPanelSource, /Continue to customer story/);
-assert.match(uploadPanelSource, /journeyStage !== "first_contact"/);
+assert.match(uploadPanelSource, /PreMeetingIntakeView/);
+assert.match(uploadPanelSource, /isFirstContact/);
 assert.match(uploadPanelSource, /Create the opportunity to add an optional client logo/);
 
 const opportunityFormSource = readFileSync(

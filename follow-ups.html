@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Follow-ups · Borek AI Pitch</title>
+<style>
+:root{--navy:#12224a;--navy-dark:#0e1a38;--blue:#2f5fd1;--blue-light:#eaf0ff;--gray-50:#f6f7f9;--gray-200:#e3e5ea;--gray-500:#767e8c;--gray-600:#5b6472;--orange:#e08a2b;--red:#d3452b;--teal:#14a394;}
+*{box-sizing:border-box;}html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--navy);font-size:15px;line-height:1.5;}
+a{color:var(--blue);text-decoration:none;font-weight:600;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:270px;border-right:1px solid var(--gray-200);padding:32px 24px;}
+.btn-new{display:block;background:var(--navy-dark);color:#fff;padding:13px 16px;border-radius:6px;font-weight:600;text-decoration:none;margin-bottom:20px;}
+nav ul{list-style:none;margin:0;padding:0;}
+nav a{display:block;padding:11px 14px;color:var(--gray-600);border-left:3px solid transparent;text-decoration:none;}
+nav a.active{background:var(--gray-50);border-left-color:var(--blue);font-weight:600;}
+.main{flex:1;padding:36px 48px 60px;}
+.progress-bar{display:flex;height:5px;margin:22px 0;border-radius:3px;overflow:hidden;}
+.progress-bar span{display:block;height:100%;}
+.breadcrumb{color:var(--gray-500);font-size:14px;}
+.title-row{display:flex;justify-content:space-between;align-items:flex-start;margin:12px 0 24px;}
+h2.big{font-size:34px;font-weight:400;margin:0 0 8px;}
+.status{display:flex;align-items:center;gap:8px;color:var(--blue);font-weight:600;font-size:14px;}
+.status .sq{width:8px;height:8px;background:var(--navy);border-radius:2px;}
+.btn-primary{background:var(--navy-dark);color:#fff;border:none;border-radius:6px;padding:13px 22px;font-weight:600;cursor:pointer;}
+.stepper{display:flex;margin-bottom:32px;}
+.step{flex:1;text-align:left;}
+.step .dot{width:12px;height:12px;background:var(--navy);margin-bottom:8px;}
+.step .dot.outline{background:#fff;border:2px solid var(--gray-200);}
+.step .name{font-weight:700;font-size:14px;}
+.step .state{font-size:13px;color:var(--gray-500);}
+.step .state.on{color:var(--blue);font-weight:600;}
+.cols{display:grid;grid-template-columns:220px 1fr 280px;gap:28px;}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--gray-500);text-transform:uppercase;margin-bottom:12px;}
+.out-item{padding:12px 14px;border-radius:6px;margin-bottom:4px;}
+.out-item.active{background:#fff;box-shadow:0 0 0 1px var(--gray-200);border-left:3px solid var(--blue);}
+.out-item .meta{font-size:12px;color:var(--gray-500);}
+h3.mid{font-size:26px;font-weight:700;margin:0 0 16px;}
+.seg{display:inline-flex;border:1px solid var(--gray-200);border-radius:6px;overflow:hidden;margin-bottom:18px;}
+.seg button{border:none;background:#fff;padding:10px 18px;font-weight:600;cursor:pointer;color:var(--gray-600);}
+.seg button.on{background:var(--navy-dark);color:#fff;}
+.email-box{border:1px solid var(--gray-200);border-radius:8px;padding:22px;margin-bottom:12px;}
+.email-box hr{border:none;border-top:1px solid var(--gray-200);margin:16px 0;}
+.email-box p{margin:0 0 12px;}
+.caption{color:var(--gray-500);font-size:13px;}
+.actions{display:flex;gap:10px;margin-top:16px;}
+.btn-outline{background:#fff;border:1px solid var(--gray-200);border-radius:6px;padding:12px 18px;font-weight:600;cursor:pointer;}
+.right-panel{background:var(--gray-50);border-radius:8px;padding:22px;}
+.review-row{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--gray-200);font-size:14px;}
+.review-row .ok{color:var(--blue);font-weight:600;}
+.review-row .muted{color:var(--gray-500);}
+.disclaimer{margin-top:24px;font-size:14px;}
+.disclaimer strong{display:block;margin-bottom:6px;}
+.disclaimer p{color:var(--gray-500);margin:0;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <strong>BOREK</strong><div style="font-size:12px;color:var(--blue);font-weight:700;margin:6px 0 28px;">AI PITCH</div>
+    <a href="new-pitch.html" class="btn-new">+ New pitch</a>
+    <nav><ul>
+      <li><a href="dashboard.html">Overview</a></li>
+      <li><a href="clients.html" class="active">Clients</a></li>
+      <li><a href="approvals.html">Approvals</a></li>
+      <li><a href="library.html">Library</a></li>
+    </ul></nav>
+  </aside>
+  <main class="main">
+    <h1 style="font-size:32px;margin:0;">Follow-ups</h1>
+    <div class="progress-bar"><span style="width:25%;background:var(--orange)"></span><span style="width:25%;background:var(--red)"></span><span style="width:25%;background:var(--navy)"></span><span style="width:25%;background:var(--teal)"></span></div>
+    <div class="breadcrumb">Acme GmbH / After the meeting</div>
+    <div class="title-row">
+      <div>
+        <h2 class="big">Meeting processed</h2>
+        <div class="status"><span class="sq"></span> Transcript received · Jamie.ai · 10:18</div>
+      </div>
+      <a href="approvals.html" class="btn-primary" style="text-decoration:none;color:#fff;display:inline-block;">Submit for approval →</a>
+    </div>
+    <div class="stepper">
+      <div class="step"><div class="dot"></div><div class="name">Summary</div><div class="state">Ready</div></div>
+      <div class="step"><div class="dot"></div><div class="name">Minutes</div><div class="state">Ready</div></div>
+      <div class="step"><div class="dot"></div><div class="name">Follow-up</div><div class="state on">Review</div></div>
+      <div class="step"><div class="dot outline"></div><div class="name">Updated pitch</div><div class="state">Ready</div></div>
+      <div class="step"><div class="dot outline"></div><div class="name">Approval</div><div class="state">Next</div></div>
+    </div>
+    <div class="cols">
+      <div>
+        <div class="eyebrow">Outputs</div>
+        <div class="out-item"><strong>Call summary</strong><div class="meta">Ready</div></div>
+        <div class="out-item"><strong>Minutes of Meeting</strong><div class="meta">Ready</div></div>
+        <div class="out-item active"><strong>Follow-up email</strong><div class="meta" style="color:var(--blue);font-weight:600;">Review</div></div>
+        <div class="out-item"><strong>Updated pitch</strong><div class="meta">Ready</div></div>
+        <div class="out-item"><strong>Documents</strong><div class="meta">4 files</div></div>
+        <div class="out-item"><strong>Activity</strong><div class="meta">12 events</div></div>
+      </div>
+      <div>
+        <div class="eyebrow">Follow-up email</div>
+        <h3 class="mid">Draft to Mira Koch</h3>
+        <div class="seg"><button class="on">Short</button><button>Medium</button><button>Extensive</button></div>
+        <div class="email-box">
+          <strong>Subject: Next steps from our Acme × Borek discussion</strong>
+          <hr>
+          <p>Hi Mira,</p>
+          <p>Thank you for the open conversation today. We aligned on three priorities: multilingual consistency, clearer quality controls and a fast pilot.</p>
+          <p>As agreed, Borek will send the pilot outline by 22 September. Acme will share current volume data by 23 September.</p>
+          <p>Best,<br>Elena</p>
+        </div>
+        <p class="caption">Editable draft · Based on transcript and approved sources</p>
+        <div class="actions">
+          <button class="btn-outline">Edit</button>
+          <button class="btn-outline">Regenerate</button>
+          <button class="btn-primary">Use this draft</button>
+        </div>
+      </div>
+      <div class="right-panel">
+        <div class="eyebrow">Review before approval</div>
+        <div class="review-row"><span>Transcript facts</span><span class="ok">Checked</span></div>
+        <div class="review-row"><span>Dates &amp; owners</span><span class="ok">Checked</span></div>
+        <div class="review-row"><span>Rate-card content</span><span class="muted">Not used</span></div>
+        <div class="review-row"><span>Presentation</span><span class="ok">Attached</span></div>
+        <div class="review-row"><span>Managing Partner</span><span class="muted">Required</span></div>
+        <div class="disclaimer">
+          <strong>Nothing will be sent automatically.</strong>
+          <p>Approval releases the files as ready to send. Sales still sends them manually.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

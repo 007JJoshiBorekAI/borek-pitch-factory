@@ -34,6 +34,13 @@ assert.equal(handoffMissing.category, "STILL_RUNNING");
 assert.equal(handoffMissing.action?.kind, "KEEP_CHECKING");
 assert.equal(handoffMissing.technical?.jobId, "job-handoff");
 
+const frameworkNotReady = recoveryNoticeFromError(
+  { code: "FRAMEWORK_NOT_READY", retryable: true, message: "still preparing" },
+  "framework",
+);
+assert.equal(frameworkNotReady.category, "STILL_RUNNING");
+assert.equal(frameworkNotReady.action?.kind, "RETRY");
+
 const retrying = retryingRecoveryNotice("plan", "job-2");
 assert.equal(retrying.category, "RETRYING");
 assert.equal(retrying.action, undefined);

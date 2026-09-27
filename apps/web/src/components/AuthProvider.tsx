@@ -27,22 +27,24 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const devToken = process.env.NEXT_PUBLIC_DEV_ACCESS_TOKEN?.trim() || null;
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [sessionLoading, setSessionLoading] = useState(() => !devToken);
   const [employee, setEmployee] = useState<EmployeeMe | null>(null);
   const loginRecorded = useRef<string | null>(null);
+  const loading = devToken ? false : sessionLoading;
 
   useEffect(() => {
     const client = getSupabaseBrowserClient();
     if (!client) {
-      setLoading(false);
+      setSessionLoading(false);
       return;
     }
 
     void client.auth.getSession().then(({ data }) => {
       syncPipelineOwner(data.session?.user.id ?? null);
       setSession(data.session);
-      setLoading(false);
+      setSessionLoading(false);
     });
 
     const {
@@ -50,13 +52,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = client.auth.onAuthStateChange((_event, nextSession) => {
       syncPipelineOwner(nextSession?.user.id ?? null);
       setSession(nextSession);
-      setLoading(false);
+      setSessionLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const devToken = process.env.NEXT_PUBLIC_DEV_ACCESS_TOKEN?.trim() || null;
   const accessToken = session?.access_token ?? devToken;
 
   useEffect(() => {

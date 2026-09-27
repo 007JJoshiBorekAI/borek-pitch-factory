@@ -547,6 +547,34 @@ async function main() {
   assert.equal(result.presentationId, PRESENTATION_ID);
 }
 
+{
+  let planningCalls = 0;
+  await buildPresentationPipeline({
+    frameworkVersionId: FRAMEWORK_ID,
+    api: successfulApi([], {
+      async getActivePresentationJob() {
+        return planningCalls === 0
+          ? activeJob("presentation_generation", "COMPLETED")
+          : activeJob("presentation_generation", "COMPLETED");
+      },
+      async generatePresentationPlan() {
+        planningCalls += 1;
+        return {
+          job_id: PLANNING_JOB_ID,
+          status: "queued",
+          presentation_plan_id: PLAN_ID,
+          is_existing_job: false,
+        };
+      },
+    }),
+  });
+  assert.equal(
+    planningCalls,
+    1,
+    "a finished Stage 1 deck must not block a new presentation for the current Framework",
+  );
+}
+
 // BT-26: the automated pipeline reports real job stages, the planning→generation
 // handoff, and the persisted planned slide count.
 {

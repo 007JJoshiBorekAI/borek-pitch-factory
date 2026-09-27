@@ -24,7 +24,7 @@ UNKNOWN_SPEAKER = "unknown"
 
 _VOICE_TAG_RE = re.compile(r"<v\s+([^>]+)>", re.IGNORECASE)
 _SPEAKER_PREFIX_RE = re.compile(
-    r"^(?P<speaker>[A-Za-z][A-Za-z0-9 .'\-_]{0,80}):\s*(?P<text>.*)$"
+    r"^(?P<speaker>[A-Za-z][A-Za-z0-9 .'\-_()]{0,80}):\s*(?P<text>.*)$"
 )
 
 

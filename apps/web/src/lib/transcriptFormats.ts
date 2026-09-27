@@ -4,6 +4,9 @@
 
 export const ALLOWED_TRANSCRIPT_EXTENSIONS = [".txt", ".vtt", ".srt", ".docx"] as const;
 
+export const TRANSCRIPT_REQUIRED_MESSAGE =
+  "Upload at least one meeting transcript before continuing.";
+
 export type AllowedTranscriptExtension = (typeof ALLOWED_TRANSCRIPT_EXTENSIONS)[number];
 
 export interface TranscriptValidationResult {

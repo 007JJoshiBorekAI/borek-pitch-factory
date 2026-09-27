@@ -108,12 +108,21 @@ class FollowupProjectStatics(BaseModel):
         return self
 
 
+class PitchOwnerRef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: Literal["employee"] = "employee"
+    employee_id: UUID
+
+
 class OpportunityCreateRequest(BaseModel):
     client_name: str = Field(..., min_length=1)
     opportunity_name: str = Field(..., min_length=1)
     department: str = Field(..., min_length=1)
     language: str = Field(default="en", min_length=2, max_length=10)
     pii_redaction_enabled: bool = True
+    pitch_description: str | None = Field(default=None, max_length=20_000)
+    team_members_text: str | None = Field(default=None, max_length=2_000)
     additional_client_information: AdditionalClientInformation | None = None
     followup_statics: FollowupProjectStatics | None = None
     stage1_intake: Stage1Intake | None = None
@@ -142,6 +151,9 @@ class OpportunityResponse(BaseModel):
     additional_client_information: AdditionalClientInformation | None = None
     followup_statics: FollowupProjectStatics | None = None
     stage1_intake: Stage1Intake | None = None
+    pitch_owner: PitchOwnerRef | None = None
+    team_members: list[str] = Field(default_factory=list)
+    pitch_description: str | None = None
     demo_marker: str | None = None
     created_by: UUID
     created_at: datetime

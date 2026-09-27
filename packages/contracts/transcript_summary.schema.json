@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/transcript_summary.schema.json",
+  "title": "TranscriptSummary",
+  "description": "BT-36: one structured summary per conversation. Downstream LLM prompts receive this object as TRANSCRIPT_SUMMARY, never raw speaker turns.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "transcript_id",
+    "participants",
+    "decisions",
+    "action_items",
+    "open_questions",
+    "client_terms",
+    "narrative",
+    "summary_truncated"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "transcript_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "action_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text"],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": ["string", "null"]
+          },
+          "due": {
+            "type": ["string", "null"]
+          }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "client_terms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "narrative": {
+      "type": "string"
+    },
+    "summary_truncated": {
+      "type": "boolean"
+    }
+  }
+}

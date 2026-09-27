@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { FollowupReviewView } from "../components/FollowupReviewView.js";
+import { FollowUpEmailView } from "../components/FollowUpEmailView.js";
 import type { JourneyStageName } from "./api.js";
 import {
   confirmAdaptedEmailDraft,
@@ -161,7 +161,9 @@ statics.standard_recipients[0].first_name = "Markus";
 statics.sender_profile = { name: "Lena", role: "Lead", email: "lena@example.com" };
 
 const notGeneratedHtml = renderToStaticMarkup(
-  <FollowupReviewView
+  <FollowUpEmailView
+    opportunityId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    clientName="Acme"
     stageContext={deepeningContext}
     demoMode={false}
     statics={statics}
@@ -171,7 +173,6 @@ const notGeneratedHtml = renderToStaticMarkup(
     draftUnavailable={false}
     checklist={emptyFollowupChecklist()}
     acknowledgedFlags={new Set()}
-    canConfirm={false}
     busy={false}
     error={null}
     info={null}
@@ -188,7 +189,9 @@ assert.match(notGeneratedHtml, /Generate email draft/);
 assert.match(notGeneratedHtml, /No email draft has been generated for Deepening yet/);
 
 const liveDraftHtml = renderToStaticMarkup(
-  <FollowupReviewView
+  <FollowUpEmailView
+    opportunityId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    clientName="Acme"
     stageContext={deepeningContext}
     demoMode={false}
     statics={statics}
@@ -206,7 +209,6 @@ const liveDraftHtml = renderToStaticMarkup(
     liveDraftReadOnly
     checklist={emptyFollowupChecklist()}
     acknowledgedFlags={new Set()}
-    canConfirm={false}
     busy={false}
     error={null}
     info={null}

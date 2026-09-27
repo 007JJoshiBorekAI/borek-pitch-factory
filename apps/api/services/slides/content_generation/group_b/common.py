@@ -22,8 +22,15 @@ from services.slides.group_b_compression import (
     GroupBCompressFieldsFn,
     validate_and_compress_group_b_slide_spec,
 )
-from services.validation.compression_retry import CompressionResult
-from services.validation.compression_retry import get_value_at_path
+from services.slides.content_generation.spelled_quantities import (
+    restore_spelled_quantities,
+    restore_spelled_quantity_text,
+)
+from services.validation.compression_retry import (
+    CompressionResult,
+    get_value_at_path,
+    set_value_at_path,
+)
 from services.validation.source_chapter_enforcement import (
     SourceChapterEnforcementError,
     validate_field_provenance,
@@ -179,23 +186,28 @@ def generate_group_b_slide_spec(
             candidate,
             compress_fields=compress_fields,
         )
-        if result.status == "VALID":
-            break
-        if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS and result.message:
-            request = _with_at8_rejection(request, result.message)
+        if result.status != "VALID":
+            if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS and result.message:
+                request = _with_at8_rejection(request, result.message)
+            continue
+        if result.slide_spec is None:
+            raise SlideSpecValidationError(
+                f"{config.layout_id} validation returned no SlideSpec"
+            )
+        try:
+            _validate_slide_spec(result.slide_spec, config, chapters)
+        except (UngroundedContentError, ProhibitedCommercialContentError) as exc:
+            if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS:
+                request = _with_at8_rejection(request, str(exc))
+                result = None
+                continue
+            raise
+        return result
 
     if result is None:
         raise SlideSpecValidationError(
             f"{config.layout_id} validation returned no result"
         )
-    if result.status != "VALID":
-        return result
-
-    if result.slide_spec is None:
-        raise SlideSpecValidationError(
-            f"{config.layout_id} validation returned no SlideSpec"
-        )
-    _validate_slide_spec(result.slide_spec, config, chapters)
     return result
 
 
@@ -372,6 +384,7 @@ def _validate_numeric_grounding(
     provenance_by_path: dict[str, tuple[str, ...]] | None = None,
 ) -> None:
     if provenance_by_path is None:
+        restore_spelled_quantities(slide_spec, chapters)
         grounded_numbers = _number_tokens(chapters)
         generated_numbers = _number_tokens(slide_spec)
         invented = sorted(generated_numbers - grounded_numbers)
@@ -384,6 +397,11 @@ def _validate_numeric_grounding(
 
     chapters_by_id = {chapter["chapter_id"]: chapter for chapter in chapters}
     for path, source_chapter_ids in provenance_by_path.items():
+        _restore_spelled_field(
+            slide_spec,
+            path,
+            tuple(chapters_by_id[chapter_id] for chapter_id in source_chapter_ids),
+        )
         generated_numbers = _number_tokens(get_value_at_path(slide_spec, path))
         if not generated_numbers:
             continue
@@ -401,9 +419,11 @@ def _validate_numeric_grounding(
 
 def _generation_instructions(config: GroupBGenerationConfig) -> str:
     from llm.json_schema_bundle import layout_limit_instruction
+    from services.presentation.opportunity_master import slide_writing_guidance
 
     allowed = ", ".join(config.allowed_chapter_ids)
     return (
+        f"{slide_writing_guidance(config.layout_id)}"
         f"{config.instructions}{layout_limit_instruction(config.layout_id)} "
         "Include fieldProvenance in the generated SlideSpec. "
         "Use the same dotted/array path syntax as AT-8 (for example, "
@@ -417,6 +437,22 @@ def _generation_instructions(config: GroupBGenerationConfig) -> str:
         "of all field-level sourceChapterIds. Attribute each field only to the chapters "
         "that actually support it; do not copy the full root list onto every field."
     )
+
+
+def _restore_spelled_field(
+    slide_spec: dict[str, Any],
+    path: str,
+    chapters: tuple[dict[str, Any], ...],
+) -> None:
+    try:
+        value = get_value_at_path(slide_spec, path)
+    except KeyError:
+        return
+    if not isinstance(value, str):
+        return
+    restored = restore_spelled_quantity_text(value, chapters)
+    if restored != value:
+        set_value_at_path(slide_spec, path, restored)
 
 
 def _number_tokens(value: Any) -> set[str]:

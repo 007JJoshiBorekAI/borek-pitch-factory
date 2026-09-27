@@ -1,0 +1,87 @@
+MERIDIAN INDUSTRIAL SUPPLY GMBH
+Client background — shared with BOREK (confidential, fictional demo data)
+Version: 2026-09-01 · Contact: Sandra Krüger, Head of Accounts Payable
+
+────────────────────────────────────────────────────────────────────────
+1. COMPANY SNAPSHOT
+────────────────────────────────────────────────────────────────────────
+Legal name:     Meridian Industrial Supply GmbH
+HQ:             Hannover, Germany (operations also in Bremen warehouse)
+Industry:       B2B distribution of industrial fasteners, tools, and MRO
+Employees:      ~420 FTE (180 in Finance & Operations shared services)
+ERP:            SAP S/4HANA (cloud), instance EU-West
+IT landscape:   Microsoft 365 (Exchange Online shared mailboxes), ServiceNow for internal IT requests
+
+Meridian sells to manufacturing customers across DACH. Growth over the last three years increased supplier invoice volume without a matching headcount increase in Accounts Payable.
+
+────────────────────────────────────────────────────────────────────────
+2. CURRENT AP PROCESS (AS-IS)
+────────────────────────────────────────────────────────────────────────
+• Incoming supplier invoices arrive as PDF in ap-invoices@meridian-industrial.example (shared mailbox).
+• Clerks download attachments, run OCR (ABBYY on desktop), correct line items manually.
+• Matching in SAP: purchase order (PO), goods receipt (GR), invoice — classic 3-way match.
+• Clean match: ~2–3 minutes per invoice. Exception: 15–20 minutes plus waiting on buyers.
+• Volume: ~3,100 supplier invoices/month (excluding intercompany).
+• Exception rate: ~26% require clarification (price variance, partial delivery, missing PO, duplicates).
+• Credit notes (~5% of volume) handled manually; not in scope for initial automation.
+
+────────────────────────────────────────────────────────────────────────
+3. PAIN POINTS & TARGETS
+────────────────────────────────────────────────────────────────────────
+Pain:
+  – Month-end close target is 5 business days (CFO priority); AP is a bottleneck.
+  – Buyers are interrupted daily for match clarifications.
+  – Duplicate postings occurred twice in 2025 (caught post-payment; remediation costly).
+
+Targets for pilot (invoice matching only):
+  – Auto-match rate: from ~0% assisted today to ≥85% on “clean” rule set.
+  – Manual effort on automatable core: from ~75 h/month to ≤12 h/month.
+  – Zero wrong postings outside agreed tolerances.
+  – 100% duplicate detection before posting.
+  – Cycle time for clean cases: under 30 minutes mailbox-to-posting.
+
+Loaded cost assumption for business case: EUR 45/hour (fully loaded clerk).
+
+────────────────────────────────────────────────────────────────────────
+4. MATCHING RULES (BUSINESS SUMMARY)
+────────────────────────────────────────────────────────────────────────
+• Quantity: exact match PO line vs GR vs invoice line.
+• Unit price: exact unless active discount agreement in SAP.
+• Total amount: rounding tolerance up to EUR 0.50.
+• If deviation vs PO >2% → always hold for human review.
+• Invoice number already posted → block duplicate; never auto-post.
+• Invoices > EUR 5,000 → one-click human approval even if rules pass.
+
+Out of scope for phase 1: credit notes, warehouse labelling, supplier self-service portal.
+
+────────────────────────────────────────────────────────────────────────
+5. TECHNICAL & COMPLIANCE CONSTRAINTS
+────────────────────────────────────────────────────────────────────────
+• Data classification: Confidential (supplier bank details on invoices).
+• Processing and storage: EU only.
+• Raw PDFs: not retained after extraction (metadata + structured fields only).
+• IBAN: masked outside ERP; posting only via approved technical user.
+• ERP write access for payment proposals: requires sign-off from IT Lead (Thomas Berg).
+• Sandbox available; Sandra can provide 30–50 historical invoices (bank details redacted).
+• Agent must NOT email suppliers autonomously in phase 1.
+• Full audit log; kill switch required.
+
+────────────────────────────────────────────────────────────────────────
+6. STAKEHOLDERS
+────────────────────────────────────────────────────────────────────────
+Sandra Krüger      Head of AP (sponsor, process owner)
+Thomas Berg        IT Lead ERP & integrations
+Dr. Eva Lindemann  CFO (economic buyer)
+Markus Dietrich    Procurement lead (buyer escalations)
+
+────────────────────────────────────────────────────────────────────────
+7. TIMELINE & BUDGET (INDICATIVE)
+────────────────────────────────────────────────────────────────────────
+• Decision on pilot vendor: Q4 2026.
+• Pilot go-live (one company code, DE01): Q1 2027.
+• Budget envelope discussed internally: EUR 120–180k for pilot build + 3 months hypercare (not approved yet).
+
+────────────────────────────────────────────────────────────────────────
+8. WHY BOREK
+────────────────────────────────────────────────────────────────────────
+Meridian was referred by an existing BOREK customer in logistics automation. Sandra requested a structured discovery workshop and a first-meeting deck that explains assistive vs autonomous stages without overpromising on day-one autonomy.

@@ -73,6 +73,8 @@ export interface PresentationPipelineOptions {
   frameworkVersionId: string;
   api: PresentationPipelineApi;
   onProgress?: (progress: PresentationPipelineProgress) => void;
+  /** Resume a failed generation job instead of starting a new plan. Default true. */
+  resumeFailedGeneration?: boolean;
 }
 
 export class PresentationPipelineError extends Error {
@@ -335,15 +337,32 @@ async function waitForBackendGeneration(
       throw errorFor("generation", error, planningJobId);
     }
     if (active?.job_type === "presentation_generation") {
-      const recovered = await recoverActivePipeline(options, active);
-      if (recovered.presentationPlanId !== plan.id) {
-        throw new PresentationPipelineError(
-          "generation",
-          "Backend continuation used a different PresentationPlan",
-          { code: "PRESENTATION_PLAN_ID_MISMATCH", jobId: recovered.presentationGenerationJobId },
-        );
+      try {
+        const recovered = await recoverActivePipeline(options, active);
+        if (recovered.presentationPlanId !== plan.id) {
+          if (!isMonitorableJobStatus(active.status)) {
+            await handoffDelay();
+            continue;
+          }
+          throw new PresentationPipelineError(
+            "generation",
+            "Backend continuation used a different PresentationPlan",
+            { code: "PRESENTATION_PLAN_ID_MISMATCH", jobId: recovered.presentationGenerationJobId },
+          );
+        }
+        return { ...recovered, planningJobId };
+      } catch (error) {
+        const stalePriorDeck =
+          error instanceof PresentationPipelineError &&
+          !isMonitorableJobStatus(active.status) &&
+          (error.code === "PRESENTATION_PLAN_ID_MISMATCH" ||
+            error.code === "PRESENTATION_FRAMEWORK_MISMATCH");
+        if (stalePriorDeck) {
+          await handoffDelay();
+          continue;
+        }
+        throw error;
       }
-      return { ...recovered, planningJobId };
     }
     if (
       active &&
@@ -498,7 +517,12 @@ export async function buildPresentationPipeline(
     throw errorFor("generation", error);
   }
   if (active?.job_type === "presentation_generation") {
-    return recoverActivePipeline(options, active);
+    if (isMonitorableJobStatus(active.status)) {
+      return recoverActivePipeline(options, active);
+    }
+    if (active.status === "FAILED" && options.resumeFailedGeneration !== false) {
+      return recoverActivePipeline(options, active);
+    }
   }
   return generateNewPipeline(options);
 }
@@ -509,6 +533,7 @@ export async function approveAndBuildPresentation(options: {
   confirmFramework(): Promise<ConfirmedFramework>;
   api: PresentationPipelineApi;
   onProgress?: PresentationPipelineOptions["onProgress"];
+  resumeFailedGeneration?: boolean;
 }): Promise<PresentationPipelineResult> {
   let frameworkVersionId = options.frameworkVersionId;
   if (!options.alreadyConfirmed) {
@@ -538,6 +563,7 @@ export async function approveAndBuildPresentation(options: {
     frameworkVersionId,
     api: options.api,
     onProgress: options.onProgress,
+    resumeFailedGeneration: options.resumeFailedGeneration,
   });
 }
 

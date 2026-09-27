@@ -135,7 +135,7 @@ def test_verify_db_covers_llm_calls_table() -> None:
     assert "document_id" in content
 
 
-def test_apply_migrations_script_covers_001_through_028() -> None:
+def test_apply_migrations_script_covers_001_through_029() -> None:
     assert APPLY_MIGRATIONS.is_file()
     content = APPLY_MIGRATIONS.read_text(encoding="utf-8")
     compile(content, str(APPLY_MIGRATIONS), "exec")
@@ -146,11 +146,14 @@ def test_apply_migrations_script_covers_001_through_028() -> None:
         for name in names
         if re.match(r"^\d{3}_", name)
     )
-    assert numbers == list(range(1, 29)), f"expected 001-028 with no gaps, got {numbers}"
+    assert numbers == list(range(1, 30)), f"expected 001-029 with no gaps, got {numbers}"
     assert names == sorted(names)
     intake = (MIGRATIONS_DIR / "028_bt34_stage1_intake.sql").read_text(encoding="utf-8")
     assert "ADD COLUMN IF NOT EXISTS client_web_page" in intake
     assert "ADD COLUMN IF NOT EXISTS voice_recording_artifact_id" in intake
+    client_docs = (MIGRATIONS_DIR / "029_client_documents.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS client_documents" in client_docs
+    assert "CREATE TABLE IF NOT EXISTS client_document_sections" in client_docs
     assert "client_web_page" in VERIFY_DB.read_text(encoding="utf-8")
 
 

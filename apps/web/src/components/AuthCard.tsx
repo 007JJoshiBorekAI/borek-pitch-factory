@@ -12,22 +12,12 @@ import {
 } from "@/lib/authSignUp";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 import { isEmployeeSsoOnly } from "@/lib/employeeRoles";
+import { resolvePostAuthPath } from "@/lib/loginAuth";
 
 export type AuthMode = "sign-in" | "sign-up";
 
 interface AuthCardProps {
   mode: AuthMode;
-}
-
-function resolvePostAuthPath(): string {
-  if (typeof window === "undefined") {
-    return "/";
-  }
-  const next = new URLSearchParams(window.location.search).get("next")?.trim();
-  if (next && next.startsWith("/") && !next.startsWith("//")) {
-    return next;
-  }
-  return "/";
 }
 
 export function AuthCard({ mode: initialMode }: AuthCardProps) {
@@ -168,7 +158,7 @@ export function AuthCard({ mode: initialMode }: AuthCardProps) {
         disabled={busy}
         onClick={() => void handleMicrosoftSignIn()}
       >
-        {busy ? "Please wait…" : "Sign in with Microsoft 365"}
+        {busy ? "Please wait…" : "Continue with Microsoft"}
       </button>
 
       {ssoOnly ? (

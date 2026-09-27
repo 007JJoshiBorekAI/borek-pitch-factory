@@ -1,0 +1,2016 @@
+/* Screen / 05 Pitch review */
+
+position: relative;
+width: 1440px;
+height: 1092px;
+
+background: #FFFFFF;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 216px;
+height: 1092px;
+left: 0px;
+top: 0px;
+
+background: #FFFFFF;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 1px;
+height: 1092px;
+left: 215px;
+top: 0px;
+
+background: #E2E4EC;
+
+
+/* Frame */
+
+position: absolute;
+width: 112px;
+height: 26px;
+left: 32px;
+top: 28px;
+
+
+
+/* Vector */
+
+position: absolute;
+left: 13.3%;
+right: 71.39%;
+top: 10.27%;
+bottom: 26.91%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 66.47%;
+right: 18.22%;
+top: 10.27%;
+bottom: 26.92%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 30.8%;
+right: 53.89%;
+top: 10.27%;
+bottom: 26.91%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 83.97%;
+right: 0.03%;
+top: 10.27%;
+bottom: 26.91%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 48.6%;
+right: 35.04%;
+top: 10.27%;
+bottom: 26.92%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 13.19%;
+right: 83.67%;
+top: 83.1%;
+bottom: 0%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 19.26%;
+right: 77.03%;
+top: 83.1%;
+bottom: 0%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 26.19%;
+right: 71.46%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 31.51%;
+right: 65.41%;
+top: 83.36%;
+bottom: 0%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 37.61%;
+right: 59.3%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 43.89%;
+right: 55.47%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 47.9%;
+right: 48.39%;
+top: 83.1%;
+bottom: 0%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 54.43%;
+right: 42.15%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 61.07%;
+right: 35.79%;
+top: 83.1%;
+bottom: 0%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 71.14%;
+right: 25.25%;
+top: 83.1%;
+bottom: 0%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 78.16%;
+right: 18.77%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 83.98%;
+right: 12.3%;
+top: 83.1%;
+bottom: 0%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 90.61%;
+right: 6.31%;
+top: 83.36%;
+bottom: 0%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 97.02%;
+right: 0.03%;
+top: 83.36%;
+bottom: 0.26%;
+
+background: #0D1240;
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 89.09%;
+top: 0%;
+bottom: 16.64%;
+
+background: #0D1240;
+
+
+/* AI PITCH */
+
+position: absolute;
+width: 120px;
+height: 24px;
+left: 32px;
+top: 66px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+letter-spacing: 1px;
+
+color: #124F94;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 168px;
+height: 44px;
+left: 24px;
+top: 112px;
+
+background: #0D1240;
+
+
+/* + New pitch */
+
+position: absolute;
+width: 136px;
+height: 24px;
+left: 40px;
+top: 122px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #FFFFFF;
+
+
+
+/* Overview */
+
+position: absolute;
+width: 140px;
+height: 24px;
+left: 40px;
+top: 197px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 168px;
+height: 40px;
+left: 24px;
+top: 236px;
+
+background: #F3F4F8;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 3px;
+height: 20px;
+left: 24px;
+top: 246px;
+
+background: #124F94;
+
+
+/* Clients */
+
+position: absolute;
+width: 140px;
+height: 24px;
+left: 40px;
+top: 245px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #0D1240;
+
+
+
+/* Approvals */
+
+position: absolute;
+width: 140px;
+height: 24px;
+left: 40px;
+top: 293px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* Library */
+
+position: absolute;
+width: 140px;
+height: 24px;
+left: 40px;
+top: 341px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* Elena Krasniqi */
+
+position: absolute;
+visibility: hidden;
+width: 150px;
+height: 24px;
+left: 32px;
+top: 1012px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #0D1240;
+
+
+
+/* Sales · EN */
+
+position: absolute;
+visibility: hidden;
+width: 150px;
+height: 24px;
+left: 32px;
+top: 1036px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #5C6178;
+
+
+
+/* Acme GmbH / Pitch */
+
+position: absolute;
+width: 400px;
+height: 24px;
+left: 248px;
+top: 96px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #5C6178;
+
+
+
+/* Review the pitch */
+
+position: absolute;
+width: 400px;
+height: 43.5px;
+left: 248px;
+top: 126px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 300;
+font-size: 30px;
+line-height: 36px;
+
+color: #0D1240;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 8px;
+height: 8px;
+left: 1050px;
+top: 142px;
+
+background: #5C6178;
+
+
+/* Draft · 2 items need review */
+
+position: absolute;
+width: 220px;
+height: 24px;
+left: 1068px;
+top: 136px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 178px;
+height: 44px;
+left: 1190px;
+top: 120px;
+
+background: #0D1240;
+
+
+/* Use this version */
+
+position: absolute;
+width: 146px;
+height: 24px;
+left: 1206px;
+top: 130px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 1224px;
+height: 1px;
+left: 216px;
+top: 180px;
+
+background: #E2E4EC;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 248px;
+height: 911px;
+left: 216px;
+top: 181px;
+
+background: #F3F4F8;
+
+
+/* SLIDES · 8 */
+
+position: absolute;
+width: 120px;
+height: 24px;
+left: 248px;
+top: 212px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+letter-spacing: 0.8px;
+
+color: #5C6178;
+
+
+
+/* 01 */
+
+position: absolute;
+width: 28px;
+height: 24px;
+left: 248px;
+top: 256px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #5C6178;
+
+
+
+/* Acme × Borek */
+
+position: absolute;
+width: 150px;
+height: 24px;
+left: 288px;
+top: 254px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* 02 */
+
+position: absolute;
+width: 28px;
+height: 24px;
+left: 248px;
+top: 328px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #5C6178;
+
+
+
+/* What we heard */
+
+position: absolute;
+width: 150px;
+height: 24px;
+left: 288px;
+top: 326px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* 03 */
+
+position: absolute;
+width: 28px;
+height: 24px;
+left: 248px;
+top: 400px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #5C6178;
+
+
+
+/* Opportunity */
+
+position: absolute;
+width: 150px;
+height: 24px;
+left: 288px;
+top: 398px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 216px;
+height: 56px;
+left: 232px;
+top: 464px;
+
+background: #FFFFFF;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 3px;
+height: 24px;
+left: 232px;
+top: 480px;
+
+background: #124F94;
+
+
+/* 04 */
+
+position: absolute;
+width: 28px;
+height: 24px;
+left: 248px;
+top: 472px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #124F94;
+
+
+
+/* Why Borek */
+
+position: absolute;
+width: 150px;
+height: 24px;
+left: 288px;
+top: 470px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #0D1240;
+
+
+
+/* 05 */
+
+position: absolute;
+width: 28px;
+height: 24px;
+left: 248px;
+top: 544px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #5C6178;
+
+
+
+/* Relevant case */
+
+position: absolute;
+width: 150px;
+height: 24px;
+left: 288px;
+top: 542px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 8px;
+height: 8px;
+left: 426px;
+top: 547px;
+
+background: #5C6178;
+
+
+/* 06 */
+
+position: absolute;
+width: 28px;
+height: 24px;
+left: 248px;
+top: 616px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #5C6178;
+
+
+
+/* Delivery model */
+
+position: absolute;
+width: 150px;
+height: 24px;
+left: 288px;
+top: 614px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* 07 */
+
+position: absolute;
+width: 28px;
+height: 24px;
+left: 248px;
+top: 688px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #5C6178;
+
+
+
+/* Next steps */
+
+position: absolute;
+width: 150px;
+height: 24px;
+left: 288px;
+top: 686px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* 08 */
+
+position: absolute;
+width: 28px;
+height: 24px;
+left: 248px;
+top: 760px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #5C6178;
+
+
+
+/* Contacts */
+
+position: absolute;
+width: 150px;
+height: 24px;
+left: 288px;
+top: 758px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 168px;
+height: 44px;
+left: 248px;
+top: 894px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* + Add slide */
+
+position: absolute;
+width: 136px;
+height: 24px;
+left: 264px;
+top: 904px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #0D1240;
+
+
+
+/* Versions */
+
+position: absolute;
+width: 80px;
+height: 24px;
+left: 248px;
+top: 964px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+
+color: #5C6178;
+
+
+
+/* v3 · current */
+
+position: absolute;
+width: 100px;
+height: 24px;
+left: 248px;
+top: 994px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #0D1240;
+
+
+
+/* v2 · before meeting */
+
+position: absolute;
+width: 150px;
+height: 24px;
+left: 248px;
+top: 1020px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 646px;
+height: 911px;
+left: 464px;
+top: 181px;
+
+background: #FFFFFF;
+
+
+/* 04 / WHY BOREK */
+
+position: absolute;
+width: 200px;
+height: 24px;
+left: 500px;
+top: 214px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+letter-spacing: 0.8px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 574px;
+height: 323px;
+left: 500px;
+top: 256px;
+
+background: #0D1240;
+
+
+/* WHY BOREK */
+
+position: absolute;
+width: 160px;
+height: 24px;
+left: 536px;
+top: 288px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+letter-spacing: 1px;
+
+color: #FFFFFF;
+
+
+
+/* A precise path from operations to value. */
+
+position: absolute;
+width: 420px;
+height: 52.2px;
+left: 536px;
+top: 332px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 300;
+font-size: 36px;
+line-height: 46px;
+/* or 128% */
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 188px;
+height: 6px;
+left: 536px;
+top: 454px;
+
+background: #E07E00;
+
+
+/* Dedicated multilingual delivery AI-supported quality controls German governance, global execution */
+
+position: absolute;
+width: 390px;
+height: 24px;
+left: 536px;
+top: 488px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 15px;
+line-height: 26px;
+/* or 173% */
+
+color: #FFFFFF;
+
+
+
+/* Personalised for Acme GmbH */
+
+position: absolute;
+width: 260px;
+height: 24px;
+left: 500px;
+top: 616px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #0D1240;
+
+
+
+/* Based on Acme’s stated need for multilingual quality and Borek’s released capability material. */
+
+position: absolute;
+width: 560px;
+height: 24px;
+left: 500px;
+top: 650px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 22px;
+/* or 157% */
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 574px;
+height: 1px;
+left: 500px;
+top: 718px;
+
+background: #E2E4EC;
+
+
+/* Selected content */
+
+position: absolute;
+width: 160px;
+height: 24px;
+left: 500px;
+top: 746px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+
+color: #5C6178;
+
+
+
+/* AI Operations & Multilingual Support */
+
+position: absolute;
+width: 400px;
+height: 24px;
+left: 500px;
+top: 780px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #0D1240;
+
+
+
+/* Case study: DACH customer operations */
+
+position: absolute;
+width: 400px;
+height: 24px;
+left: 500px;
+top: 816px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #0D1240;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 132px;
+height: 44px;
+left: 500px;
+top: 888px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Edit slide */
+
+position: absolute;
+width: 100px;
+height: 24px;
+left: 516px;
+top: 898px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #0D1240;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 140px;
+height: 44px;
+left: 648px;
+top: 888px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Regenerate */
+
+position: absolute;
+width: 108px;
+height: 24px;
+left: 664px;
+top: 898px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #0D1240;
+
+
+
+/* PPTX master · PDF preview */
+
+position: absolute;
+width: 240px;
+height: 24px;
+left: 500px;
+top: 956px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 330px;
+height: 911px;
+left: 1110px;
+top: 181px;
+
+background: #F3F4F8;
+
+
+/* WHY THIS SLIDE */
+
+position: absolute;
+width: 160px;
+height: 24px;
+left: 1140px;
+top: 214px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+letter-spacing: 0.8px;
+
+color: #124F94;
+
+
+
+/* Connects the client’s operating pressure to Borek’s strongest relevant capabilities. */
+
+position: absolute;
+width: 264px;
+height: 24px;
+left: 1140px;
+top: 252px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 15px;
+line-height: 23px;
+/* or 153% */
+
+color: #0D1240;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 264px;
+height: 1px;
+left: 1140px;
+top: 342px;
+
+background: #E2E4EC;
+
+
+/* CLIENT EVIDENCE */
+
+position: absolute;
+width: 160px;
+height: 24px;
+left: 1140px;
+top: 370px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+letter-spacing: 0.8px;
+
+color: #5C6178;
+
+
+
+/* “Consistency across German and Polish support is a priority.” */
+
+position: absolute;
+width: 264px;
+height: 24px;
+left: 1140px;
+top: 408px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 23px;
+/* or 164% */
+
+color: #0D1240;
+
+
+
+/* Source: discovery note · 18 Sep */
+
+position: absolute;
+width: 230px;
+height: 24px;
+left: 1140px;
+top: 482px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 264px;
+height: 1px;
+left: 1140px;
+top: 524px;
+
+background: #E2E4EC;
+
+
+/* BOREK SOURCE */
+
+position: absolute;
+width: 160px;
+height: 24px;
+left: 1140px;
+top: 552px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+letter-spacing: 0.8px;
+
+color: #5C6178;
+
+
+
+/* Released capabilities deck Case study 2025-04 Brand master v2.0 */
+
+position: absolute;
+width: 250px;
+height: 24px;
+left: 1140px;
+top: 588px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 24px;
+/* identical to box height, or 185% */
+
+color: #0D1240;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 264px;
+height: 1px;
+left: 1140px;
+top: 688px;
+
+background: #E2E4EC;
+
+
+/* REVIEW */
+
+position: absolute;
+width: 120px;
+height: 24px;
+left: 1140px;
+top: 716px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+letter-spacing: 0.8px;
+
+color: #5C6178;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 16px;
+height: 16px;
+left: 1140px;
+top: 754px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Claim is accurate */
+
+position: absolute;
+width: 200px;
+height: 24px;
+left: 1170px;
+top: 750px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 16px;
+
+color: #0D1240;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 16px;
+height: 16px;
+left: 1140px;
+top: 794px;
+
+background: #FFFFFF;
+border: 1px solid #E2E4EC;
+
+
+/* Case study is relevant */
+
+position: absolute;
+width: 200px;
+height: 24px;
+left: 1170px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 16px;
+
+color: #0D1240;
+
+
+
+/* 2 checks remain */
+
+position: absolute;
+width: 120px;
+height: 24px;
+left: 1140px;
+top: 848px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+
+color: #5C6178;
+
+
+
+/* TopBar
+
+Reusable authenticated application TopBar for Borek AI Pitch. Override Page title per route; use responsive breakpoint variants.
+*/
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 12px 56px 0px;
+gap: 20px;
+
+position: absolute;
+width: 1224px;
+height: 70px;
+left: 216px;
+top: 0px;
+
+
+
+/* Frame 1 */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: space-between;
+align-items: center;
+padding: 0px;
+gap: 205px;
+
+width: 1168px;
+height: 36px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Page title */
+
+width: 159px;
+height: 29px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 24px;
+line-height: 29px;
+/* identical to box height */
+
+color: #0D1240;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Actions */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 24px;
+
+width: 332px;
+height: 36px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Utilities */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 12px;
+
+width: 303px;
+height: 36px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Language switcher */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+
+width: 71px;
+height: 32px;
+
+border: 1px solid #E2E4EC;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* German option */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 0px;
+
+width: 35px;
+height: 32px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* German */
+
+width: 15px;
+height: 13px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 13px;
+
+color: #5C6178;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Divider */
+
+width: 1px;
+height: 16px;
+
+background: #E2E4EC;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* English option */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 0px;
+
+width: 35px;
+height: 32px;
+
+background: #F3F4F8;
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* English */
+
+width: 15px;
+height: 13px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+
+color: #124F94;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Notifications */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 0px;
+isolation: isolate;
+
+width: 36px;
+height: 36px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* bell */
+
+width: 17px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* Vector */
+
+position: absolute;
+left: 12.5%;
+right: 12.5%;
+top: 8.33%;
+bottom: 8.33%;
+
+border: 1.25px solid #5C6178;
+
+
+/* Unread indicator */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 6px;
+height: 6px;
+right: 7px;
+top: 6px;
+
+background: #C94A32;
+border: 1px solid #FFFFFF;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* Utility divider */
+
+width: 1px;
+height: 24px;
+
+background: #E2E4EC;
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Profile */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 8px;
+
+width: 159px;
+height: 32px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 3;
+flex-grow: 0;
+
+
+/* Avatar */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 0px;
+
+width: 32px;
+height: 32px;
+
+background: #F3F4F8;
+border-radius: 2px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Initials */
+
+width: 15px;
+height: 13px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+
+color: #0D1240;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* User name */
+
+width: 101px;
+height: 16px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #0D1240;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* chevron-down */
+
+width: 10px;
+height: 6px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Vector */
+
+position: absolute;
+left: 25%;
+right: 25%;
+top: 37.5%;
+bottom: 37.5%;
+
+border: 1.2px solid #5C6178;
+
+
+/* splash */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+
+width: 286px;
+height: 0.5px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Rectangle */
+
+width: 71px;
+height: 4px;
+
+background: #E07E00;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Rectangle */
+
+width: 72px;
+height: 4px;
+
+background: #DD3D00;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Rectangle */
+
+width: 71px;
+height: 4px;
+
+background: #124F94;
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Rectangle */
+
+width: 72px;
+height: 4px;
+
+background: #02A69F;
+
+/* Inside auto layout */
+flex: none;
+order: 3;
+flex-grow: 0;

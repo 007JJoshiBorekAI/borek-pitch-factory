@@ -40,8 +40,8 @@ assert.match(css, /grid-template-columns:\s*repeat\(auto-fill, minmax\(min\(100%
 assert.match(css, /\.site-user[\s\S]*?display:\s*none;/);
 assert.match(css, /overflow-wrap:\s*anywhere;/);
 
-assert.match(css, /--font-body:\s*"Segoe UI"/);
-assert.match(css, /--font-heading:\s*"Segoe UI"/);
+assert.match(css, /--font-body:\s*var\(--font-inter\)/);
+assert.match(css, /--font-heading:\s*var\(--font-inter\)/);
 assert.match(css, /html \*,\s*html \*::before,\s*html \*::after\s*\{[\s\S]*?font-family:\s*inherit;/);
 assert.match(
   css,
