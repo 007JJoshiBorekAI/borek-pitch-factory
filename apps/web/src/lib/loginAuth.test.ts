@@ -4,6 +4,7 @@ import {
   LOGIN_LANGUAGES,
   loginKeepSignedInHint,
   parseOAuthCallbackError,
+  resolveLoginAuthMode,
   resolvePostAuthPath,
 } from "./loginAuth.js";
 
@@ -22,5 +23,16 @@ assert.match(loginKeepSignedInHint(), /automatically/i);
 
 assert.equal(LOGIN_LANGUAGES.find((row) => row.id === "en")?.supported, true);
 assert.equal(LOGIN_LANGUAGES.find((row) => row.id === "de")?.supported, false);
+
+assert.equal(
+  resolveLoginAuthMode({ supabaseConfigured: true, devAccessToken: "dev-token" }),
+  "supabase",
+);
+assert.equal(
+  resolveLoginAuthMode({ supabaseConfigured: false, devAccessToken: "dev-token" }),
+  "dev-demo",
+);
+assert.equal(resolveLoginAuthMode({ supabaseConfigured: false, devAccessToken: "" }), "unconfigured");
+assert.equal(resolveLoginAuthMode({ supabaseConfigured: false, devAccessToken: null }), "unconfigured");
 
 console.log("FIGMA-01 loginAuth tests passed");

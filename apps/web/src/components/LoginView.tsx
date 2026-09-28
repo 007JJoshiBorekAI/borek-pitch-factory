@@ -2,20 +2,22 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import {
   LOGIN_LANGUAGES,
   loginKeepSignedInHint,
   parseOAuthCallbackError,
+  resolveLoginAuthMode,
   resolvePostAuthPath,
 } from "@/lib/loginAuth";
-import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 export function LoginView() {
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
+  const authMode = useMemo(() => resolveLoginAuthMode(), []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [language] = useState<(typeof LOGIN_LANGUAGES)[number]["id"]>("en");
@@ -55,6 +57,18 @@ export function LoginView() {
     }
   }
 
+  function handlePrimaryAction() {
+    if (authMode !== "supabase") {
+      setError(
+        "Microsoft sign-in requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+      );
+      return;
+    }
+    void handleMicrosoftSignIn();
+  }
+
+  const primaryDisabled = busy;
+
   if (authLoading) {
     return (
       <div className="figma-login-page" data-testid="figma-login-page">
@@ -90,20 +104,17 @@ export function LoginView() {
   }
 
   return (
-    <div className="figma-login-page" data-testid="figma-login-page">
+    <div
+      className="figma-login-page"
+      data-testid="figma-login-page"
+      data-login-auth-mode={authMode}
+    >
       <aside className="figma-login-brand" aria-label="Borek AI Pitch">
         <BrandPanel />
       </aside>
 
       <main className="figma-login-auth" aria-labelledby="figma-login-welcome">
         <div className="figma-login-auth-inner">
-          {!isSupabaseConfigured() ? (
-            <div className="figma-login-alert figma-login-alert-info" role="status">
-              Add <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>{" "}
-              to <code>apps/web/.env.local</code>, then restart the dev server.
-            </div>
-          ) : null}
-
           <h1 id="figma-login-welcome" className="figma-login-welcome">
             Welcome
           </h1>
@@ -119,24 +130,25 @@ export function LoginView() {
             type="button"
             className="figma-login-microsoft"
             data-testid="figma-login-microsoft"
-            disabled={busy || !isSupabaseConfigured()}
-            onClick={() => void handleMicrosoftSignIn()}
+            disabled={primaryDisabled}
+            onClick={handlePrimaryAction}
           >
-            <Image
-              src="/figma-01/microsoft-logo.png"
-              alt=""
-              width={20}
-              height={20}
-              aria-hidden
-              className="figma-login-microsoft-icon"
-            />
+            <span className="figma-login-microsoft-icon" aria-hidden="true">
+              <Image
+                src="/figma-01/microsoft-logo.png"
+                alt=""
+                width={54}
+                height={41}
+                className="figma-login-microsoft-icon-image"
+              />
+            </span>
             <span>{busy ? "Please wait…" : "Continue with Microsoft"}</span>
           </button>
 
           <label className="figma-login-remember">
             <input
               type="checkbox"
-              checked
+              checked={false}
               readOnly
               disabled
               aria-readonly="true"
@@ -193,7 +205,7 @@ function BrandPanel() {
           alt=""
           fill
           priority
-          sizes="50vw"
+          sizes="760px"
           className="figma-login-artwork-image"
         />
       </div>

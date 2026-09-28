@@ -49,6 +49,9 @@
   --shell-canvas: #ffffff;
   --shell-subtle: #f3f4f8;
   --shell-border: #e2e4ec;
+  --shell-background-canvas: var(--shell-canvas);
+  --shell-background-subtle: var(--shell-subtle);
+  --shell-border-default: var(--shell-border);
   --shell-text-inverse: #ffffff;
   --shell-splash-tradition: #e07e00;
   --shell-splash-kumkum: #dd3d00;
@@ -583,7 +586,7 @@ samp {
 .figma-login-page {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 760px) minmax(0, 680px);
   background: var(--shell-canvas);
 }
 
@@ -625,18 +628,22 @@ samp {
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  display: grid;
-  grid-template-rows: auto auto 1fr auto auto auto;
-  padding: 76px 77px 88px 88px;
+  height: 1024px;
 }
 
 .figma-login-logo {
+  position: absolute;
+  top: 76px;
+  left: 88px;
   width: 184px;
   height: auto;
 }
 
 .figma-login-product {
-  margin: 21px 0 0 7px;
+  position: absolute;
+  top: 140px;
+  left: 95px;
+  margin: 0;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -644,8 +651,11 @@ samp {
 }
 
 .figma-login-headline {
+  position: absolute;
+  top: 554px;
+  left: 77px;
   margin: 0;
-  align-self: end;
+  width: 540px;
   max-width: 540px;
   font-size: clamp(2.25rem, 4vw, 3.5rem);
   font-weight: 300;
@@ -653,7 +663,10 @@ samp {
 }
 
 .figma-login-subcopy {
-  margin: 16px 0 0;
+  position: absolute;
+  top: 772px;
+  left: 77px;
+  margin: 0;
   max-width: 520px;
   font-size: 18px;
   font-weight: 400;
@@ -661,20 +674,25 @@ samp {
 }
 
 .figma-login-footer {
-  margin: 24px 0 0 11px;
+  position: absolute;
+  top: 916px;
+  left: 88px;
+  margin: 0;
   font-size: 12px;
   opacity: 0.95;
 }
 
 .figma-login-auth {
-  display: flex;
-  align-items: center;
+  position: relative;
   min-height: 100vh;
-  padding: 96px;
+  padding: 0;
   background: var(--shell-canvas);
 }
 
 .figma-login-auth-inner {
+  position: absolute;
+  top: 224px;
+  left: 96px;
   width: 100%;
   max-width: 448px;
 }
@@ -742,7 +760,18 @@ samp {
 }
 
 .figma-login-microsoft-icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  overflow: hidden;
   flex-shrink: 0;
+}
+
+.figma-login-microsoft-icon-image {
+  position: absolute;
+  top: -10px;
+  left: -17px;
+  max-width: none;
 }
 
 .figma-login-remember {
@@ -763,7 +792,7 @@ samp {
 }
 
 .figma-login-divider {
-  margin: 32px 0 0;
+  margin: 52px 0 0;
   border: 0;
   border-top: 1px solid var(--shell-border);
 }
@@ -800,7 +829,7 @@ samp {
 }
 
 .figma-login-support {
-  margin: 130px 0 0;
+  margin: 114px 0 0;
   font-size: 13px;
   color: var(--shell-text-secondary);
 }
@@ -815,6 +844,10 @@ samp {
   .figma-login-auth {
     padding: 72px 64px;
   }
+
+  .figma-login-auth-inner {
+    left: 64px;
+  }
 }
 
 @media (max-width: 1024px) {
@@ -827,9 +860,37 @@ samp {
   }
 
   .figma-login-brand-inner {
+    position: relative;
     min-height: auto;
+    height: auto;
+    display: grid;
     padding: 48px 32px 40px;
     grid-template-rows: auto auto auto auto auto;
+  }
+
+  .figma-login-logo,
+  .figma-login-product,
+  .figma-login-headline,
+  .figma-login-subcopy,
+  .figma-login-footer {
+    position: static;
+  }
+
+  .figma-login-product {
+    margin: 21px 0 0 7px;
+  }
+
+  .figma-login-headline {
+    margin-top: 180px;
+    width: auto;
+  }
+
+  .figma-login-subcopy {
+    margin-top: 16px;
+  }
+
+  .figma-login-footer {
+    margin: 24px 0 0 11px;
   }
 
   .figma-login-artwork {
@@ -843,6 +904,10 @@ samp {
   .figma-login-auth {
     min-height: auto;
     padding: 40px 32px 56px;
+  }
+
+  .figma-login-auth-inner {
+    position: static;
   }
 
   .figma-login-support {
@@ -2298,6 +2363,10 @@ samp {
   color: var(--shell-action-active);
 }
 
+.workspace-sidebar-product-post-meeting {
+  color: var(--shell-splash-happiness);
+}
+
 .workspace-sidebar-nav {
   display: grid;
   gap: 8px;
@@ -2342,7 +2411,11 @@ samp {
 }
 
 .workspace-sidebar-note {
-  margin-top: auto;
+  position: absolute;
+  top: 972px;
+  left: 0;
+  width: 216px;
+  margin: 0;
   padding: 0 24px;
   font-size: 12px;
   line-height: 18px;
@@ -2641,7 +2714,7 @@ samp {
 .pre-meeting-workspace.app-shell,
 .pre-meeting-workspace.app-workspace-body {
   max-width: none;
-  padding-top: 0;
+  padding-top: 48px;
 }
 
 .pre-meeting-page {
@@ -2672,7 +2745,7 @@ samp {
   display: flex;
   align-items: center;
   gap: 0;
-  margin-top: 26px;
+  margin-top: 20px;
   padding: 18px 22px;
   border-radius: 8px;
   background: var(--shell-subtle);
@@ -2734,10 +2807,11 @@ samp {
 }
 
 .pre-meeting-form {
+  height: 718px;
   border: 1px solid var(--shell-border);
   border-radius: 8px;
   background: var(--shell-canvas);
-  padding: 20px 22px 24px;
+  padding: 20px 21px 24px;
 }
 
 .pre-meeting-section-heading {
@@ -2777,6 +2851,21 @@ samp {
 
 .pre-meeting-field-span {
   grid-column: 1 / -1;
+  gap: 11px;
+}
+
+.pre-meeting-field-grid > .pre-meeting-field-span textarea {
+  height: 64px;
+  min-height: 64px;
+}
+
+.pre-meeting-section:nth-of-type(2) > .pre-meeting-field textarea {
+  height: 72px;
+  min-height: 72px;
+}
+
+.pre-meeting-section:nth-of-type(2) .pre-meeting-section-heading {
+  margin-bottom: 24px;
 }
 
 .pre-meeting-field label,
@@ -2819,7 +2908,7 @@ samp {
 }
 
 .pre-meeting-divider {
-  margin: 24px 0;
+  margin: 28px 0 20px;
   border: 0;
   border-top: 1px solid var(--shell-border);
 }
@@ -2840,7 +2929,10 @@ samp {
 }
 
 .pre-meeting-notes-card {
-  padding: 12px 14px 10px;
+  position: relative;
+  height: 70px;
+  padding: 14px 16px;
+  overflow: hidden;
 }
 
 .pre-meeting-notes-header {
@@ -2848,7 +2940,8 @@ samp {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  min-height: 17px;
+  margin-bottom: 7px;
 }
 
 .pre-meeting-notes-header strong {
@@ -2860,6 +2953,9 @@ samp {
 }
 
 .pre-meeting-voice-button {
+  position: absolute;
+  top: 17px;
+  right: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2877,7 +2973,9 @@ samp {
 }
 
 .pre-meeting-notes-input {
-  min-height: 0;
+  height: 14px;
+  min-height: 14px;
+  line-height: 14px;
   border: 0;
   padding: 0;
   resize: none;
@@ -3112,7 +3210,7 @@ samp {
 
 .pre-meeting-create-button {
   width: 100%;
-  margin-top: 96px;
+  margin-top: 130px;
   min-height: 44px;
   border: 0;
   border-radius: 6px;
@@ -3170,7 +3268,7 @@ samp {
 .post-meeting-workspace.app-shell,
 .post-meeting-workspace.app-workspace-body {
   max-width: none;
-  padding-top: 0;
+  padding-top: 24px;
 }
 
 .post-meeting-page {
@@ -3191,7 +3289,7 @@ samp {
 }
 
 .post-meeting-title {
-  margin: 0;
+  margin: 12px 0 0;
   font-size: 32px;
   font-weight: 300;
   line-height: 40px;
@@ -3721,7 +3819,7 @@ samp {
 .pitch-generation-workspace.app-shell,
 .pitch-generation-workspace.app-workspace-body {
   max-width: none;
-  padding-top: 0;
+  padding-top: 28px;
 }
 
 .pitch-generation-header {
@@ -3739,7 +3837,7 @@ samp {
 }
 
 .pitch-generation-title {
-  margin: 0;
+  margin: 10px 0 0;
   font-size: 32px;
   font-weight: 300;
   line-height: 40px;
@@ -3790,7 +3888,7 @@ samp {
   gap: 24px;
   align-items: start;
   max-width: 1128px;
-  margin-top: 28px;
+  margin-top: 32px;
 }
 
 .pitch-generation-slide-list {
@@ -4122,7 +4220,7 @@ samp {
 .follow-up-email-workspace.app-shell,
 .follow-up-email-workspace.app-workspace-body {
   max-width: none;
-  padding-top: 0;
+  padding-top: 24px;
 }
 
 .follow-up-email-header {
@@ -4140,7 +4238,7 @@ samp {
 }
 
 .follow-up-email-title {
-  margin: 0;
+  margin: 12px 0 0;
   font-size: 32px;
   font-weight: 300;
   line-height: 40px;
@@ -4156,14 +4254,15 @@ samp {
 
 .follow-up-email-flow {
   max-width: 1128px;
-  margin-top: 22px;
+  margin-top: 26px;
+}
+
+.pitch-generation-preview-area > .pitch-generation-preview-empty {
+  min-height: 478px;
 }
 
 .follow-up-email-source-badge {
-  max-width: 1128px;
-  margin: 12px 0 0;
-  font-size: 11px;
-  color: var(--shell-text-secondary);
+  display: none;
 }
 
 .follow-up-email-loading,
@@ -4432,7 +4531,7 @@ samp {
 .clients-workspace.app-shell,
 .clients-workspace.app-workspace-body {
   max-width: none;
-  padding-top: 0;
+  padding-top: 32px;
 }
 
 .clients-page {
@@ -4457,7 +4556,7 @@ samp {
 }
 
 .clients-title {
-  margin: 0;
+  margin: 9px 0 0;
   font-size: 32px;
   font-weight: 300;
   line-height: 40px;
@@ -4465,7 +4564,7 @@ samp {
 }
 
 .clients-summary {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   font-size: 13px;
   line-height: 18px;
   color: var(--shell-text-secondary);
@@ -4487,6 +4586,10 @@ samp {
   white-space: nowrap;
 }
 
+.clients-header > .clients-add-button {
+  margin-top: 16px;
+}
+
 .clients-add-button:hover {
   opacity: 0.92;
 }
@@ -4499,8 +4602,8 @@ samp {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px 24px;
-  margin-top: 28px;
+  gap: 16px 32px;
+  margin-top: 26px;
 }
 
 .clients-search {
@@ -4575,6 +4678,7 @@ samp {
 
 .clients-table-wrap {
   margin-top: 24px;
+  min-height: 658px;
   overflow-x: auto;
   border: 1px solid var(--shell-border);
   border-radius: 8px;
@@ -4590,7 +4694,7 @@ samp {
 
 .clients-table thead th {
   height: 48px;
-  padding: 0 16px;
+  padding: 0 24px;
   background: var(--shell-subtle);
   color: var(--shell-text-secondary);
   font-size: 9px;
@@ -4601,32 +4705,34 @@ samp {
 }
 
 .clients-table thead th:nth-child(1) {
-  width: 300px;
+  width: 326px;
 }
 
 .clients-table thead th:nth-child(2) {
-  width: 220px;
+  width: 240px;
 }
 
 .clients-table thead th:nth-child(3) {
-  width: 190px;
+  width: 210px;
 }
 
 .clients-table thead th:nth-child(4) {
-  width: 150px;
+  width: 180px;
 }
 
 .clients-table thead th:nth-child(5) {
-  width: 124px;
+  width: 172px;
 }
 
 .clients-table tbody tr {
+  height: 92px;
   border-top: 1px solid var(--shell-border);
 }
 
 .clients-table tbody td {
-  min-height: 72px;
-  padding: 16px;
+  position: relative;
+  top: -8px;
+  padding: 16px 24px;
   vertical-align: middle;
   color: var(--shell-text-primary);
   font-size: 14px;
@@ -4715,7 +4821,7 @@ samp {
 }
 
 .clients-footer {
-  margin: 16px 0 0;
+  margin: 22px 0 0;
   font-size: 13px;
   color: var(--shell-text-secondary);
 }
@@ -4764,10 +4870,10 @@ samp {
   align-items: stretch;
   margin-top: 32px;
   border: 1px solid var(--shell-border);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--shell-canvas);
   overflow: hidden;
-  box-shadow: var(--workspace-card-shadow);
+  box-shadow: none;
 }
 
 .workflow-state-accent {
@@ -4788,40 +4894,28 @@ samp {
 }
 
 .workflow-state-body {
-  display: grid;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   padding: 20px 24px;
-  min-height: 156px;
+  min-height: 154px;
 }
 
 .workflow-state-eyebrow {
   margin: 0;
   color: var(--shell-text-secondary);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .workflow-state-content {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
+  display: block;
 }
 
 .workflow-state-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: var(--borek-primary-soft);
-  color: var(--shell-action-default);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1;
+  display: none;
 }
 
 .workflow-state-tone-active .workflow-state-icon {
@@ -4829,12 +4923,11 @@ samp {
 }
 
 .workflow-state-copy {
-  display: grid;
-  gap: 4px;
+  display: block;
 }
 
 .workflow-state-title {
-  margin: 0;
+  margin: 11px 0 0;
   color: var(--shell-text-primary);
   font-size: 18px;
   font-weight: 500;
@@ -4842,10 +4935,10 @@ samp {
 }
 
 .workflow-state-description {
-  margin: 0;
+  margin: 9px 0 0;
   color: var(--shell-text-secondary);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .workflow-state-actions {
@@ -4853,14 +4946,15 @@ samp {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 16px;
+  margin-top: 29px;
 }
 
 .workflow-state-action {
   border: 0;
   background: transparent;
   color: var(--shell-action-active);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   text-decoration: none;
   cursor: pointer;
   padding: 0;
@@ -4878,7 +4972,7 @@ samp {
 
 .workflow-state-meta {
   color: var(--shell-text-secondary);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .workflow-state-details {
@@ -4938,6 +5032,25 @@ samp {
 
 .follow-up-email-readiness-state {
   margin-bottom: 12px;
+}
+
+.workflow-state-compact .workflow-state-title,
+.workflow-state-embedded .workflow-state-title {
+  margin-top: 8px;
+}
+
+.workflow-state-compact .workflow-state-description,
+.workflow-state-embedded .workflow-state-description {
+  margin-top: 8px;
+}
+
+.workflow-state-compact .workflow-state-actions,
+.workflow-state-embedded .workflow-state-actions {
+  margin-top: 14px;
+}
+
+.follow-up-email-readiness-state.workflow-state-ready_to_confirm_email {
+  display: none;
 }
 
 @media (max-width: 1024px) {
