@@ -5,7 +5,13 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { ClientDocumentUploadPanel } from "./ClientDocumentUploadPanel.js";
+import {
+  removePreMeetingDocument,
+  sortPreMeetingDocuments,
+  upsertPreMeetingDocument,
+} from "./PreMeetingPitchFiles.js";
 import { Stage1IntakePanel } from "./Stage1IntakePanel.js";
+import type { ClientDocument } from "../lib/api.js";
 
 const panelHtml = renderToStaticMarkup(
   <ClientDocumentUploadPanel accessToken="token" opportunityId="opp-1" disabled={false} />,
@@ -90,5 +96,54 @@ assert.match(apiSource, /listClientDocuments/);
 assert.match(apiSource, /deleteClientDocument/);
 assert.match(apiSource, /formData\.append\("file"/);
 assert.doesNotMatch(apiSource, /storage_path/);
+
+const preMeetingFilesSource = readFileSync(
+  fileURLToPath(new URL("./PreMeetingPitchFiles.tsx", import.meta.url)),
+  "utf8",
+);
+assert.match(
+  preMeetingFilesSource,
+  /useEffect\(\(\) => \{\s*onDocumentsChange\?\.\(documents\);\s*\}, \[documents, onDocumentsChange\]\)/,
+);
+assert.equal((preMeetingFilesSource.match(/onDocumentsChange\?\.\(/g) ?? []).length, 1);
+assert.doesNotMatch(
+  preMeetingFilesSource,
+  /setDocuments\(\(current\) => \{[\s\S]*?onDocumentsChange/,
+);
+assert.match(
+  preMeetingFilesSource,
+  /setDocuments\(\(current\) => \(current\.length === 0 \? current : \[\]\)\)/,
+);
+
+function documentFixture(id: string, documentKey: string, fileName = `${id}.pdf`): ClientDocument {
+  return {
+    id,
+    opportunity_id: "opp-1",
+    file_name: fileName,
+    mime_type: "application/pdf",
+    document_key: documentKey,
+    processing_status: "processed",
+    section_count: 1,
+    created_at: "2026-09-28T00:00:00Z",
+  };
+}
+
+const documentB = documentFixture("doc-b", "b/document.pdf");
+const documentA = documentFixture("doc-a", "a/document.pdf");
+assert.deepEqual(
+  sortPreMeetingDocuments([documentB, documentA]).map((document) => document.id),
+  ["doc-a", "doc-b"],
+);
+
+const replacement = documentFixture("doc-a", "c/replacement.pdf", "replacement.pdf");
+const replaced = upsertPreMeetingDocument([documentA, documentB], replacement);
+assert.equal(replaced.filter((document) => document.id === "doc-a").length, 1);
+assert.equal(replaced.find((document) => document.id === "doc-a")?.file_name, "replacement.pdf");
+assert.deepEqual(replaced.map((document) => document.id), ["doc-b", "doc-a"]);
+assert.deepEqual(
+  removePreMeetingDocument(replaced, "doc-b").map((document) => document.id),
+  ["doc-a"],
+);
+assert.deepEqual(removePreMeetingDocument(replaced, "missing-id"), replaced);
 
 console.log("MS-34 document upload UI tests passed");

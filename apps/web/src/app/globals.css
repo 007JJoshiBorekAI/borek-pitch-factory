@@ -2814,6 +2814,11 @@ samp {
   padding: 20px 21px 24px;
 }
 
+.pre-meeting-form-expanded {
+  height: auto;
+  min-height: 718px;
+}
+
 .pre-meeting-section-heading {
   display: flex;
   align-items: center;
@@ -2905,6 +2910,12 @@ samp {
   min-height: 64px;
   padding: 14px;
   resize: vertical;
+}
+
+.pre-meeting-field input[aria-invalid="true"] {
+  border-color: #b42318;
+  box-shadow: 0 0 0 2px rgb(180 35 24 / 14%);
+  outline: none;
 }
 
 .pre-meeting-divider {
@@ -4973,6 +4984,17 @@ samp {
 .workflow-state-meta {
   color: var(--shell-text-secondary);
   font-size: 12px;
+}
+
+.pre-meeting-workflow-state.workflow-state-embedded {
+  min-height: 156px;
+  margin-top: 20px;
+  margin-bottom: 0;
+}
+
+.pre-meeting-workflow-state.workflow-state-embedded .workflow-state-body {
+  min-height: 154px;
+  padding: 20px 24px;
 }
 
 .workflow-state-details {
