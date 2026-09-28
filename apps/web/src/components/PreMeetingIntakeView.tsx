@@ -50,8 +50,10 @@ export function PreMeetingIntakeView({
 }: PreMeetingIntakeViewProps) {
   const additionalId = useId();
   const voiceInputRef = useRef<HTMLInputElement>(null);
+  const departmentInputRef = useRef<HTMLInputElement>(null);
   const [values, setValues] = useState<PreMeetingFormValues>(EMPTY_PRE_MEETING_FORM);
   const [additionalOpen, setAdditionalOpen] = useState(false);
+  const [departmentFocusRequested, setDepartmentFocusRequested] = useState(false);
   const [clientDocuments, setClientDocuments] = useState<ClientDocument[]>([]);
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -62,14 +64,18 @@ export function PreMeetingIntakeView({
 
   const identityLocked = Boolean(opportunityId);
   const processedDocumentCount = countProcessedClientDocuments(clientDocuments);
+  const sourceDocumentCount = processedDocumentCount + stagedFiles.length;
   const panelDisabled = disabled || busy || voiceBusy;
-  const generateReady = isGenerateReady(values, processedDocumentCount);
+  const generateReady = isGenerateReady(values, sourceDocumentCount);
+  const departmentNeedsAttention = submitAttempted && !values.department.trim();
+  const additionalExpanded = additionalOpen || departmentNeedsAttention;
   const missingInformationState = submitAttempted
     ? preMeetingMissingInformationState({
         validationMessage: validatePreMeetingForm(values),
-        processedDocumentCount,
+        processedDocumentCount: sourceDocumentCount,
       })
     : null;
+  const formExpanded = additionalExpanded || Boolean(missingInformationState);
 
   useEffect(() => {
     if (opportunity) {
@@ -106,6 +112,18 @@ export function PreMeetingIntakeView({
       }));
     }
   }, [opportunity]);
+
+  useEffect(() => {
+    if (!departmentFocusRequested || !additionalExpanded) {
+      return;
+    }
+    const input = departmentInputRef.current;
+    if (input) {
+      input.focus({ preventScroll: true });
+      input.scrollIntoView({ block: "center" });
+    }
+    setDepartmentFocusRequested(false);
+  }, [additionalExpanded, departmentFocusRequested]);
 
   function updateField<K extends keyof PreMeetingFormValues>(key: K, value: PreMeetingFormValues[K]) {
     setValues((current) => {
@@ -167,10 +185,14 @@ export function PreMeetingIntakeView({
 
     const validationError = validatePreMeetingForm(values);
     if (validationError) {
-      setError(validationError);
       if (!values.department.trim()) {
         setAdditionalOpen(true);
+        setDepartmentFocusRequested(true);
       }
+      return;
+    }
+
+    if (sourceDocumentCount === 0) {
       return;
     }
 
@@ -244,7 +266,7 @@ export function PreMeetingIntakeView({
 
       <div className="pre-meeting-columns">
         <form
-          className="pre-meeting-form"
+          className={`pre-meeting-form${formExpanded ? " pre-meeting-form-expanded" : ""}`}
           onSubmit={(event) => {
             event.preventDefault();
             void handleCreateClientAndPitch();
@@ -382,19 +404,30 @@ export function PreMeetingIntakeView({
 
             <details
               className="pre-meeting-additional"
-              open={additionalOpen}
+              open={additionalExpanded}
               onToggle={(event) => setAdditionalOpen((event.currentTarget as HTMLDetailsElement).open)}
             >
-              <summary id={additionalId}>Additional opportunity information</summary>
+              <summary
+                id={additionalId}
+                onClick={(event) => {
+                  if (departmentNeedsAttention && additionalExpanded) {
+                    event.preventDefault();
+                  }
+                }}
+              >
+                Additional opportunity information
+              </summary>
               <div className="pre-meeting-additional-body">
                 <div className="pre-meeting-field">
                   <label htmlFor="pre_meeting_department">Department</label>
                   <input
+                    ref={departmentInputRef}
                     id="pre_meeting_department"
                     value={values.department}
                     placeholder="e.g. Sales Engineering"
                     disabled={panelDisabled || identityLocked}
                     required={submitAttempted}
+                    aria-invalid={departmentNeedsAttention}
                     onChange={(event) => updateField("department", event.target.value)}
                   />
                 </div>

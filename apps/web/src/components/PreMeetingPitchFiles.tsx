@@ -24,6 +24,27 @@ interface PreMeetingPitchFilesProps {
   onStagedFilesChange: (files: File[]) => void;
 }
 
+export function sortPreMeetingDocuments(rows: ClientDocument[]): ClientDocument[] {
+  return [...rows].sort((a, b) => a.document_key.localeCompare(b.document_key));
+}
+
+export function upsertPreMeetingDocument(
+  rows: ClientDocument[],
+  document: ClientDocument,
+): ClientDocument[] {
+  return sortPreMeetingDocuments([
+    ...rows.filter((row) => row.id !== document.id),
+    document,
+  ]);
+}
+
+export function removePreMeetingDocument(
+  rows: ClientDocument[],
+  documentId: string,
+): ClientDocument[] {
+  return rows.filter((row) => row.id !== documentId);
+}
+
 export function PreMeetingPitchFiles({
   accessToken,
   opportunityId,
@@ -42,16 +63,17 @@ export function PreMeetingPitchFiles({
   const panelDisabled = disabled || loading || uploading;
 
   function updateDocuments(rows: ClientDocument[]) {
-    const sorted = [...rows].sort((a, b) => a.document_key.localeCompare(b.document_key));
-    setDocuments(sorted);
-    onDocumentsChange?.(sorted);
+    setDocuments(sortPreMeetingDocuments(rows));
   }
 
   useEffect(() => {
-    setDocuments([]);
+    onDocumentsChange?.(documents);
+  }, [documents, onDocumentsChange]);
+
+  useEffect(() => {
+    setDocuments((current) => (current.length === 0 ? current : []));
     setError(null);
     setEndpointUnavailable(false);
-    onDocumentsChange?.([]);
 
     if (!accessToken || !opportunityId) {
       return;
@@ -97,13 +119,7 @@ export function PreMeetingPitchFiles({
       }
       try {
         const response = await uploadClientDocument(accessToken, opportunityId, file);
-        setDocuments((current) => {
-          const next = [...current.filter((row) => row.id !== response.document.id), response.document].sort(
-            (a, b) => a.document_key.localeCompare(b.document_key),
-          );
-          onDocumentsChange?.(next);
-          return next;
-        });
+        setDocuments((current) => upsertPreMeetingDocument(current, response.document));
       } catch (uploadError) {
         if (isClientDocumentEndpointUnavailable(uploadError)) {
           setEndpointUnavailable(true);
@@ -130,18 +146,10 @@ export function PreMeetingPitchFiles({
     }
     try {
       await deleteClientDocument(accessToken, opportunityId, document.id);
-      setDocuments((current) => {
-        const next = current.filter((row) => row.id !== document.id);
-        onDocumentsChange?.(next);
-        return next;
-      });
+      setDocuments((current) => removePreMeetingDocument(current, document.id));
     } catch (deleteError) {
       if (isMissingClientDocumentError(deleteError)) {
-        setDocuments((current) => {
-          const next = current.filter((row) => row.id !== document.id);
-          onDocumentsChange?.(next);
-          return next;
-        });
+        setDocuments((current) => removePreMeetingDocument(current, document.id));
       } else {
         setError(clientDocumentErrorMessage(deleteError));
       }
