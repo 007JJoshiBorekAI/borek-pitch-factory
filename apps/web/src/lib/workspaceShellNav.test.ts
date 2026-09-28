@@ -39,6 +39,9 @@ assert.equal(resolveWorkspaceNavHref("clients", "opp-456"), "/clients");
 
 assert.equal(resolveUserInitials("Elena Manovska", null), "EM");
 assert.equal(resolveUserInitials(null, "elena@boreksolutions.de"), "EL");
+assert.equal(resolveUserInitials("user-a", null), "UA");
+assert.equal(resolveUserInitials(null, "user-a@example.com"), "UA");
+assert.equal(resolveUserInitials(null, "mary-jane@example.com"), "MJ");
 assert.equal(
   emailFromAccessToken(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEiLCJlbWFpbCI6InVzZXItYUBleGFtcGxlLmNvbSIsImF1ZCI6ImF1dGhlbnRpY2F0ZWQiLCJpYXQiOjE3OTAzMzQyMjQsImV4cCI6MTc5MDM0MTQyNH0.4nDKjP0wUCPx3PEGfIoCTqt2SEQPmHVX4hVMUSPhMxU",

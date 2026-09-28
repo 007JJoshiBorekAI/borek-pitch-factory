@@ -18,6 +18,8 @@ interface WorkspaceTopBarProps {
   menuExpanded?: boolean;
 }
 
+type TopBarPanel = "none" | "profile" | "notifications";
+
 export function WorkspaceTopBar({ pageTitle, onMenuToggle, menuExpanded = false }: WorkspaceTopBarProps) {
   const { session, employee, accessToken } = useAuth();
   const email =
@@ -28,24 +30,33 @@ export function WorkspaceTopBar({ pageTitle, onMenuToggle, menuExpanded = false 
       : null;
   const displayName = resolveUserDisplayName(profileName, email);
   const initials = resolveUserInitials(profileName, email);
-  const menuId = useId();
-  const [profileOpen, setProfileOpen] = useState(false);
+  const profileMenuId = useId();
+  const notificationsPopoverId = useId();
+  const notificationsTitleId = useId();
+  const germanUnavailableId = useId();
+  const [openPanel, setOpenPanel] = useState<TopBarPanel>("none");
   const profileRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+
+  const profileOpen = openPanel === "profile";
+  const notificationsOpen = openPanel === "notifications";
 
   useEffect(() => {
-    if (!profileOpen) {
+    if (openPanel === "none") {
       return;
     }
 
     function handlePointerDown(event: MouseEvent) {
-      if (!profileRef.current?.contains(event.target as Node)) {
-        setProfileOpen(false);
+      const target = event.target as Node;
+      if (profileRef.current?.contains(target) || notificationsRef.current?.contains(target)) {
+        return;
       }
+      setOpenPanel("none");
     }
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setProfileOpen(false);
+        setOpenPanel("none");
       }
     }
 
@@ -55,7 +66,19 @@ export function WorkspaceTopBar({ pageTitle, onMenuToggle, menuExpanded = false 
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [profileOpen]);
+  }, [openPanel]);
+
+  function toggleProfile() {
+    setOpenPanel((current) => (current === "profile" ? "none" : "profile"));
+  }
+
+  function toggleNotifications() {
+    setOpenPanel((current) => (current === "notifications" ? "none" : "notifications"));
+  }
+
+  function closePanels() {
+    setOpenPanel("none");
+  }
 
   return (
     <header className="workspace-topbar">
@@ -78,9 +101,16 @@ export function WorkspaceTopBar({ pageTitle, onMenuToggle, menuExpanded = false 
           <div
             className="workspace-lang-switcher"
             role="group"
-            aria-label="Language (localization not available yet)"
+            aria-label="Interface language"
           >
-            <button type="button" className="workspace-lang-option" disabled title="German localization coming soon">
+            <button
+              type="button"
+              className="workspace-lang-option workspace-lang-option-unavailable"
+              disabled
+              aria-disabled="true"
+              aria-describedby={germanUnavailableId}
+              title="German UI is not available yet"
+            >
               DE
             </button>
             <span className="workspace-lang-divider" aria-hidden="true" />
@@ -93,24 +123,55 @@ export function WorkspaceTopBar({ pageTitle, onMenuToggle, menuExpanded = false 
             >
               EN
             </button>
+            <span id={germanUnavailableId} className="sr-only">
+              German UI is not available yet
+            </span>
           </div>
 
-          <button
-            type="button"
-            className="workspace-notifications-button"
-            disabled
-            aria-label="Notifications (not available yet)"
-            title="Notifications are not available yet"
-          >
-            <Image
-              src="/workspace-notifications.svg"
-              alt=""
-              width={36}
-              height={36}
-              className="workspace-notifications-icon"
-              aria-hidden
-            />
-          </button>
+          <div className="workspace-notifications" ref={notificationsRef}>
+            <button
+              type="button"
+              className="workspace-notifications-button"
+              aria-expanded={notificationsOpen}
+              aria-controls={notificationsPopoverId}
+              aria-haspopup="dialog"
+              aria-label="Notifications"
+              onClick={toggleNotifications}
+            >
+              <Image
+                src="/workspace-notifications.svg"
+                alt=""
+                width={36}
+                height={36}
+                className="workspace-notifications-icon"
+                aria-hidden
+              />
+            </button>
+
+            {notificationsOpen ? (
+              <div
+                className="workspace-notifications-popover"
+                id={notificationsPopoverId}
+                role="dialog"
+                aria-modal="false"
+                aria-labelledby={notificationsTitleId}
+              >
+                <h2 className="workspace-notifications-popover-title" id={notificationsTitleId}>
+                  Notifications
+                </h2>
+                <p className="workspace-notifications-popover-copy">
+                  No notification feed is configured yet.
+                </p>
+                <Link
+                  href="/activity"
+                  className="workspace-notifications-popover-link"
+                  onClick={closePanels}
+                >
+                  View activity log
+                </Link>
+              </div>
+            ) : null}
+          </div>
 
           <span className="workspace-topbar-utility-divider" aria-hidden="true" />
 
@@ -119,8 +180,9 @@ export function WorkspaceTopBar({ pageTitle, onMenuToggle, menuExpanded = false 
               type="button"
               className="workspace-profile-trigger"
               aria-expanded={profileOpen}
-              aria-controls={menuId}
-              onClick={() => setProfileOpen((open) => !open)}
+              aria-controls={profileMenuId}
+              aria-haspopup="menu"
+              onClick={toggleProfile}
             >
               <span className="workspace-profile-avatar" aria-hidden="true">
                 {initials}
@@ -137,19 +199,34 @@ export function WorkspaceTopBar({ pageTitle, onMenuToggle, menuExpanded = false 
             </button>
 
             {profileOpen ? (
-              <div className="workspace-profile-menu" id={menuId} role="menu">
+              <div className="workspace-profile-menu" id={profileMenuId} role="menu">
                 {email ? (
                   <p className="workspace-profile-menu-email" title={email}>
                     {email}
                   </p>
                 ) : null}
-                <Link href="/" className="workspace-profile-menu-link" role="menuitem" onClick={() => setProfileOpen(false)}>
+                <Link
+                  href="/"
+                  className="workspace-profile-menu-link"
+                  role="menuitem"
+                  onClick={closePanels}
+                >
                   Recent presentations
                 </Link>
-                <Link href="/archive" className="workspace-profile-menu-link" role="menuitem" onClick={() => setProfileOpen(false)}>
+                <Link
+                  href="/archive"
+                  className="workspace-profile-menu-link"
+                  role="menuitem"
+                  onClick={closePanels}
+                >
                   Archive
                 </Link>
-                <Link href="/activity" className="workspace-profile-menu-link" role="menuitem" onClick={() => setProfileOpen(false)}>
+                <Link
+                  href="/activity"
+                  className="workspace-profile-menu-link"
+                  role="menuitem"
+                  onClick={closePanels}
+                >
                   Activity log
                 </Link>
                 <div className="workspace-profile-menu-signout">

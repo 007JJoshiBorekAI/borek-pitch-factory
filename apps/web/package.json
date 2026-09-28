@@ -31,7 +31,7 @@
     "test:ms29": "tsx src/lib/archiveHistory.test.ts && tsx src/components/ArchiveHistoryView.test.tsx",
     "test:ms31": "tsx src/lib/journeyStageEligibility.test.ts && tsx src/lib/journeyStageSelection.test.ts && tsx src/components/journeyStageSelector.test.tsx",
     "test:figma01": "tsx src/lib/loginAuth.test.ts && tsx src/components/loginView.test.tsx",
-    "test:figma02": "tsx src/lib/workspaceShellNav.test.ts && tsx src/components/workspaceShell.test.tsx",
+    "test:figma02": "tsx src/lib/workspaceShellNav.test.ts && tsx src/components/workspaceShell.test.tsx && tsx src/components/workspaceTopBar.test.tsx",
     "test:figma03": "tsx src/lib/preMeetingIntake.test.ts && tsx src/components/preMeetingIntakeView.test.tsx",
     "test:figma04": "tsx src/lib/clientDirectory.test.ts && tsx src/components/clientsWorkspacePanel.test.tsx",
     "test:figma05": "tsx src/lib/postMeetingIntake.test.ts && tsx src/components/postMeetingIntakeView.test.tsx",

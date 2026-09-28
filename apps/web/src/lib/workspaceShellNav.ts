@@ -87,17 +87,26 @@ export function resolveWorkspacePageTitle(pathname: string): string {
 }
 
 export function resolveUserInitials(name: string | null | undefined, email: string | null | undefined): string {
-  const source = (name ?? email ?? "").trim();
+  const trimmedName = name?.trim();
+  const source =
+    trimmedName ||
+    (email?.trim() ? (email.trim().split("@")[0] ?? email.trim()) : "");
   if (!source) {
     return "?";
   }
 
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
+  const wordParts = source.split(/\s+/).filter(Boolean);
+  if (wordParts.length >= 2) {
+    return `${wordParts[0]![0] ?? ""}${wordParts[1]![0] ?? ""}`.toUpperCase();
   }
 
-  return source.slice(0, 2).toUpperCase();
+  const token = wordParts[0] ?? source;
+  const hyphenParts = token.split("-").filter(Boolean);
+  if (hyphenParts.length >= 2) {
+    return `${hyphenParts[0]![0] ?? ""}${hyphenParts[1]![0] ?? ""}`.toUpperCase();
+  }
+
+  return token.slice(0, 2).toUpperCase();
 }
 
 export function resolveUserDisplayName(
