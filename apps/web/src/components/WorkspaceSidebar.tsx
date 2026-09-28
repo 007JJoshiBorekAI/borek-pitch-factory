@@ -26,6 +26,18 @@ export function WorkspaceSidebar({
   const pathname = usePathname();
   const currentSection = activeSection ?? resolveActiveNavSection(pathname);
   const activeOpportunityId = loadActiveOpportunity()?.id ?? null;
+  const workflowNote =
+    currentSection === "pre-meeting" && pathname.startsWith("/upload")
+      ? (
+          <>
+            Choose. Create.
+            <br />
+            Review. Download.
+          </>
+        )
+      : currentSection === "clients"
+        ? "Client overview."
+        : null;
 
   return (
     <aside
@@ -46,7 +58,16 @@ export function WorkspaceSidebar({
             priority
           />
         </Link>
-        <p className="workspace-sidebar-product">AI PITCH</p>
+        <p
+          className={[
+            "workspace-sidebar-product",
+            currentSection === "post-meeting" ? "workspace-sidebar-product-post-meeting" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          AI PITCH
+        </p>
       </div>
 
       <nav className="workspace-sidebar-nav" aria-label="Primary">
@@ -72,11 +93,7 @@ export function WorkspaceSidebar({
         })}
       </nav>
 
-      <p className="workspace-sidebar-note">
-        Choose. Create.
-        <br />
-        Review. Download.
-      </p>
+      {workflowNote ? <p className="workspace-sidebar-note">{workflowNote}</p> : null}
     </aside>
   );
 }

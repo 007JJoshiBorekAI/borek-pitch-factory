@@ -123,7 +123,7 @@ export function generationFailedWorkflowState(input: {
     eyebrow: "GENERATION FAILED",
     title: input.title ?? "The pitch could not be prepared",
     description: input.description ?? "Your client data is safe. Try again.",
-    tone: "brand",
+    tone: "neutral",
     iconLabel: "×",
     role: "alert",
     recoverable: Boolean(input.primaryAction),
@@ -180,7 +180,7 @@ export function readyToConfirmEmailWorkflowState(input?: {
     description: input?.recipientSummary
       ? `${input.recipientSummary}. Review the checklist, then confirm — Pitch Factory does not send email.`
       : "Review recipient, subject, and body, then confirm — Pitch Factory does not send email.",
-    tone: "active",
+    tone: "brand",
     iconLabel: "✓",
     role: "status",
     recoverable: false,
@@ -207,7 +207,7 @@ export function filedArchiveEmptyWorkflowState(): WorkflowStatePresentation {
     eyebrow: "ARCHIVED",
     title: "Workspace archived",
     description: "All versions, files and activity remain traceable when presentations are filed.",
-    tone: "neutral",
+    tone: "brand",
     iconLabel: "▦",
     role: "status",
     recoverable: false,
