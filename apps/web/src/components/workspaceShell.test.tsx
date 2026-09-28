@@ -36,8 +36,10 @@ assert.match(topBarSource, /\bDE\b/);
 assert.match(topBarSource, /\bEN\b/);
 assert.match(topBarSource, /workspace-notifications\.svg/);
 assert.match(topBarSource, /workspace-chevron-down\.svg/);
-assert.match(topBarSource, /Notifications \(not available yet\)/);
+assert.match(topBarSource, /aria-label="Notifications"/);
+assert.match(topBarSource, /German UI is not available yet/);
 assert.match(topBarSource, /href="\/archive"/);
+assert.match(topBarSource, /Activity log/);
 
 assert.match(shellSource, /WorkspaceSidebar/);
 assert.match(shellSource, /WorkspaceTopBar/);
