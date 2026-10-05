@@ -12,6 +12,9 @@ from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
 from app.services.api_errors import bad_request
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
+from app.services.discovery_paper import generate_discovery_paper, get_discovery_paper
+from app.services.stage1 import get_company_research_provider
+from services.framework.stage1_research import CompanyResearchProvider
 from app.services.journey_generation import (
     JOURNEY_STAGES,
     client_preparation_envelope,
@@ -71,6 +74,37 @@ def post_stage1_outputs(
         object_id=opportunity_id,
     )
     return generate_stage1_outputs(store, opportunity_id=opportunity_id, user_id=user.id)
+
+
+@router.get("/{opportunity_id}/discovery-paper")
+def get_opportunity_discovery_paper(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return get_discovery_paper(store, opportunity_id=opportunity_id, user_id=user.id)
+
+
+@router.post("/{opportunity_id}/discovery-paper/generate")
+def post_opportunity_discovery_paper(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+    provider: CompanyResearchProvider | None = Depends(get_company_research_provider),
+) -> dict:
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.DISCOVERY_PAPER_GENERATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    return generate_discovery_paper(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        provider=provider,
+    )
 
 
 @router.get("/{opportunity_id}/stage2-outputs")

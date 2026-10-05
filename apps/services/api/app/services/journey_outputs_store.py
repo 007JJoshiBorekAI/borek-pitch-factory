@@ -11,6 +11,7 @@ JOURNEY_OUTPUT_DB_COLUMNS = (
     "stage2_outputs",
     "email_drafts",
     "client_preparation_email",
+    "discovery_paper",
 )
 
 

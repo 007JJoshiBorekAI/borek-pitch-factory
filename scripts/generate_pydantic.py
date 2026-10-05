@@ -52,6 +52,7 @@ SCHEMAS = [
     ("stage2_outputs.schema.json", "stage2_outputs.py"),
     ("email_draft.schema.json", "email_draft.py"),
     ("meeting_feedback.schema.json", "meeting_feedback.py"),
+    ("discovery_paper.schema.json", "discovery_paper.py"),
 ]
 
 

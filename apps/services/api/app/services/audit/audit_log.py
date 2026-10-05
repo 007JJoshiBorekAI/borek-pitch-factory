@@ -40,6 +40,7 @@ class AuditAction(StrEnum):
     EMAIL_DRAFT_GENERATE = "email_draft.generate"
     EMAIL_DRAFT_CONFIRM = "email_draft.confirm"
     CLIENT_PREPARATION_EMAIL_GENERATE = "client_preparation_email.generate"
+    DISCOVERY_PAPER_GENERATE = "discovery_paper.generate"
     CLIENT_DOCUMENT_UPLOAD = "client_document.upload"
     CLIENT_DOCUMENT_DELETE = "client_document.delete"
 

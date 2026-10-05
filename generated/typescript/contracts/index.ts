@@ -27,4 +27,5 @@ export type { Stage1OutputsEnvelope } from "./stage1_outputs";
 export type { Stage2OutputsEnvelope } from "./stage2_outputs";
 export type { EmailDraftEnvelope } from "./email_draft";
 export type { MeetingFeedback } from "./meeting_feedback";
+export type { DiscoveryPaper } from "./discovery_paper";
 

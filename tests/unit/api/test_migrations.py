@@ -258,6 +258,11 @@ def test_bt35_client_documents_tables_and_storage() -> None:
     assert "users_own_client_document_sections" in rls
 
 
+def test_bt41_discovery_paper_column() -> None:
+    content = (MIGRATIONS_DIR / "034_bt41_discovery_paper.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS discovery_paper JSONB" in content
+
+
 def test_bt36_stage_outputs_columns() -> None:
     content = (MIGRATIONS_DIR / "030_bt36_stage_outputs.sql").read_text(encoding="utf-8")
     assert "ADD COLUMN IF NOT EXISTS meeting_feedback_text" in content

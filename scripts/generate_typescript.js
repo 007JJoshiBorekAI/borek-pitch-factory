@@ -47,6 +47,7 @@ const SCHEMAS = [
   ["stage2_outputs.schema.json", "stage2_outputs.ts"],
   ["email_draft.schema.json", "email_draft.ts"],
   ["meeting_feedback.schema.json", "meeting_feedback.ts"],
+  ["discovery_paper.schema.json", "discovery_paper.ts"],
 ];
 
 function loadChapterRegistry() {
@@ -101,6 +102,40 @@ function patchFrameworkObjectTypes(source, registry) {
     .replace("  chapters: never[];", "  chapters: FrameworkObjectChapters;");
 }
 
+function patchDiscoveryPaperTypes(source) {
+  if (!source.includes("pages: never[];")) {
+    return source;
+  }
+  return source.replace(
+    /pages: never\[\];\r?\n\}/,
+    `pages: [
+    DiscoveryPaperPage,
+    DiscoveryPaperPage,
+    DiscoveryPaperPage,
+    DiscoveryPaperPage,
+    DiscoveryPaperPage,
+    DiscoveryPaperPage,
+    DiscoveryPaperPage,
+  ];
+}
+export type DiscoveryPaperPageStatus = "waiting" | "generating" | "ready" | "failed";
+export interface DiscoveryPaperPage {
+  key:
+    | "cover"
+    | "client_context"
+    | "opportunity"
+    | "borek_approach"
+    | "relevant_use_case"
+    | "pilot_proposal"
+    | "next_steps";
+  order: number;
+  title: string;
+  status: DiscoveryPaperPageStatus;
+  content: Record<string, unknown> | null;
+}`,
+  );
+}
+
 function writeIndex() {
   const indexContent = `export * from "./framework_object";
 export type {
@@ -131,6 +166,7 @@ export type { Stage1OutputsEnvelope } from "./stage1_outputs";
 export type { Stage2OutputsEnvelope } from "./stage2_outputs";
 export type { EmailDraftEnvelope } from "./email_draft";
 export type { MeetingFeedback } from "./meeting_feedback";
+export type { DiscoveryPaper } from "./discovery_paper";
 `;
   fs.writeFileSync(path.join(OUT_DIR, "index.ts"), `${indexContent}\n`, "utf8");
 }
@@ -154,6 +190,10 @@ function main() {
     if (outputName === "framework_object.ts") {
       const generated = fs.readFileSync(outputPath, "utf8");
       fs.writeFileSync(outputPath, patchFrameworkObjectTypes(generated, chapterRegistry), "utf8");
+    }
+    if (outputName === "discovery_paper.ts") {
+      const generated = fs.readFileSync(outputPath, "utf8");
+      fs.writeFileSync(outputPath, patchDiscoveryPaperTypes(generated), "utf8");
     }
   }
 
