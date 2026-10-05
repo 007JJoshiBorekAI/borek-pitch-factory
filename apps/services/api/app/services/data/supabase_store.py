@@ -31,6 +31,7 @@ from app.services.deck_assets import (
 )
 from app.services.framework_status import require_reviewable_framework
 from app.services.framework_stub_template import load_framework_stub_template
+from services.framework.stage1_intake import apply_persisted_intake_to_framework
 
 logger = logging.getLogger(__name__)
 _HTTP_CLIENT: httpx.Client | None = None
@@ -1760,6 +1761,10 @@ class SupabaseDataStore:
         user_id: UUID,
     ) -> dict[str, Any]:
         payload = load_framework_stub_template(opportunity_id)
+        apply_persisted_intake_to_framework(
+            payload,
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id),
+        )
         return self.create_framework_version(
             opportunity_id=opportunity_id,
             user_id=user_id,

@@ -16,6 +16,7 @@ from app.services.first_contact_inputs import require_first_contact_client_docum
 from app.services.knowledge_access import resolve_active_corpus
 from app.services import presentation_generation
 from app.services.stage1 import get_company_research_provider
+from services.framework.stage1_intake import resolve_meeting_purpose
 from services.framework.stage1_research import generate_stage1_research
 from services.followup.extraction import FollowupExtractionError, extract_followup
 from services.followup.rendering import render_first_contact_draft, render_three_lengths
@@ -133,9 +134,8 @@ def generate_client_preparation_email(
             "Generate the meeting brief before creating the client preparation email.",
         )
     statics = _require_followup_statics(opportunity)
-    intake = opportunity.get("stage1_intake") or {}
     name = str(opportunity.get("opportunity_name") or "this opportunity")
-    topic = str(intake.get("sales_topic_description") or name).strip()
+    topic = resolve_meeting_purpose(opportunity) or name
     meeting_date = datetime.now(UTC).strftime("%d.%m.%Y")
     lengths = render_first_contact_draft(statics, topic=topic, meeting_date=meeting_date)
     medium = lengths["medium"]
@@ -240,8 +240,7 @@ def generate_stage1_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) 
         use_llm=settings.AI_EXECUTION_MODE == "live",
         client_document_sources=client_document_sources,
     )
-    intake = opportunity.get("stage1_intake") or {}
-    topic = str(intake.get("sales_topic_description") or opportunity.get("opportunity_name") or "this engagement").strip()
+    topic = resolve_meeting_purpose(opportunity) or "this engagement"
     questions = [
         {"id": f"Q{index + 1}", "text": template.format(topic=topic)}
         for index, template in enumerate(QUESTION_TEMPLATES[:12])
@@ -456,8 +455,7 @@ def generate_email_draft(
         raise bad_request("INVALID_JOURNEY_STAGE", "journey_stage must be first_contact, deepening, or concretisation")
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     name = str(opportunity.get("opportunity_name") or "this opportunity")
-    intake = opportunity.get("stage1_intake") or {}
-    topic = str(intake.get("sales_topic_description") or name).strip()
+    topic = resolve_meeting_purpose(opportunity) or name
     statics = _require_followup_statics(opportunity)
     meeting_date = datetime.now(UTC).strftime("%d.%m.%Y")
 

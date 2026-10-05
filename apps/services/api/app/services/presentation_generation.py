@@ -8,6 +8,7 @@ SlideSpecs without a silent count lie.
 
 from __future__ import annotations
 
+import copy
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -25,10 +26,12 @@ from app.services.journey_stage import require_startable_journey_stage
 from app.services.renderer_client import render_deck_assets
 from app.services.stage_b_orchestration import plan_json_from_confirmed_framework
 from app.services.stage_b_providers import install_runtime_stage_b_providers
+from services.framework.stage1_intake import resolve_meeting_purpose
 from services.presentation.generatable_layouts import filter_generatable_planned_slides
 
 
 FIRST_CONTACT_PRESENTATION_PROFILE = "first_meeting_3"
+
 FIRST_CONTACT_PRESENTATION_PLAN = {
     "schema_version": "1.0",
     "title": "First-meeting presentation",
@@ -53,6 +56,33 @@ FIRST_CONTACT_PRESENTATION_PLAN = {
         },
     ],
 }
+
+
+def _first_contact_plan_from_framework(
+    framework: dict[str, Any],
+    opportunity: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the frozen first-meeting plan from the framework's saved intake.
+
+    The framework stamp is the source. The opportunity row is only the fallback
+    for a framework created before that stamp existed.
+    """
+    stamp = framework.get("framework_json", {}).get("stage1_intake") or {}
+    if not isinstance(stamp, dict):
+        stamp = {}
+    title_name = str(
+        stamp.get("opportunity_name") or opportunity.get("opportunity_name") or "Opportunity"
+    ).strip() or "Opportunity"
+    purpose = str(
+        stamp.get("sales_topic_description") or resolve_meeting_purpose(opportunity) or ""
+    ).strip()
+    plan_json = copy.deepcopy(FIRST_CONTACT_PRESENTATION_PLAN)
+    plan_json["title"] = f"First meeting — {title_name}"
+    if purpose:
+        plan_json["slides"][0]["purpose"] = (
+            "Introduce Borek and the first-meeting topic: " + purpose
+        )
+    return plan_json
 
 
 def _dispatch_task(task, *args: str) -> None:
@@ -462,13 +492,11 @@ def enqueue_first_contact_presentation_generate(
             framework_version_id=framework["id"],
         )
 
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     plan = store.create_presentation_plan(
         framework_version_id=framework["id"],
         user_id=user_id,
-        plan_json={
-            **FIRST_CONTACT_PRESENTATION_PLAN,
-            "title": f"First meeting — {store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id).get('opportunity_name') or 'Opportunity'}",
-        },
+        plan_json=_first_contact_plan_from_framework(framework, opportunity),
     )
     return enqueue_presentation_generate(
         store,

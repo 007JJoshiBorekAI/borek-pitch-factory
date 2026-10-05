@@ -16,6 +16,7 @@ from app.services.api_errors import bad_request, conflict, not_found
 from app.services.deck_assets import materialize_fixture_deck_assets
 from app.services.framework_status import require_reviewable_framework
 from app.services.framework_stub_template import load_framework_stub_template
+from services.framework.stage1_intake import apply_persisted_intake_to_framework
 from app.services.stage_b_orchestration import (
     build_slide_spec_for_planned_slide,
     plan_json_from_confirmed_framework,
@@ -1042,6 +1043,10 @@ class MemoryDataStore:
         user_id: UUID,
     ) -> dict[str, Any]:
         framework_json = load_framework_stub_template(opportunity_id)
+        apply_persisted_intake_to_framework(
+            framework_json,
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id),
+        )
         return self.create_framework_version(
             opportunity_id=opportunity_id,
             user_id=user_id,
