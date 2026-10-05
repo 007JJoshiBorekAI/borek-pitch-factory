@@ -27,6 +27,7 @@ Single source of truth for all cross-service data contracts.
 | `stage2_outputs.schema.json` | BT-36 | Same: retrieve envelope on `main` |
 | `meeting_feedback.schema.json` | BT-36 | Complete |
 | `meeting_extraction.schema.json` | BT-44 | Complete |
+| `ppt2_context.schema.json` | BT-46 | Complete |
 | `email_draft.schema.json` | TSK-013 | Complete |
 
 ## Validation gate

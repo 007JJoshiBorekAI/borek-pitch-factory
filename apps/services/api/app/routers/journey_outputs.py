@@ -42,6 +42,7 @@ from app.services.meeting_extraction import (
     get_meeting_extraction,
     personal_notes_view,
 )
+from app.services.ppt2_context import build_ppt2_context
 from app.services.use_case_selection import (
     get_selected_use_cases,
     list_available_use_cases,
@@ -448,6 +449,19 @@ def write_selected_use_cases(
         document_id=",".join(stored["use_case_ids"]) if stored["use_case_ids"] else "0",
     )
     return stored
+
+
+@router.get("/{opportunity_id}/ppt2-context")
+def read_ppt2_context(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return build_ppt2_context(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
 
 
 @router.get("/{opportunity_id}/client-preparation-email")

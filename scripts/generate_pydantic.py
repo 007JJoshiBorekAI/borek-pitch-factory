@@ -54,6 +54,7 @@ SCHEMAS = [
     ("meeting_feedback.schema.json", "meeting_feedback.py"),
     ("discovery_paper.schema.json", "discovery_paper.py"),
     ("meeting_extraction.schema.json", "meeting_extraction.py"),
+    ("ppt2_context.schema.json", "ppt2_context.py"),
 ]
 
 

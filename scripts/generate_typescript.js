@@ -49,6 +49,7 @@ const SCHEMAS = [
   ["meeting_feedback.schema.json", "meeting_feedback.ts"],
   ["discovery_paper.schema.json", "discovery_paper.ts"],
   ["meeting_extraction.schema.json", "meeting_extraction.ts"],
+  ["ppt2_context.schema.json", "ppt2_context.ts"],
 ];
 
 function loadChapterRegistry() {
@@ -169,6 +170,7 @@ export type { EmailDraftEnvelope } from "./email_draft";
 export type { MeetingFeedback } from "./meeting_feedback";
 export type { DiscoveryPaper } from "./discovery_paper";
 export type { MeetingExtraction } from "./meeting_extraction";
+export type { Ppt2Context } from "./ppt2_context";
 `;
   fs.writeFileSync(path.join(OUT_DIR, "index.ts"), `${indexContent}\n`, "utf8");
 }
