@@ -69,6 +69,9 @@ EXPECTED_COLUMNS = {
         "personal_notes_updated_at",
         "meeting_extraction",
         "selected_use_case_ids",
+        "first_meeting_completed_at",
+        "owner_reviewed_at",
+        "finalized_at",
         "demo_marker",
     ),
     "transcript_summaries": (

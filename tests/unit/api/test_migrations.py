@@ -271,6 +271,19 @@ def test_bt42_discovery_paper_versions() -> None:
     assert "discovery_paper_versions_approved_immutable" in content
 
 
+def test_bt47_workflow_status_lineage() -> None:
+    content = (MIGRATIONS_DIR / "038_bt47_workflow_status_lineage.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS first_meeting_completed_at TIMESTAMPTZ" in content
+    assert "ADD COLUMN IF NOT EXISTS owner_reviewed_at TIMESTAMPTZ" in content
+    assert "ADD COLUMN IF NOT EXISTS finalized_at TIMESTAMPTZ" in content
+    assert "'first_contact'" in content
+    assert "'deepening'" in content
+    assert "'concretisation'" in content
+    assert "'post_meeting'" in content
+    assert "presentation_versions_journey_stage_check" in content
+    assert "CREATE TABLE" not in content
+
+
 def test_bt45_selected_use_case_ids() -> None:
     content = (MIGRATIONS_DIR / "037_bt45_selected_use_cases.sql").read_text(encoding="utf-8")
     assert "ADD COLUMN IF NOT EXISTS selected_use_case_ids JSONB" in content

@@ -43,6 +43,12 @@ from app.services.meeting_extraction import (
     personal_notes_view,
 )
 from app.services.ppt2_context import build_ppt2_context
+from app.services.workflow_status import (
+    build_workflow_status,
+    mark_finalized,
+    mark_first_meeting_completed,
+    mark_owner_reviewed,
+)
 from app.services.use_case_selection import (
     get_selected_use_cases,
     list_available_use_cases,
@@ -458,6 +464,58 @@ def read_ppt2_context(
     store: DataStoreDep,
 ) -> dict:
     return build_ppt2_context(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.get("/{opportunity_id}/workflow-status")
+def read_workflow_status(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return build_workflow_status(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.post("/{opportunity_id}/workflow/first-meeting-completed")
+def post_first_meeting_completed(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return mark_first_meeting_completed(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.post("/{opportunity_id}/workflow/owner-reviewed")
+def post_owner_reviewed(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return mark_owner_reviewed(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.post("/{opportunity_id}/workflow/finalize")
+def post_workflow_finalized(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return mark_finalized(
         store,
         opportunity_id=opportunity_id,
         user_id=user.id,
