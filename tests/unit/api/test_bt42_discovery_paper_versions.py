@@ -553,8 +553,13 @@ def test_supabase_edit_after_approval_forks_one_draft(monkeypatch) -> None:
 
 
 def test_bt42_does_not_gate_presentation_generation() -> None:
-    source = (ROOT / "apps/services/api/app/services/presentation_generation.py").read_text(encoding="utf-8")
+    import inspect
+
+    from app.services.presentation_generation import enqueue_presentation_generate
+
+    source = inspect.getsource(enqueue_presentation_generate)
     assert "discovery_paper" not in source
+    assert "DISCOVERY_PAPER_APPROVAL_REQUIRED" not in source
 
 
 def _supabase_store(monkeypatch) -> SupabaseDataStore:

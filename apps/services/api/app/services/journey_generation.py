@@ -314,14 +314,22 @@ def generate_stage1_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) 
             on_enqueued=mark_queued,
         )
     except Exception as exc:
+        detail = getattr(exc, "detail", None)
+        eligibility_code = detail.get("code") if isinstance(detail, dict) else None
         _stage1_presentation_update(
             store,
             opportunity_id=opportunity_id,
             user_id=user_id,
             status="failed",
             presentation_id=queued_presentation_id,
-            code=str(getattr(exc, "code", None) or "PRESENTATION_GENERATION_FAILED"),
+            code=str(
+                eligibility_code
+                or getattr(exc, "code", None)
+                or "PRESENTATION_GENERATION_FAILED"
+            ),
         )
+        if eligibility_code == "DISCOVERY_PAPER_APPROVAL_REQUIRED":
+            raise
     refreshed = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     return refreshed.get("stage1_outputs") or payload
 

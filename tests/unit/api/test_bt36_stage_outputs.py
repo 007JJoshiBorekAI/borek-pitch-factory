@@ -48,6 +48,19 @@ def followup_statics() -> dict:
     }
 
 
+def approve_discovery_paper(client: TestClient, opportunity_id: str) -> None:
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/discovery-paper/generate",
+        headers=headers(),
+    )
+    assert generated.status_code == 200, generated.text
+    approved = client.post(
+        f"/opportunities/{opportunity_id}/discovery-paper/approve",
+        headers=headers(),
+    )
+    assert approved.status_code == 200, approved.text
+
+
 def create_opportunity(client: TestClient) -> str:
     response = client.post(
         "/opportunities",
@@ -89,6 +102,7 @@ def test_stage1_outputs_require_document_and_persist() -> None:
         files={"file": ("brief.txt", b"Client background material.", "text/plain")},
     )
     assert upload.status_code == 201, upload.text
+    approve_discovery_paper(client, opportunity_id)
     generated = client.post(
         f"/opportunities/{opportunity_id}/stage1-outputs/generate",
         headers=headers(),
@@ -145,6 +159,7 @@ def test_stage1_presentation_failure_is_persisted_and_retryable(monkeypatch) -> 
         files={"file": ("brief.txt", b"Client background material.", "text/plain")},
     )
     assert upload.status_code == 201, upload.text
+    approve_discovery_paper(client, opportunity_id)
 
     from app.services import presentation_generation
 
@@ -283,6 +298,7 @@ def test_client_preparation_email_after_brief() -> None:
         files={"file": ("brief.txt", b"Client background material.", "text/plain")},
     )
     assert upload.status_code == 201, upload.text
+    approve_discovery_paper(client, opportunity_id)
     stage1 = client.post(
         f"/opportunities/{opportunity_id}/stage1-outputs/generate",
         headers=headers(),
@@ -359,6 +375,7 @@ def test_stage1_outputs_unlock_deepening_without_first_contact_deck() -> None:
         headers=headers(),
         files={"file": ("brief.txt", b"Client background material.", "text/plain")},
     )
+    approve_discovery_paper(client, opportunity_id)
     generated = client.post(
         f"/opportunities/{opportunity_id}/stage1-outputs/generate",
         headers=headers(),

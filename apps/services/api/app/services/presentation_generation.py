@@ -465,6 +465,31 @@ def enqueue_presentation_generate(
     return presentation, plan, job, False
 
 
+def _require_approved_discovery_paper(
+    store: DataStore,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+) -> None:
+    """PPT #1 requires an approved Discovery Paper version before any deck side effect."""
+    from app.services.discovery_paper import get_latest_approved_discovery_paper
+
+    try:
+        get_latest_approved_discovery_paper(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+        )
+    except HTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        if exc.status_code == 404 and detail.get("code") == "DISCOVERY_PAPER_NOT_APPROVED":
+            raise bad_request(
+                "DISCOVERY_PAPER_APPROVAL_REQUIRED",
+                "An approved Discovery Paper is required before PPT #1 can be generated.",
+            ) from exc
+        raise
+
+
 def enqueue_first_contact_presentation_generate(
     store: DataStore,
     *,
@@ -473,6 +498,11 @@ def enqueue_first_contact_presentation_generate(
     on_enqueued: Callable[[dict[str, Any], job_service.Job], None] | None = None,
 ):
     """Create the frozen three-slide BT-36 plan and run the standard deck pipeline."""
+    _require_approved_discovery_paper(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+    )
     try:
         framework = store.get_latest_framework(
             opportunity_id=opportunity_id,

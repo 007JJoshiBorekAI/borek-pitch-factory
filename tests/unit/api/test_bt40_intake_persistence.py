@@ -35,6 +35,19 @@ UPDATED = {
 }
 
 
+def approve_discovery_paper(client: TestClient, opportunity_id: str) -> None:
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/discovery-paper/generate",
+        headers=headers(),
+    )
+    assert generated.status_code == 200, generated.text
+    approved = client.post(
+        f"/opportunities/{opportunity_id}/discovery-paper/approve",
+        headers=headers(),
+    )
+    assert approved.status_code == 200, approved.text
+
+
 def headers() -> dict[str, str]:
     return {
         "Authorization": "Bearer "
@@ -299,6 +312,7 @@ def test_discovery_rereads_the_saved_opportunity_not_the_create_request() -> Non
             files={"file": ("brief.txt", b"Client background material.", "text/plain")},
         )
         assert upload.status_code == 201, upload.text
+        approve_discovery_paper(client, opportunity_id)
         generated = client.post(
             f"/opportunities/{opportunity_id}/stage1-outputs/generate",
             headers=headers(),
@@ -342,6 +356,7 @@ def test_discovery_falls_back_to_opportunity_name_without_rewriting_it() -> None
             files={"file": ("brief.txt", b"Client background material.", "text/plain")},
         )
         assert upload.status_code == 201, upload.text
+        approve_discovery_paper(client, opportunity_id)
         generated = client.post(
             f"/opportunities/{opportunity_id}/stage1-outputs/generate",
             headers=headers(),
@@ -411,6 +426,7 @@ def test_fixture_framework_and_presentation_use_saved_intake() -> None:
             files={"file": ("brief.txt", b"Client background material.", "text/plain")},
         )
         assert upload.status_code == 201, upload.text
+        approve_discovery_paper(client, opportunity_id)
         generated = client.post(
             f"/opportunities/{opportunity_id}/stage1-outputs/generate",
             headers=headers(),
