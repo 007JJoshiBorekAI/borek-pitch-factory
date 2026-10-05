@@ -216,6 +216,38 @@ def load_prior_stage_context_for_version(
     )
 
 
+def reject_owner_concretisation(journey_stage: str | None) -> None:
+    """Owner start routes cannot open Concretisation. Historical rows stay readable."""
+    if journey_stage == "concretisation":
+        from app.services.api_errors import bad_request
+
+        raise bad_request(
+            "CONCRETISATION_NOT_IN_OWNER_WORKFLOW",
+            "Concretisation is not part of the owner workflow.",
+        )
+
+
+def apply_owner_concretisation_policy(payload: dict[str, Any]) -> dict[str, Any]:
+    """Keep the three-stage contract, and never offer Concretisation as startable."""
+    stages = []
+    for row in payload["stages"]:
+        if row["journey_stage"] == "concretisation":
+            row = {**row, "startable": False, "next_action": "owner_stage_removed"}
+        stages.append(row)
+    updated = {**payload, "stages": stages}
+    if updated.get("requested_journey_stage") == "concretisation":
+        selected = next(row for row in stages if row["journey_stage"] == "concretisation")
+        updated = {
+            **updated,
+            "startable": False,
+            "next_action": "owner_stage_removed",
+            "prerequisite_stage": selected["prerequisite_stage"],
+            "prior_stage_presentation_version_id": selected["prior_stage_presentation_version_id"],
+            "reason": selected["reason"],
+        }
+    return updated
+
+
 def eligibility_response(payload: dict[str, Any]) -> JourneyStageEligibilityResponse:
     return JourneyStageEligibilityResponse.model_validate(payload)
 

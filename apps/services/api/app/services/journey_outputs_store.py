@@ -19,7 +19,24 @@ JOURNEY_OUTPUT_DB_COLUMNS = (
     "first_meeting_completed_at",
     "owner_reviewed_at",
     "finalized_at",
+    "finalization_snapshot",
 )
+
+
+def reject_finalization_snapshot_change(current: dict[str, Any], updates: dict[str, Any]) -> None:
+    """A written finalization snapshot stays byte-for-byte until a future ticket says otherwise."""
+    if "finalization_snapshot" not in updates:
+        return
+    existing = current.get("finalization_snapshot")
+    if existing is None:
+        return
+    if updates["finalization_snapshot"] != existing:
+        from app.services.api_errors import conflict
+
+        raise conflict(
+            "FINALIZATION_SNAPSHOT_IMMUTABLE",
+            "The finalization snapshot cannot be changed after it is written.",
+        )
 
 
 def strip_journey_output_columns(row: dict[str, Any]) -> dict[str, Any]:

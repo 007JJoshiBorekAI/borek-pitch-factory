@@ -271,6 +271,14 @@ def test_bt42_discovery_paper_versions() -> None:
     assert "discovery_paper_versions_approved_immutable" in content
 
 
+def test_bt48_finalization_snapshot_column() -> None:
+    content = (MIGRATIONS_DIR / "039_bt48_finalization_owner_flow.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS finalization_snapshot JSONB" in content
+    assert "Finalization snapshot is immutable" in content
+    assert "opportunities_finalization_snapshot_immutable" in content
+    assert "CREATE TABLE" not in content
+
+
 def test_bt47_workflow_status_lineage() -> None:
     content = (MIGRATIONS_DIR / "038_bt47_workflow_status_lineage.sql").read_text(encoding="utf-8")
     assert "ADD COLUMN IF NOT EXISTS first_meeting_completed_at TIMESTAMPTZ" in content

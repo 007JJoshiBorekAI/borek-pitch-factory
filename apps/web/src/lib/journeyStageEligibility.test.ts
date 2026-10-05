@@ -88,28 +88,31 @@ assert.equal(canSubmitJourneyStage(NEW_CLIENT_ELIGIBILITY, "first_contact"), tru
 assert.equal(canSubmitJourneyStage(NEW_CLIENT_ELIGIBILITY, "deepening"), false);
 assert.equal(canSubmitJourneyStage(NEW_CLIENT_ELIGIBILITY, "concretisation"), false);
 
+assert.deepEqual(
+  JOURNEY_STAGE_CATALOG.map((entry) => entry.id),
+  ["first_contact", "deepening"],
+);
+
 const newClientOptions = visibleJourneyStages(NEW_CLIENT_ELIGIBILITY);
 assert.deepEqual(
   newClientOptions.map((row) => [row.label, row.startable, row.lockReason]),
   [
     ["First contact", true, null],
     ["Deepening", false, "Generate a First contact pack for this client first."],
-    ["Concretisation", false, "Generate a Deepening pitch for this client first."],
   ],
 );
+assert.equal(newClientOptions.some((row) => row.id === "concretisation"), false);
 
 const deepeningOptions = visibleJourneyStages(deepeningUnlocked);
 assert.equal(deepeningOptions.find((row) => row.id === "deepening")?.startable, true);
 assert.equal(canSubmitJourneyStage(deepeningUnlocked, "deepening"), true);
 assert.equal(canSubmitJourneyStage(deepeningUnlocked, "concretisation"), false);
-assert.equal(
-  deepeningOptions.find((row) => row.id === "concretisation")?.lockReason,
-  "Generate a Deepening pitch for this client first.",
-);
+assert.equal(deepeningOptions.some((row) => row.id === "concretisation"), false);
 
 const allOpen = visibleJourneyStages(concretisationUnlocked);
 assert.equal(allOpen.every((row) => row.startable), true);
-assert.equal(canSubmitJourneyStage(concretisationUnlocked, "concretisation"), true);
+assert.equal(allOpen.some((row) => row.id === "concretisation"), false);
+assert.equal(canSubmitJourneyStage(concretisationUnlocked, "concretisation"), false);
 
 assert.throws(() => requireEligibilityPayload({ completedDecks: ["first_contact"] }), {
   message: BT31_ELIGIBILITY_ERROR,
@@ -146,14 +149,10 @@ const withoutDeepening = visibleJourneyStages(
 );
 assert.deepEqual(
   withoutDeepening.map((row) => row.label),
-  ["First contact", "Concretisation"],
+  ["First contact"],
 );
 assert.equal(withoutDeepening.find((row) => row.id === "first_contact")?.startable, true);
-assert.equal(withoutDeepening.find((row) => row.id === "concretisation")?.startable, false);
-assert.equal(
-  withoutDeepening.find((row) => row.id === "concretisation")?.lockReason,
-  "Generate a Deepening pitch for this client first.",
-);
+assert.equal(withoutDeepening.some((row) => row.id === "concretisation"), false);
 assert.equal(
   canSubmitJourneyStage(
     NEW_CLIENT_ELIGIBILITY,

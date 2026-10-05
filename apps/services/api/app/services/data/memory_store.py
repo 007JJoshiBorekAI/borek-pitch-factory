@@ -22,7 +22,10 @@ from app.services.stage_b_orchestration import (
     plan_json_from_confirmed_framework,
     planned_slides_with_generators,
 )
-from app.services.journey_outputs_store import JOURNEY_OUTPUT_DB_COLUMNS
+from app.services.journey_outputs_store import (
+    JOURNEY_OUTPUT_DB_COLUMNS,
+    reject_finalization_snapshot_change,
+)
 from app.services.stage1_intake_store import (
     STAGE1_DB_COLUMNS,
     apply_intake_columns,
@@ -475,6 +478,7 @@ class MemoryDataStore:
         if row is None or not user_can_access_opportunity(row, user_id):
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
         expanded = expand_opportunity_updates(dict(updates))
+        reject_finalization_snapshot_change(row, expanded)
         for key, value in expanded.items():
             if value is not None or key in {
                 "additional_client_information",

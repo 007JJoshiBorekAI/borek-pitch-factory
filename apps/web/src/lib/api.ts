@@ -745,6 +745,7 @@ export interface JourneyStageEligibilityItem {
     | "complete_deepening"
     | "regenerate_prior_stage"
     | "select_journey_stage"
+    | "owner_stage_removed"
     | null;
 }
 

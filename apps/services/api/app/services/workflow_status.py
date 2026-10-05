@@ -1,7 +1,8 @@
-"""BT-47: derived Discovery-first workflow status and document lineage. No deck generation."""
+"""BT-47 workflow status, with BT-48 frozen final-package identities. No deck generation."""
 
 from __future__ import annotations
 
+import copy
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,6 +16,7 @@ from jsonschema import FormatChecker
 from app.services.api_errors import bad_request
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.discovery_paper import get_latest_approved_discovery_paper
+from app.services.meeting_extraction import personal_notes_view
 from services.framework.stage1_intake import intake_from_opportunity
 
 CONTRACTS = Path(__file__).resolve().parents[5] / "packages" / "contracts"
@@ -111,7 +113,32 @@ def mark_finalized(
             "OWNER_REVIEW_REQUIRED",
             "Owner review must be recorded before the workflow can be finalized.",
         )
-    _stamp(store, opportunity_id=opportunity_id, user_id=user_id, column="finalized_at")
+    facts = _facts(store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id)
+    if facts["live_approved"] is None:
+        raise bad_request(
+            "DISCOVERY_PAPER_APPROVAL_REQUIRED",
+            "An approved Discovery Paper is required before the workflow can be finalized.",
+        )
+    ppt2 = facts["live_ppt2"]
+    if ppt2 is None or ppt2["latest_ready_version_id"] is None:
+        raise bad_request(
+            "PPT2_NOT_GENERATED",
+            "PPT #2 must be generated before the workflow can be finalized.",
+        )
+    captured_at = _now()
+    snapshot = _capture_snapshot(
+        opportunity,
+        facts=facts,
+        captured_at=captured_at,
+    )
+    store.update_opportunity(
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        updates={
+            "finalized_at": captured_at,
+            "finalization_snapshot": snapshot,
+        },
+    )
     record_audit_event(
         store,
         actor_id=user_id,
@@ -120,6 +147,117 @@ def mark_finalized(
         object_id=opportunity_id,
     )
     return build_workflow_status(store, opportunity_id=opportunity_id, user_id=user_id)
+
+
+def _capture_snapshot(
+    opportunity: dict[str, Any],
+    *,
+    facts: dict[str, Any],
+    captured_at: str,
+) -> dict[str, Any]:
+    """Record artifact ids and the source revisions visible at this moment.
+
+    observed_sources are not a PPT #2 generation manifest. JJ-35 has not
+    persisted one, so ppt2_generation_source_manifest stays null.
+    """
+    approved = facts["live_approved"]
+    ppt2 = facts["live_ppt2"]
+    ppt1 = facts["live_ppt1"]
+    ppt1_presentation_id = None
+    ppt1_version_id = None
+    if ppt1 is not None and ppt1.get("latest_ready_version_id"):
+        ppt1_presentation_id = ppt1["presentation_id"]
+        ppt1_version_id = ppt1["latest_ready_version_id"]
+    extraction = opportunity.get("meeting_extraction")
+    if isinstance(extraction, dict) and extraction.get("generated_at"):
+        raw_transcript = extraction.get("transcript_id")
+        transcript_id = None if raw_transcript in (None, "") else str(raw_transcript)
+        generated_at = _iso(extraction.get("generated_at"))
+        extraction_notes = _iso(extraction.get("personal_notes_updated_at"))
+    else:
+        transcript_id = None
+        generated_at = None
+        extraction_notes = None
+    notes = personal_notes_view(opportunity)
+    selected = opportunity.get("selected_use_case_ids") or []
+    snapshot = {
+        "schema_version": "1.0",
+        "captured_at": captured_at,
+        "approved_discovery_version_id": approved["version_id"],
+        "ppt1_presentation_id": ppt1_presentation_id,
+        "ppt1_version_id": ppt1_version_id,
+        "ppt2_presentation_id": ppt2["presentation_id"],
+        "ppt2_version_id": ppt2["latest_ready_version_id"],
+        "observed_sources": {
+            "transcript_id": transcript_id,
+            "meeting_extraction_generated_at": generated_at,
+            "extraction_notes_revision": extraction_notes,
+            "personal_notes_updated_at": notes["updated_at"],
+            "selected_use_case_ids": [str(item) for item in selected],
+        },
+        "ppt2_generation_source_manifest": None,
+    }
+    return _validate_snapshot(snapshot)
+
+
+def _stored_snapshot(opportunity: dict[str, Any]) -> dict[str, Any] | None:
+    raw = opportunity.get("finalization_snapshot")
+    if isinstance(raw, str):
+        raw = json.loads(raw)
+    if not isinstance(raw, dict):
+        return None
+    return copy.deepcopy(raw)
+
+
+def _approved_from_snapshot(
+    store: Any,
+    *,
+    snapshot: dict[str, Any],
+    user_id: UUID,
+) -> dict[str, Any]:
+    row = store.get_discovery_paper_version(
+        version_id=UUID(str(snapshot["approved_discovery_version_id"])),
+        user_id=user_id,
+    )
+    return {
+        "version_id": str(row["id"]),
+        "version_number": row["version_number"],
+        "document_id": str(row["document_id"]),
+        "approved_at": _iso(row.get("approved_at")),
+    }
+
+
+def _deck_from_snapshot(
+    store: Any,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    presentation_id: Any,
+    version_id: Any,
+    journey_stage: str,
+) -> dict[str, Any] | None:
+    if presentation_id in (None, "") or version_id in (None, ""):
+        return None
+    match = next(
+        (
+            row
+            for row in _versions_for(
+                store,
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+                presentation_id=str(presentation_id),
+            )
+            if str(row.get("id")) == str(version_id)
+        ),
+        None,
+    )
+    return {
+        "presentation_id": str(presentation_id),
+        "latest_ready_version_id": str(version_id),
+        "journey_stage": journey_stage,
+        "status": "ready" if match is None else str(match.get("status") or "ready"),
+        "ready_at": None if match is None else _iso(match.get("created_at")),
+    }
 
 
 def _stamp(store: Any, *, opportunity_id: UUID, user_id: UUID, column: str) -> None:
@@ -147,6 +285,28 @@ def _facts(
         user_id=user_id,
         ppt1_presentation_id=None if ppt1 is None else ppt1["presentation_id"],
     )
+    snapshot = _stored_snapshot(opportunity)
+    package_approved = approved
+    package_ppt1 = ppt1
+    package_ppt2 = ppt2
+    if snapshot is not None:
+        package_approved = _approved_from_snapshot(store, snapshot=snapshot, user_id=user_id)
+        package_ppt1 = _deck_from_snapshot(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            presentation_id=snapshot.get("ppt1_presentation_id"),
+            version_id=snapshot.get("ppt1_version_id"),
+            journey_stage="first_contact",
+        )
+        package_ppt2 = _deck_from_snapshot(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            presentation_id=snapshot.get("ppt2_presentation_id"),
+            version_id=snapshot.get("ppt2_version_id"),
+            journey_stage="post_meeting",
+        )
     return {
         "client_information": intake_from_opportunity(opportunity) is not None,
         "discovery_prepared": approved is not None,
@@ -156,14 +316,18 @@ def _facts(
         "ppt2_generated": ppt2 is not None and ppt2["latest_ready_version_id"] is not None,
         "owner_review": _iso(opportunity.get("owner_reviewed_at")) is not None,
         "finalized": _iso(opportunity.get("finalized_at")) is not None,
-        "approved": approved,
+        "live_approved": approved,
+        "live_ppt1": ppt1,
+        "live_ppt2": ppt2,
+        "approved": package_approved,
         "draft": draft,
-        "ppt1": ppt1,
-        "ppt2": ppt2,
+        "ppt1": package_ppt1,
+        "ppt2": package_ppt2,
         "transcripts": transcripts,
         "first_meeting_completed_at": _iso(opportunity.get("first_meeting_completed_at")),
         "owner_reviewed_at": _iso(opportunity.get("owner_reviewed_at")),
         "finalized_at": _iso(opportunity.get("finalized_at")),
+        "finalization": snapshot,
         "opportunity_id": str(opportunity_id),
     }
 
@@ -183,6 +347,7 @@ def _status(opportunity_id: UUID, facts: dict[str, Any]) -> dict[str, Any]:
             "ppt1": _public_deck(facts["ppt1"]),
             "ppt2": _public_deck(facts["ppt2"]),
         },
+        "finalization": copy.deepcopy(facts["finalization"]),
     }
     return _validate(payload)
 
@@ -461,5 +626,11 @@ def _iso(value: Any) -> str | None:
 
 def _validate(payload: dict[str, Any]) -> dict[str, Any]:
     schema = json.loads((CONTRACTS / "workflow_status.schema.json").read_text(encoding="utf-8"))
+    jsonschema.Draft202012Validator(schema, format_checker=_FORMAT_CHECKER).validate(payload)
+    return payload
+
+
+def _validate_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
+    schema = json.loads((CONTRACTS / "finalization_snapshot.schema.json").read_text(encoding="utf-8"))
     jsonschema.Draft202012Validator(schema, format_checker=_FORMAT_CHECKER).validate(payload)
     return payload

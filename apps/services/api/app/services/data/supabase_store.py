@@ -704,10 +704,15 @@ class SupabaseDataStore:
         user_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
-        from app.services.journey_outputs_store import JOURNEY_OUTPUT_DB_COLUMNS
+        from app.services.journey_outputs_store import (
+            JOURNEY_OUTPUT_DB_COLUMNS,
+            reject_finalization_snapshot_change,
+        )
         from app.services.stage1_intake_store import STAGE1_DB_COLUMNS, expand_opportunity_updates
 
+        current = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         expanded = expand_opportunity_updates(dict(updates))
+        reject_finalization_snapshot_change(current, expanded)
         payload = {
             key: value
             for key, value in expanded.items()

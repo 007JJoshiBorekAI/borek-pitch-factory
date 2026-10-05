@@ -76,13 +76,11 @@ const newClientHtml = renderToStaticMarkup(
 );
 assert.match(newClientHtml, /First contact/);
 assert.match(newClientHtml, /Deepening/);
-assert.match(newClientHtml, /Concretisation/);
+assert.doesNotMatch(newClientHtml, /Concretisation/);
 assert.match(newClientHtml, /Generate a First contact pack for this client first/);
-assert.match(newClientHtml, /Generate a Deepening pitch for this client first/);
 assert.equal(radioChecked(newClientHtml, "First contact"), true);
 assert.equal(radioDisabled(newClientHtml, "First contact"), false);
 assert.equal(radioDisabled(newClientHtml, "Deepening"), true);
-assert.equal(radioDisabled(newClientHtml, "Concretisation"), true);
 const newClientVisible = newClientHtml.replace(/<input[^>]*>/g, "");
 assert.doesNotMatch(newClientVisible, /first_contact|template_id|\bgamma\b/);
 
@@ -95,7 +93,7 @@ const deepeningHtml = renderToStaticMarkup(
 );
 assert.equal(radioDisabled(deepeningHtml, "Deepening"), false);
 assert.equal(radioChecked(deepeningHtml, "Deepening"), true);
-assert.equal(radioDisabled(deepeningHtml, "Concretisation"), true);
+assert.doesNotMatch(deepeningHtml, /Concretisation/);
 
 const openHtml = renderToStaticMarkup(
   <JourneyStageSelector
@@ -104,8 +102,7 @@ const openHtml = renderToStaticMarkup(
     onSelect={() => undefined}
   />,
 );
-assert.equal(radioDisabled(openHtml, "Concretisation"), false);
-assert.equal(radioChecked(openHtml, "Concretisation"), true);
+assert.doesNotMatch(openHtml, /Concretisation/);
 
 assert.throws(() =>
   renderToStaticMarkup(
@@ -126,9 +123,8 @@ const twoStageHtml = renderToStaticMarkup(
   />,
 );
 assert.match(twoStageHtml, /First contact/);
-assert.match(twoStageHtml, /Concretisation/);
+assert.doesNotMatch(twoStageHtml, /Concretisation/);
 assert.doesNotMatch(twoStageHtml, />Deepening</);
-assert.equal(radioDisabled(twoStageHtml, "Concretisation"), true);
 
 const choice = renderToStaticMarkup(<JourneyStageChoice stage="first_contact" />);
 assert.match(choice, /This presentation: First contact/);

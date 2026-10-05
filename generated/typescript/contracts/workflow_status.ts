@@ -22,7 +22,7 @@ export type DeckLineage = {
 } | null;
 
 /**
- * BT-47 authoritative Discovery-first workflow status and document lineage. current_status is the earliest incomplete step. Later evidence stays visible. This object is derived on read except for three stored milestone timestamps.
+ * BT-47 authoritative Discovery-first workflow status and document lineage. current_status is the earliest incomplete step. Later evidence stays visible. Before finalization, document lineage is live. After finalization, the final package identities come from finalization and do not follow later approvals or deck versions. The live Discovery draft stays separate.
  */
 export interface WorkflowStatus {
   schema_version: "1.0";
@@ -34,6 +34,10 @@ export interface WorkflowStatus {
    */
   steps: [Step, Step, Step, Step, Step, Step, Step, Step];
   documents: Documents;
+  /**
+   * Null until the first successful finalize. Afterwards this is the frozen BT-48 package. observed_sources are revisions seen at finalization, not a PPT #2 generation manifest.
+   */
+  finalization: null | FinalizationSnapshot;
 }
 export interface Step {
   key: StepKey;
@@ -56,4 +60,21 @@ export interface Documents {
   } | null;
   ppt1: DeckLineage;
   ppt2: DeckLineage;
+}
+export interface FinalizationSnapshot {
+  schema_version: "1.0";
+  captured_at: string;
+  approved_discovery_version_id: string;
+  ppt1_presentation_id: string | null;
+  ppt1_version_id: string | null;
+  ppt2_presentation_id: string;
+  ppt2_version_id: string;
+  observed_sources: {
+    transcript_id: string | null;
+    meeting_extraction_generated_at: string | null;
+    extraction_notes_revision: string | null;
+    personal_notes_updated_at: string | null;
+    selected_use_case_ids: string[];
+  };
+  ppt2_generation_source_manifest: null;
 }

@@ -212,7 +212,7 @@ def test_bt30_english_first_contact_gamma_happy_path(
     assert after["prior_stage_presentation_version_id"] == presentation_version_id
     concretisation = _eligibility(client, headers, opportunity_id, "concretisation")
     assert concretisation["startable"] is False
-    assert concretisation["next_action"] == "complete_deepening"
+    assert concretisation["next_action"] == "owner_stage_removed"
 
     filed = client.get(f"/opportunities/{opportunity_id}/filed-artifacts", headers=headers)
     assert filed.status_code == 200, filed.text
@@ -326,7 +326,8 @@ def test_bt30_deepening_unlocks_after_completed_first_contact(
     assert deepening_job_id
 
     unlocked = _eligibility(client, headers, first.opportunity_id, "concretisation")
-    assert unlocked["startable"] is True
+    assert unlocked["startable"] is False
+    assert unlocked["next_action"] == "owner_stage_removed"
     assert unlocked["prior_stage_presentation_version_id"] == str(deepening["id"])
 
 

@@ -575,6 +575,9 @@ def post_email_drafts(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> dict:
+    from app.services.journey_stage import reject_owner_concretisation
+
+    reject_owner_concretisation(body.journey_stage)
     record_audit_event(
         store,
         actor_id=user.id,

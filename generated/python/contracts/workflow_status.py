@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 
 
 class StepKey(Enum):
@@ -70,6 +70,36 @@ class DeckLineage(BaseModel):
     status: str = Field(..., min_length=1)
 
 
+class SelectedUseCaseId(RootModel[str]):
+    root: str = Field(..., min_length=1)
+
+
+class ObservedSources(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    transcript_id: UUID | None
+    meeting_extraction_generated_at: AwareDatetime | None
+    extraction_notes_revision: AwareDatetime | None
+    personal_notes_updated_at: AwareDatetime | None
+    selected_use_case_ids: list[SelectedUseCaseId]
+
+
+class FinalizationSnapshot(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    schema_version: Literal['1.0']
+    captured_at: AwareDatetime
+    approved_discovery_version_id: UUID
+    ppt1_presentation_id: UUID | None
+    ppt1_version_id: UUID | None
+    ppt2_presentation_id: UUID
+    ppt2_version_id: UUID
+    observed_sources: ObservedSources
+    ppt2_generation_source_manifest: None
+
+
 class Documents(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -89,3 +119,7 @@ class WorkflowStatus(BaseModel):
     current_status: StepKey
     steps: list[Step] = Field(..., max_length=8, min_length=8)
     documents: Documents
+    finalization: FinalizationSnapshot | None = Field(
+        ...,
+        description='Null until the first successful finalize. Afterwards this is the frozen BT-48 package. observed_sources are revisions seen at finalization, not a PPT #2 generation manifest.',
+    )

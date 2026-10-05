@@ -7,8 +7,9 @@ export interface JourneyStageCatalogEntry {
 }
 
 /**
- * Visible journey options. Removing Deepening is a config change here,
- * not a rewrite of the selector. BT-31 still owns the lock flags.
+ * Owner-facing journey options. Concretisation stays in the API union so
+ * historical records can be decoded, and it is not offered here.
+ * BT-31 still owns the lock flags for the stages that remain.
  */
 export const JOURNEY_STAGE_CATALOG: readonly JourneyStageCatalogEntry[] = [
   {
@@ -20,11 +21,6 @@ export const JOURNEY_STAGE_CATALOG: readonly JourneyStageCatalogEntry[] = [
     id: "deepening",
     label: "Deepening",
     description: "A tailored pitch that continues from the First contact pack.",
-  },
-  {
-    id: "concretisation",
-    label: "Concretisation",
-    description: "A priced proposal that continues from the Deepening pitch.",
   },
 ];
 
@@ -38,6 +34,7 @@ export const JOURNEY_STAGE_LOCK_COPY: Record<
   complete_deepening: "Generate a Deepening pitch for this client first.",
   regenerate_prior_stage: "Regenerate the previous pack for this client first.",
   select_journey_stage: "Choose an available option to continue.",
+  owner_stage_removed: "Concretisation is not part of the owner workflow.",
 };
 
 export function catalogWithoutStage(

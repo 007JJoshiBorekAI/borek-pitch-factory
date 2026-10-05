@@ -128,24 +128,22 @@ export function stage2JourneyStage(
   eligibility: JourneyStageEligibilityResponse | null,
   selected?: JourneyStageName,
 ): JourneyStageName {
+  const ownerSelected = selected && selected !== "concretisation" ? selected : undefined;
   const startable = new Set(
     (eligibility?.stages ?? [])
-      .filter((row) => row.startable)
+      .filter((row) => row.startable && row.journey_stage !== "concretisation")
       .map((row) => row.journey_stage),
   );
-  if (selected && (startable.size === 0 || startable.has(selected))) {
-    return selected;
+  if (ownerSelected && (startable.size === 0 || startable.has(ownerSelected))) {
+    return ownerSelected;
   }
   if (startable.has("deepening")) {
     return "deepening";
   }
-  if (startable.has("concretisation")) {
-    return "concretisation";
-  }
   if (startable.has("first_contact")) {
     return "first_contact";
   }
-  return selected ?? "deepening";
+  return ownerSelected ?? "deepening";
 }
 
 export async function presentationForFramework(

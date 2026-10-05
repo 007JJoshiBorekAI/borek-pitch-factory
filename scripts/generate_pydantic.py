@@ -56,6 +56,7 @@ SCHEMAS = [
     ("meeting_extraction.schema.json", "meeting_extraction.py"),
     ("ppt2_context.schema.json", "ppt2_context.py"),
     ("workflow_status.schema.json", "workflow_status.py"),
+    ("finalization_snapshot.schema.json", "finalization_snapshot.py"),
 ]
 
 

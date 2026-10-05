@@ -72,6 +72,7 @@ EXPECTED_COLUMNS = {
         "first_meeting_completed_at",
         "owner_reviewed_at",
         "finalized_at",
+        "finalization_snapshot",
         "demo_marker",
     ),
     "transcript_summaries": (

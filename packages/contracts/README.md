@@ -29,6 +29,7 @@ Single source of truth for all cross-service data contracts.
 | `meeting_extraction.schema.json` | BT-44 | Complete |
 | `ppt2_context.schema.json` | BT-46 | Complete |
 | `workflow_status.schema.json` | BT-47 | Complete |
+| `finalization_snapshot.schema.json` | BT-48 | Complete |
 | `email_draft.schema.json` | TSK-013 | Complete |
 
 ## Validation gate

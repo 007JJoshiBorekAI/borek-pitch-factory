@@ -29,6 +29,48 @@ test("pitchReviewResultHref targets pitch review with presentation ids", () => {
   );
 });
 
+test("stage2JourneyStage does not choose concretisation when it is the only startable stage", () => {
+  assert.equal(
+    stage2JourneyStage({
+      schema_version: "1.0",
+      opportunity_id: "opp-1",
+      requested_journey_stage: "concretisation",
+      startable: true,
+      prerequisite_stage: "deepening",
+      prior_stage_presentation_version_id: "ver-deep",
+      reason: null,
+      next_action: null,
+      stages: [
+        {
+          journey_stage: "first_contact",
+          startable: false,
+          prerequisite_stage: null,
+          prior_stage_presentation_version_id: null,
+          reason: null,
+          next_action: null,
+        },
+        {
+          journey_stage: "deepening",
+          startable: false,
+          prerequisite_stage: "first_contact",
+          prior_stage_presentation_version_id: null,
+          reason: "NO_COMPLETED_PREREQUISITE",
+          next_action: "complete_first_contact",
+        },
+        {
+          journey_stage: "concretisation",
+          startable: true,
+          prerequisite_stage: "deepening",
+          prior_stage_presentation_version_id: "ver-deep",
+          reason: null,
+          next_action: null,
+        },
+      ],
+    }),
+    "deepening",
+  );
+});
+
 test("stage2JourneyStage prefers deepening when it is startable", () => {
   assert.equal(
     stage2JourneyStage({

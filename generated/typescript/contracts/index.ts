@@ -31,4 +31,5 @@ export type { DiscoveryPaper } from "./discovery_paper";
 export type { MeetingExtraction } from "./meeting_extraction";
 export type { Ppt2Context } from "./ppt2_context";
 export type { WorkflowStatus } from "./workflow_status";
+export type { FinalizationSnapshot } from "./finalization_snapshot";
 

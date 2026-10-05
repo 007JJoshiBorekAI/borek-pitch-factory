@@ -163,7 +163,8 @@ def test_eligibility_contract_is_deterministic_and_matches_schema() -> None:
         "reason": "NO_COMPLETED_PREREQUISITE",
         "next_action": "complete_first_contact",
     }
-    assert stages["concretisation"]["next_action"] == "complete_deepening"
+    assert stages["concretisation"]["startable"] is False
+    assert stages["concretisation"]["next_action"] == "owner_stage_removed"
 
 
 def test_first_contact_is_eligible_and_persists_null_prior() -> None:
@@ -294,9 +295,7 @@ def test_concretisation_locked_without_completed_deepening() -> None:
     )
     assert blocked.status_code == 400
     error = blocked.json()["error"]
-    assert error["code"] == "INPUT_REQUIRED"
-    assert error["detail"]["next_action"] == "complete_deepening"
-    assert error["detail"]["reason"] == "NO_COMPLETED_PREREQUISITE"
+    assert error["code"] == "CONCRETISATION_NOT_IN_OWNER_WORKFLOW"
     assert len(store.generation_jobs) == jobs_before
 
 
@@ -307,10 +306,18 @@ def test_concretisation_eligible_uses_deepening_lineage() -> None:
     deepening = _generate_stage(client, opportunity_id, "deepening")
     deepening_version = _latest_version(deepening["presentation_id"])
 
-    generated = _generate_stage(client, opportunity_id, "concretisation")
-    version = _latest_version(generated["presentation_id"])
-    assert version["journey_stage"] == "concretisation"
-    assert version["prior_stage_presentation_version_id"] == deepening_version["id"]
+    store = get_memory_store()
+    presentations_before = len(store.presentations)
+    jobs_before = len(store.generation_jobs)
+    blocked = client.post(
+        f"/opportunities/{opportunity_id}/presentation/generate",
+        headers=_headers(),
+        json={"journey_stage": "concretisation"},
+    )
+    assert blocked.status_code == 400
+    assert blocked.json()["error"]["code"] == "CONCRETISATION_NOT_IN_OWNER_WORKFLOW"
+    assert len(store.presentations) == presentations_before
+    assert len(store.generation_jobs) == jobs_before
 
     store = get_memory_store()
     opportunity = store.get_opportunity(
@@ -330,11 +337,8 @@ def test_concretisation_eligible_uses_deepening_lineage() -> None:
     )
     assert framework["id"]
     assert context["slots"]
-    prior = store.get_presentation_version(
-        presentation_version_id=version["prior_stage_presentation_version_id"],
-        user_id=USER_ID,
-    )
-    assert prior["journey_stage"] == "deepening"
+    assert deepening_version["journey_stage"] == "deepening"
+    assert deepening_version["prior_stage_presentation_version_id"]
 
 
 def test_incomplete_and_foreign_prior_do_not_unlock() -> None:
