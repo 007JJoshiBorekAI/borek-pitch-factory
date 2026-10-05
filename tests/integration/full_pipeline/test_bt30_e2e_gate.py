@@ -1,7 +1,6 @@
 """BT-30: new-direction end-to-end acceptance gate.
 
-Extends the BT-27 full-pipeline harness. Automated tests use the Gamma
-fixture provider; live Gamma evidence is the already-completed AT-60B run.
+Extends the BT-27 full-pipeline harness. Decks are produced by the internal renderer.
 """
 
 from __future__ import annotations
@@ -19,13 +18,10 @@ from app.main import create_app
 from app.schemas.jobs import JobStage
 from app.services import job_service
 from app.services.data.memory_store import get_memory_store
-from services.gamma.contract import GammaTimeoutError
-from services.gamma.fixture_client import FixtureGammaClient
-from services.gamma.payload import build_gamma_content_payload
 from tests.integration.full_pipeline.harness import (
     _find_backend_generation_job,
     _wait_for_job,
-    create_opportunity_with_transcript,
+    create_opportunity_with_client_document,
     generate_and_confirm_framework,
     get_active_job,
     record_job_stages,
@@ -45,10 +41,10 @@ JOB_PROGRESS_TS = ROOT / "apps" / "web" / "src" / "lib" / "jobProgress.ts"
 JOB_ERRORS_TS = ROOT / "apps" / "web" / "src" / "lib" / "jobErrors.ts"
 RECOVERY_TS = ROOT / "apps" / "web" / "src" / "lib" / "recoveryUx.ts"
 
-EXPECTED_GAMMA_GENERATION_STAGES = (
+EXPECTED_GENERATION_STAGES = (
     JobStage.SLIDE_GENERATING.value,
     JobStage.SLIDE_VALIDATING.value,
-    JobStage.GAMMA_RENDERING.value,
+    JobStage.PPTX_RENDERING.value,
     JobStage.ARTIFACT_FILING.value,
     JobStage.PREVIEW_RENDERING.value,
 )
@@ -69,8 +65,6 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(settings, "API_DATA_BACKEND", "memory")
     monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "fixture")
     monkeypatch.setattr(settings, "RENDERER_EXECUTION_MODE", "fixture")
-    monkeypatch.setattr(settings, "PRESENTATION_ENGINE", "gamma")
-    monkeypatch.setattr(settings, "GAMMA_EXECUTION_MODE", "fixture")
     monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
     return TestClient(create_app())
 
@@ -138,11 +132,11 @@ def _continue_automated_build(
     return generation_job_id, presentation_id, stages_for_job(recorded, generation_job_id)
 
 
-def test_bt30_english_first_contact_gamma_happy_path(
+def test_bt30_english_first_contact_internal_happy_path(
     client: TestClient,
     headers: dict[str, str],
 ) -> None:
-    opportunity_id, _ = create_opportunity_with_transcript(
+    opportunity_id, _ = create_opportunity_with_client_document(
         client,
         headers=headers,
         opportunity_name="BT-30 English Happy Path",
@@ -179,8 +173,8 @@ def test_bt30_english_first_contact_gamma_happy_path(
     presentation_version_id = str(generation_job.json()["result"]["presentation_version_id"])
 
     assert framework_stages == EXPECTED_FRAMEWORK_STAGES
-    assert generation_stages == EXPECTED_GAMMA_GENERATION_STAGES
-    assert JobStage.PPTX_RENDERING.value not in generation_stages
+    assert generation_stages == EXPECTED_GENERATION_STAGES
+    assert JobStage.GAMMA_RENDERING.value not in generation_stages
     assert len(jobs_for(opportunity_id, "presentation_planning")) == 1
     assert len(jobs_for(opportunity_id, "presentation_generation")) == 1
 
@@ -192,20 +186,9 @@ def test_bt30_english_first_contact_gamma_happy_path(
     framework = client.get(f"/opportunities/{opportunity_id}/framework", headers=headers)
     assert framework.status_code == 200
     assert framework.json()["status"] == "confirmed"
-    store = get_memory_store()
-    opportunity = store.get_opportunity(
-        opportunity_id=uuid.UUID(opportunity_id),
-        user_id=USER_ID,
-    )
-    payload = build_gamma_content_payload(
-        opportunity=opportunity,
-        framework=framework.json().get("framework_json") or framework.json(),
-        stage="first_contact",
-    )
-    slot_names = {slot["name"] for slot in payload["slots"]}
-    assert "pricing.body" not in slot_names
-    assert payload["template_id"]
-    assert all("price" not in name for name in slot_names)
+    plan = client.get(f"/opportunities/{opportunity_id}/presentation-plan", headers=headers)
+    assert plan.status_code == 200
+    assert plan.json()["plan_json"]["slides"]
 
     after = _eligibility(client, headers, opportunity_id, "deepening")
     assert after["startable"] is True
@@ -237,11 +220,12 @@ def test_bt30_english_first_contact_gamma_happy_path(
     assert preview.content.startswith(b"\x89PNG")
 
     labels = frontend_stage_labels()
-    for stage in EXPECTED_GAMMA_GENERATION_STAGES:
+    for stage in EXPECTED_GENERATION_STAGES:
         assert labels[stage] != stage
         assert "gamma" not in labels[stage].lower()
         assert "%" not in labels[stage]
-    assert labels["GAMMA_RENDERING"] == "Building your presentation"
+    assert labels["GAMMA_RENDERING"] == labels["PPTX_RENDERING"]
+    assert "gamma" not in labels["GAMMA_RENDERING"].lower()
     assert labels["ARTIFACT_FILING"] == "Archiving generated files"
     progress_source = JOB_PROGRESS_TS.read_text(encoding="utf-8")
     assert 'BOREK_RETRIEVAL_STAGE]: "Retrieving Borek information"' in progress_source
@@ -266,7 +250,7 @@ def test_bt30_in_flight_approve_reuses_generation_job(
     client: TestClient,
     headers: dict[str, str],
 ) -> None:
-    opportunity_id, _ = create_opportunity_with_transcript(
+    opportunity_id, _ = create_opportunity_with_client_document(
         client,
         headers=headers,
         opportunity_name="BT-30 Reconnect",
@@ -311,6 +295,7 @@ def test_bt30_deepening_unlocks_after_completed_first_contact(
         headers=headers,
         opportunity_name="BT-30 Deepening Unlock",
         journey_stage="first_contact",
+        use_client_document=True,
     )
     deepening_job_id, deepening_presentation_id, deepening_stages = _continue_automated_build(
         client,
@@ -319,7 +304,8 @@ def test_bt30_deepening_unlocks_after_completed_first_contact(
         framework_version_id=first.framework_version_id,
         journey_stage="deepening",
     )
-    assert JobStage.GAMMA_RENDERING.value in deepening_stages
+    assert JobStage.PPTX_RENDERING.value in deepening_stages
+    assert JobStage.GAMMA_RENDERING.value not in deepening_stages
     deepening = _latest_version(deepening_presentation_id)
     assert deepening["journey_stage"] == "deepening"
     assert str(deepening["prior_stage_presentation_version_id"]) == first.presentation_version_id
@@ -331,26 +317,32 @@ def test_bt30_deepening_unlocks_after_completed_first_contact(
     assert unlocked["prior_stage_presentation_version_id"] == str(deepening["id"])
 
 
-def test_bt30_classified_gamma_failure_recovers_without_dead_end(
+def test_bt30_classified_render_failure_recovers_without_dead_end(
     client: TestClient,
     headers: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    attempts = {"count": 0}
-    original = FixtureGammaClient.generate
+    from app.services import presentation_generation
 
-    def _flaky(self, request):
+    class RendererTimeout(Exception):
+        code = "RENDERER_TIMEOUT"
+        retryable = True
+
+    attempts = {"count": 0}
+    original = presentation_generation.render_presentation_version
+
+    def _flaky(*args, **kwargs):
         attempts["count"] += 1
         if attempts["count"] <= 2:
-            raise GammaTimeoutError()
-        return original(self, request)
+            raise RendererTimeout("Rendering the presentation timed out.")
+        return original(*args, **kwargs)
 
-    monkeypatch.setattr(FixtureGammaClient, "generate", _flaky)
+    monkeypatch.setattr(presentation_generation, "render_presentation_version", _flaky)
 
-    opportunity_id, _ = create_opportunity_with_transcript(
+    opportunity_id, _ = create_opportunity_with_client_document(
         client,
         headers=headers,
-        opportunity_name="BT-30 Gamma Recovery",
+        opportunity_name="BT-30 Render Recovery",
     )
     framework_version_id, _, _ = generate_and_confirm_framework(
         client,
@@ -380,8 +372,8 @@ def test_bt30_classified_gamma_failure_recovers_without_dead_end(
         allow_failed=True,
     )
     assert failed["status"] == "FAILED"
-    assert failed["error"]["code"] == "GAMMA_TIMEOUT"
-    assert failed["error"]["stage"] == JobStage.GAMMA_RENDERING.value
+    assert failed["error"]["code"] == "RENDERER_TIMEOUT"
+    assert failed["error"]["stage"] == JobStage.PPTX_RENDERING.value
     assert failed["error"]["retryable"] is True
 
     framework = client.get(f"/opportunities/{opportunity_id}/framework", headers=headers)
@@ -398,7 +390,7 @@ def test_bt30_classified_gamma_failure_recovers_without_dead_end(
     assert len(jobs_for(opportunity_id, "presentation_generation")) == 1
 
     errors_source = JOB_ERRORS_TS.read_text(encoding="utf-8")
-    assert "GAMMA_TIMEOUT" in errors_source
+    assert "took too long" in errors_source
     recovery_source = RECOVERY_TS.read_text(encoding="utf-8")
     assert "RETRY" in recovery_source
 
@@ -428,6 +420,7 @@ def test_bt30_german_smoke_reaches_ready(
         journey_stage="first_contact",
         opportunity_name="BT-30 German Smoke",
         client_name="Musterkunde GmbH",
+        use_client_document=True,
     )
     opportunity = client.get(f"/opportunities/{result.opportunity_id}", headers=headers)
     assert opportunity.status_code == 200
@@ -443,7 +436,7 @@ def test_bt30_german_smoke_reaches_ready(
         params={"format": "docx", "lang": "de"},
     )
     assert rendered.status_code == 200, rendered.text
-    assert result.generation_stages == EXPECTED_GAMMA_GENERATION_STAGES
+    assert result.generation_stages == EXPECTED_GENERATION_STAGES
     version = _latest_version(result.presentation_id)
     assert version["status"] == "ready"
     pptx = client.get(f"/presentations/{result.presentation_id}/download/pptx", headers=headers)
@@ -452,21 +445,20 @@ def test_bt30_german_smoke_reaches_ready(
     assert pdf.status_code == 200 and len(pdf.content) > 0
 
 
-def test_bt30_flag_off_keeps_internal_renderer(
+def test_bt30_internal_renderer_is_the_only_engine(
     monkeypatch: pytest.MonkeyPatch,
     headers: dict[str, str],
 ) -> None:
     monkeypatch.setattr(settings, "API_DATA_BACKEND", "memory")
     monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "fixture")
     monkeypatch.setattr(settings, "RENDERER_EXECUTION_MODE", "fixture")
-    monkeypatch.setattr(settings, "PRESENTATION_ENGINE", "internal")
-    monkeypatch.setattr(settings, "GAMMA_EXECUTION_MODE", "fixture")
     monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
     client = TestClient(create_app())
     result = run_automated_pipeline(
         client,
         headers=headers,
         opportunity_name="BT-30 Internal Flag Off",
+        use_client_document=True,
     )
     assert JobStage.PPTX_RENDERING.value in result.generation_stages
     assert JobStage.GAMMA_RENDERING.value not in result.generation_stages

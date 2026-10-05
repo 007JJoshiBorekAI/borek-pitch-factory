@@ -991,25 +991,9 @@ class SupabaseDataStore:
         opportunity_id: UUID,
         ttl_seconds: int,
     ) -> str | None:
-        """JJ-29 fallback: short-lived Supabase storage sign URL when API signing is unavailable."""
-        from services.gamma.signed_logo import mint_supabase_storage_signed_logo_url
-
-        response = self._request(
-            "GET",
-            "opportunity_client_logos",
-            params={"opportunity_id": f"eq.{opportunity_id}", "select": "storage_path", "limit": "1"},
-        )
-        if response.status_code != 200 or not response.json():
-            return None
-        storage_path = str(response.json()[0].get("storage_path") or "").strip()
-        if not storage_path:
-            return None
-        return mint_supabase_storage_signed_logo_url(
-            supabase_url=self._base_url,
-            service_role_key=settings.SUPABASE_SERVICE_ROLE_KEY,
-            storage_path=storage_path,
-            ttl_seconds=ttl_seconds,
-        )
+        """Retired provider-logo mint. Stored logos remain readable; no signed fetch URL is issued."""
+        del opportunity_id, ttl_seconds
+        return None
 
     def get_client_logo_for_signed_fetch(
         self, *, opportunity_id: UUID

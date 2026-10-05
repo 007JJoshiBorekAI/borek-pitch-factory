@@ -67,56 +67,6 @@ class Settings(BaseSettings):
         min_length=1,
         description="Private filesystem shared by API and worker for generated artifacts",
     )
-    PRESENTATION_ENGINE: Literal["internal", "gamma"] = Field(
-        default="internal",
-        description=(
-            "Deployment-only renderer. internal is the Phase-1 PPTX/PDF path; "
-            "gamma is the deck-producing stage. Switching to internal restores "
-            "Phase 1. Users never choose an engine."
-        ),
-    )
-    GAMMA_EXECUTION_MODE: Literal["fixture", "live"] = Field(
-        default="fixture",
-        description="fixture is deterministic; live calls public-api.gamma.app when a key is set",
-    )
-    GAMMA_API_KEY: str = Field(
-        default="",
-        description="Gamma X-API-KEY; required only when PRESENTATION_ENGINE=gamma and GAMMA_EXECUTION_MODE=live",
-    )
-    GAMMA_API_BASE_URL: str = Field(
-        default="https://public-api.gamma.app",
-        min_length=1,
-    )
-    GAMMA_THEME_ID: str = Field(
-        default="4kv51cbpy4xonmj",
-        min_length=1,
-        description="Borek Pitch Theme id recorded from the Phase 2 spike",
-    )
-    GAMMA_TEMPLATE_ID: str = Field(
-        default="",
-        description=(
-            "Gamma-side id of the branded template defined by JJ-26 in "
-            "packages/contracts/gamma_template.json; empty until it is built in the workspace"
-        ),
-    )
-    GAMMA_TIMEOUT_SECONDS: float = Field(default=180.0, gt=0)
-    PUBLIC_API_BASE_URL: str = Field(
-        default="",
-        description=(
-            "HTTPS origin Gamma can reach for JJ-29 signed logo fetches, e.g. "
-            "https://api.example.com. Empty means logos cannot be signed and the "
-            "deck falls back to the client-name wordmark."
-        ),
-    )
-    CLIENT_LOGO_SIGNING_SECRET: str = Field(
-        default="",
-        description="HMAC secret for JJ-29 signed logo URLs; SUPABASE_JWT_SECRET is used when empty",
-    )
-    CLIENT_LOGO_SIGNED_URL_TTL_SECONDS: int = Field(
-        default=900,
-        gt=0,
-        description="Lifetime of a JJ-29 signed logo URL in seconds",
-    )
     FILING_DESTINATION: Literal["fixture", "in_app", "live"] = Field(
         default="in_app",
         description="in_app stores under Borek control; live waits for the O2 repository",

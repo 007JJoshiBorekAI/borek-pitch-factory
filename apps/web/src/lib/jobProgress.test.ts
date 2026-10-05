@@ -54,7 +54,7 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
   assert.equal(jobStageLabel("SLIDE_GENERATING"), "Generating slide content");
   assert.equal(jobStageLabel("SLIDE_VALIDATING"), "Validating slides");
   assert.equal(jobStageLabel("PPTX_RENDERING"), "Rendering PowerPoint/PDF");
-  assert.equal(jobStageLabel("GAMMA_RENDERING"), "Building your presentation");
+  assert.equal(jobStageLabel("GAMMA_RENDERING"), "Rendering PowerPoint/PDF");
   assert.notEqual(jobStageLabel("GAMMA_RENDERING"), "Building branded presentation");
   assert.equal(jobStageLabel("ARTIFACT_FILING"), "Archiving generated files");
   assert.equal(jobStageLabel("PREVIEW_RENDERING"), "Preparing preview");
@@ -100,7 +100,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     ["SLIDE_GENERATING", "Generating slide content"],
     ["SLIDE_VALIDATING", "Validating slides"],
     ["PPTX_RENDERING", "Rendering PowerPoint/PDF"],
-    ["GAMMA_RENDERING", "Building your presentation"],
     ["PREVIEW_RENDERING", "Preparing preview"],
   ];
   for (const [stage, headline] of expected) {
@@ -285,9 +284,9 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     snapshot: snapshot({ currentStage: "GAMMA_RENDERING" }),
   });
   assert.ok(gamma);
-  assert.equal(gamma.headline, "Building your presentation");
-  assert.equal(states(gamma).GAMMA_RENDERING, "current");
-  assert.equal(states(gamma).PPTX_RENDERING, undefined);
+  assert.equal(gamma.headline, "Rendering PowerPoint/PDF");
+  assert.equal(states(gamma).GAMMA_RENDERING, undefined);
+  assert.equal(states(gamma).PPTX_RENDERING, "current");
   assert.equal(states(gamma).BOREK_RETRIEVAL, undefined);
   assert.equal(states(gamma).ARTIFACT_FILING, undefined);
 
@@ -429,11 +428,12 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     "SLIDE_GENERATING",
     "SLIDE_VALIDATING",
     "BOREK_RETRIEVAL",
-    "GAMMA_RENDERING",
+    "PPTX_RENDERING",
     "PREVIEW_RENDERING",
   ]);
   assert.equal(states(bothReported).BOREK_RETRIEVAL, "failed");
-  assert.equal(states(bothReported).GAMMA_RENDERING, "upcoming");
+  assert.equal(states(bothReported).PPTX_RENDERING, "upcoming");
+  assert.equal(states(bothReported).GAMMA_RENDERING, undefined);
   assert.doesNotMatch(bothReported.headline, /gamma/i);
   assert.doesNotMatch(bothReported.headline, /timeout banner|%/i);
 
@@ -468,7 +468,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     }),
   });
   assert.ok(gammaFailure);
-  assert.equal(states(gammaFailure).GAMMA_RENDERING, "failed");
+  assert.equal(states(gammaFailure).PPTX_RENDERING, "failed");
+  assert.equal(states(gammaFailure).GAMMA_RENDERING, undefined);
   assert.equal(states(gammaFailure).BOREK_RETRIEVAL, undefined);
   assert.doesNotMatch(gammaFailure.headline, /gamma/i);
   assert.equal(

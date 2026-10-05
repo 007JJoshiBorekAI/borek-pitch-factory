@@ -16,10 +16,10 @@ Single source of truth for all cross-service data contracts.
 | `slide_spec/group_*/*.schema.json` | BT/JJ/MS | Pending |
 | `knowledge_model.schema.json` | ES-5 (Endrit) | Complete |
 | `knowledge_corpus.json` | AT-59 / ES-39 | Complete |
-| `gamma_template.json` | JJ-26 | Complete |
-| `gamma_payload.schema.json` | ES-40 | Complete |
-| `gamma_provider.json` | AT-60A | Complete |
-| `gamma_artifact_location.json` | BT-28 | Complete |
+| `gamma_template.json` | JJ-26 | RETIRED — removed; not active architecture |
+| `gamma_payload.schema.json` | ES-40 | RETIRED — removed; not active architecture |
+| `gamma_provider.json` | AT-60A | RETIRED — removed; not active architecture |
+| `gamma_artifact_location.json` | BT-28 | RETIRED — removed; not active architecture |
 | `journey_stage_eligibility.schema.json` | BT-31 | Complete |
 | `followup_extraction.schema.json` | JJ-32 | Complete |
 | `transcript_summary.schema.json` | BT-36 | Complete |

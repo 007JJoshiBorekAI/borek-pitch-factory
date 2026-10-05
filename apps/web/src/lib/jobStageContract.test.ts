@@ -70,12 +70,11 @@ function workerFunctionBody(taskName: string): string {
 /** Stages a worker task really emits, in call order, duplicates collapsed. */
 function workerTaskStages(taskName: string): string[] {
   let body = workerFunctionBody(taskName);
-  // BT-28: engine routing lives in a shared helper. Inline it so the contract
-  // still sees PPTX_RENDERING and GAMMA_RENDERING at the call site.
-  if (body.includes("_run_configured_rendering(")) {
+  // Rendering lives in a shared helper. Inline it so the contract sees PPTX_RENDERING.
+  if (body.includes("_run_internal_rendering(")) {
     body = body.replace(
-      /_run_configured_rendering\([\s\S]*?\n\s*\)/,
-      workerFunctionBody("_run_configured_rendering"),
+      /_run_internal_rendering\([\s\S]*?\n\s*\)/,
+      workerFunctionBody("_run_internal_rendering"),
     );
   }
   const stages: string[] = [];

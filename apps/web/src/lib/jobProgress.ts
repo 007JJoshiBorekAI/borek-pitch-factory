@@ -17,7 +17,8 @@ export const JOB_STAGE_LABELS: Record<string, string> = {
   SLIDE_GENERATING: "Generating slide content",
   SLIDE_VALIDATING: "Validating slides",
   PPTX_RENDERING: "Rendering PowerPoint/PDF",
-  GAMMA_RENDERING: "Building your presentation",
+  // Historical stored jobs. Displayed as the internal rendering step.
+  GAMMA_RENDERING: "Rendering PowerPoint/PDF",
   ARTIFACT_FILING: "Archiving generated files",
   PREVIEW_RENDERING: "Preparing preview",
   COMPLETED: "Finished",
@@ -36,7 +37,6 @@ export const PRESENTATION_PROGRESS_STAGES = [
   "SLIDE_GENERATING",
   "SLIDE_VALIDATING",
   "PPTX_RENDERING",
-  "GAMMA_RENDERING",
   "ARTIFACT_FILING",
   "PREVIEW_RENDERING",
 ] as const;
@@ -45,7 +45,6 @@ export const SLIDE_PROGRESS_STAGES = [
   "SLIDE_GENERATING",
   "SLIDE_VALIDATING",
   "PPTX_RENDERING",
-  "GAMMA_RENDERING",
   "ARTIFACT_FILING",
   "PREVIEW_RENDERING",
 ] as const;
@@ -271,7 +270,6 @@ function stepsFor(
 
 const OPTIONAL_EXTENSION_STAGES = new Set([
   "PPTX_RENDERING",
-  "GAMMA_RENDERING",
   "ARTIFACT_FILING",
   BOREK_RETRIEVAL_STAGE,
 ]);
@@ -298,12 +296,9 @@ function insertReportedRetrieval(
   if (!observed.has(BOREK_RETRIEVAL_STAGE) || stages.includes(BOREK_RETRIEVAL_STAGE)) {
     return stages;
   }
-  // AT-59 retrieval feeds the ES-40 / Gamma payload, so it sits after slide
-  // work and before the render/filing/preview stages when those are visible.
+  // Retrieval sits after slide work and before render/filing/preview when those are visible.
   const renderIndex = stages.findIndex((stage) =>
-    ["PPTX_RENDERING", "GAMMA_RENDERING", "ARTIFACT_FILING", "PREVIEW_RENDERING"].includes(
-      stage,
-    ),
+    ["PPTX_RENDERING", "ARTIFACT_FILING", "PREVIEW_RENDERING"].includes(stage),
   );
   const validationIndex = stages.indexOf("SLIDE_VALIDATING");
   const insertAt =
@@ -315,8 +310,21 @@ function insertReportedRetrieval(
   return [...stages.slice(0, insertAt), BOREK_RETRIEVAL_STAGE, ...stages.slice(insertAt)];
 }
 
+function withoutLegacyRenderStage(snapshot: JobProgressSnapshot): JobProgressSnapshot {
+  const currentStage =
+    snapshot.currentStage === "GAMMA_RENDERING" ? "PPTX_RENDERING" : snapshot.currentStage;
+  const error =
+    snapshot.error?.stage === "GAMMA_RENDERING"
+      ? { ...snapshot.error, stage: "PPTX_RENDERING" }
+      : snapshot.error;
+  if (currentStage === snapshot.currentStage && error === snapshot.error) {
+    return snapshot;
+  }
+  return { ...snapshot, currentStage, error };
+}
+
 export function buildJobProgressView(input: JobProgressInput): JobProgressView | null {
-  const snapshot = input.snapshot;
+  const snapshot = input.snapshot ? withoutLegacyRenderStage(input.snapshot) : input.snapshot;
   if (!snapshot) {
     return null;
   }

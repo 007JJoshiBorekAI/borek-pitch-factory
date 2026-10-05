@@ -24,8 +24,8 @@ def test_health_runtime_reports_execution_modes() -> None:
     assert body["ai_execution_mode"] in {"fixture", "live"}
     assert body["renderer_execution_mode"] in {"fixture", "live"}
     assert body["api_data_backend"] in {"memory", "supabase"}
-    assert body["presentation_engine"] in {"internal", "gamma"}
-    assert body["gamma_execution_mode"] in {"fixture", "live"}
+    assert "presentation_engine" not in body
+    assert "gamma_execution_mode" not in body
     assert body["filing_destination"] in {"fixture", "in_app", "live"}
     assert isinstance(body["warnings"], list)
 
@@ -66,19 +66,6 @@ def test_runtime_warnings_flag_live_filing_without_repository() -> None:
         )
     )
     assert any("ENTERPRISE_REPOSITORY" in warning for warning in warnings)
-
-
-def test_runtime_warnings_flag_live_gamma_without_key() -> None:
-    warnings = runtime_warnings(
-        Settings(
-            _env_file=None,
-            PRESENTATION_ENGINE="gamma",
-            GAMMA_EXECUTION_MODE="live",
-            GAMMA_API_KEY="",
-            API_DATA_BACKEND="memory",
-        )
-    )
-    assert any("GAMMA_API_KEY" in warning for warning in warnings)
 
 
 def test_production_fixture_mode_refuses_startup() -> None:

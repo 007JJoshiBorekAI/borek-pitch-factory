@@ -106,85 +106,56 @@ def _llm_observability_scope(store, job_id, opportunity_id=None):
 
 def _stage_should_run(current_stage, target_stage) -> bool:
     """Return whether a resumed job still needs to execute target_stage."""
-    from app.schemas.jobs import JOB_PIPELINE_STAGES
+    from app.schemas.jobs import JOB_PIPELINE_STAGES, JobStage
 
+    if current_stage == JobStage.GAMMA_RENDERING:
+        current_stage = JobStage.PPTX_RENDERING
     return JOB_PIPELINE_STAGES.index(current_stage) <= JOB_PIPELINE_STAGES.index(
         target_stage
     )
 
 
-def _engine_render_stage():
-    """Stage the current PRESENTATION_ENGINE will actually enter."""
+def _resume_stage_for_render(resume_stage):
+    """A historical GAMMA_RENDERING checkpoint resumes on the internal renderer."""
     from app.schemas.jobs import JobStage
-    from app.services.gamma_stage import require_presentation_engine
 
-    if require_presentation_engine() == "internal":
+    if resume_stage == JobStage.GAMMA_RENDERING:
         return JobStage.PPTX_RENDERING
-    return JobStage.GAMMA_RENDERING
+    return resume_stage
 
 
-def _run_configured_rendering(
+def _run_internal_rendering(
     *,
     parsed_job_id,
     resume_stage,
     store,
     version,
     plan,
-    presentation_id: str,
-    user_id: str,
-    current_result_json: dict | None,
     record_metrics: bool,
 ):
-    """BT-28: one engine decision. Configuration fallback only — never silent switch."""
+    """Render with the internal PPTX/PDF renderer. There is no engine switch."""
     from time import monotonic
 
     from app.schemas.jobs import JobStage
     from app.services import job_service, presentation_generation
-    from app.services.gamma_stage import (
-        mark_version_ready_after_gamma,
-        require_presentation_engine,
-        run_gamma_stage_for_presentation,
-    )
 
-    engine = require_presentation_engine()
-    if engine == "internal":
-        stage = JobStage.PPTX_RENDERING
-        if _stage_should_run(resume_stage, stage):
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            render_started = monotonic()
-            version = presentation_generation.render_presentation_version(
-                store,
-                version=version,
-                plan=plan,
-            )
-            if record_metrics:
-                job_service.record_metrics(
-                    parsed_job_id,
-                    repository=store,
-                    render_duration_ms=int((monotonic() - render_started) * 1000),
-                    storage_size_bytes=int(version.get("storage_size_bytes") or 0),
-                )
-        return stage, version, {"skipped": True, "engine": "internal"}
-
-    stage = JobStage.GAMMA_RENDERING
-    if _stage_should_run(resume_stage, stage):
+    stage = JobStage.PPTX_RENDERING
+    if _stage_should_run(_resume_stage_for_render(resume_stage), stage):
         job_service.ensure_stage(parsed_job_id, stage, repository=store)
-        gamma_result = run_gamma_stage_for_presentation(
+        render_started = monotonic()
+        version = presentation_generation.render_presentation_version(
             store,
-            job_id=parsed_job_id,
-            presentation_id=presentation_id,
-            user_id=user_id,
-            presentation_version_id=version["id"],
+            version=version,
+            plan=plan,
         )
-        version = mark_version_ready_after_gamma(store, version, gamma_result)
-        job_service.record_result_checkpoint(
-            parsed_job_id,
-            {"gamma": gamma_result},
-            repository=store,
-        )
-    else:
-        gamma_result = dict((current_result_json or {}).get("gamma") or {})
-    return stage, version, gamma_result
+        if record_metrics:
+            job_service.record_metrics(
+                parsed_job_id,
+                repository=store,
+                render_duration_ms=int((monotonic() - render_started) * 1000),
+                storage_size_bytes=int(version.get("storage_size_bytes") or 0),
+            )
+    return stage, version
 
 
 @celery_app.task(name="tasks.health_check")
@@ -565,20 +536,17 @@ def run_presentation_generation_task(
                     )
                 stage = JobStage.SLIDE_VALIDATING
                 job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                stage = _engine_render_stage()
-                stage, version, gamma_result = _run_configured_rendering(
+                stage = JobStage.PPTX_RENDERING
+                stage, version = _run_internal_rendering(
                     parsed_job_id=parsed_job_id,
                     resume_stage=resume_stage,
                     store=store,
                     version=version,
                     plan=plan,
-                    presentation_id=presentation_id,
-                    user_id=user_id,
-                    current_result_json=current.result_json,
                     record_metrics=True,
                 )
                 stage = JobStage.ARTIFACT_FILING
-                if _stage_should_run(resume_stage, stage):
+                if _stage_should_run(_resume_stage_for_render(resume_stage), stage):
                     job_service.ensure_stage(parsed_job_id, stage, repository=store)
                     from app.services.artifact_filing_stage import (
                         run_artifact_filing_for_presentation,
@@ -589,7 +557,6 @@ def run_presentation_generation_task(
                         presentation_id=presentation_id,
                         user_id=user_id,
                         version=version,
-                        gamma_result=gamma_result,
                     )
                     job_service.record_result_checkpoint(
                         parsed_job_id,
@@ -598,14 +565,6 @@ def run_presentation_generation_task(
                     )
                 stage = JobStage.PREVIEW_RENDERING
                 job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                from app.services.gamma_preview import apply_gamma_preview_raster
-
-                apply_gamma_preview_raster(
-                    store,
-                    presentation_id=presentation_id,
-                    user_id=user_id,
-                    version=version,
-                )
                 enqueue = dict((current.result_json or {}).get("_enqueue") or {})
                 if enqueue.get("stage1_output_integration"):
                     from app.services.journey_generation import update_stage1_presentation_state
@@ -709,16 +668,13 @@ def _run_slide_task(
                     presentation_plan_id=presentation["presentation_plan_id"],
                     user_id=UUID(user_id),
                 )
-                stage = _engine_render_stage()
-                stage, version, gamma_result = _run_configured_rendering(
+                stage = JobStage.PPTX_RENDERING
+                stage, version = _run_internal_rendering(
                     parsed_job_id=parsed_job_id,
                     resume_stage=stage,
                     store=store,
                     version=version,
                     plan=plan,
-                    presentation_id=presentation_id,
-                    user_id=user_id,
-                    current_result_json=None,
                     record_metrics=False,
                 )
                 stage = JobStage.ARTIFACT_FILING
@@ -735,21 +691,12 @@ def _run_slide_task(
                             presentation_id=presentation_id,
                             user_id=user_id,
                             version=version,
-                            gamma_result=gamma_result,
                         )
                     },
                     repository=store,
                 )
                 stage = JobStage.PREVIEW_RENDERING
                 job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                from app.services.gamma_preview import apply_gamma_preview_raster
-
-                apply_gamma_preview_raster(
-                    store,
-                    presentation_id=presentation_id,
-                    user_id=user_id,
-                    version=version,
-                )
                 job_service.complete_job(
                     parsed_job_id,
                     repository=store,

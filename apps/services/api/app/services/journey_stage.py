@@ -157,21 +157,15 @@ def build_prior_stage_context(
     prior_version: dict[str, Any],
     user_id: UUID,
 ) -> dict[str, Any]:
-    """JJ-31 prior_stage_context: slots + grounded_facts from the completed prior payload."""
-    from services.gamma.payload import build_gamma_content_payload
-
+    """Identity of the completed prior deck. The internal planner does not consume a provider payload."""
     framework = resolve_prior_framework(store, prior_version=prior_version, user_id=user_id)
     prior_stage = str(prior_version.get("journey_stage") or "").strip()
     if prior_stage not in JOURNEY_STAGES:
         raise _prior_framework_error(prior_version)
-    payload = build_gamma_content_payload(
-        opportunity=opportunity,
-        framework=framework,
-        stage=prior_stage,
-    )
     return {
-        "slots": list(payload.get("slots") or []),
-        "grounded_facts": list(payload.get("grounded_facts") or []),
+        "framework_version_id": str(framework["id"]),
+        "prior_presentation_version_id": str(prior_version["id"]),
+        "journey_stage": prior_stage,
     }
 
 

@@ -65,10 +65,10 @@ function render(
 // Optional extension stages appear when the backend actually enters them.
 {
   const html = render({ snapshot: snapshot({ currentStage: "GAMMA_RENDERING" }) });
-  assert.match(html, /data-step="GAMMA_RENDERING" data-state="current"/);
-  assert.match(html, /Building your presentation/);
+  assert.match(html, /data-step="PPTX_RENDERING" data-state="current"/);
+  assert.match(html, /Rendering PowerPoint\/PDF/);
   assert.doesNotMatch(html, /Building branded presentation/);
-  assert.doesNotMatch(html, /data-step="PPTX_RENDERING"/);
+  assert.doesNotMatch(html, /data-step="GAMMA_RENDERING"/);
   assert.doesNotMatch(html, /data-step="BOREK_RETRIEVAL"/);
   assert.doesNotMatch(html, /data-step="ARTIFACT_FILING"/);
 }

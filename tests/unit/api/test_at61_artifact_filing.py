@@ -124,7 +124,7 @@ def _request(path: Path) -> ArtifactFilingRequest:
         approved_at=datetime.now(UTC),
         framework_version_id=uuid4(),
         corpus_versions=("rates-2026-09-01", "staffing-2026-09-01"),
-        provider="gamma",
+        provider="internal",
     )
 
 
@@ -144,7 +144,7 @@ def test_filing_is_idempotent_and_keeps_approval_and_provenance(tmp_path: Path) 
     assert first["approved_by"] == str(request.approved_by)
     assert first["framework_version_id"] == str(request.framework_version_id)
     assert first["corpus_versions"] == list(request.corpus_versions)
-    assert first["provider"] == "gamma"
+    assert first["provider"] == "internal"
     assert first["repository_ref"].startswith("sharepoint://")
     assert first["size_bytes"] == artifact.stat().st_size
     assert len(first["sha256"]) == 64
@@ -411,29 +411,6 @@ def test_in_app_archive_lists_searches_and_downloads_historical_bytes(
     assert denied_download.status_code == 404
 
 
-def test_gamma_artifacts_are_filed_with_gamma_provenance(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    monkeypatch.setattr(settings, "PRESENTATION_ENGINE", "gamma")
-    monkeypatch.setattr(settings, "GAMMA_EXECUTION_MODE", "fixture")
-    monkeypatch.setattr(settings, "ARTIFACT_ROOT", str(tmp_path))
-    monkeypatch.setattr(settings, "FILING_DESTINATION", "fixture")
-    client = _client()
-    opportunity_id = _create_opportunity(client)
-    _generate_presentation(client, opportunity_id)
-
-    listed = client.get(
-        f"/opportunities/{opportunity_id}/filed-artifacts",
-        headers=_headers(),
-    )
-    assert listed.status_code == 200
-    rows = listed.json()
-    providers = {(row["provider"], row["artifact_kind"]) for row in rows}
-    assert providers == {("gamma", "pptx"), ("gamma", "pdf")}
-    assert all(row["status"] == "filed" for row in rows)
-
-
 def test_filing_stage_is_idempotent_for_the_same_version(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -453,14 +430,14 @@ def test_filing_stage_is_idempotent_for_the_same_version(
         presentation_id=generated["presentation_id"],
         user_id=USER_A,
         version=version,
-        gamma_result={"skipped": True, "engine": "internal"},
+        render_result=None,
     )
     second = run_artifact_filing_for_presentation(
         store,
         presentation_id=generated["presentation_id"],
         user_id=USER_A,
         version=version,
-        gamma_result={"skipped": True, "engine": "internal"},
+        render_result=None,
     )
     assert first["skipped"] is False
     assert first["filed"] == second["filed"]
@@ -477,12 +454,11 @@ def test_filing_stage_skips_when_fixture_generate_has_no_files() -> None:
         presentation_id=uuid4(),
         user_id=USER_A,
         version={"id": uuid4()},
-        gamma_result={"skipped": True},
     )
     assert result == {"skipped": True, "reason": "no_generated_artifacts", "filed": []}
 
 
-def test_worker_invokes_automatic_filing_after_gamma() -> None:
+def test_worker_skips_filing_when_resuming_after_preview() -> None:
     from app.worker import run_presentation_generation_task
 
     store = get_memory_store()
@@ -557,7 +533,6 @@ def test_worker_files_when_resuming_from_artifact_filing(
         job.id,
         {
             "presentation_version_id": str(version["id"]),
-            "gamma": {"skipped": True, "engine": "internal"},
         },
         repository=store,
     )
