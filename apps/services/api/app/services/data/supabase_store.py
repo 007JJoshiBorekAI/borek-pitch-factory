@@ -194,6 +194,20 @@ def _present_client_document(row: dict[str, Any], *, section_count: int) -> dict
     }
 
 
+def _normalize_discovery_paper_version(row: dict[str, Any]) -> dict[str, Any]:
+    approved_at = row.get("approved_at")
+    return {
+        **row,
+        "id": UUID(str(row["id"])),
+        "opportunity_id": UUID(str(row["opportunity_id"])),
+        "document_id": UUID(str(row["document_id"])),
+        "created_by": UUID(str(row["created_by"])),
+        "created_at": _parse_timestamp(row["created_at"]),
+        "updated_at": _parse_timestamp(row["updated_at"]),
+        "approved_at": _parse_timestamp(approved_at) if approved_at else None,
+    }
+
+
 def _normalize_framework(row: dict[str, Any]) -> dict[str, Any]:
     return {
         **row,
@@ -1532,6 +1546,206 @@ class SupabaseDataStore:
         row = _normalize_framework(response.json()[0])
         self.get_opportunity(opportunity_id=row["opportunity_id"], user_id=user_id)
         return row
+
+    def create_discovery_paper_version(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        document_id: UUID,
+        paper_json: dict[str, Any],
+        version_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        latest = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={
+                "select": "version_number",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "order": "version_number.desc",
+                "limit": "1",
+            },
+        )
+        if latest.status_code != 200:
+            raise bad_request("DISCOVERY_PAPER_VERSION_CREATE_FAILED", latest.text)
+        version_number = int(latest.json()[0]["version_number"]) + 1 if latest.json() else 1
+        now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        payload = {
+            "opportunity_id": str(opportunity_id),
+            "version_number": version_number,
+            "document_id": str(document_id),
+            "status": "draft",
+            "paper_json": copy.deepcopy(paper_json),
+            "created_by": str(user_id),
+            "created_at": now,
+            "updated_at": now,
+            "approved_at": None,
+        }
+        if version_id is not None:
+            payload["id"] = str(version_id)
+        response = self._request("POST", "discovery_paper_versions", json_body=payload)
+        if response.status_code not in (200, 201) or not response.json():
+            raise bad_request("DISCOVERY_PAPER_VERSION_CREATE_FAILED", response.text)
+        return _normalize_discovery_paper_version(response.json()[0])
+
+    def get_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        response = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={"select": "*", "id": f"eq.{version_id}", "limit": "1"},
+        )
+        if response.status_code != 200 or not response.json():
+            raise not_found(
+                "DISCOVERY_PAPER_VERSION_NOT_FOUND",
+                f"Discovery Paper version {version_id} was not found",
+            )
+        row = _normalize_discovery_paper_version(response.json()[0])
+        self.get_opportunity(opportunity_id=row["opportunity_id"], user_id=user_id)
+        return row
+
+    def list_discovery_paper_versions(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={
+                "select": "*",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "order": "version_number.asc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("DISCOVERY_PAPER_VERSION_LIST_FAILED", response.text)
+        return [_normalize_discovery_paper_version(row) for row in response.json()]
+
+    def get_latest_approved_discovery_paper(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={
+                "select": "*",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "status": "eq.approved",
+                "order": "approved_at.desc,version_number.desc",
+                "limit": "1",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("DISCOVERY_PAPER_VERSION_LIST_FAILED", response.text)
+        if not response.json():
+            return None
+        return _normalize_discovery_paper_version(response.json()[0])
+
+    def get_draft_discovery_paper_version(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        document_id: UUID,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={
+                "select": "*",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "document_id": f"eq.{document_id}",
+                "status": "eq.draft",
+                "order": "version_number.desc",
+                "limit": "1",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("DISCOVERY_PAPER_VERSION_LIST_FAILED", response.text)
+        if not response.json():
+            return None
+        return _normalize_discovery_paper_version(response.json()[0])
+
+    def update_discovery_paper_draft(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._write_discovery_paper_version(
+            version_id=version_id,
+            user_id=user_id,
+            paper_json=paper_json,
+            status="draft",
+        )
+
+    def approve_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._write_discovery_paper_version(
+            version_id=version_id,
+            user_id=user_id,
+            paper_json=paper_json,
+            status="approved",
+        )
+
+    def _write_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+        status: str,
+    ) -> dict[str, Any]:
+        current = self.get_discovery_paper_version(version_id=version_id, user_id=user_id)
+        if current["status"] == "approved":
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions are immutable",
+            )
+        if status not in {"draft", "approved"} or current["status"] != "draft":
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions cannot return to draft",
+            )
+        now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        payload: dict[str, Any] = {
+            "paper_json": copy.deepcopy(paper_json),
+            "status": status,
+            "updated_at": now,
+        }
+        if status == "approved":
+            payload["approved_at"] = now
+        response = self._request(
+            "PATCH",
+            "discovery_paper_versions",
+            params={"id": f"eq.{version_id}", "status": "eq.draft"},
+            json_body=payload,
+        )
+        if response.status_code not in (200, 204) or not response.json():
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions are immutable",
+            )
+        return _normalize_discovery_paper_version(response.json()[0])
 
     def update_latest_framework(
         self,

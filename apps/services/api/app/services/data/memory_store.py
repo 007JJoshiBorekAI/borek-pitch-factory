@@ -124,6 +124,7 @@ class MemoryDataStore:
     client_documents: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     client_logos: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     framework_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    discovery_paper_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentation_plans: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentations: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentation_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
@@ -800,6 +801,165 @@ class MemoryDataStore:
             "section_count": len(sections),
             "created_at": row["created_at"],
         }
+
+    def create_discovery_paper_version(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        document_id: UUID,
+        paper_json: dict[str, Any],
+        version_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        existing = [
+            row
+            for row in self.discovery_paper_versions.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+        version_number = max((row["version_number"] for row in existing), default=0) + 1
+        now = _now()
+        row = {
+            "id": version_id or uuid.uuid4(),
+            "opportunity_id": opportunity_id,
+            "version_number": version_number,
+            "document_id": document_id,
+            "status": "draft",
+            "paper_json": copy.deepcopy(paper_json),
+            "created_by": user_id,
+            "created_at": now,
+            "updated_at": now,
+            "approved_at": None,
+        }
+        self.discovery_paper_versions[row["id"]] = row
+        return copy.deepcopy(row)
+
+    def get_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        row = self.discovery_paper_versions.get(version_id)
+        if row is None:
+            raise not_found(
+                "DISCOVERY_PAPER_VERSION_NOT_FOUND",
+                f"Discovery Paper version {version_id} was not found",
+            )
+        self.get_opportunity(opportunity_id=row["opportunity_id"], user_id=user_id)
+        return copy.deepcopy(row)
+
+    def list_discovery_paper_versions(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        rows = [
+            row
+            for row in self.discovery_paper_versions.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+        return [copy.deepcopy(row) for row in sorted(rows, key=lambda item: item["version_number"])]
+
+    def get_latest_approved_discovery_paper(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any] | None:
+        rows = [
+            row
+            for row in self.list_discovery_paper_versions(
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+            )
+            if row["status"] == "approved"
+        ]
+        if not rows:
+            return None
+        return max(rows, key=lambda row: (row["approved_at"] or row["created_at"], row["version_number"]))
+
+    def get_draft_discovery_paper_version(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        document_id: UUID,
+    ) -> dict[str, Any] | None:
+        rows = [
+            row
+            for row in self.list_discovery_paper_versions(
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+            )
+            if row["status"] == "draft" and row["document_id"] == document_id
+        ]
+        if not rows:
+            return None
+        return max(rows, key=lambda row: row["version_number"])
+
+    def update_discovery_paper_draft(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._write_discovery_paper_version(
+            version_id=version_id,
+            user_id=user_id,
+            paper_json=paper_json,
+            status="draft",
+        )
+
+    def approve_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._write_discovery_paper_version(
+            version_id=version_id,
+            user_id=user_id,
+            paper_json=paper_json,
+            status="approved",
+        )
+
+    def _write_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+        status: str,
+    ) -> dict[str, Any]:
+        row = self.discovery_paper_versions.get(version_id)
+        if row is None:
+            raise not_found(
+                "DISCOVERY_PAPER_VERSION_NOT_FOUND",
+                f"Discovery Paper version {version_id} was not found",
+            )
+        self.get_opportunity(opportunity_id=row["opportunity_id"], user_id=user_id)
+        if row["status"] == "approved":
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions are immutable",
+            )
+        if status not in {"draft", "approved"} or row["status"] != "draft":
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions cannot return to draft",
+            )
+        now = _now()
+        row["paper_json"] = copy.deepcopy(paper_json)
+        row["status"] = status
+        row["updated_at"] = now
+        if status == "approved":
+            row["approved_at"] = now
+        return copy.deepcopy(row)
 
     def create_framework_version(
         self,

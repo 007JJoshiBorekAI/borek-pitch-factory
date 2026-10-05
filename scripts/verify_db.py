@@ -44,6 +44,7 @@ EXPECTED_TABLES = [
     "knowledge_model_checkpoints",
     "user_roles",
     "transcript_summaries",
+    "discovery_paper_versions",
 ]
 
 EXPECTED_COLUMNS = {
@@ -75,6 +76,17 @@ EXPECTED_COLUMNS = {
         "prompt_version",
         "processing_status",
         "summary_json",
+    ),
+    "discovery_paper_versions": (
+        "opportunity_id",
+        "version_number",
+        "document_id",
+        "status",
+        "paper_json",
+        "created_by",
+        "created_at",
+        "updated_at",
+        "approved_at",
     ),
     "generation_jobs": (
         "llm_cost_eur",
@@ -152,6 +164,7 @@ EXPECTED_FOREIGN_KEYS = {
     "egress_audit": "presentation_versions",
     "knowledge_model_checkpoints": "generation_jobs",
     "transcript_summaries": "transcripts",
+    "discovery_paper_versions": "opportunities",
 }
 
 EXPECTED_INDEXES = (
@@ -171,6 +184,7 @@ EXPECTED_INDEXES = (
     "framework_versions_opportunity_version_key",
     "transcript_summaries_opportunity_id_idx",
     "transcript_summaries_generation_job_id_idx",
+    "discovery_paper_versions_opportunity_version_key",
 )
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}

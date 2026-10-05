@@ -258,6 +258,19 @@ def test_bt35_client_documents_tables_and_storage() -> None:
     assert "users_own_client_document_sections" in rls
 
 
+def test_bt42_discovery_paper_versions() -> None:
+    content = (MIGRATIONS_DIR / "035_bt42_discovery_paper_versions.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS public.discovery_paper_versions" in content
+    assert "REFERENCES public.opportunities(id) ON DELETE CASCADE" in content
+    assert "CHECK (status IN ('draft', 'approved'))" in content
+    assert "CREATE UNIQUE INDEX IF NOT EXISTS discovery_paper_versions_opportunity_version_key" in content
+    assert "ENABLE ROW LEVEL SECURITY" in content
+    assert "users_own_discovery_paper_versions" in content
+    assert "Approved Discovery Paper versions are immutable" in content
+    assert "Approved Discovery Paper versions cannot return to draft" in content
+    assert "discovery_paper_versions_approved_immutable" in content
+
+
 def test_bt41_discovery_paper_column() -> None:
     content = (MIGRATIONS_DIR / "034_bt41_discovery_paper.sql").read_text(encoding="utf-8")
     assert "ADD COLUMN IF NOT EXISTS discovery_paper JSONB" in content

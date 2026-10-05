@@ -12,7 +12,15 @@ from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
 from app.services.api_errors import bad_request
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
-from app.services.discovery_paper import generate_discovery_paper, get_discovery_paper
+from app.services.discovery_paper import (
+    approve_discovery_paper,
+    edit_discovery_paper,
+    generate_discovery_paper,
+    get_discovery_paper,
+    get_discovery_paper_version,
+    get_latest_approved_discovery_paper,
+    list_discovery_paper_versions,
+)
 from app.services.stage1 import get_company_research_provider
 from services.framework.stage1_research import CompanyResearchProvider
 from app.services.journey_generation import (
@@ -42,6 +50,28 @@ class EmailGenerateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     journey_stage: Literal["first_contact", "deepening", "concretisation"]
+
+
+class DiscoveryPaperPageEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    key: Literal[
+        "cover",
+        "client_context",
+        "opportunity",
+        "borek_approach",
+        "relevant_use_case",
+        "pilot_proposal",
+        "next_steps",
+    ]
+    content: dict
+
+
+class DiscoveryPaperEditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_document_id: UUID | None = None
+    pages: list[DiscoveryPaperPageEdit] = Field(min_length=1)
 
 
 class EmailConfirmRequest(BaseModel):
@@ -104,6 +134,98 @@ def post_opportunity_discovery_paper(
         opportunity_id=opportunity_id,
         user_id=user.id,
         provider=provider,
+    )
+
+
+@router.patch("/{opportunity_id}/discovery-paper")
+def patch_opportunity_discovery_paper(
+    opportunity_id: UUID,
+    body: DiscoveryPaperEditRequest,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    paper, version_id = edit_discovery_paper(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        pages=[page.model_dump() for page in body.pages],
+        expected_document_id=str(body.expected_document_id) if body.expected_document_id else None,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.DISCOVERY_PAPER_EDIT,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+        document_id=str(paper["document_id"]),
+        version_id=version_id,
+    )
+    return paper
+
+
+@router.post("/{opportunity_id}/discovery-paper/approve")
+def post_opportunity_discovery_paper_approve(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    approved = approve_discovery_paper(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.DISCOVERY_PAPER_APPROVE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+        document_id=str(approved["document_id"]),
+        version_id=UUID(approved["id"]),
+    )
+    return approved
+
+
+@router.get("/{opportunity_id}/discovery-paper/approved")
+def get_opportunity_approved_discovery_paper(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return get_latest_approved_discovery_paper(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.get("/{opportunity_id}/discovery-paper/versions")
+def get_opportunity_discovery_paper_versions(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return {
+        "versions": list_discovery_paper_versions(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user.id,
+        )
+    }
+
+
+@router.get("/{opportunity_id}/discovery-paper/versions/{version_id}")
+def get_opportunity_discovery_paper_version(
+    opportunity_id: UUID,
+    version_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return get_discovery_paper_version(
+        store,
+        opportunity_id=opportunity_id,
+        version_id=version_id,
+        user_id=user.id,
     )
 
 

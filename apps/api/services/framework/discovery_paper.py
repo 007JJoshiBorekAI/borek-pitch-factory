@@ -100,6 +100,7 @@ def build_discovery_paper(
     company_grounding: dict[str, Any] | None = None,
     document_id: str | None = None,
     generated_at: str | None = None,
+    latest_approved_version_id: str | None = None,
     complete: CompleteFn | None = None,
 ) -> dict[str, Any]:
     """Fill the seven pages from the saved opportunity. Does not write the row."""
@@ -115,6 +116,7 @@ def build_discovery_paper(
         company_grounding=company_grounding,
         document_id=document_id,
         generated_at=generated_at,
+        latest_approved_version_id=latest_approved_version_id,
         complete=complete,
     )
     return holder["paper"]
@@ -130,6 +132,7 @@ def generate_discovery_paper_progressively(
     grounding_factory: Callable[[], dict[str, Any]] | None = None,
     document_id: str | None = None,
     generated_at: str | None = None,
+    latest_approved_version_id: str | None = None,
     complete: CompleteFn | None = None,
     render: RenderFn | None = None,
 ) -> dict[str, Any]:
@@ -146,7 +149,7 @@ def generate_discovery_paper_progressively(
         "schema_version": "1.0",
         "opportunity_id": str(opportunity["id"]),
         "document_id": document_id or str(uuid4()),
-        "latest_approved_version_id": None,
+        "latest_approved_version_id": latest_approved_version_id,
         "status": "generating",
         "generated_at": generated_at or datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "intake_context": context,

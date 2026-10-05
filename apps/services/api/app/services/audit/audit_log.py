@@ -41,6 +41,8 @@ class AuditAction(StrEnum):
     EMAIL_DRAFT_CONFIRM = "email_draft.confirm"
     CLIENT_PREPARATION_EMAIL_GENERATE = "client_preparation_email.generate"
     DISCOVERY_PAPER_GENERATE = "discovery_paper.generate"
+    DISCOVERY_PAPER_EDIT = "discovery_paper.edit"
+    DISCOVERY_PAPER_APPROVE = "discovery_paper.approve"
     CLIENT_DOCUMENT_UPLOAD = "client_document.upload"
     CLIENT_DOCUMENT_DELETE = "client_document.delete"
 
@@ -67,6 +69,7 @@ def record_audit_event(
     object_type: AuditObjectType | str,
     object_id: UUID,
     document_id: str | None = None,
+    version_id: UUID | None = None,
     actor_email: str | None = None,
 ) -> None:
     """Persist actor, action, object reference, and timestamp for a state change.
@@ -76,12 +79,15 @@ def record_audit_event(
     the live UI.
     """
     try:
+        reference = document_id or str(object_id)
+        if version_id is not None:
+            reference = f"{document_id}:{version_id}" if document_id else str(version_id)
         store.append_audit_log(
             actor_id=actor_id,
             action=str(action),
             object_type=str(object_type),
             object_id=object_id,
-            document_id=document_id or str(object_id),
+            document_id=reference,
             actor_email=actor_email,
         )
     except Exception:
