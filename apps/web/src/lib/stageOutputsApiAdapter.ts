@@ -157,11 +157,17 @@ function adaptStage1Presentation(
   presentation: Stage1OutputsPayload["presentation"],
 ): { ref: PresentationRef; unfrozen: boolean } {
   const unfrozen = presentation.status === "unfrozen";
+  const pending = unfrozen || presentation.status === "queued" || presentation.status === "generating";
   return {
     unfrozen,
     ref: {
-      status: unfrozen ? "pending" : presentation.presentation_id ? "generated" : "unknown",
-      profile: "first_meeting_3_slide",
+      status:
+        presentation.status === "ready" && presentation.presentation_id
+          ? "generated"
+          : pending
+            ? "pending"
+            : "unknown",
+      profile: presentation.profile,
       presentation_id: presentation.presentation_id,
       presentation_version_id: null,
     },
@@ -175,6 +181,12 @@ function buildStage1Dependencies(
   const deps: string[] = [RETRIEVAL_PROMPT_VERSION_UNAVAILABLE];
   if (presentationUnfrozen || payload.presentation.code === FIRST_MEETING_PPT_UNFROZEN) {
     deps.push(FIRST_MEETING_PPT_UNFROZEN);
+  }
+  if (payload.presentation.status === "failed") {
+    deps.push("PRESENTATION_GENERATION_FAILED");
+    if (payload.presentation.code && payload.presentation.code !== "PRESENTATION_GENERATION_FAILED") {
+      deps.push(payload.presentation.code);
+    }
   }
   if (!payload.research) {
     deps.push("COMPANY_RESEARCH_UNAVAILABLE");

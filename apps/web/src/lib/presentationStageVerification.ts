@@ -18,6 +18,7 @@ export interface VerifiedStagePresentation {
 }
 
 const PROFILE_STAGE: Record<string, JourneyStageName> = {
+  first_meeting_3: "first_contact",
   first_meeting_3_slide: "first_contact",
   deepening_adjusted: "deepening",
 };

@@ -14,6 +14,7 @@ from app.config import settings
 from app.services.api_errors import bad_request
 from app.services.first_contact_inputs import require_first_contact_client_documents
 from app.services.knowledge_access import resolve_active_corpus
+from app.services import presentation_generation
 from app.services.stage1 import get_company_research_provider
 from services.framework.stage1_research import generate_stage1_research
 from services.followup.extraction import FollowupExtractionError, extract_followup
@@ -167,8 +168,66 @@ def get_meeting_feedback(opportunity: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _stage1_presentation_update(
+    store: Any,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    status: str,
+    presentation_id: UUID | str | None,
+    code: str | None,
+) -> dict[str, Any] | None:
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    envelope = opportunity.get("stage1_outputs")
+    if not isinstance(envelope, dict) or not isinstance(envelope.get("outputs"), dict):
+        return None
+    payload = json.loads(json.dumps(envelope, default=str))
+    payload["outputs"]["presentation"] = {
+        "status": status,
+        "profile": presentation_generation.FIRST_CONTACT_PRESENTATION_PROFILE,
+        "code": code,
+        "presentation_id": str(presentation_id) if presentation_id else None,
+        "download_url": None,
+    }
+    validated = _validate("stage1_outputs.schema.json", payload)
+    store.update_opportunity(
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        updates={"stage1_outputs": validated},
+    )
+    return validated
+
+
+def update_stage1_presentation_state(
+    store: Any,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    status: str,
+    presentation_id: UUID | str | None,
+    code: str | None = None,
+) -> dict[str, Any] | None:
+    """Worker-safe terminal/intermediate update for the Stage 1 presentation reference."""
+    return _stage1_presentation_update(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        status=status,
+        presentation_id=presentation_id,
+        code=code,
+    )
+
+
 def generate_stage1_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    existing = opportunity.get("stage1_outputs") or {}
+    existing_presentation = ((existing.get("outputs") or {}).get("presentation") or {})
+    if (
+        existing.get("status") == "ready"
+        and existing_presentation.get("presentation_id")
+        and existing_presentation.get("status") in {"queued", "generating", "ready"}
+    ):
+        return existing
     client_document_sources = require_first_contact_client_documents(
         store,
         opportunity_id=opportunity_id,
@@ -233,7 +292,39 @@ def generate_stage1_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) 
         user_id=user_id,
         updates={"stage1_outputs": payload},
     )
-    return payload
+
+    queued_presentation_id: UUID | str | None = None
+
+    def mark_queued(presentation: dict[str, Any], _job: Any) -> None:
+        nonlocal queued_presentation_id
+        queued_presentation_id = presentation["id"]
+        _stage1_presentation_update(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            status="queued",
+            presentation_id=presentation["id"],
+            code="FIRST_MEETING_PRESENTATION_QUEUED",
+        )
+
+    try:
+        presentation_generation.enqueue_first_contact_presentation_generate(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            on_enqueued=mark_queued,
+        )
+    except Exception as exc:
+        _stage1_presentation_update(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            status="failed",
+            presentation_id=queued_presentation_id,
+            code=str(getattr(exc, "code", None) or "PRESENTATION_GENERATION_FAILED"),
+        )
+    refreshed = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    return refreshed.get("stage1_outputs") or payload
 
 
 def generate_stage2_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:

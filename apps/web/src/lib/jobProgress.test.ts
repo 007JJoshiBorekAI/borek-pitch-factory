@@ -46,6 +46,7 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
 {
   assert.equal(jobStageLabel("QUEUED"), "Waiting to start");
   assert.equal(jobStageLabel("TRANSCRIPT_PROCESSING"), "Processing customer context");
+  assert.equal(jobStageLabel("TRANSCRIPT_SUMMARIZING"), "Summarizing transcript");
   assert.equal(jobStageLabel("KNOWLEDGE_EXTRACTING"), "Reading transcripts");
   assert.equal(jobStageLabel("FRAMEWORK_SYNTHESIZING"), "Building Framework");
   assert.equal(jobStageLabel("FRAMEWORK_VALIDATING"), "Checking Framework");

@@ -523,11 +523,22 @@ def run_presentation_generation_task(
                 current = job_service.get_job(parsed_job_id, repository=store)
                 if current is None:
                     raise RuntimeError(f"Job not found: {job_id}")
+                enqueue = dict((current.result_json or {}).get("_enqueue") or {})
+                if enqueue.get("stage1_output_integration"):
+                    from app.services.journey_generation import update_stage1_presentation_state
+
+                    update_stage1_presentation_state(
+                        store,
+                        opportunity_id=current.opportunity_id,
+                        user_id=UUID(user_id),
+                        status="generating",
+                        presentation_id=UUID(presentation_id),
+                        code="FIRST_MEETING_PRESENTATION_GENERATING",
+                    )
                 resume_stage = current.current_stage
 
                 if _stage_should_run(resume_stage, stage):
                     job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                    enqueue = dict((current.result_json or {}).get("_enqueue") or {})
                     prior_id = enqueue.get("prior_stage_presentation_version_id")
                     version, plan = presentation_generation.execute_presentation_generation(
                         store,
@@ -595,6 +606,18 @@ def run_presentation_generation_task(
                     user_id=user_id,
                     version=version,
                 )
+                enqueue = dict((current.result_json or {}).get("_enqueue") or {})
+                if enqueue.get("stage1_output_integration"):
+                    from app.services.journey_generation import update_stage1_presentation_state
+
+                    update_stage1_presentation_state(
+                        store,
+                        opportunity_id=current.opportunity_id,
+                        user_id=UUID(user_id),
+                        status="ready",
+                        presentation_id=UUID(presentation_id),
+                        code=None,
+                    )
                 job_service.complete_job(
                     parsed_job_id,
                     repository=store,
@@ -611,6 +634,19 @@ def run_presentation_generation_task(
 
         return run_with_transient_retry(_run)
     except Exception as exc:
+        current = job_service.get_job(parsed_job_id, repository=store)
+        enqueue = dict((current.result_json or {}).get("_enqueue") or {}) if current else {}
+        if current is not None and enqueue.get("stage1_output_integration"):
+            from app.services.journey_generation import update_stage1_presentation_state
+
+            update_stage1_presentation_state(
+                store,
+                opportunity_id=current.opportunity_id,
+                user_id=UUID(user_id),
+                status="failed",
+                presentation_id=UUID(presentation_id),
+                code=str(getattr(exc, "code", None) or "PRESENTATION_GENERATION_FAILED"),
+            )
         job_service.fail_job(
             parsed_job_id,
             getattr(exc, "code", "PRESENTATION_GENERATION_FAILED"),

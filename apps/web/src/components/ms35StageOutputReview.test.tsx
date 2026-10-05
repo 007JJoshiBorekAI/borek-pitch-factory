@@ -41,7 +41,7 @@ const liveItems = buildStageOutputHubItems(
 );
 const liveHubHtml = renderToStaticMarkup(<StageOutputHubPanel items={liveItems} showBackendNote />);
 assert.match(liveHubHtml, /Backend not available|Awaiting generation/);
-assert.match(liveHubHtml, /BT-36 Phase 3 onward/i);
+assert.doesNotMatch(liveHubHtml, /Stage output APIs are not deployed/i);
 
 const stepperHtml = renderToStaticMarkup(
   <JourneyOutputStepper

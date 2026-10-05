@@ -20,7 +20,7 @@ export function FirstMeetingPresentationPanel({
   verifiedPresentation?: VerifiedStagePresentation | null;
   demoMode: boolean;
 }) {
-  const profile = presentationRef?.profile ?? "first_meeting_3_slide";
+  const profile = presentationRef?.profile ?? "first_meeting_3";
   const canOpenDeckCenter = Boolean(verifiedPresentation?.presentationId) && !demoMode;
 
   return (

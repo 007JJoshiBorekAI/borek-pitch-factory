@@ -152,6 +152,14 @@ export function FirstContactReviewPanel({ opportunityId }: { opportunityId: stri
     void loadLiveStage1Outputs();
   }, [loadLiveStage1Outputs]);
 
+  useEffect(() => {
+    if (demoMode || adaptedOutputs?.panelOutputs?.presentation_ref.status !== "pending") {
+      return;
+    }
+    const timer = window.setTimeout(() => void loadLiveStage1Outputs(), 1500);
+    return () => window.clearTimeout(timer);
+  }, [adaptedOutputs, demoMode, loadLiveStage1Outputs]);
+
   async function handleGenerateStage1Outputs() {
     if (!accessToken || demoMode || generating) {
       return;

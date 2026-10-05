@@ -82,11 +82,48 @@ assert.equal(stage1.panelOutputs.use_cases.items[0].origin, "UNKNOWN");
 assert.equal(stage1.panelOutputs.use_cases.items[1].status, "unknown");
 assert.equal(stage1.panelOutputs.prompt_version, "");
 assert.ok(stage1.dependencies.includes(RETRIEVAL_PROMPT_VERSION_UNAVAILABLE));
-assert.equal(stage1.panelOutputs.presentation_ref.profile, "first_meeting_3_slide");
+assert.equal(stage1.panelOutputs.presentation_ref.profile, "first_meeting_3");
 assert.equal(stage1.panelOutputs.presentation_ref.status, "pending");
 assert.equal(stage1.presentationUnfrozen, true);
 assert.ok(stage1.dependencies.includes(FIRST_MEETING_PPT_UNFROZEN));
 assert.equal(isFirstContactPresentationDownloadBlocked(stage1), true);
+
+const queuedStage1 = adaptStage1OutputsEnvelope({
+  ...readyStage1,
+  outputs: readyStage1.outputs
+    ? {
+        ...readyStage1.outputs,
+        presentation: {
+          status: "queued",
+          profile: "first_meeting_3",
+          code: "FIRST_MEETING_PRESENTATION_QUEUED",
+          presentation_id: "11111111-1111-4111-8111-111111111111",
+          download_url: null,
+        },
+      }
+    : null,
+});
+assert.equal(queuedStage1.panelOutputs?.presentation_ref.status, "pending");
+assert.equal(queuedStage1.panelOutputs?.presentation_ref.profile, "first_meeting_3");
+
+const failedStage1 = adaptStage1OutputsEnvelope({
+  ...readyStage1,
+  outputs: readyStage1.outputs
+    ? {
+        ...readyStage1.outputs,
+        presentation: {
+          status: "failed",
+          profile: "first_meeting_3",
+          code: "GAMMA_TIMEOUT",
+          presentation_id: "11111111-1111-4111-8111-111111111111",
+          download_url: null,
+        },
+      }
+    : null,
+});
+assert.equal(failedStage1.panelOutputs?.presentation_ref.status, "unknown");
+assert.ok(failedStage1.dependencies.includes("PRESENTATION_GENERATION_FAILED"));
+assert.ok(failedStage1.dependencies.includes("GAMMA_TIMEOUT"));
 
 const readyStage2: Stage2OutputsEnvelope = {
   schema_version: "1.0",

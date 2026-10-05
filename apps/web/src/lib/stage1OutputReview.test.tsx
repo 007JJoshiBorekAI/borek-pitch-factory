@@ -126,6 +126,7 @@ const verifiedPresentationHtml = renderToStaticMarkup(
 assert.match(verifiedPresentationHtml, /Open presentation review/);
 assert.match(verifiedPresentationHtml, /first_meeting_3_slide/);
 assert.equal(journeyStageForProfile("first_meeting_3_slide"), "first_contact");
+assert.equal(journeyStageForProfile("first_meeting_3"), "first_contact");
 
 const reviewPanelSource = readFileSync(
   fileURLToPath(new URL("../components/FirstContactReviewPanel.tsx", import.meta.url)),

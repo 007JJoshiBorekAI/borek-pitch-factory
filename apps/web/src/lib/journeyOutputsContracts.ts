@@ -38,7 +38,7 @@ export interface Stage1ApiAgenda {
 }
 
 export interface Stage1ApiPresentation {
-  status: "unfrozen" | "ready";
+  status: "unfrozen" | "queued" | "generating" | "ready" | "failed";
   profile: "first_meeting_3";
   code: string | null;
   presentation_id: string | null;

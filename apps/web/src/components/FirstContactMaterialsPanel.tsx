@@ -148,6 +148,14 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
   }, [loadLiveStage1Outputs]);
 
   useEffect(() => {
+    if (demoMode || adaptedOutputs?.panelOutputs?.presentation_ref.status !== "pending") {
+      return;
+    }
+    const timer = window.setTimeout(() => void loadLiveStage1Outputs(), 1500);
+    return () => window.clearTimeout(timer);
+  }, [adaptedOutputs, demoMode, loadLiveStage1Outputs]);
+
+  useEffect(() => {
     let active = true;
     async function loadPresentation() {
       if (
@@ -162,7 +170,7 @@ export function FirstContactMaterialsPanel({ opportunityId }: { opportunityId: s
       const verified = await resolveVerifiedStagePresentation(
         accessToken,
         opportunityId,
-        "first_meeting_3_slide",
+        "first_meeting_3",
       );
       if (active) {
         setVerifiedPresentation(verified);

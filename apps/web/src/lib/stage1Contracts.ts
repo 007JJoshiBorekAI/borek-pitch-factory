@@ -95,7 +95,7 @@ export interface MeetingAgenda {
 
 export interface PresentationRef {
   status: "pending" | "generated" | "unknown";
-  profile: "first_meeting_3_slide";
+  profile: "first_meeting_3" | "first_meeting_3_slide";
   presentation_id: string | null;
   presentation_version_id: string | null;
 }

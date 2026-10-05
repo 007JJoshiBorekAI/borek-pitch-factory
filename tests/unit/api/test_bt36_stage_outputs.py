@@ -97,12 +97,80 @@ def test_stage1_outputs_require_document_and_persist() -> None:
     body = generated.json()
     assert body["status"] == "ready"
     assert len(body["outputs"]["discovery_questions"]) >= 10
-    assert body["outputs"]["presentation"]["code"] == "FIRST_MEETING_PPT_PROFILE_UNFROZEN"
+    presentation = body["outputs"]["presentation"]
+    assert presentation["status"] == "ready"
+    assert presentation["profile"] == "first_meeting_3"
+    assert presentation["presentation_id"]
+    assert presentation["code"] is None
+    store = get_memory_store()
+    assert len(store.presentations) == 1
+    assert len(store.presentation_versions) == 1
+    assert len(store.slides) == 3
+    plan = next(iter(store.presentation_plans.values()))
+    assert len(plan["plan_json"]["slides"]) == 3
+    version = next(iter(store.presentation_versions.values()))
+    assert version["journey_stage"] == "first_contact"
+    assert version["pptx_storage_path"]
+    assert version["pdf_storage_path"]
+    assert len(version["preview_image_paths"]) == 3
+    filed_kinds = {artifact.get("artifact_kind") for artifact in store.filed_artifacts.values()}
+    assert {"pptx", "pdf"}.issubset(filed_kinds)
+    assert any(
+        artifact.get("presentation_id") == presentation["presentation_id"]
+        and artifact.get("journey_stage") == "first_contact"
+        for artifact in store.filed_artifacts.values()
+    )
+    repeated = client.post(
+        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        headers=headers(),
+    )
+    assert repeated.status_code == 200, repeated.text
+    assert repeated.json()["outputs"]["presentation"]["presentation_id"] == presentation["presentation_id"]
+    assert len(store.presentations) == 1
+    assert len(store.presentation_versions) == 1
     stored = client.get(
         f"/opportunities/{opportunity_id}/stage1-outputs",
         headers=headers(),
     ).json()
     assert stored["status"] == "ready"
+
+
+def test_stage1_presentation_failure_is_persisted_and_retryable(monkeypatch) -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    upload = client.post(
+        f"/opportunities/{opportunity_id}/client-documents",
+        headers=headers(),
+        files={"file": ("brief.txt", b"Client background material.", "text/plain")},
+    )
+    assert upload.status_code == 201, upload.text
+
+    from app.services import presentation_generation
+
+    original = presentation_generation.execute_presentation_generation
+
+    def fail_generation(*_args, **_kwargs):
+        raise RuntimeError("renderer unavailable")
+
+    monkeypatch.setattr(presentation_generation, "execute_presentation_generation", fail_generation)
+    failed = client.post(
+        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        headers=headers(),
+    )
+    assert failed.status_code == 200, failed.text
+    failed_presentation = failed.json()["outputs"]["presentation"]
+    assert failed_presentation["status"] == "failed"
+    assert failed_presentation["presentation_id"]
+    assert failed_presentation["code"] == "PRESENTATION_GENERATION_FAILED"
+
+    monkeypatch.setattr(presentation_generation, "execute_presentation_generation", original)
+    retried = client.post(
+        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        headers=headers(),
+    )
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["outputs"]["presentation"]["status"] == "ready"
 
 
 def test_meeting_feedback_and_stage2_outputs() -> None:

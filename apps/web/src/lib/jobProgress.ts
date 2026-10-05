@@ -9,6 +9,7 @@ export type JobProgressStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
 export const JOB_STAGE_LABELS: Record<string, string> = {
   QUEUED: "Waiting to start",
   TRANSCRIPT_PROCESSING: "Processing customer context",
+  TRANSCRIPT_SUMMARIZING: "Summarizing transcript",
   KNOWLEDGE_EXTRACTING: "Reading transcripts",
   FRAMEWORK_SYNTHESIZING: "Building Framework",
   FRAMEWORK_VALIDATING: "Checking Framework",

@@ -9,6 +9,7 @@ SlideSpecs without a silent count lie.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from typing import Any
 from uuid import UUID
 
@@ -25,6 +26,33 @@ from app.services.renderer_client import render_deck_assets
 from app.services.stage_b_orchestration import plan_json_from_confirmed_framework
 from app.services.stage_b_providers import install_runtime_stage_b_providers
 from services.presentation.generatable_layouts import filter_generatable_planned_slides
+
+
+FIRST_CONTACT_PRESENTATION_PROFILE = "first_meeting_3"
+FIRST_CONTACT_PRESENTATION_PLAN = {
+    "schema_version": "1.0",
+    "title": "First-meeting presentation",
+    "slides": [
+        {
+            "order": 1,
+            "purpose": "Introduce Borek and the first-meeting topic",
+            "layoutId": "COVER_01",
+            "frameworkReferences": ["opportunity"],
+        },
+        {
+            "order": 2,
+            "purpose": "Present the evidence-bound opening hypothesis",
+            "layoutId": "PROBLEM_SOLUTION_01",
+            "frameworkReferences": ["chapter_4"],
+        },
+        {
+            "order": 3,
+            "purpose": "Connect the client context to a relevant Borek use case",
+            "layoutId": "CONTEXT_01",
+            "frameworkReferences": ["chapter_1"],
+        },
+    ],
+}
 
 
 def _dispatch_task(task, *args: str) -> None:
@@ -302,6 +330,8 @@ def enqueue_presentation_generate(
     presentation_plan_id: UUID | None,
     name: str | None,
     journey_stage: str | None = None,
+    enqueue_metadata: dict[str, Any] | None = None,
+    on_enqueued: Callable[[dict[str, Any], job_service.Job], None] | None = None,
 ):
     store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     framework = _require_confirmed_framework(
@@ -372,24 +402,28 @@ def enqueue_presentation_generate(
         user_id=user_id,
         name=name or str(plan["plan_json"].get("title") or "Presentation"),
     )
+    enqueue_payload = {
+        "user_id": str(user_id),
+        "presentation_id": str(presentation["id"]),
+        "framework_version_id": str(framework["id"]),
+        "presentation_plan_id": str(plan["id"]),
+        "journey_stage": eligibility["requested_journey_stage"],
+        "prior_stage_presentation_version_id": (
+            str(eligibility["prior_stage_presentation_version_id"])
+            if eligibility["prior_stage_presentation_version_id"]
+            else None
+        ),
+    }
+    enqueue_payload.update(enqueue_metadata or {})
     job = job_service.create_job(
         opportunity_id=opportunity_id,
         job_type="presentation_generation",
         presentation_id=presentation["id"],
-        enqueue={
-            "user_id": str(user_id),
-            "presentation_id": str(presentation["id"]),
-            "framework_version_id": str(framework["id"]),
-            "presentation_plan_id": str(plan["id"]),
-            "journey_stage": eligibility["requested_journey_stage"],
-            "prior_stage_presentation_version_id": (
-                str(eligibility["prior_stage_presentation_version_id"])
-                if eligibility["prior_stage_presentation_version_id"]
-                else None
-            ),
-        },
+        enqueue=enqueue_payload,
         repository=store,
     )
+    if on_enqueued is not None:
+        on_enqueued(presentation, job)
     from app.worker import run_presentation_generation_task
 
     _dispatch_task(
@@ -399,6 +433,54 @@ def enqueue_presentation_generate(
         str(user_id),
     )
     return presentation, plan, job, False
+
+
+def enqueue_first_contact_presentation_generate(
+    store: DataStore,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    on_enqueued: Callable[[dict[str, Any], job_service.Job], None] | None = None,
+):
+    """Create the frozen three-slide BT-36 plan and run the standard deck pipeline."""
+    try:
+        framework = store.get_latest_framework(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+        )
+    except HTTPException as exc:
+        if exc.status_code != 404:
+            raise
+        framework = store.generate_framework_stub(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+        )
+    if framework["status"] != "confirmed":
+        framework = store.confirm_framework(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            framework_version_id=framework["id"],
+        )
+
+    plan = store.create_presentation_plan(
+        framework_version_id=framework["id"],
+        user_id=user_id,
+        plan_json={
+            **FIRST_CONTACT_PRESENTATION_PLAN,
+            "title": f"First meeting — {store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id).get('opportunity_name') or 'Opportunity'}",
+        },
+    )
+    return enqueue_presentation_generate(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        framework_version_id=framework["id"],
+        presentation_plan_id=plan["id"],
+        name=str(plan["plan_json"]["title"]),
+        journey_stage="first_contact",
+        enqueue_metadata={"stage1_output_integration": True},
+        on_enqueued=on_enqueued,
+    )
 
 
 def execute_presentation_generation(

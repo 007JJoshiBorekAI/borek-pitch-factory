@@ -12,9 +12,6 @@ import {
 } from "./stageOutputArtifacts";
 
 export const STAGE_OUTPUT_DEMO_QUERY = "demo";
-export const STAGE_OUTPUT_BACKEND_NOTE =
-  "Stage output APIs are not deployed on this environment yet (BT-36 Phase 3 onward).";
-
 export interface StageOutputHubItem {
   id: StageOutputArtifactId;
   label: string;
@@ -30,6 +27,7 @@ export interface Stage1ArtifactAvailability {
   discovery_questions: boolean;
   use_case_relevance: boolean;
   first_meeting_deck: boolean;
+  first_meeting_deck_status: "not_generated" | "generating" | "ready" | "failed";
   meeting_agenda: boolean;
 }
 
@@ -131,7 +129,9 @@ function liveStatusForArtifact(
         case "use_case_relevance":
           return availability.use_case_relevance ? "available" : "backend_unavailable";
         case "first_meeting_deck":
-          return availability.first_meeting_deck ? "available" : "backend_unavailable";
+          if (availability.first_meeting_deck_status === "ready") return "available";
+          if (availability.first_meeting_deck_status === "failed") return "generation_failed";
+          return "awaiting_generation";
         case "meeting_agenda":
           return availability.meeting_agenda ? "available" : "backend_unavailable";
         case "optional_email":

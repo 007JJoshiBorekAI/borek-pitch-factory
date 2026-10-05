@@ -6,7 +6,6 @@ import {
   type StageOutputArtifactStatus,
 } from "@/lib/stageOutputArtifacts";
 import type { StageOutputHubItem } from "@/lib/stageOutputReview";
-import { STAGE_OUTPUT_BACKEND_NOTE } from "@/lib/stageOutputReview";
 
 interface StageOutputHubPanelProps {
   title?: string;
@@ -24,9 +23,7 @@ function statusMarkerClass(status: StageOutputArtifactStatus, isDemo: boolean): 
 export function StageOutputHubPanel({
   title = "Outputs",
   items,
-  showBackendNote = true,
 }: StageOutputHubPanelProps) {
-  const hasUnavailable = items.some((item) => item.status === "backend_unavailable" && !item.isDemo);
   const hasDemo = items.some((item) => item.isDemo);
 
   return (
@@ -36,9 +33,6 @@ export function StageOutputHubPanel({
         <p className="stage-output-demo-note" role="note">
           Demonstration data only — not live company research or generated artefacts.
         </p>
-      ) : null}
-      {showBackendNote && hasUnavailable ? (
-        <p className="stage-output-backend-note">{STAGE_OUTPUT_BACKEND_NOTE}</p>
       ) : null}
       <ul className="stage-output-hub-list">
         {items.map((item) => (

@@ -65,6 +65,7 @@ const partialStage1Availability = buildStageOutputHubItems(
       discovery_questions: true,
       use_case_relevance: false,
       first_meeting_deck: false,
+      first_meeting_deck_status: "generating",
       meeting_agenda: true,
     },
   },
