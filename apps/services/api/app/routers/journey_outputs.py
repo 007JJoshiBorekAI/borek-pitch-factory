@@ -42,6 +42,11 @@ from app.services.meeting_extraction import (
     get_meeting_extraction,
     personal_notes_view,
 )
+from app.services.use_case_selection import (
+    get_selected_use_cases,
+    list_available_use_cases,
+    replace_selected_use_cases,
+)
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -62,6 +67,12 @@ class MeetingExtractionGenerateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     transcript_id: UUID
+
+
+class SelectedUseCasesUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    use_case_ids: list[str]
 
 
 class EmailGenerateRequest(BaseModel):
@@ -385,6 +396,56 @@ def post_meeting_extraction(
         object_type=AuditObjectType.OPPORTUNITY,
         object_id=opportunity_id,
         document_id=str(body.transcript_id),
+    )
+    return stored
+
+
+@router.get("/{opportunity_id}/available-use-cases")
+def read_available_use_cases(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return list_available_use_cases(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.get("/{opportunity_id}/selected-use-cases")
+def read_selected_use_cases(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return get_selected_use_cases(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.put("/{opportunity_id}/selected-use-cases")
+def write_selected_use_cases(
+    opportunity_id: UUID,
+    body: SelectedUseCasesUpdate,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    stored = replace_selected_use_cases(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        use_case_ids=body.use_case_ids,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.SELECTED_USE_CASES_UPDATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+        document_id=",".join(stored["use_case_ids"]) if stored["use_case_ids"] else "0",
     )
     return stored
 

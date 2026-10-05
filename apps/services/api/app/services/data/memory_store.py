@@ -362,6 +362,7 @@ class MemoryDataStore:
             **{key: None for key in JOURNEY_OUTPUT_DB_COLUMNS},
         }
         apply_intake_columns(row, stage1_intake)
+        row["selected_use_case_ids"] = []
         self.opportunities[opportunity_id] = row
         return present_opportunity(row)
 

@@ -271,6 +271,13 @@ def test_bt42_discovery_paper_versions() -> None:
     assert "discovery_paper_versions_approved_immutable" in content
 
 
+def test_bt45_selected_use_case_ids() -> None:
+    content = (MIGRATIONS_DIR / "037_bt45_selected_use_cases.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS selected_use_case_ids JSONB" in content
+    assert "DEFAULT '[]'::jsonb" in content
+    assert "CREATE TABLE" not in content
+
+
 def test_bt44_meeting_extraction_columns() -> None:
     content = (MIGRATIONS_DIR / "036_bt44_meeting_extraction.sql").read_text(encoding="utf-8")
     assert "ADD COLUMN IF NOT EXISTS personal_notes TEXT" in content
