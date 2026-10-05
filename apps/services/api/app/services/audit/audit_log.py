@@ -37,6 +37,8 @@ class AuditAction(StrEnum):
     STAGE1_OUTPUTS_GENERATE = "stage1_outputs.generate"
     STAGE2_OUTPUTS_GENERATE = "stage2_outputs.generate"
     MEETING_FEEDBACK_UPDATE = "meeting_feedback.update"
+    PERSONAL_NOTES_UPDATE = "personal_notes.update"
+    MEETING_EXTRACTION_GENERATE = "meeting_extraction.generate"
     EMAIL_DRAFT_GENERATE = "email_draft.generate"
     EMAIL_DRAFT_CONFIRM = "email_draft.confirm"
     CLIENT_PREPARATION_EMAIL_GENERATE = "client_preparation_email.generate"

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/meeting_extraction.schema.json",
+  "title": "MeetingExtraction",
+  "description": "BT-44 structured extraction from one selected transcript plus the opportunity's saved personal notes. Notes text is not stored here; personal_notes_updated_at identifies the note revision that informed the extraction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "transcript_id",
+    "generated_at",
+    "personal_notes_updated_at",
+    "requirements",
+    "challenges",
+    "priorities",
+    "opportunities",
+    "discussed_solutions",
+    "decisions",
+    "follow_ups"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "transcript_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "personal_notes_updated_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "requirements": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "challenges": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "priorities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "opportunities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "discussed_solutions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "decisions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "follow_ups": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

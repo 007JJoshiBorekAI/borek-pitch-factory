@@ -271,6 +271,15 @@ def test_bt42_discovery_paper_versions() -> None:
     assert "discovery_paper_versions_approved_immutable" in content
 
 
+def test_bt44_meeting_extraction_columns() -> None:
+    content = (MIGRATIONS_DIR / "036_bt44_meeting_extraction.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS personal_notes TEXT" in content
+    assert "ADD COLUMN IF NOT EXISTS personal_notes_updated_at TIMESTAMPTZ" in content
+    assert "ADD COLUMN IF NOT EXISTS meeting_extraction JSONB" in content
+    assert "CREATE TABLE" not in content
+    assert "transcripts" not in content.lower() or "Transcripts stay" in content
+
+
 def test_bt41_discovery_paper_column() -> None:
     content = (MIGRATIONS_DIR / "034_bt41_discovery_paper.sql").read_text(encoding="utf-8")
     assert "ADD COLUMN IF NOT EXISTS discovery_paper JSONB" in content

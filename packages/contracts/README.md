@@ -26,6 +26,7 @@ Single source of truth for all cross-service data contracts.
 | `stage1_outputs.schema.json` | BT-36 | **MS-35 retrieve envelope on `main`.** Same filename on `origin/bt/bt36-stage-outputs` is the generation payload — do not mix |
 | `stage2_outputs.schema.json` | BT-36 | Same: retrieve envelope on `main` |
 | `meeting_feedback.schema.json` | BT-36 | Complete |
+| `meeting_extraction.schema.json` | BT-44 | Complete |
 | `email_draft.schema.json` | TSK-013 | Complete |
 
 ## Validation gate

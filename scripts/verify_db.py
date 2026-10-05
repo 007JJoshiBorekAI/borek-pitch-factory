@@ -65,6 +65,9 @@ EXPECTED_COLUMNS = {
         "email_drafts",
         "client_preparation_email",
         "discovery_paper",
+        "personal_notes",
+        "personal_notes_updated_at",
+        "meeting_extraction",
         "demo_marker",
     ),
     "transcript_summaries": (

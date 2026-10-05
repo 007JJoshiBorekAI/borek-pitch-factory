@@ -36,6 +36,12 @@ from app.services.journey_generation import (
     generate_stage2_outputs,
     get_meeting_feedback,
 )
+from app.services.meeting_extraction import (
+    empty_meeting_extraction,
+    generate_meeting_extraction,
+    get_meeting_extraction,
+    personal_notes_view,
+)
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -44,6 +50,18 @@ class MeetingFeedbackUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str | None = Field(default=None, max_length=20_000)
+
+
+class PersonalNotesUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str | None = Field(default=None, max_length=20_000)
+
+
+class MeetingExtractionGenerateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    transcript_id: UUID
 
 
 class EmailGenerateRequest(BaseModel):
@@ -292,6 +310,83 @@ def write_meeting_feedback(
     )
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
     return get_meeting_feedback(opportunity)
+
+
+@router.get("/{opportunity_id}/personal-notes")
+def read_personal_notes(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    return personal_notes_view(opportunity)
+
+
+@router.put("/{opportunity_id}/personal-notes")
+def write_personal_notes(
+    opportunity_id: UUID,
+    body: PersonalNotesUpdate,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    from datetime import UTC, datetime
+
+    text = None if body.text is None else body.text.strip() or None
+    store.update_opportunity(
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        updates={
+            "personal_notes": text,
+            "personal_notes_updated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        },
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.PERSONAL_NOTES_UPDATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    return personal_notes_view(opportunity)
+
+
+@router.get("/{opportunity_id}/meeting-extraction")
+def read_meeting_extraction(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    stored = get_meeting_extraction(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+    return stored if stored is not None else empty_meeting_extraction(opportunity_id)
+
+
+@router.post("/{opportunity_id}/meeting-extraction/generate")
+def post_meeting_extraction(
+    opportunity_id: UUID,
+    body: MeetingExtractionGenerateRequest,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    stored = generate_meeting_extraction(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        transcript_id=body.transcript_id,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.MEETING_EXTRACTION_GENERATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+        document_id=str(body.transcript_id),
+    )
+    return stored
 
 
 @router.get("/{opportunity_id}/client-preparation-email")
