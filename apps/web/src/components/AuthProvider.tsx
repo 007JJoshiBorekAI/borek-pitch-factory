@@ -4,9 +4,10 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import type { Session } from "@supabase/supabase-js";
 
 import { getEmployeeMe, recordEmployeeSession } from "@/lib/api";
+import { syncAuthOwner } from "@/lib/authSession";
 import { EMPTY_CAPABILITIES, type EmployeeMe } from "@/lib/employeeRoles";
-import { syncPipelineOwner } from "@/lib/pipelineContext";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { isLocalUiPreviewAvailable } from "@/lib/uiPreview";
 
 interface AuthContextValue {
   session: Session | null;
@@ -15,6 +16,8 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   employee: EmployeeMe | null;
   capabilities: EmployeeMe["capabilities"];
+  previewMode: boolean;
+  startPreviewSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -24,41 +27,55 @@ const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   employee: null,
   capabilities: EMPTY_CAPABILITIES,
+  previewMode: false,
+  startPreviewSession: () => undefined,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const devToken = process.env.NEXT_PUBLIC_DEV_ACCESS_TOKEN?.trim() || null;
   const [session, setSession] = useState<Session | null>(null);
-  const [sessionLoading, setSessionLoading] = useState(() => !devToken);
+  const [loading, setLoading] = useState(true);
   const [employee, setEmployee] = useState<EmployeeMe | null>(null);
+  const [previewMode, setPreviewMode] = useState(false);
   const loginRecorded = useRef<string | null>(null);
-  const loading = devToken ? false : sessionLoading;
 
   useEffect(() => {
     const client = getSupabaseBrowserClient();
     if (!client) {
-      setSessionLoading(false);
+      if (isLocalUiPreviewAvailable()) {
+        setPreviewMode(window.sessionStorage.getItem("borek-ui-preview") === "true");
+      }
+      setLoading(false);
       return;
     }
 
     void client.auth.getSession().then(({ data }) => {
-      syncPipelineOwner(data.session?.user.id ?? null);
+      syncAuthOwner(data.session?.user.id ?? null);
       setSession(data.session);
-      setSessionLoading(false);
+      setLoading(false);
     });
 
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, nextSession) => {
-      syncPipelineOwner(nextSession?.user.id ?? null);
+      syncAuthOwner(nextSession?.user.id ?? null);
       setSession(nextSession);
-      setSessionLoading(false);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  const devToken = process.env.NEXT_PUBLIC_DEV_ACCESS_TOKEN?.trim() || null;
   const accessToken = session?.access_token ?? devToken;
+
+  function startPreviewSession() {
+    if (!isLocalUiPreviewAvailable() || getSupabaseBrowserClient()) {
+      return;
+    }
+    window.sessionStorage.setItem("borek-ui-preview", "true");
+    setPreviewMode(true);
+    setLoading(false);
+  }
 
   useEffect(() => {
     if (!accessToken) {
@@ -93,11 +110,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       accessToken,
       loading,
-      isAuthenticated: Boolean(accessToken),
+      isAuthenticated: Boolean(accessToken) || previewMode,
       employee,
       capabilities: employee?.capabilities ?? EMPTY_CAPABILITIES,
+      previewMode,
+      startPreviewSession,
     };
-  }, [accessToken, employee, loading, session]);
+  }, [accessToken, employee, loading, previewMode, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

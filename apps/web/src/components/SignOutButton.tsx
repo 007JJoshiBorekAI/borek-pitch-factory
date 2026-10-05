@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { clearPipelineContext } from "@/lib/pipelineContext";
+import { clearAuthSession } from "@/lib/authSession";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 export function SignOutButton() {
@@ -13,14 +13,14 @@ export function SignOutButton() {
   async function handleSignOut() {
     const client = getSupabaseBrowserClient();
     if (!client) {
-      clearPipelineContext();
+      clearAuthSession();
       router.replace("/login");
       return;
     }
 
     setBusy(true);
     await client.auth.signOut();
-    clearPipelineContext();
+    clearAuthSession();
     router.replace("/login");
   }
 

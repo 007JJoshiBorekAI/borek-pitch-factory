@@ -1,5 +1,10 @@
-import { LoginView } from "@/components/LoginView";
+import { AuthCard } from "@/components/AuthCard";
+import { AuthShell } from "@/components/AuthShell";
 
 export default function LoginPage() {
-  return <LoginView />;
+  return (
+    <AuthShell>
+      <AuthCard />
+    </AuthShell>
+  );
 }

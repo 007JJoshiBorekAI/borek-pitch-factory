@@ -6,59 +6,14 @@ import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/components/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface SiteHeaderProps {
   signedInEmail?: string | null;
   opportunityId?: string | null;
   onNewPresentation?: () => void;
   sidebarExtra?: ReactNode;
-  progressVariant?: "default" | "review";
-}
-
-const NAV = [
-  { href: "/", label: "Overview" },
-  { href: "/clients", label: "Clients" },
-  { href: "/approvals", label: "Approvals" },
-  { href: "/archive", label: "Library" },
-] as const;
-
-function pageTitle(pathname: string): string {
-  if (pathname === "/") return "Pitch Factory";
-  if (pathname.startsWith("/first-contact")) {
-    return "Stage 1";
-  }
-  if (
-    pathname.startsWith("/first-meeting") ||
-    pathname.startsWith("/opportunity") ||
-    pathname.startsWith("/create-pitch") ||
-    pathname.startsWith("/meeting-preparation")
-  ) {
-    return "Stage 2";
-  }
-  if (pathname.startsWith("/clients")) return "Clients";
-  if (pathname.startsWith("/approvals")) return "Approvals";
-  if (pathname.startsWith("/archive")) return "Library";
-  if (pathname.startsWith("/activity")) return "Activity";
-  if (pathname.startsWith("/profile")) return "Profile";
-  if (pathname.startsWith("/upload")) return "Pitch Factory";
-  if (pathname.startsWith("/framework-review")) return "Pitch review";
-  if (pathname.startsWith("/plan-preview")) return "Meeting preparation";
-  if (pathname.startsWith("/pitch-review") || pathname.startsWith("/deck-center")) return "Pitch review";
-  if (pathname.startsWith("/followup-review")) return "Follow-ups";
-  return "Pitch Factory";
-}
-
-function isActive(pathname: string, href: string): boolean {
-  const inStage =
-    pathname.startsWith("/first-contact") ||
-    pathname.startsWith("/first-meeting") ||
-    pathname.startsWith("/opportunity") ||
-    pathname.startsWith("/create-pitch") ||
-    pathname.startsWith("/meeting-preparation") ||
-    pathname.startsWith("/pitch-review");
-  if (href === "/") return pathname === "/";
-  if (href === "/clients") return pathname.startsWith("/clients") || inStage;
-  return pathname === href || pathname.startsWith(`${href}/`);
+  activeSection?: "pre_meeting" | "post_meeting" | "clients";
 }
 
 export function displayNameFromEmail(email: string | null | undefined): string {
@@ -75,25 +30,40 @@ export function initialsFromName(name: string): string {
   return letters.join("") || "B";
 }
 
-export function SiteHeader({ signedInEmail, sidebarExtra, progressVariant = "default" }: SiteHeaderProps) {
+export function SiteHeader({
+  signedInEmail,
+  sidebarExtra,
+  activeSection,
+}: SiteHeaderProps) {
   const pathname = usePathname();
-  const { session, employee } = useAuth();
-  const email = signedInEmail ?? session?.user.email ?? employee?.email ?? null;
+  const { session, employee, previewMode } = useAuth();
+  const { language, setLanguage, copy } = useLanguage();
+  const navigation = [
+    { id: "pre_meeting", href: "/opportunities/new/client-information", label: copy.sidebar.preMeeting },
+    { id: "post_meeting", href: "/clients?phase=post_meeting", label: copy.sidebar.postMeeting },
+    { id: "clients", href: "/clients", label: copy.sidebar.clients },
+  ] as const;
+  const title = pathname.startsWith("/opportunities/new/")
+    ? copy.header.addClient
+    : pathname.startsWith("/clients")
+      ? copy.header.clients
+    : pathname.startsWith("/opportunities/")
+      ? copy.header.pitchGeneration
+      : pathname.startsWith("/profile")
+        ? copy.header.profile
+        : "Pitch Factory";
+  const email = signedInEmail ?? session?.user.email ?? employee?.email ?? (previewMode ? "preview@borek.local" : null);
   const name = displayNameFromEmail(email);
 
   return (
     <>
       <aside className="pitch-sidebar">
-        <BrandLogo href="/" className="pitch-sidebar-brand" />
-        {email ? (
-          <Link href="/" className="pitch-btn-new">
-            + New pitch
-          </Link>
-        ) : null}
+        <BrandLogo href="/clients" className="pitch-sidebar-brand" />
+        <p className="pitch-sidebar-product">AI Pitch</p>
         <nav aria-label="Main navigation">
           <ul>
-            {NAV.map((item) => (
-              <li key={item.href} className={isActive(pathname, item.href) ? "active" : undefined}>
+            {navigation.map((item) => (
+              <li key={item.id} className={activeSection === item.id ? "active" : undefined}>
                 <Link href={item.href}>{item.label}</Link>
               </li>
             ))}
@@ -103,16 +73,12 @@ export function SiteHeader({ signedInEmail, sidebarExtra, progressVariant = "def
       </aside>
       <header className="pitch-topbar">
         <div className="pitch-topline">
-          <h1 className="pitch-page-title">{pageTitle(pathname)}</h1>
+          <h1 className="pitch-page-title">{title}</h1>
           <div className="pitch-header-actions">
-            {email ? (
-              <Link href="/activity" className="pitch-icon-btn" aria-label="Activity">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-              </Link>
-            ) : null}
+            <div className="pitch-language-switch" role="group" aria-label={copy.language}>
+              <button type="button" aria-pressed={language === "de"} onClick={() => setLanguage("de")}>DE</button>
+              <button type="button" aria-pressed={language === "en"} onClick={() => setLanguage("en")}>EN</button>
+            </div>
             {email ? (
               <Link href="/profile" className="pitch-user">
                 <span className="pitch-avatar">{initialsFromName(name)}</span>
@@ -120,20 +86,12 @@ export function SiteHeader({ signedInEmail, sidebarExtra, progressVariant = "def
               </Link>
             ) : (
               <Link href="/login" className="pitch-signin">
-                Sign in
+                {copy.header.signIn}
               </Link>
             )}
           </div>
         </div>
-        <div
-          className={`pitch-progress${progressVariant === "review" ? " pitch-progress-review" : ""}`}
-          aria-hidden="true"
-        >
-          <span />
-          <span />
-          <span />
-          {progressVariant === "default" ? <span /> : null}
-        </div>
+        <div className="pitch-title-underline" aria-hidden="true" />
       </header>
     </>
   );

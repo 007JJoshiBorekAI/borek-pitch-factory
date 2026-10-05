@@ -65,8 +65,8 @@ export function ProfilePanel() {
               <span>Signed in as</span>
               <span>{email ?? name}</span>
             </div>
-            <Link href="/activity" className="btn btn-secondary pitch-block-btn">
-              View activity log →
+            <Link href="/clients" className="btn btn-secondary pitch-block-btn">
+              Back to clients →
             </Link>
             <SignOutButton />
           </aside>
