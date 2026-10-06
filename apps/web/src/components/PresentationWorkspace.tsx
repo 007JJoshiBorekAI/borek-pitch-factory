@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { usePreviewJourney } from "@/components/PreviewJourneyProvider";
 import { WorkflowArtifactTabs } from "@/components/WorkflowArtifactTabs";
+import { FirstMeetingHandoff } from "@/components/FirstMeetingHandoff";
 import { DISCOVERY_PAGE_CATALOG } from "@/lib/discoveryFirst";
 import { canDownloadDiscoveryPdf } from "@/lib/discoveryWorkspace";
 import { generateAndAwaitFirstPitch } from "@/lib/ppt1Generation";
@@ -288,6 +289,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
                   {live ? ` · Latest approved Discovery: ${approvedSourceId ?? "Not available"}` : null}
                 </small>
               </footer>
+              <FirstMeetingHandoff opportunityId={opportunityId} ppt1Ready={liveReady} />
             </div>
           </article>
         </div>

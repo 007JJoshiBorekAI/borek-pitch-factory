@@ -152,9 +152,53 @@ test("owner post-meeting generation is wired to the dedicated endpoint and the s
     "utf8",
   );
   assert.match(meeting, /generateAndAwaitPostMeetingPresentation/);
-  assert.match(meeting, /regeneratePpt2/);
+  assert.match(meeting, /regeneratePresentationId/);
   assert.doesNotMatch(meeting, /runStage2SlidePrepare/);
   assert.doesNotMatch(presentations, /ppt2\/generate/);
   assert.doesNotMatch(catalog, /post_meeting/);
   assert.doesNotMatch(catalog, /concretisation/);
+});
+
+test("regeneration waits for a new server-confirmed PPT2 version and preserves PPT1 identity", async () => {
+  const original = globalThis.fetch;
+  const previousVersion = "previous-ppt2-version";
+  const ppt1 = { presentation_id: "ppt1", latest_ready_version_id: "ppt1-version", journey_stage: "first_contact", status: "ready" };
+  const calls: string[] = [];
+  let workflowReads = 0;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    calls.push(`${init?.method ?? "GET"} ${url}`);
+    if (url.endsWith("/workflow-status")) return jsonResponse(200, { documents: { ppt1, ppt2: { presentation_id: PRESENTATION_ID, latest_ready_version_id: ++workflowReads === 1 ? previousVersion : VERSION_ID, journey_stage: "post_meeting", status: "ready" } } });
+    if (url.endsWith(`/ppt2/${PRESENTATION_ID}/regenerate`)) return jsonResponse(200, { presentation_id: PRESENTATION_ID, presentation_version_id: VERSION_ID, job_id: JOB_ID, status: "COMPLETED", journey_stage: "post_meeting" });
+    if (url.endsWith(`/jobs/${JOB_ID}`)) return jsonResponse(200, { status: "COMPLETED", result: { presentation_version_id: VERSION_ID } });
+    throw new Error(`Unexpected request ${url}`);
+  };
+  try {
+    const result = await generateAndAwaitPostMeetingPresentation(TOKEN, OPPORTUNITY_ID, undefined, { regeneratePresentationId: PRESENTATION_ID });
+    assert.equal(result.presentationVersionId, VERSION_ID);
+    assert.equal(workflowReads, 2);
+    assert.equal(calls.filter((call) => call.startsWith("POST ")).length, 1);
+    assert.ok(calls.some((call) => call.endsWith(`/ppt2/${PRESENTATION_ID}/regenerate`)));
+  } finally { globalThis.fetch = original; }
+});
+
+test("generation cannot report an old, unconfirmed or cross-family version as ready", async () => {
+  const original = globalThis.fetch;
+  try {
+    for (const failure of ["old-version", "missing-confirmation", "ppt1-changed", "unfinished-job"]) {
+      let reads = 0;
+      const ppt1 = { presentation_id: "ppt1", latest_ready_version_id: "ppt1-v1" };
+      globalThis.fetch = async (input) => {
+        const url = String(input);
+        if (url.endsWith("/workflow-status")) {
+          const first = ++reads === 1;
+          return jsonResponse(200, { documents: { ppt1: failure === "ppt1-changed" && !first ? { ...ppt1, latest_ready_version_id: "ppt1-v2" } : ppt1, ppt2: !first && failure === "missing-confirmation" ? null : { presentation_id: PRESENTATION_ID, latest_ready_version_id: first || failure === "old-version" ? "old-version" : VERSION_ID } } });
+        }
+        if (url.includes("/regenerate")) return jsonResponse(200, { presentation_id: PRESENTATION_ID, presentation_version_id: VERSION_ID, job_id: JOB_ID, status: "COMPLETED", journey_stage: "post_meeting" });
+        if (url.includes("/jobs/")) return jsonResponse(200, { status: failure === "unfinished-job" ? "RUNNING" : "COMPLETED", result: { presentation_version_id: VERSION_ID } });
+        throw new Error(`Unexpected request ${url}`);
+      };
+      await assert.rejects(generateAndAwaitPostMeetingPresentation(TOKEN, OPPORTUNITY_ID, undefined, { regeneratePresentationId: PRESENTATION_ID }), /PPT/);
+    }
+  } finally { globalThis.fetch = original; }
 });

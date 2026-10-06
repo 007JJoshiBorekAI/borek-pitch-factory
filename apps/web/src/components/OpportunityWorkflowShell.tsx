@@ -10,6 +10,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { usePreviewJourney } from "@/components/PreviewJourneyProvider";
 import { useAuth } from "@/components/AuthProvider";
 import type { DiscoveryFirstWorkspaceFixture } from "@/lib/discoveryFirst";
+import { PostMeetingShell } from "@/components/PostMeetingShell";
 
 interface OpportunityWorkflowShellProps {
   fixture: DiscoveryFirstWorkspaceFixture;
@@ -33,6 +34,13 @@ export function OpportunityWorkflowShell({ fixture, children }: OpportunityWorkf
   const workspaceProgress = pathname.endsWith("/presentations")
     ? `${preview?.presentation.slide_count ?? 0} of 7 slides ready`
     : `${readyPages} of 7 pages ready`;
+  if (/\/(meeting|review|follow-up|post-meeting-presentation)$/.test(pathname)) {
+    return <RequireAuth><PostMeetingShell opportunityId={fixture.opportunity_id}
+      companyName={preview?.client.values.company_name ?? fixture.client_information.company_name}
+      contactPerson={preview?.client.values.contact_person ?? fixture.client_information.contact_person}>
+      {children}
+    </PostMeetingShell></RequireAuth>;
+  }
   return (
     <RequireAuth>
       <div className="app-workspace discovery-workflow-shell">

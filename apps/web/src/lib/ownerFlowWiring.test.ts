@@ -19,13 +19,14 @@ test("discovery approval and generation call the discovery-paper endpoints", () 
 
 test("meeting evidence reaches transcript, notes, extraction, use cases, and PPT #2", () => {
   const meeting = source("../components/MeetingEvidencePanel.tsx");
-  assert.match(meeting, /markFirstMeetingCompleted/);
+  assert.match(source("./firstMeetingHandoff.ts"), /workflow\/first-meeting-completed/);
   assert.match(meeting, /uploadTranscript/);
   assert.match(meeting, /savePersonalNotes/);
   assert.match(meeting, /generateMeetingExtraction/);
   assert.match(meeting, /saveSelectedUseCases/);
   assert.match(meeting, /generateAndAwaitPostMeetingPresentation/);
-  assert.match(meeting, /regeneratePpt2/);
+  assert.match(meeting, /regeneratePresentationId/);
+  assert.match(source("./ppt2Generation.ts"), /regeneratePpt2/);
   assert.doesNotMatch(meeting, /DeckCenterPanel|MeetingPreparationPanel/);
   assert.doesNotMatch(meeting, /concretisation/);
 });

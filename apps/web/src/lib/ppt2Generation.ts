@@ -1,6 +1,7 @@
 import {
   ApiRequestError,
   generatePpt2,
+  regeneratePpt2,
   getJob,
   getWorkflowStatus,
   waitForJob,
@@ -28,10 +29,11 @@ export async function generateAndAwaitPostMeetingPresentation(
   accessToken: string,
   opportunityId: string,
   onJob?: (job: JobResponse) => void,
+  options?: { regeneratePresentationId?: string },
 ): Promise<PostMeetingPresentationResult> {
   const current = await getWorkflowStatus(accessToken, opportunityId);
   const ready = current.documents?.ppt2;
-  if (ready?.presentation_id && ready.latest_ready_version_id) {
+  if (!options?.regeneratePresentationId && ready?.presentation_id && ready.latest_ready_version_id) {
     return {
       presentationId: ready.presentation_id,
       presentationVersionId: ready.latest_ready_version_id,
@@ -39,7 +41,12 @@ export async function generateAndAwaitPostMeetingPresentation(
     };
   }
 
-  const started = await generatePpt2(accessToken, opportunityId);
+  if (options?.regeneratePresentationId && ready?.presentation_id !== options.regeneratePresentationId) {
+    throw new ApiRequestError("PPT #2 changed before regeneration. Reload and review the current version.", 409, "PPT2_IDENTITY_AMBIGUOUS");
+  }
+  const started = options?.regeneratePresentationId
+    ? await regeneratePpt2(accessToken, opportunityId, options.regeneratePresentationId)
+    : await generatePpt2(accessToken, opportunityId);
   let job: JobResponse | null = null;
   if (started.job_id) {
     if (started.status === "COMPLETED") {
@@ -52,7 +59,8 @@ export async function generateAndAwaitPostMeetingPresentation(
 
   const confirmed = await getWorkflowStatus(accessToken, opportunityId);
   const ppt2 = confirmed.documents?.ppt2;
-  if (ppt2?.presentation_id && ppt2.presentation_id !== started.presentation_id) {
+  if (ppt2?.presentation_id !== started.presentation_id || started.journey_stage !== "post_meeting" ||
+      (options?.regeneratePresentationId && started.presentation_id !== options.regeneratePresentationId)) {
     throw new ApiRequestError(
       "PPT #2 workflow identity does not match the generated presentation.",
       409,
@@ -60,13 +68,18 @@ export async function generateAndAwaitPostMeetingPresentation(
     );
   }
 
-  const presentationVersionId = ppt2?.latest_ready_version_id || versionIdFrom(started, job);
-  if (!presentationVersionId) {
+  const presentationVersionId = versionIdFrom(started, job);
+  if (!presentationVersionId || presentationVersionId !== ppt2?.latest_ready_version_id ||
+      (job ? job.status !== "COMPLETED" : !["ready", "COMPLETED"].includes(started.status)) ||
+      (options?.regeneratePresentationId && presentationVersionId === ready?.latest_ready_version_id)) {
     throw new ApiRequestError(
       "PPT #2 generation finished without a ready version.",
       409,
       "PPT2_NOT_READY",
     );
+  }
+  if (JSON.stringify(current.documents?.ppt1 ?? null) !== JSON.stringify(confirmed.documents?.ppt1 ?? null)) {
+    throw new ApiRequestError("PPT #1 changed while PPT #2 was generated. Review both artifacts before continuing.", 409, "PPT1_CHANGED_DURING_PPT2");
   }
   return {
     presentationId: started.presentation_id,

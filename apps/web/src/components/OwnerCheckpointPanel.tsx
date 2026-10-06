@@ -1,76 +1,54 @@
 "use client";
 
-import { useState } from "react";
-
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { ApiRequestError, finalizeWorkflow, markOwnerReviewed } from "@/lib/api";
+import { usePostMeeting } from "@/components/PostMeetingShell";
+import { finalizeWorkflow, markOwnerReviewed } from "@/lib/api";
+import { loadPostMeetingWorkflow, postMeetingError, workflowCompleted } from "@/lib/postMeeting";
+import styles from "./post-meeting.module.css";
 
-interface OwnerCheckpointPanelProps {
-  opportunityId: string;
-}
-
-export function OwnerCheckpointPanel({ opportunityId }: OwnerCheckpointPanelProps) {
+export function OwnerCheckpointPanel({ opportunityId, compact = false }: { opportunityId: string; compact?: boolean }) {
   const { accessToken, previewMode } = useAuth();
-  const live = Boolean(accessToken) && !previewMode;
+  const { workflow, refreshWorkflow } = usePostMeeting();
   const [busy, setBusy] = useState(false);
-  const [reviewed, setReviewed] = useState(false);
-  const [finalized, setFinalized] = useState(false);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const lock = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const ppt2 = workflow?.documents.ppt2;
+  const version = ppt2?.latest_ready_version_id;
+  const identity = version ? `${ppt2?.presentation_id}:${version}:${workflow?.documents.approved_discovery?.version_id}` : null;
+  const reviewed = workflowCompleted(workflow, "owner_review");
+  const finalized = workflowCompleted(workflow, "finalized") && Boolean(workflow?.finalization);
+  const disabled = busy || !accessToken || previewMode || !workflow || finalized;
 
-  async function review() {
-    if (!live || !accessToken) {
-      setError("Sign in to record owner review.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
+  async function act(finalize: boolean) {
+    if (!accessToken || disabled || lock.current || !identity || confirmation !== identity) return;
+    lock.current = true; setBusy(true); setError(null);
     try {
-      await markOwnerReviewed(accessToken, opportunityId);
-      setReviewed(true);
-    } catch (actionError) {
-      setError(actionError instanceof ApiRequestError ? actionError.message : "Owner review could not be recorded.");
-    } finally {
-      setBusy(false);
-    }
+      const latest = await loadPostMeetingWorkflow(accessToken, opportunityId);
+      if (!alive.current) return;
+      const current = latest.documents.ppt2;
+      if (`${current?.presentation_id}:${current?.latest_ready_version_id}:${latest.documents.approved_discovery?.version_id}` !== identity) {
+        throw new Error("The document versions changed. Reload and review the current package.");
+      }
+      if (finalize) await finalizeWorkflow(accessToken, opportunityId);
+      else await markOwnerReviewed(accessToken, opportunityId);
+    } catch (cause) { if (alive.current) setError(postMeetingError(cause)); }
+    finally { lock.current = false; if (alive.current) { setBusy(false); setConfirmation(null); refreshWorkflow(); } }
   }
 
-  async function finalize() {
-    if (!live || !accessToken) {
-      setError("Sign in to finalize this opportunity.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const status = await finalizeWorkflow(accessToken, opportunityId);
-      setFinalized(status.current_status === "finalized");
-    } catch (actionError) {
-      setError(actionError instanceof ApiRequestError ? actionError.message : "Finalization could not be completed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="workflow-standard-page" aria-labelledby="review-title">
-      <header className="workflow-section-header">
-        <p>Owner checkpoint · {opportunityId}</p>
-        <h1 id="review-title">Owner Review</h1>
-        <span>Review PPT #2, then finalize the exact ready version.</span>
-      </header>
-      {error ? <p className="client-information-error" role="alert">{error}</p> : null}
-      <div className="workflow-review-list">
-        <div><span>PPT #2 presentation</span><strong>{reviewed ? "Reviewed" : "Waiting"}</strong></div>
-        <div><span>Final documents</span><strong>{finalized ? "Finalized" : "Waiting"}</strong></div>
-      </div>
-      <div className="workflow-card-actions">
-        <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => void review()}>
-          Mark owner reviewed
-        </button>
-        <button className="btn btn-primary" type="button" disabled={busy || !reviewed} onClick={() => void finalize()}>
-          Finalize outputs
-        </button>
-      </div>
-    </section>
-  );
+  return <section className={styles.card} aria-label="Owner checkpoints">
+    <span className={styles.eyebrow}>Owner checkpoint</span>{compact ? <h2>Review &amp; finalize</h2> : <h1>Review the final documents</h1>}
+    {error ? <p className={styles.error} role="alert">{error}</p> : null}
+    {busy ? <p role="status">Saving checkpoint...</p> : null}
+    <p>PPT #2: {version ?? "No ready version"}</p><p>Discovery: {workflow?.documents.approved_discovery?.version_id ?? "Not approved"}</p>
+    <Link href={`/opportunities/${encodeURIComponent(opportunityId)}/post-meeting-presentation`}>Open PPT #2 for review</Link>
+    <p><small>Owner review: {reviewed ? "Recorded" : "Required"} · Final documents: {finalized ? "Finalized" : "Not finalized"}</small></p>
+    <label className={styles.check}><input type="checkbox" disabled={disabled || !version} checked={Boolean(identity && confirmation === identity)} onChange={(event) => setConfirmation(event.target.checked ? identity : null)} /><span>I reviewed these document versions and approve them for the follow-up package.</span></label>
+    <div className={styles.actions}><button className="btn btn-secondary" disabled={disabled || !identity || confirmation !== identity || reviewed} onClick={() => void act(false)}>Record owner review</button><button className="btn btn-primary" disabled={disabled || !identity || confirmation !== identity || !reviewed} onClick={() => void act(true)}>Finalize documents</button></div>
+    <p><small>Finalizing documents does not save or export email edits. Atomic revision checks and email approval remain backend dependencies.</small></p>
+  </section>;
 }
