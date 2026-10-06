@@ -221,11 +221,73 @@ function opportunityPath(opportunityId: string): string {
   return `/opportunities/${opportunityId}`;
 }
 
+export interface PreviewClientSeed {
+  company_name: string;
+  contact_person?: string;
+  website_url?: string;
+  meeting_purpose?: string;
+  additional_information?: string;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const BACKEND_OPPORTUNITY_MAP_KEY = "borek-backend-opportunity-map-v1";
+
+function readBackendOpportunityMap(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(BACKEND_OPPORTUNITY_MAP_KEY) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The web app creates local preview opportunities with ids like "opp-acme-1a2b3c4d".
+ * The API only knows UUID opportunities, so create the backend row once and remember it.
+ */
+export async function ensureBackendOpportunityId(
+  accessToken: string,
+  opportunityId: string,
+  seed?: PreviewClientSeed | null,
+): Promise<string> {
+  if (UUID_RE.test(opportunityId)) return opportunityId;
+  const map = readBackendOpportunityMap();
+  if (map[opportunityId]) return map[opportunityId];
+  if (!seed?.company_name) {
+    throw new ApiRequestError(
+      "This opportunity exists only in the local preview and has no client information to send to the API.",
+      422,
+      "PREVIEW_OPPORTUNITY_NOT_SYNCED",
+    );
+  }
+  const website = (seed.website_url ?? "").trim();
+  const validWebsite = /^https?:\/\//i.test(website) ? website : null;
+  const created = await apiFetch<{ id: string }>("/opportunities", accessToken, {
+    method: "POST",
+    body: JSON.stringify({
+      client_name: seed.company_name,
+      opportunity_name: seed.meeting_purpose?.trim() || seed.company_name,
+      department: "Sales",
+      stage1_intake: {
+        client_web_page: validWebsite,
+        poc_name: seed.contact_person?.trim() || null,
+        sales_topic_description: seed.meeting_purpose?.trim() || null,
+        about_company: seed.additional_information?.trim() || null,
+      },
+    }),
+  });
+  map[opportunityId] = created.id;
+  window.localStorage.setItem(BACKEND_OPPORTUNITY_MAP_KEY, JSON.stringify(map));
+  return created.id;
+}
+
 export async function generateDiscoveryPaper(
   accessToken: string,
   opportunityId: string,
+  seed?: PreviewClientSeed | null,
 ): Promise<Record<string, unknown>> {
-  return apiFetch(`${opportunityPath(opportunityId)}/discovery-paper/generate`, accessToken, {
+  const backendId = await ensureBackendOpportunityId(accessToken, opportunityId, seed);
+  return apiFetch(`${opportunityPath(backendId)}/discovery-paper/generate`, accessToken, {
     method: "POST",
   });
 }
@@ -233,8 +295,10 @@ export async function generateDiscoveryPaper(
 export async function approveDiscoveryPaper(
   accessToken: string,
   opportunityId: string,
+  seed?: PreviewClientSeed | null,
 ): Promise<Record<string, unknown>> {
-  return apiFetch(`${opportunityPath(opportunityId)}/discovery-paper/approve`, accessToken, {
+  const backendId = await ensureBackendOpportunityId(accessToken, opportunityId, seed);
+  return apiFetch(`${opportunityPath(backendId)}/discovery-paper/approve`, accessToken, {
     method: "POST",
   });
 }

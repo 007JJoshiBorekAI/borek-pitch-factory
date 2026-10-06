@@ -134,7 +134,7 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
     setNotice(null);
     try {
       if (live && accessToken) {
-        await generateDiscoveryPaper(accessToken, version.opportunity_id);
+        await generateDiscoveryPaper(accessToken, version.opportunity_id, preview?.client.values);
       }
       const advanced = await continueDiscoveryGeneration(adapterRef.current, version);
       setVersion(advanced);
@@ -151,7 +151,7 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
     setError(null);
     try {
       if (live && accessToken) {
-        await approveDiscoveryPaper(accessToken, version.opportunity_id);
+        await approveDiscoveryPaper(accessToken, version.opportunity_id, preview?.client.values);
       }
       const approved = await adapterRef.current.approve({
         opportunity_id: version.opportunity_id,
