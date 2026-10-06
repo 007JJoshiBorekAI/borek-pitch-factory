@@ -31,7 +31,7 @@ class FrameworkReference(RootModel[str]):
     root: str = Field(
         ...,
         description='Pointer to FrameworkObject content (opportunity, chapter_1) or an approved Discovery page (discovery.cover).',
-        pattern='^(opportunity|chapter_([0-9]|1[0-3])|discovery\\.(cover|client_context|opportunity|borek_approach|relevant_use_case|pilot_proposal|next_steps))$',
+        pattern='^(opportunity|chapter_([0-9]|1[0-3])|discovery\\.(cover|client_context|opportunity|borek_approach|relevant_use_case|pilot_proposal|next_steps)|meeting\\.(requirements|challenges|priorities|opportunities|discussed_solutions|decisions|follow_ups)|notes|use_case\\.[A-Za-z0-9][A-Za-z0-9._-]{0,120})$',
     )
 
 

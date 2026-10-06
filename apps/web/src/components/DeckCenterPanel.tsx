@@ -35,6 +35,7 @@ import {
 import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
 import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
 import { snapshotFromJob, type JobProgressSnapshot } from "@/lib/jobProgress";
+import { generateAndAwaitPostMeetingPresentation } from "@/lib/ppt2Generation";
 import { extractSlidePreviewRows } from "@/lib/planPreview";
 import type { PresentationPlanResponse } from "@/lib/planTypes";
 import {
@@ -79,7 +80,7 @@ interface DeckCenterPanelProps {
 export function DeckCenterPanel({
   opportunityId,
   presentationId: requestedPresentationId,
-  chromeVariant: _chromeVariant = "pipeline",
+  chromeVariant = "pipeline",
 }: DeckCenterPanelProps) {
   const { accessToken, isAuthenticated, loading } = useAuth();
   const searchParams = useSearchParams();
@@ -318,18 +319,33 @@ export function DeckCenterPanel({
     setRetryJobId(null);
     setActiveSlideJobSlideId(null);
     try {
-      const generated = await generatePresentation(accessToken, opportunityId);
-      setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
-      setNotice(runningRecoveryNotice("deck", generated.job_id));
-      setJobPolling(true);
-      await waitForJob(accessToken, generated.job_id, {
-        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
-        onProgress: trackJob,
-      });
-      setJobSnapshot(null);
-      setNotice(null);
-      await applyLatestPresentation();
-      setInfo(null);
+      if (chromeVariant === "stage2") {
+        setJobPolling(true);
+        const outcome = await generateAndAwaitPostMeetingPresentation(
+          accessToken,
+          opportunityId,
+          trackJob,
+        );
+        setJobSnapshot(null);
+        setNotice(null);
+        const loaded = await getPresentation(accessToken, outcome.presentationId);
+        setPresentation(loaded);
+        await loadDeck(loaded.id);
+        setInfo(null);
+      } else {
+        const generated = await generatePresentation(accessToken, opportunityId);
+        setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
+        setNotice(runningRecoveryNotice("deck", generated.job_id));
+        setJobPolling(true);
+        await waitForJob(accessToken, generated.job_id, {
+          timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+          onProgress: trackJob,
+        });
+        setJobSnapshot(null);
+        setNotice(null);
+        await applyLatestPresentation();
+        setInfo(null);
+      }
     } catch (generateError) {
       setInfo(null);
       setNotice(recoveryNoticeFromError(generateError, "deck"));

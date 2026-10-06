@@ -24,6 +24,20 @@ class ObservedSources(BaseModel):
     selected_use_case_ids: list[SelectedUseCaseId]
 
 
+class Ppt2GenerationSourceManifest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    schema_version: Literal['1.0']
+    kind: Literal['ppt2']
+    approved_discovery_version_id: UUID
+    transcript_id: UUID | None
+    meeting_extraction_generated_at: AwareDatetime | None
+    extraction_notes_revision: AwareDatetime | None
+    current_personal_notes_updated_at: AwareDatetime | None
+    selected_use_case_ids: list[str]
+
+
 class FinalizationSnapshot(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -36,4 +50,4 @@ class FinalizationSnapshot(BaseModel):
     ppt2_presentation_id: UUID
     ppt2_version_id: UUID
     observed_sources: ObservedSources
-    ppt2_generation_source_manifest: None
+    ppt2_generation_source_manifest: Ppt2GenerationSourceManifest | None

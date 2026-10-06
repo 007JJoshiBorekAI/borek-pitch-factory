@@ -82,6 +82,15 @@ GROUP_A_PLAN = {
 class DeterministicPlanningClient:
     def complete_planning(self, **kwargs: Any) -> dict[str, Any]:
         planning_input = kwargs.get("planning_input") or {}
+        ppt2_context = (
+            planning_input.get("ppt2Context")
+            if isinstance(planning_input, dict)
+            else None
+        )
+        if isinstance(ppt2_context, dict):
+            from services.presentation.post_meeting import deterministic_post_meeting_plan
+
+            return deterministic_post_meeting_plan(ppt2_context)
         approved = (
             planning_input.get("approvedDiscovery")
             if isinstance(planning_input, dict)

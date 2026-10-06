@@ -352,6 +352,23 @@ class SupabaseDataStore:
         rows = response.json()
         return _normalize_generation_job(rows[0]) if rows else None
 
+    def list_generation_jobs_for_opportunity(
+        self,
+        opportunity_id: UUID,
+    ) -> list[dict[str, Any]]:
+        response = self._request(
+            "GET",
+            "generation_jobs",
+            params={
+                "opportunity_id": f"eq.{opportunity_id}",
+                "select": "*",
+                "order": "created_at.asc,id.asc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("JOB_LIST_FAILED", response.text)
+        return [_normalize_generation_job(row) for row in response.json()]
+
     def update_generation_job(
         self,
         job_id: UUID,
@@ -2194,6 +2211,7 @@ class SupabaseDataStore:
         prior_stage_presentation_version_id: UUID | None = None,
         discovery_pages: list[dict[str, Any]] | None = None,
         generation_source_manifest: dict[str, Any] | None = None,
+        ppt2_generation_input: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         self.get_presentation(presentation_id=presentation_id, user_id=user_id)
         latest = self._request(
@@ -2238,7 +2256,16 @@ class SupabaseDataStore:
             presentation_plan_id=presentation["presentation_plan_id"],
             user_id=user_id,
         )
-        if discovery_pages is not None:
+        if ppt2_generation_input is not None:
+            from services.presentation.post_meeting_slide_content import (
+                build_post_meeting_slide_specs,
+            )
+
+            generated_specs = build_post_meeting_slide_specs(
+                plan_json,
+                ppt2_generation_input,
+            )
+        elif discovery_pages is not None:
             from services.presentation.discovery_slide_content import (
                 build_discovery_slide_specs,
             )

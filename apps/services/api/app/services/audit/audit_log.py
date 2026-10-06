@@ -36,6 +36,8 @@ class AuditAction(StrEnum):
     STAGE1_VOICE_REQUEST = "stage1_voice.request"
     STAGE1_OUTPUTS_GENERATE = "stage1_outputs.generate"
     STAGE1_PRESENTATION_REGENERATE = "stage1_presentation.regenerate"
+    PPT2_PRESENTATION_GENERATE = "ppt2_presentation.generate"
+    PPT2_PRESENTATION_REGENERATE = "ppt2_presentation.regenerate"
     STAGE2_OUTPUTS_GENERATE = "stage2_outputs.generate"
     MEETING_FEEDBACK_UPDATE = "meeting_feedback.update"
     PERSONAL_NOTES_UPDATE = "personal_notes.update"

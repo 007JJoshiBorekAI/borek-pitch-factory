@@ -296,6 +296,18 @@ class MemoryDataStore:
             max(rows, key=lambda row: (row["created_at"], str(row["id"])))
         )
 
+    def list_generation_jobs_for_opportunity(
+        self,
+        opportunity_id: UUID,
+    ) -> list[dict[str, Any]]:
+        target = UUID(str(opportunity_id))
+        rows = [
+            copy.deepcopy(row)
+            for row in self.generation_jobs.values()
+            if row.get("opportunity_id") == target
+        ]
+        return sorted(rows, key=lambda row: (str(row.get("created_at") or ""), str(row.get("id") or "")))
+
     def update_generation_job(
         self,
         job_id: UUID,
@@ -1416,6 +1428,7 @@ class MemoryDataStore:
         prior_stage_presentation_version_id: UUID | None = None,
         discovery_pages: list[dict[str, Any]] | None = None,
         generation_source_manifest: dict[str, Any] | None = None,
+        ppt2_generation_input: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         presentation = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
         plan = self.get_presentation_plan(
@@ -1448,7 +1461,16 @@ class MemoryDataStore:
         }
         self.presentation_versions[presentation_version_id] = version_row
 
-        if discovery_pages is not None:
+        if ppt2_generation_input is not None:
+            from services.presentation.post_meeting_slide_content import (
+                build_post_meeting_slide_specs,
+            )
+
+            generated_specs = build_post_meeting_slide_specs(
+                plan_json,
+                ppt2_generation_input,
+            )
+        elif discovery_pages is not None:
             from services.presentation.discovery_slide_content import (
                 build_discovery_slide_specs,
             )

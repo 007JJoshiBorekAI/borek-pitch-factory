@@ -849,6 +849,62 @@ export async function generatePresentation(
   );
 }
 
+export interface WorkflowDeckLine {
+  presentation_id: string;
+  latest_ready_version_id: string | null;
+  journey_stage: string;
+  status: string;
+}
+
+export interface WorkflowStatusResponse {
+  documents: {
+    ppt1: WorkflowDeckLine | null;
+    ppt2: WorkflowDeckLine | null;
+  };
+}
+
+export interface Ppt2GenerateResponse {
+  job_id: string;
+  status: string;
+  presentation_id: string;
+  presentation_version_id: string | null;
+  journey_stage: "post_meeting";
+  is_existing_job?: boolean;
+}
+
+export async function getWorkflowStatus(
+  accessToken: string,
+  opportunityId: string,
+): Promise<WorkflowStatusResponse> {
+  return apiFetch<WorkflowStatusResponse>(
+    `/opportunities/${opportunityId}/workflow-status`,
+    accessToken,
+  );
+}
+
+export async function generatePpt2(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Ppt2GenerateResponse> {
+  return apiFetch<Ppt2GenerateResponse>(
+    `/opportunities/${opportunityId}/ppt2/generate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function regeneratePpt2(
+  accessToken: string,
+  opportunityId: string,
+  presentationId: string,
+): Promise<Ppt2GenerateResponse> {
+  return apiFetch<Ppt2GenerateResponse>(
+    `/opportunities/${opportunityId}/ppt2/${presentationId}/regenerate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
 export async function getDeckCenter(
   accessToken: string,
   presentationId: string,

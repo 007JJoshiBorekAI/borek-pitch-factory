@@ -513,12 +513,20 @@ def run_presentation_generation_task(
                     prior_id = enqueue.get("prior_stage_presentation_version_id")
                     manifest = enqueue.get("generation_source_manifest")
                     discovery_pages = None
+                    ppt2_input = None
                     if isinstance(manifest, dict) and manifest.get("kind") == "ppt1":
                         discovery_pages = presentation_generation.load_ppt1_discovery_pages(
                             store,
                             user_id=UUID(user_id),
                             manifest=manifest,
                         )
+                    elif isinstance(manifest, dict) and manifest.get("kind") == "ppt2":
+                        ppt2_input = enqueue.get("ppt2_generation_input")
+                        if not isinstance(ppt2_input, dict):
+                            raise RuntimeError(
+                                "PPT2_GENERATION_INPUT_MISSING: frozen PPT #2 "
+                                "context was not stored on this job"
+                            )
                     version, plan = presentation_generation.execute_presentation_generation(
                         store,
                         presentation_id=UUID(presentation_id),
@@ -530,6 +538,9 @@ def run_presentation_generation_task(
                         discovery_pages=discovery_pages,
                         generation_source_manifest=(
                             manifest if isinstance(manifest, dict) else None
+                        ),
+                        ppt2_generation_input=(
+                            ppt2_input if isinstance(ppt2_input, dict) else None
                         ),
                     )
                     job_service.record_result_checkpoint(

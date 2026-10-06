@@ -76,5 +76,14 @@ export interface FinalizationSnapshot {
     personal_notes_updated_at: string | null;
     selected_use_case_ids: string[];
   };
-  ppt2_generation_source_manifest: null;
+  ppt2_generation_source_manifest: {
+    schema_version: "1.0";
+    kind: "ppt2";
+    approved_discovery_version_id: string;
+    transcript_id: string | null;
+    meeting_extraction_generated_at: string | null;
+    extraction_notes_revision: string | null;
+    current_personal_notes_updated_at: string | null;
+    selected_use_case_ids: string[];
+  } | null;
 }

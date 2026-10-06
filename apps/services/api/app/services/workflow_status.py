@@ -127,7 +127,9 @@ def mark_finalized(
         )
     captured_at = _now()
     snapshot = _capture_snapshot(
+        store,
         opportunity,
+        user_id=user_id,
         facts=facts,
         captured_at=captured_at,
     )
@@ -150,15 +152,17 @@ def mark_finalized(
 
 
 def _capture_snapshot(
+    store: Any,
     opportunity: dict[str, Any],
     *,
+    user_id: UUID,
     facts: dict[str, Any],
     captured_at: str,
 ) -> dict[str, Any]:
-    """Record artifact ids and the source revisions visible at this moment.
+    """Record artifact ids, live source revisions, and the PPT #2 manifest.
 
-    observed_sources are not a PPT #2 generation manifest. JJ-35 has not
-    persisted one, so ppt2_generation_source_manifest stays null.
+    observed_sources are the revisions visible now. The generation manifest is
+    copied from the ready PPT #2 version and is not rebuilt from live state.
     """
     approved = facts["live_approved"]
     ppt2 = facts["live_ppt2"]
@@ -195,9 +199,38 @@ def _capture_snapshot(
             "personal_notes_updated_at": notes["updated_at"],
             "selected_use_case_ids": [str(item) for item in selected],
         },
-        "ppt2_generation_source_manifest": None,
+        "ppt2_generation_source_manifest": _ppt2_version_manifest(
+            store,
+            user_id=user_id,
+            version_id=ppt2["latest_ready_version_id"],
+        ),
     }
     return _validate_snapshot(snapshot)
+
+
+def _ppt2_version_manifest(
+    store: Any,
+    *,
+    user_id: UUID,
+    version_id: Any,
+) -> dict[str, Any]:
+    """Copy the manifest stored on the ready version. Do not rebuild it."""
+    row = store.get_presentation_version(
+        presentation_version_id=UUID(str(version_id)),
+        user_id=user_id,
+    )
+    manifest = row.get("generation_source_manifest")
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("schema_version") != "1.0"
+        or manifest.get("kind") != "ppt2"
+        or not manifest.get("approved_discovery_version_id")
+    ):
+        raise bad_request(
+            "PPT2_GENERATION_MANIFEST_REQUIRED",
+            "The ready PPT #2 version has no PPT #2 generation source manifest.",
+        )
+    return copy.deepcopy(manifest)
 
 
 def _stored_snapshot(opportunity: dict[str, Any]) -> dict[str, Any] | None:
@@ -550,6 +583,16 @@ def _ppt2(
     ]
     if not versions:
         return None
+    identity_ids: list[str] = []
+    for row in versions:
+        identity = str(row.get("presentation_id") or "")
+        if identity and identity not in identity_ids:
+            identity_ids.append(identity)
+    if len(identity_ids) > 1:
+        raise bad_request(
+            "PPT2_IDENTITY_AMBIGUOUS",
+            "More than one PPT #2 presentation exists. Workflow and finalization will not choose one.",
+        )
     ready = [row for row in versions if row.get("status") == "ready"]
     latest = _latest(ready) or _latest(versions)
     assert latest is not None

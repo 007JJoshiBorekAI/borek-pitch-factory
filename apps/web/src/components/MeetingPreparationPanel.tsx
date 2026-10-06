@@ -15,15 +15,10 @@ import {
   formatMeetingPrepUpdated,
   meetingPrepBannerSummary,
 } from "@/lib/meetingPreparation";
-import { buildJobProgressView } from "@/lib/jobProgress";
+import { buildJobProgressView, snapshotFromJob } from "@/lib/jobProgress";
 import { draftFromNotes, emptyPitchDraft, loadPitchDraft, type PitchDraft } from "@/lib/pitchDraft";
-import { PresentationPipelineError } from "@/lib/presentationPipeline";
-import {
-  createStage2PrepareApi,
-  pitchReviewResultHref,
-  runStage2SlidePrepare,
-  type Stage2PrepareProgress,
-} from "@/lib/stage2PreparePipeline";
+import { generateAndAwaitPostMeetingPresentation } from "@/lib/ppt2Generation";
+import { pitchReviewResultHref, type Stage2PrepareProgress } from "@/lib/stage2PreparePipeline";
 import {
   recoveryNoticeFromError,
   type RecoveryNotice,
@@ -42,7 +37,6 @@ export function MeetingPreparationPanel() {
   const router = useRouter();
   const params = useSearchParams();
   const opportunityId = params.get("opportunityId")?.trim() || "";
-  const frameworkJobId = params.get("frameworkJobId")?.trim() || "";
   const { accessToken, session } = useAuth();
   const [draft, setDraft] = useState<PitchDraft | null>(null);
   const [phase, setPhase] = useState<PreparePhase>("loading_context");
@@ -97,11 +91,18 @@ export function MeetingPreparationPanel() {
     setError(null);
     setPrepareProgress(EMPTY_PROGRESS);
 
-    const api = createStage2PrepareApi(accessToken, opportunityId, setPrepareProgress);
     try {
-      const outcome = await runStage2SlidePrepare(api, setPrepareProgress, {
-        frameworkJobId: frameworkJobId || undefined,
-      });
+      const outcome = await generateAndAwaitPostMeetingPresentation(
+        accessToken,
+        opportunityId,
+        (job) => {
+          setPrepareProgress((current) => ({
+            ...current,
+            pipelineHandoff: false,
+            pipelineJob: snapshotFromJob(job),
+          }));
+        },
+      );
       if (prepareAttemptRef.current !== attempt) {
         return;
       }
@@ -111,17 +112,11 @@ export function MeetingPreparationPanel() {
       if (prepareAttemptRef.current !== attempt) {
         return;
       }
-      const context =
-        prepareError instanceof PresentationPipelineError && prepareError.phase === "generation"
-          ? "deck"
-          : prepareError instanceof PresentationPipelineError && prepareError.phase === "planning"
-            ? "plan"
-            : "framework";
-      setNotice(recoveryNoticeFromError(prepareError, context));
+      setNotice(recoveryNoticeFromError(prepareError, "deck"));
       setPhase("brief");
       prepareStartedRef.current = false;
     }
-  }, [accessToken, opportunityId, frameworkJobId, router]);
+  }, [accessToken, opportunityId, router]);
 
   useEffect(() => {
     if (!accessToken || !opportunityId || !draft || prepareStartedRef.current) {

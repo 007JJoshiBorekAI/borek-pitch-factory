@@ -530,6 +530,56 @@ def post_owner_reviewed(
     )
 
 
+@router.post("/{opportunity_id}/ppt2/generate")
+def post_ppt2_generate(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    from app.services.presentation_generation import (
+        enqueue_post_meeting_presentation_generate,
+    )
+
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.PPT2_PRESENTATION_GENERATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    return enqueue_post_meeting_presentation_generate(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.post("/{opportunity_id}/ppt2/{presentation_id}/regenerate")
+def post_ppt2_regenerate(
+    opportunity_id: UUID,
+    presentation_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    from app.services.presentation_generation import (
+        enqueue_post_meeting_presentation_generate,
+    )
+
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.PPT2_PRESENTATION_REGENERATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    return enqueue_post_meeting_presentation_generate(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        presentation_id=presentation_id,
+    )
+
+
 @router.post("/{opportunity_id}/workflow/finalize")
 def post_workflow_finalized(
     opportunity_id: UUID,

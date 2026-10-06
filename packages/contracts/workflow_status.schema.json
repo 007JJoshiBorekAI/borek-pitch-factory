@@ -18,7 +18,7 @@
     },
     "documents": { "$ref": "#/$defs/Documents" },
     "finalization": {
-      "description": "Null until the first successful finalize. Afterwards this is the frozen BT-48 package. observed_sources are revisions seen at finalization, not a PPT #2 generation manifest.",
+      "description": "Null until the first successful finalize. Afterwards this is the frozen BT-48 package. observed_sources are revisions seen at finalization. ppt2_generation_source_manifest is copied from the frozen PPT #2 version, or null on historical snapshots.",
       "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/FinalizationSnapshot" }]
     }
   },
@@ -130,7 +130,40 @@
             }
           }
         },
-        "ppt2_generation_source_manifest": { "type": "null" }
+        "ppt2_generation_source_manifest": {
+          "description": "Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.",
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/Ppt2GenerationSourceManifest" }
+          ]
+        }
+      }
+    },
+    "Ppt2GenerationSourceManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "approved_discovery_version_id",
+        "transcript_id",
+        "meeting_extraction_generated_at",
+        "extraction_notes_revision",
+        "current_personal_notes_updated_at",
+        "selected_use_case_ids"
+      ],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "kind": { "const": "ppt2" },
+        "approved_discovery_version_id": { "type": "string", "format": "uuid" },
+        "transcript_id": { "type": ["string", "null"], "format": "uuid" },
+        "meeting_extraction_generated_at": { "type": ["string", "null"], "format": "date-time" },
+        "extraction_notes_revision": { "type": ["string", "null"], "format": "date-time" },
+        "current_personal_notes_updated_at": { "type": ["string", "null"], "format": "date-time" },
+        "selected_use_case_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
       }
     }
   }

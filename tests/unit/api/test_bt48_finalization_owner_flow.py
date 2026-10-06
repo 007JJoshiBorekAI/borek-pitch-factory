@@ -198,6 +198,17 @@ def prepare_final_package(client: TestClient, opportunity_id: str) -> dict:
     ppt1_id, ppt1_version = seed_deck(opportunity_id, journey_stage="first_contact", status="ready")
     point_stage1(opportunity_id, ppt1_id)
     ppt2_id, ppt2_version = seed_deck(opportunity_id, journey_stage="post_meeting", status="ready")
+    manifest = {
+        "schema_version": "1.0",
+        "kind": "ppt2",
+        "approved_discovery_version_id": approved["id"],
+        "transcript_id": transcript_id,
+        "meeting_extraction_generated_at": extraction.json()["generated_at"],
+        "extraction_notes_revision": notes.json()["updated_at"],
+        "current_personal_notes_updated_at": "2026-01-01T00:00:00Z",
+        "selected_use_case_ids": ["fact-frozen-a"],
+    }
+    get_memory_store().presentation_versions[ppt2_version]["generation_source_manifest"] = manifest
     meeting = client.post(
         f"/opportunities/{opportunity_id}/workflow/first-meeting-completed",
         headers=headers(),
@@ -218,6 +229,7 @@ def prepare_final_package(client: TestClient, opportunity_id: str) -> dict:
         "ppt1_version": ppt1_version,
         "ppt2_id": ppt2_id,
         "ppt2_version": ppt2_version,
+        "ppt2_manifest": manifest,
     }
 
 
@@ -277,8 +289,11 @@ def test_first_finalize_freezes_package_and_ignores_later_live_changes() -> None
     assert snapshot["ppt2_presentation_id"] == str(seeded["ppt2_id"])
     assert snapshot["ppt2_version_id"] == str(seeded["ppt2_version"])
     assert snapshot["ppt2_presentation_id"] != snapshot["ppt1_presentation_id"]
-    assert snapshot["ppt2_generation_source_manifest"] is None
+    assert snapshot["ppt2_generation_source_manifest"] == seeded["ppt2_manifest"]
     observed = snapshot["observed_sources"]
+    assert observed["personal_notes_updated_at"] != seeded["ppt2_manifest"]["current_personal_notes_updated_at"]
+    assert observed["selected_use_case_ids"] != seeded["ppt2_manifest"]["selected_use_case_ids"]
+    assert NOTE not in json.dumps(snapshot["ppt2_generation_source_manifest"])
     assert observed["transcript_id"] == seeded["transcript_id"]
     assert observed["meeting_extraction_generated_at"] == seeded["extraction"]["generated_at"]
     assert observed["extraction_notes_revision"] == seeded["notes_updated_at"]
@@ -474,3 +489,57 @@ def test_owner_concretisation_stays_visible_in_history_and_is_not_startable() ->
     assert email.status_code == 200, email.text
     assert email.json()["journey_stage"] == "concretisation"
     assert email.json()["draft"]["lengths"]["short"]["subject"] == "Proposal"
+
+
+def test_new_finalize_rejects_ready_ppt2_without_a_manifest() -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    seeded = prepare_final_package(client, opportunity_id)
+    get_memory_store().presentation_versions[seeded["ppt2_version"]][
+        "generation_source_manifest"
+    ] = None
+    rejected = client.post(
+        f"/opportunities/{opportunity_id}/workflow/finalize",
+        headers=headers(),
+    )
+    assert rejected.status_code == 400, rejected.text
+    assert rejected.json()["error"]["code"] == "PPT2_GENERATION_MANIFEST_REQUIRED"
+    row = get_memory_store().opportunities[UUID(opportunity_id)]
+    assert row["finalized_at"] is None
+    assert row["finalization_snapshot"] is None
+
+
+def test_historical_null_manifest_stays_readable_and_finalize_is_idempotent() -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    approved = approve_discovery(client, opportunity_id)
+    ppt2_id, ppt2_version = seed_deck(opportunity_id, journey_stage="post_meeting", status="ready")
+    snapshot = {
+        "schema_version": "1.0",
+        "captured_at": "2026-10-05T12:00:00Z",
+        "approved_discovery_version_id": approved["id"],
+        "ppt1_presentation_id": None,
+        "ppt1_version_id": None,
+        "ppt2_presentation_id": str(ppt2_id),
+        "ppt2_version_id": str(ppt2_version),
+        "observed_sources": {
+            "transcript_id": None,
+            "meeting_extraction_generated_at": None,
+            "extraction_notes_revision": None,
+            "personal_notes_updated_at": None,
+            "selected_use_case_ids": [],
+        },
+        "ppt2_generation_source_manifest": None,
+    }
+    get_memory_store().update_opportunity(
+        opportunity_id=UUID(opportunity_id),
+        user_id=OWNER,
+        updates={"finalized_at": "2026-10-05T12:00:00Z", "finalization_snapshot": snapshot},
+    )
+    status = status_of(client, opportunity_id)
+    assert status["finalization"]["ppt2_generation_source_manifest"] is None
+    again = client.post(f"/opportunities/{opportunity_id}/workflow/finalize", headers=headers())
+    assert again.status_code == 200, again.text
+    assert again.json()["finalization"] == snapshot

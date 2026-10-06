@@ -6,7 +6,7 @@
  */
 
 /**
- * BT-48 identities captured on the first successful finalize. observed_sources are the live persisted revisions at that moment. They are not the claim that those revisions generated PPT #2. ppt2_generation_source_manifest stays null until JJ-35 stores that provenance. No document bodies.
+ * BT-48 identities captured on the first successful finalize. observed_sources are the live persisted revisions at that moment. ppt2_generation_source_manifest is copied from the ready PPT #2 version, or null on historical snapshots. No document bodies.
  */
 export interface FinalizationSnapshot {
   schema_version: "1.0";
@@ -17,7 +17,17 @@ export interface FinalizationSnapshot {
   ppt2_presentation_id: string;
   ppt2_version_id: string;
   observed_sources: ObservedSources;
-  ppt2_generation_source_manifest: null;
+  ppt2_generation_source_manifest: Ppt2GenerationSourceManifest | null;
+}
+export interface Ppt2GenerationSourceManifest {
+  schema_version: "1.0";
+  kind: "ppt2";
+  approved_discovery_version_id: string;
+  transcript_id: string | null;
+  meeting_extraction_generated_at: string | null;
+  extraction_notes_revision: string | null;
+  current_personal_notes_updated_at: string | null;
+  selected_use_case_ids: string[];
 }
 /**
  * Live source revisions observed at finalization. Absence is null. This object does not copy notes, extraction bodies, or use-case statements.

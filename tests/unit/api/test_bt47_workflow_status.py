@@ -316,7 +316,7 @@ def test_human_milestones_stay_explicit_and_idempotent() -> None:
     reset_memory_store()
     client = TestClient(create_app())
     opportunity_id = create_opportunity(client, intake=INTAKE)
-    approve_discovery(client, opportunity_id)
+    approved_id = approve_discovery(client, opportunity_id)
     blocked = client.post(
         f"/opportunities/{opportunity_id}/workflow/first-meeting-completed",
         headers=headers(),
@@ -380,6 +380,16 @@ def test_human_milestones_stay_explicit_and_idempotent() -> None:
     assert too_early.status_code == 400
     assert too_early.json()["error"]["code"] == "PPT2_NOT_GENERATED"
     ppt2_id, ppt2_version = seed_deck(opportunity_id, journey_stage="post_meeting", status="ready")
+    get_memory_store().presentation_versions[ppt2_version]["generation_source_manifest"] = {
+        "schema_version": "1.0",
+        "kind": "ppt2",
+        "approved_discovery_version_id": approved_id,
+        "transcript_id": None,
+        "meeting_extraction_generated_at": None,
+        "extraction_notes_revision": None,
+        "current_personal_notes_updated_at": None,
+        "selected_use_case_ids": [],
+    }
     reviewed = client.post(
         f"/opportunities/{opportunity_id}/workflow/owner-reviewed",
         headers=headers(),
