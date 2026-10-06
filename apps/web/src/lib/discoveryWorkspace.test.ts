@@ -163,6 +163,19 @@ async function run() {
   assert.equal(approved.version_id, "discovery-v1", "creating a successor must not mutate approved data");
   assert.equal(approved.document_state, "approved");
 
+  assert.equal(canApproveDiscovery(successor), false);
+  const prepared = await approvalAdapter.advanceGeneration({
+    opportunity_id: successor.opportunity_id,
+    version_id: successor.version_id,
+    expected_revision: successor.revision,
+  });
+  assert.deepEqual(prepared.pages, successor.pages, "preparing a manifest must not change page content or sources");
+  assert.equal(prepared.version_id, successor.version_id);
+  assert.equal(prepared.pdf_source_revision, prepared.revision);
+  assert.equal(canApproveDiscovery(prepared), true, "all-ready successor can recover without editing a page");
+  assert.equal(canDownloadDiscoveryPdf(prepared), true);
+  assert.equal(successor.pdf_artifact_id, null, "preparation must not mutate its input snapshot");
+
   assert.throws(
     () => requireDiscoveryWorkspaceVersion({ ...mixed, pages: mixed.pages.slice(0, 6) }),
     DiscoveryWorkspaceError,
@@ -177,6 +190,7 @@ async function run() {
   assert.match(component, /Retry this page/);
   assert.match(component, /Continue generation/);
   assert.match(component, /Create successor draft/);
+  assert.match(component, /Prepare PDF preview manifest/);
   assert.match(component, /data-artifact-id/);
   assert.match(component, /<progress[^>]*max=\{version.pages.length\}[^>]*value=\{readyCount\}/);
   assert.match(component, /discovery-thumbnail/);

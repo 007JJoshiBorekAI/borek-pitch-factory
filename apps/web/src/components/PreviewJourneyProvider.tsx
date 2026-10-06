@@ -30,7 +30,8 @@ interface PreviewJourneyContextValue {
   directoryItems: ClientDirectoryItem[];
   getOpportunity: (opportunityId: string) => PreviewOpportunity | null;
   createOpportunity: (values: ClientInformationViewModel, extras: ClientInformationExtras) => PreviewOpportunity;
-  updateClient: (record: ClientInformationRecord) => void;
+  updateClient: (record: ClientInformationRecord, extras?: ClientInformationExtras) => void;
+  registerLiveOpportunity: (opportunity: PreviewOpportunity) => void;
   updateDiscovery: (version: DiscoveryWorkspaceVersion) => void;
   approveDiscovery: (version: DiscoveryWorkspaceVersion) => void;
   startPresentation: (opportunityId: string) => void;
@@ -49,15 +50,16 @@ function workflow(
 }
 
 export function PreviewJourneyProvider({ children }: { children: React.ReactNode }) {
-  const { previewMode, session } = useAuth();
-  const ownerId = session?.user.id ?? (previewMode ? "local-preview" : null);
+  const { ownerId, loading } = useAuth();
   const [state, setState] = useState<PreviewJourneyState>(EMPTY_PREVIEW_JOURNEY);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydratedOwner, setHydratedOwner] = useState<string | null | undefined>(undefined);
+  const hydrated = !loading && hydratedOwner === ownerId;
 
   useEffect(() => {
+    if (loading) return;
     if (!ownerId || !isLocalUiPreviewAvailable()) {
       setState(EMPTY_PREVIEW_JOURNEY);
-      setHydrated(true);
+      setHydratedOwner(ownerId);
       return;
     }
     try {
@@ -65,14 +67,19 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
     } catch {
       setState(EMPTY_PREVIEW_JOURNEY);
     }
-    setHydrated(true);
-  }, [ownerId]);
+    setHydratedOwner(ownerId);
+  }, [ownerId, loading]);
 
   function commit(update: (current: PreviewJourneyState) => PreviewJourneyState) {
+    if (!hydrated || !ownerId) return;
     setState((current) => {
       const next = update(current);
       if (ownerId && isLocalUiPreviewAvailable()) {
-        window.localStorage.setItem(previewJourneyStorageKey(ownerId), JSON.stringify(next));
+        try {
+          window.localStorage.setItem(previewJourneyStorageKey(ownerId), JSON.stringify(next));
+        } catch {
+          // The in-memory workspace remains usable if browser persistence is unavailable.
+        }
       }
       return next;
     });
@@ -86,7 +93,7 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
   }
 
   function getOpportunity(opportunityId: string) {
-    return state.opportunities[opportunityId] ?? null;
+    return hydrated && ownerId ? state.opportunities[opportunityId] ?? null : null;
   }
 
   function createOpportunity(values: ClientInformationViewModel, extras: ClientInformationExtras): PreviewOpportunity {
@@ -123,10 +130,10 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
     return opportunity;
   }
 
-  function updateClient(record: ClientInformationRecord) {
+  function updateClient(record: ClientInformationRecord, extras?: ClientInformationExtras) {
     const current = getOpportunity(record.opportunity_id);
     if (!current) return;
-    replaceOpportunity({ ...current, client: record, updated_at: new Date().toISOString() });
+    replaceOpportunity({ ...current, client: record, client_extras: extras ? normalizeClientInformationExtras(extras) : current.client_extras, updated_at: new Date().toISOString() });
   }
 
   function updateDiscovery(version: DiscoveryWorkspaceVersion) {
@@ -159,7 +166,7 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
     replaceOpportunity({ ...withPresentationAdvanced(current), updated_at: new Date().toISOString() });
   }
 
-  const opportunities = Object.values(state.opportunities).sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  const opportunities = hydrated && ownerId ? Object.values(state.opportunities).sort((a, b) => b.updated_at.localeCompare(a.updated_at)) : [];
   return (
     <PreviewJourneyContext.Provider value={{
       hydrated,
@@ -168,6 +175,7 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
       getOpportunity,
       createOpportunity,
       updateClient,
+      registerLiveOpportunity: replaceOpportunity,
       updateDiscovery,
       approveDiscovery,
       startPresentation,

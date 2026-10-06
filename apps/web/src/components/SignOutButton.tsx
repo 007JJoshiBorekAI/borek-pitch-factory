@@ -3,25 +3,25 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { clearAuthSession } from "@/lib/authSession";
+import { useAuth } from "@/components/AuthProvider";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 export function SignOutButton() {
   const router = useRouter();
+  const { endPreviewSession } = useAuth();
   const [busy, setBusy] = useState(false);
 
   async function handleSignOut() {
-    const client = getSupabaseBrowserClient();
-    if (!client) {
-      clearAuthSession();
-      router.replace("/login");
-      return;
-    }
-
     setBusy(true);
-    await client.auth.signOut();
-    clearAuthSession();
-    router.replace("/login");
+    endPreviewSession();
+    try {
+      await getSupabaseBrowserClient()?.auth.signOut();
+    } catch {
+      // Local auth is already cleared, even if the remote sign-out is unavailable.
+    } finally {
+      router.replace("/login");
+      setBusy(false);
+    }
   }
 
   return (

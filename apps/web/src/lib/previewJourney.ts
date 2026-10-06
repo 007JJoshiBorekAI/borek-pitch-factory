@@ -10,6 +10,8 @@ export interface PreviewPresentation {
   version_id: string | null;
   source_discovery_version_id: string | null;
   slide_count: number;
+  source_discovery?: DiscoveryWorkspaceVersion;
+  version_number?: number;
 }
 
 export interface PreviewOpportunity {
@@ -86,6 +88,10 @@ export function parsePreviewJourney(value: unknown): PreviewJourneyState {
     if (!opportunity.approved_discovery && discovery.document_state === "approved") {
       opportunity.approved_discovery = structuredClone(discovery);
     }
+    const source = presentationSource(opportunity);
+    if (source && opportunity.presentation.source_discovery_version_id) {
+      opportunity.presentation.source_discovery = structuredClone(source);
+    }
   }
   return parsed;
 }
@@ -127,26 +133,44 @@ export function withApprovedDiscovery(
     return opportunity;
   }
   const approved = structuredClone(discovery);
+  const source = presentationSource(opportunity);
   return {
     ...opportunity,
     discovery: approved,
     approved_discovery: structuredClone(approved),
-    presentation: { ...opportunity.presentation, source_discovery_version_id: approved.version_id },
-    workflow: nextWorkflow(opportunity, "discovery_prepared", ["client_information", "discovery_prepared"]),
+    presentation: source && opportunity.presentation.source_discovery_version_id
+      ? { ...opportunity.presentation, source_discovery: structuredClone(source) }
+      : opportunity.presentation,
+    workflow: opportunity.presentation.state === "ready" ? opportunity.workflow
+      : nextWorkflow(opportunity, "discovery_prepared", ["client_information", "discovery_prepared"]),
   };
 }
 
+export function presentationSource(opportunity: PreviewOpportunity): DiscoveryWorkspaceVersion | undefined {
+  const presentation = opportunity.presentation;
+  const source = presentation.source_discovery ?? opportunity.approved_discovery;
+  return source?.document_state === "approved" &&
+    (source.version_id === presentation.source_discovery_version_id ||
+      (presentation.state === "waiting" && !presentation.source_discovery_version_id))
+    ? source : undefined;
+}
+
 export function withPresentationStarted(opportunity: PreviewOpportunity): PreviewOpportunity {
+  if (opportunity.presentation.state === "generating") return opportunity;
   const approved = opportunity.approved_discovery;
   if (!approved || approved.document_state !== "approved" || !canDownloadDiscoveryPdf(approved)) {
     return opportunity;
   }
+  const versionNumber = Math.max(opportunity.presentation.version_number ?? 0,
+    Number(opportunity.presentation.version_id?.match(/^ppt-1-v(\d+)$/)?.[1] ?? 0)) + 1;
   return {
     ...opportunity,
     presentation: {
       state: "generating",
-      version_id: null,
+      version_id: `ppt-1-v${versionNumber}`,
+      version_number: versionNumber,
       source_discovery_version_id: approved.version_id,
+      source_discovery: structuredClone(approved),
       slide_count: 0,
     },
   };
@@ -173,15 +197,18 @@ export function withPresentationAdvanced(opportunity: PreviewOpportunity): Previ
 }
 
 export function withPresentationCompleted(opportunity: PreviewOpportunity): PreviewOpportunity {
-  const source = opportunity.approved_discovery;
+  const source = presentationSource(opportunity);
   if (!source || opportunity.presentation.state !== "generating" ||
       opportunity.presentation.source_discovery_version_id !== source.version_id) return opportunity;
   return {
     ...opportunity,
     presentation: {
+      ...opportunity.presentation,
       state: "ready",
-      version_id: "ppt-1-v1",
+      version_id: opportunity.presentation.version_id ?? `ppt-1-v${opportunity.presentation.version_number ?? 1}`,
+      version_number: opportunity.presentation.version_number ?? 1,
       source_discovery_version_id: source.version_id,
+      source_discovery: structuredClone(source),
       slide_count: 7,
     },
     workflow: nextWorkflow(opportunity, "ppt_1_ready", ["client_information", "discovery_prepared", "ppt_1_ready"]),

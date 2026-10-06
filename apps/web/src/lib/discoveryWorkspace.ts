@@ -13,6 +13,8 @@ export interface DiscoverySourceReference {
   detail: string;
 }
 
+export type DiscoveryContentValue = string | number | boolean | null | DiscoveryContentValue[] | { [key: string]: DiscoveryContentValue };
+
 export interface DiscoveryWorkspacePage {
   id: DiscoveryPageId;
   label: string;
@@ -21,6 +23,7 @@ export interface DiscoveryWorkspacePage {
   body: string;
   source_references: DiscoverySourceReference[];
   failure_message: string | null;
+  content?: { [key: string]: DiscoveryContentValue };
 }
 
 export interface DiscoveryWorkspaceVersion {
@@ -33,6 +36,13 @@ export interface DiscoveryWorkspaceVersion {
   pdf_download_url: string | null;
   pdf_source_revision?: number | null;
   source: "fixture" | "live";
+  live?: {
+    status: "not_generated" | "generating" | "ready" | "failed";
+    document_id: string | null;
+    server_version_id: string | null;
+    version_number: number | null;
+    client_name: string;
+  };
 }
 
 export type DiscoveryWorkspaceFailureKind =
@@ -230,11 +240,15 @@ export function isDiscoveryComplete(version: DiscoveryWorkspaceVersion): boolean
 }
 
 export function canApproveDiscovery(version: DiscoveryWorkspaceVersion): boolean {
+  if (version.source === "live") {
+    return version.document_state === "draft" && version.live?.status === "ready" &&
+      Boolean(version.live.server_version_id) && isDiscoveryComplete(version);
+  }
   return version.document_state === "draft" && canDownloadDiscoveryPdf(version);
 }
 
 export function canDownloadDiscoveryPdf(version: DiscoveryWorkspaceVersion): boolean {
-  return isDiscoveryComplete(version) &&
+  return version.source === "fixture" && isDiscoveryComplete(version) &&
     version.pdf_source_revision === version.revision &&
     Boolean(version.pdf_artifact_id && version.pdf_download_url);
 }

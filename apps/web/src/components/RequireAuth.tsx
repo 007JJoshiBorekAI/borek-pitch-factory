@@ -14,21 +14,14 @@ export function RequireAuth({ children }: RequireAuthProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // TEMPORARY: set NEXT_PUBLIC_BYPASS_LOGIN=true in .env to skip the login redirect.
-  const bypass = process.env.NEXT_PUBLIC_BYPASS_LOGIN === "true";
-
   useEffect(() => {
-    if (bypass || loading || isAuthenticated) {
+    if (loading || isAuthenticated) {
       return;
     }
     const query = typeof window === "undefined" ? "" : window.location.search;
     const returnTo = `${pathname}${query}`;
     router.replace(`/login?next=${encodeURIComponent(returnTo)}`);
-  }, [bypass, isAuthenticated, loading, pathname, router]);
-
-  if (bypass) {
-    return children;
-  }
+  }, [isAuthenticated, loading, pathname, router]);
 
   if (loading) {
     return (

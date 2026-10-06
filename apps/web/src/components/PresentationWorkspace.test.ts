@@ -10,7 +10,7 @@ assert.match(source, /artifact-preview-workspace presentation-document-workspace
 assert.match(source, /aria-label="Presentation slides"/);
 assert.match(source, /presentation-slide-canvas/);
 assert.match(source, /setSelection\(\{ opportunityId, index \}\)/);
-assert.match(source, /<progress[^>]*max=\{totalSlides\}[^>]*value=\{readyCount\}/);
+assert.match(source, /<progress[^>]*max=\{totalSlides \|\| 1\}[^>]*value=\{readyCount\}/);
 assert.match(source, /disabled=\{!downloadable\}/);
 assert.match(source, /not a rendered presentation artifact/);
 assert.match(source, /PPT #1 generation failed/);

@@ -1,5 +1,7 @@
 import type { EmployeeMe } from "./employeeRoles";
 import { getSupabaseBrowserClient } from "./supabase";
+import { getAuthOwnerId } from "./authSession";
+import { BACKEND_UUID, backendOpportunityMapKey, readBackendOpportunityMap as readScopedBackendMap } from "./backendOpportunityMap";
 
 const DEFAULT_API_URL = "http://localhost:8000";
 
@@ -229,13 +231,13 @@ export interface PreviewClientSeed {
   additional_information?: string;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const BACKEND_OPPORTUNITY_MAP_KEY = "borek-backend-opportunity-map-v1";
+const UUID_RE = BACKEND_UUID;
 
 function readBackendOpportunityMap(): Record<string, string> {
-  if (typeof window === "undefined") return {};
+  const owner = getAuthOwnerId();
+  if (typeof window === "undefined" || !owner) return {};
   try {
-    return JSON.parse(window.localStorage.getItem(BACKEND_OPPORTUNITY_MAP_KEY) ?? "{}") as Record<string, string>;
+    return readScopedBackendMap(window.localStorage, owner, getApiBaseUrl());
   } catch {
     return {};
   }
@@ -251,6 +253,8 @@ export async function ensureBackendOpportunityId(
   seed?: PreviewClientSeed | null,
 ): Promise<string> {
   if (UUID_RE.test(opportunityId)) return opportunityId;
+  const owner = getAuthOwnerId();
+  if (!owner) throw new ApiRequestError("Sign in before synchronizing this opportunity.", 401, "AUTH_OWNER_REQUIRED");
   const map = readBackendOpportunityMap();
   if (map[opportunityId]) return map[opportunityId];
   if (!seed?.company_name) {
@@ -276,8 +280,10 @@ export async function ensureBackendOpportunityId(
       },
     }),
   });
+  if (!UUID_RE.test(created.id)) throw new ApiRequestError("The API returned an invalid opportunity ID.", 502);
+  if (owner !== getAuthOwnerId()) throw new ApiRequestError("The signed-in owner changed during synchronization.", 401);
   map[opportunityId] = created.id;
-  window.localStorage.setItem(BACKEND_OPPORTUNITY_MAP_KEY, JSON.stringify(map));
+  window.localStorage.setItem(backendOpportunityMapKey(owner, getApiBaseUrl()), JSON.stringify(map));
   return created.id;
 }
 

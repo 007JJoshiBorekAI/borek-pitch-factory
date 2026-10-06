@@ -89,6 +89,46 @@ async function transitions() {
   }
   assert.equal(opportunity.presentation.state, "ready");
 
+  const v1 = structuredClone(opportunity);
+  assert.equal(v1.presentation.version_id, "ppt-1-v1");
+  const approvedV2 = structuredClone(approved);
+  approvedV2.version_id = "discovery-v2";
+  approvedV2.pages[0].title = "Approved v2 cover";
+  approvedV2.pages[0].body = "New approved v2 content";
+  let reapproved = withApprovedDiscovery(v1, approvedV2);
+  assert.deepEqual(reapproved.presentation, v1.presentation, "approval must not relabel an already generated deck");
+  assert.deepEqual(reapproved.workflow, v1.workflow, "approval must not erase PPT readiness");
+  assert.deepEqual(presentationPreview(reapproved), presentationPreview(v1), "v1 still displays v1 after v2 approval");
+  reapproved = parsePreviewJourney(JSON.parse(JSON.stringify({ schema_version: "1.0", opportunities: { [opportunityId]: reapproved } }))).opportunities[opportunityId];
+  assert.equal(presentationPreview(reapproved)[0].body, approved.pages[0].body, "pinned content survives storage reload");
+  const regenerated = withPresentationStarted(reapproved);
+  assert.equal(regenerated.presentation.version_id, "ppt-1-v2");
+  assert.equal(regenerated.presentation.source_discovery_version_id, "discovery-v2");
+  assert.equal(regenerated.presentation.slide_count, 0, "only explicit generation replaces the deck");
+  assert.equal(withPresentationStarted(regenerated), regenerated, "inflight generation cannot be restarted");
+  const v2 = withPresentationCompleted(regenerated);
+  assert.equal(v2.presentation.state, "ready");
+  assert.equal(v2.presentation.version_id, "ppt-1-v2");
+  assert.equal(presentationPreview(v2)[0].body, "New approved v2 content");
+  assert.equal(presentationPreview(v1)[0].body, approved.pages[0].body, "new generations must not mutate old snapshots");
+
+  const inflightV1 = withPresentationStarted({ ...v1, presentation: { state: "waiting", version_id: null, source_discovery_version_id: null, slide_count: 0 } });
+  const approvedDuringGeneration = withApprovedDiscovery(inflightV1, approvedV2);
+  assert.deepEqual(approvedDuringGeneration.presentation, inflightV1.presentation);
+  const completedV1 = withPresentationCompleted(approvedDuringGeneration);
+  assert.equal(completedV1.presentation.state, "ready", "a newer approval must not strand an inflight generation");
+  assert.equal(completedV1.presentation.source_discovery_version_id, "discovery-v1");
+  assert.equal(presentationPreview(completedV1)[0].body, approved.pages[0].body);
+
+  const legacyV1 = structuredClone(v1);
+  delete legacyV1.presentation.source_discovery;
+  delete legacyV1.presentation.version_number;
+  const migratedV1 = withApprovedDiscovery(legacyV1, approvedV2);
+  assert.equal(presentationPreview(migratedV1)[0].body, approved.pages[0].body, "legacy matching source is captured before approval changes");
+  assert.equal(withPresentationStarted(migratedV1).presentation.version_id, "ppt-1-v2");
+  const lostLegacySource = { ...legacyV1, approved_discovery: approvedV2 };
+  assert.deepEqual(presentationPreview(lostLegacySource), [], "never fabricate historical content when the persisted source is already lost");
+
   opportunity = withPresentationStarted({ ...opportunity, presentation: { ...opportunity.presentation, state: "waiting" } });
   const failed = withPresentationFailed(opportunity);
   assert.equal(failed.presentation.state, "failed");

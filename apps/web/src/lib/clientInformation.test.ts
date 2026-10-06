@@ -8,6 +8,7 @@ import {
   normalizeClientInformation,
   normalizeClientInformationExtras,
   normalizeWebsiteUrl,
+  restoreClientInformationDraft,
   validateClientInformation,
   validateClientInformationExtras,
   type ClientInformationRecord,
@@ -97,6 +98,42 @@ const saved = await adapter.save({
 assert.equal(saved.revision, 4);
 assert.equal(saved.values.company_name, "Updated GmbH");
 assert.deepEqual((await adapter.load("opp-ms41")).values, saved.values);
+
+const storedExtras = normalizeClientInformationExtras({
+  company_logo_name: " logo.svg ", business_industry: " Other ",
+  contact_phone: " +49 30 1234567 ", contact_position: " COO ",
+  pitch_notes: " Initial notes ", pitch_file_names: [" brief.pdf "],
+  additional_opportunity_information: " Q1 ",
+});
+let edit = restoreClientInformationDraft(saved, storedExtras);
+edit.values.company_name = "Unsaved company";
+edit.extras.pitch_notes = "Unsaved notes";
+edit.extras.pitch_file_names.push("unsaved.pdf");
+edit = restoreClientInformationDraft(saved, storedExtras);
+assert.deepEqual(edit, { values: saved.values, extras: storedExtras }, "Cancel restores every field and extra");
+edit.extras.company_logo_name = " new.svg ";
+edit.extras.business_industry = " Healthcare ";
+edit.extras.contact_phone = " +1 555 1234567 ";
+edit.extras.contact_position = " CTO ";
+edit.extras.pitch_notes = " Updated notes ";
+edit.extras.pitch_file_names = [" new.pdf ", " plan.docx "];
+edit.extras.additional_opportunity_information = " Q2 ";
+const updated = await adapter.save({ opportunity_id: saved.opportunity_id, expected_revision: saved.revision, values: edit.values });
+const normalizedExtras = normalizeClientInformationExtras(edit.extras);
+// The provider persists extras alongside, never inside, the canonical record.
+const persisted = JSON.parse(JSON.stringify({ client: updated, client_extras: normalizedExtras }));
+const reloadAdapter = createFixtureClientInformationAdapter(persisted.client);
+const reloaded = restoreClientInformationDraft(await reloadAdapter.load(saved.opportunity_id), persisted.client_extras);
+assert.deepEqual(reloaded.extras, normalizedExtras);
+assert.equal(Object.keys(reloaded.values).length, 5);
+assert.equal(reloaded.extras.company_logo_name, "new.svg");
+assert.deepEqual(reloaded.extras.pitch_file_names, ["new.pdf", "plan.docx"]);
+assert.deepEqual(restoreClientInformationDraft(updated, normalizedExtras), reloaded);
+const liveAdapter = createFixtureClientInformationAdapter({ ...record, source: "live" });
+await assert.rejects(
+  () => liveAdapter.save({ opportunity_id: record.opportunity_id, expected_revision: record.revision, values: record.values }),
+  (error: unknown) => error instanceof ClientInformationAdapterError && error.kind === "authorization",
+);
 await assert.rejects(
   () => adapter.save({ opportunity_id: "opp-ms41", expected_revision: 3, values: record.values }),
   (error: unknown) => error instanceof ClientInformationAdapterError && error.kind === "conflict",

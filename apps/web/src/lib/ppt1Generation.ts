@@ -34,6 +34,7 @@ export async function generateAndAwaitFirstPitch(
   const started = await generateStage1Outputs(accessToken, opportunityId);
   let presentation = presentationOf(started);
   let jobId: string | null = null;
+  let completedJob: JobResponse | undefined;
 
   if (presentation?.status === "failed") {
     throw new ApiRequestError(
@@ -54,9 +55,10 @@ export async function generateAndAwaitFirstPitch(
     }
     jobId = active.job_id;
     if (active.status === "COMPLETED") {
-      onJob?.(await getJob(accessToken, active.job_id));
+      completedJob = await getJob(accessToken, active.job_id);
+      onJob?.(completedJob);
     } else {
-      await waitForJob(accessToken, active.job_id, { onProgress: onJob });
+      completedJob = await waitForJob(accessToken, active.job_id, { onProgress: onJob });
     }
     presentation = presentationOf(await getStage1Outputs(accessToken, opportunityId));
   }
@@ -72,11 +74,20 @@ export async function generateAndAwaitFirstPitch(
   }
   const presentationId = ppt1?.presentation_id || presentation?.presentation_id || "";
   const presentationVersionId = ppt1?.latest_ready_version_id || "";
-  if (!presentationId || !presentationVersionId || presentation?.status === "failed") {
+  if (!presentationId || !presentationVersionId || presentation?.status !== "ready" ||
+      (completedJob && completedJob.status !== "COMPLETED")) {
     throw new ApiRequestError(
       "PPT #1 generation finished without a ready version.",
       409,
       "PPT1_NOT_READY",
+    );
+  }
+  if ((completedJob?.result.presentation_id && completedJob.result.presentation_id !== presentationId) ||
+      (completedJob?.result.presentation_version_id && completedJob.result.presentation_version_id !== presentationVersionId)) {
+    throw new ApiRequestError(
+      "PPT #1 workflow version does not match the completed generation job.",
+      409,
+      "PPT1_IDENTITY_MISMATCH",
     );
   }
   return { presentationId, presentationVersionId, jobId };

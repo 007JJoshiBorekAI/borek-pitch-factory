@@ -140,3 +140,48 @@ test("the new pre-meeting UI calls the approved-discovery PPT #1 helper", () => 
   assert.doesNotMatch(helper, /presentation\/generate/);
   assert.doesNotMatch(source, /GAMMA|PRESENTATION_ENGINE/);
 });
+
+test("a previous ready workflow version cannot turn unfinished generation into success", async () => {
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.includes("/stage1-outputs")) return jsonResponse(200, {
+      outputs: { presentation: { status: "queued", presentation_id: PRESENTATION_ID } },
+    });
+    if (url.includes("/jobs/active")) return jsonResponse(200, { job_id: JOB_ID, status: "COMPLETED" });
+    if (url.includes(`/jobs/${JOB_ID}`)) return jsonResponse(200, {
+      job_id: JOB_ID, status: "COMPLETED", result: {}, error: null,
+    });
+    if (url.includes("/workflow-status")) return jsonResponse(200, {
+      documents: { ppt1: { presentation_id: PRESENTATION_ID, latest_ready_version_id: VERSION_ID } },
+    });
+    throw new Error(url);
+  };
+  try {
+    await assert.rejects(generateAndAwaitFirstPitch(TOKEN, OPPORTUNITY_ID), { code: "PPT1_NOT_READY" });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("completed generation must match the workflow presentation and version identities", async () => {
+  let jobVersion = "different-version";
+  let workflowPresentation = PRESENTATION_ID;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("/stage1-outputs")) return jsonResponse(200, {
+      outputs: { presentation: { status: init?.method === "POST" ? "queued" : "ready", presentation_id: PRESENTATION_ID } },
+    });
+    if (url.includes("/jobs/active")) return jsonResponse(200, { job_id: JOB_ID, status: "COMPLETED" });
+    if (url.includes(`/jobs/${JOB_ID}`)) return jsonResponse(200, {
+      job_id: JOB_ID, status: "COMPLETED", result: { presentation_id: PRESENTATION_ID, presentation_version_id: jobVersion }, error: null,
+    });
+    if (url.includes("/workflow-status")) return jsonResponse(200, {
+      documents: { ppt1: { presentation_id: workflowPresentation, latest_ready_version_id: VERSION_ID } },
+    });
+    throw new Error(url);
+  };
+  try {
+    await assert.rejects(generateAndAwaitFirstPitch(TOKEN, OPPORTUNITY_ID), { code: "PPT1_IDENTITY_MISMATCH" });
+    jobVersion = VERSION_ID;
+    workflowPresentation = "different-presentation";
+    await assert.rejects(generateAndAwaitFirstPitch(TOKEN, OPPORTUNITY_ID), { code: "PPT1_IDENTITY_MISMATCH" });
+  } finally { globalThis.fetch = originalFetch; }
+});

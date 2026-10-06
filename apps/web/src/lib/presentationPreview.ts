@@ -1,8 +1,8 @@
-import type { PreviewOpportunity } from "./previewJourney";
+import { presentationSource, type PreviewOpportunity } from "./previewJourney";
 
-// Local UI preview only: use the approved source, never an editable successor.
+// Local UI preview only: use the generation's pinned source, not a later approval.
 export function presentationPreview(opportunity: PreviewOpportunity | null) {
-  const source = opportunity?.approved_discovery;
+  const source = opportunity ? presentationSource(opportunity) : undefined;
   const presentation = opportunity?.presentation;
   if (!source || source.document_state !== "approved" || !presentation ||
       (presentation.source_discovery_version_id && presentation.source_discovery_version_id !== source.version_id)) {

@@ -8,6 +8,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useLanguage } from "@/components/LanguageProvider";
 import { usePreviewJourney } from "@/components/PreviewJourneyProvider";
+import { useAuth } from "@/components/AuthProvider";
 import type { DiscoveryFirstWorkspaceFixture } from "@/lib/discoveryFirst";
 
 interface OpportunityWorkflowShellProps {
@@ -19,10 +20,13 @@ export function OpportunityWorkflowShell({ fixture, children }: OpportunityWorkf
   const { copy } = useLanguage();
   const pathname = usePathname();
   const { getOpportunity } = usePreviewJourney();
+  const { accessToken, previewMode } = useAuth();
+  const live = Boolean(accessToken) && !previewMode;
   const preview = getOpportunity(fixture.opportunity_id);
   const workflowSnapshot = preview?.workflow ?? fixture.workflow;
   const preMeetingStatuses = new Set(["client_information", "discovery_prepared", "ppt_1_ready"]);
-  const activeSection = preMeetingStatuses.has(workflowSnapshot.current_status)
+  const preMeetingPage = /\/(client-information|discovery|presentations)$/.test(pathname);
+  const activeSection = preMeetingPage || preMeetingStatuses.has(workflowSnapshot.current_status)
     ? "pre_meeting"
     : "post_meeting";
   const readyPages = preview?.discovery.pages.filter((page) => page.state === "ready").length ?? 0;
@@ -38,7 +42,7 @@ export function OpportunityWorkflowShell({ fixture, children }: OpportunityWorkf
             <div>
               <p className="discovery-workflow-kicker">{activeSection === "pre_meeting" ? copy.sidebar.preMeeting : copy.sidebar.postMeeting} · {preview?.client.values.company_name ?? fixture.client_information.company_name}</p>
               <h2>{copy.workflow.creating}</h2>
-              <p className="discovery-workflow-meta">{workspaceProgress}</p>
+              <p className="discovery-workflow-meta">{live ? "Live workspace · Progress is shown with each artifact below." : workspaceProgress}</p>
             </div>
           </div>
           {activeSection === "post_meeting" ? (

@@ -9,8 +9,11 @@ function source(relativePath: string): string {
 
 test("discovery approval and generation call the discovery-paper endpoints", () => {
   const discovery = source("../components/DiscoveryWorkspace.tsx");
-  assert.match(discovery, /approveDiscoveryPaper/);
-  assert.match(discovery, /generateDiscoveryPaper/);
+  assert.match(discovery, /approveLiveDiscovery/);
+  assert.match(discovery, /generateLiveDiscovery/);
+  const liveDiscovery = source("./liveDiscovery.ts");
+  assert.match(liveDiscovery, /approveDiscoveryPaper/);
+  assert.match(liveDiscovery, /generateDiscoveryPaper/);
   assert.doesNotMatch(discovery, /concretisation/);
 });
 

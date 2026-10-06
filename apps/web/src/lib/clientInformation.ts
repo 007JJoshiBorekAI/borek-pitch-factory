@@ -15,6 +15,20 @@ export interface ClientInformationExtras {
 
 export type ClientInformationExtraErrors = Partial<Record<keyof ClientInformationExtras, string>>;
 
+export const EMPTY_CLIENT_INFORMATION_EXTRAS: ClientInformationExtras = {
+  company_logo_name: "",
+  business_industry: "",
+  contact_phone: "",
+  contact_position: "",
+  pitch_notes: "",
+  pitch_file_names: [],
+  additional_opportunity_information: "",
+};
+
+export function restoreClientInformationDraft(record: ClientInformationRecord, extras = EMPTY_CLIENT_INFORMATION_EXTRAS) {
+  return { values: { ...record.values }, extras: normalizeClientInformationExtras(extras) };
+}
+
 export interface ClientInformationRecord {
   opportunity_id: string;
   revision: number;
@@ -153,6 +167,9 @@ export function createFixtureClientInformationAdapter(
       return structuredClone(record);
     },
     async save(input) {
+      if (record.source !== "fixture") {
+        throw new ClientInformationAdapterError("authorization", "Live client information cannot be saved through the fixture adapter.");
+      }
       if (nextFailure) {
         const failure = nextFailure;
         nextFailure = undefined;
