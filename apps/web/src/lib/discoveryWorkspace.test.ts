@@ -191,14 +191,13 @@ async function run() {
   assert.match(component, /Continue generation/);
   assert.match(component, /Create successor draft/);
   assert.match(component, /Prepare PDF preview manifest/);
-  assert.match(component, /data-artifact-id/);
+  assert.match(component, /printDiscoveryPdf/);
   assert.match(component, /<progress[^>]*max=\{version.pages.length\}[^>]*value=\{readyCount\}/);
   assert.match(component, /discovery-thumbnail/);
-  assert.match(component, /discovery-paper-header/);
-  assert.match(component, /discovery-paper-footer/);
+  assert.match(component, /discovery-sheet-frame/);
   assert.match(component, /discovery-generation-card/);
   assert.match(component, /discovery-download-card/);
-  assert.match(component, /Real PDF downloads require live integration/);
+  assert.match(component, /BOREK White Paper design/);
   assert.doesNotMatch(component, /setSelectedId\(preview\.discovery\.pages\[0\]\.id\)/);
   const css = readFileSync("src/app/pitch-shell.css", "utf8");
   assert.match(css, /\.discovery-document-workspace \.discovery-ready-page\s*\{[^}]*aspect-ratio: 210 \/ 297;[^}]*border-radius: 0;/);
