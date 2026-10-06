@@ -334,6 +334,34 @@ def generate_stage1_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) 
     return refreshed.get("stage1_outputs") or payload
 
 
+def regenerate_stage1_presentation(
+    store: Any,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+) -> dict[str, Any]:
+    """Explicit PPT #1 regenerate: latest approved Discovery, same Stage 1 id."""
+
+    def mark_queued(presentation: dict[str, Any], _job: Any) -> None:
+        _stage1_presentation_update(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            status="queued",
+            presentation_id=presentation["id"],
+            code="FIRST_MEETING_PRESENTATION_QUEUED",
+        )
+
+    presentation_generation.enqueue_first_contact_presentation_generate(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        on_enqueued=mark_queued,
+    )
+    refreshed = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    return refreshed.get("stage1_outputs") or empty_stage1(opportunity_id)
+
+
 def generate_stage2_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     sources = store.list_transcript_sources(opportunity_id=opportunity_id, user_id=user_id)

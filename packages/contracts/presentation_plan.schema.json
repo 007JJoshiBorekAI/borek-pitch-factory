@@ -48,8 +48,8 @@
     },
     "FrameworkReference": {
       "type": "string",
-      "pattern": "^(opportunity|chapter_([0-9]|1[0-3]))$",
-      "description": "Pointer to FrameworkObject content, e.g. opportunity, chapter_1, chapter_10."
+      "pattern": "^(opportunity|chapter_([0-9]|1[0-3])|discovery\\.(cover|client_context|opportunity|borek_approach|relevant_use_case|pilot_proposal|next_steps))$",
+      "description": "Pointer to FrameworkObject content (opportunity, chapter_1) or an approved Discovery page (discovery.cover)."
     },
     "PlannedSlide": {
       "type": "object",
@@ -73,7 +73,7 @@
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/FrameworkReference" },
-          "description": "FrameworkObject fields/chapters this slide draws from."
+          "description": "Framework chapters or approved Discovery pages this slide draws from."
         }
       }
     }

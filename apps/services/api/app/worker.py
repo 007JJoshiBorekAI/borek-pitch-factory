@@ -511,6 +511,14 @@ def run_presentation_generation_task(
                 if _stage_should_run(resume_stage, stage):
                     job_service.ensure_stage(parsed_job_id, stage, repository=store)
                     prior_id = enqueue.get("prior_stage_presentation_version_id")
+                    manifest = enqueue.get("generation_source_manifest")
+                    discovery_pages = None
+                    if isinstance(manifest, dict) and manifest.get("kind") == "ppt1":
+                        discovery_pages = presentation_generation.load_ppt1_discovery_pages(
+                            store,
+                            user_id=UUID(user_id),
+                            manifest=manifest,
+                        )
                     version, plan = presentation_generation.execute_presentation_generation(
                         store,
                         presentation_id=UUID(presentation_id),
@@ -518,6 +526,10 @@ def run_presentation_generation_task(
                         journey_stage=enqueue.get("journey_stage"),
                         prior_stage_presentation_version_id=(
                             UUID(str(prior_id)) if prior_id else None
+                        ),
+                        discovery_pages=discovery_pages,
+                        generation_source_manifest=(
+                            manifest if isinstance(manifest, dict) else None
                         ),
                     )
                     job_service.record_result_checkpoint(
@@ -577,13 +589,17 @@ def run_presentation_generation_task(
                         presentation_id=UUID(presentation_id),
                         code=None,
                     )
+                completion = {
+                    "presentation_id": presentation_id,
+                    "presentation_version_id": str(version["id"]),
+                }
+                frozen_manifest = enqueue.get("generation_source_manifest")
+                if isinstance(frozen_manifest, dict):
+                    completion["generation_source_manifest"] = frozen_manifest
                 job_service.complete_job(
                     parsed_job_id,
                     repository=store,
-                    result_json={
-                        "presentation_id": presentation_id,
-                        "presentation_version_id": str(version["id"]),
-                    },
+                    result_json=completion,
                 )
                 return {
                     "job_id": job_id,

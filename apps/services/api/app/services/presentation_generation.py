@@ -30,6 +30,8 @@ from services.framework.stage1_intake import resolve_meeting_purpose
 from services.presentation.generatable_layouts import filter_generatable_planned_slides
 
 
+# Stage 1 schema still requires this historical profile id. New PPT #1 decks
+# are planned from the approved Discovery Paper, not from the legacy 3-slide stamp.
 FIRST_CONTACT_PRESENTATION_PROFILE = "first_meeting_3"
 
 FIRST_CONTACT_PRESENTATION_PLAN = {
@@ -62,10 +64,10 @@ def _first_contact_plan_from_framework(
     framework: dict[str, Any],
     opportunity: dict[str, Any],
 ) -> dict[str, Any]:
-    """Build the frozen first-meeting plan from the framework's saved intake.
+    """Legacy three-slide stamp. Not used by new PPT #1 generation.
 
-    The framework stamp is the source. The opportunity row is only the fallback
-    for a framework created before that stamp existed.
+    Kept so historical callers and fixtures can still read the old profile shape.
+    Active PPT #1 planning goes through plan_first_pitch_from_discovery.
     """
     stamp = framework.get("framework_json", {}).get("stage1_intake") or {}
     if not isinstance(stamp, dict):
@@ -362,6 +364,7 @@ def enqueue_presentation_generate(
     journey_stage: str | None = None,
     enqueue_metadata: dict[str, Any] | None = None,
     on_enqueued: Callable[[dict[str, Any], job_service.Job], None] | None = None,
+    existing_presentation_id: UUID | None = None,
 ):
     store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     framework = _require_confirmed_framework(
@@ -427,11 +430,20 @@ def enqueue_presentation_generate(
 
     if settings.RENDERER_EXECUTION_MODE == "live":
         _raise_if_plan_not_generatable(plan["plan_json"], as_http=True)
-    presentation = store.create_presentation(
-        presentation_plan_id=plan["id"],
-        user_id=user_id,
-        name=name or str(plan["plan_json"].get("title") or "Presentation"),
-    )
+    presentation_name = name or str(plan["plan_json"].get("title") or "Presentation")
+    if existing_presentation_id is not None:
+        presentation = store.retarget_presentation_plan(
+            presentation_id=existing_presentation_id,
+            presentation_plan_id=plan["id"],
+            user_id=user_id,
+            name=presentation_name,
+        )
+    else:
+        presentation = store.create_presentation(
+            presentation_plan_id=plan["id"],
+            user_id=user_id,
+            name=presentation_name,
+        )
     enqueue_payload = {
         "user_id": str(user_id),
         "presentation_id": str(presentation["id"]),
@@ -490,19 +502,27 @@ def _require_approved_discovery_paper(
         raise
 
 
-def enqueue_first_contact_presentation_generate(
+def _stage1_presentation_id(opportunity: dict[str, Any]) -> UUID | None:
+    presentation = (
+        ((opportunity.get("stage1_outputs") or {}).get("outputs") or {}).get("presentation")
+        or {}
+    )
+    raw = presentation.get("presentation_id")
+    if not raw:
+        return None
+    return UUID(str(raw))
+
+
+def _framework_for_plan_storage(
     store: DataStore,
     *,
     opportunity_id: UUID,
     user_id: UUID,
-    on_enqueued: Callable[[dict[str, Any], job_service.Job], None] | None = None,
-):
-    """Create the frozen three-slide BT-36 plan and run the standard deck pipeline."""
-    _require_approved_discovery_paper(
-        store,
-        opportunity_id=opportunity_id,
-        user_id=user_id,
-    )
+) -> dict[str, Any]:
+    """Return a confirmed framework row to satisfy the plan foreign key.
+
+    The row is not the PPT #1 content source. Discovery is not copied into it.
+    """
     try:
         framework = store.get_latest_framework(
             opportunity_id=opportunity_id,
@@ -521,13 +541,83 @@ def enqueue_first_contact_presentation_generate(
             user_id=user_id,
             framework_version_id=framework["id"],
         )
+    return framework
 
-    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+
+def enqueue_first_contact_presentation_generate(
+    store: DataStore,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    on_enqueued: Callable[[dict[str, Any], job_service.Job], None] | None = None,
+):
+    """Plan PPT #1 from the latest approved Discovery and render it internally.
+
+    The first call allocates the Stage 1 presentation. A later call reuses that
+    id and appends a version. An in-flight job for the same approved version is
+    reused so a retry does not switch sources.
+    """
+    from app.services.discovery_paper import get_latest_approved_discovery_paper
+    from app.services.stage_b_orchestration import get_live_planning_client
+    from services.presentation.first_pitch import (
+        plan_first_pitch_from_discovery,
+        planning_input_from_approved_paper,
+        ppt1_generation_manifest,
+    )
+    from services.presentation.generatable_layouts import as_approved_generatable_plan
+    from services.presentation.planner import PresentationPlanValidationError
+
+    _require_approved_discovery_paper(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+    )
+    approved = get_latest_approved_discovery_paper(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+    )
+    manifest = ppt1_generation_manifest(str(approved["id"]))
+    existing = job_service.reuse_active_generation_job(
+        store,
+        opportunity_id,
+        stage_group="presentation",
+    )
+    if existing is not None:
+        existing_enqueue = dict((existing.result_json or {}).get("_enqueue") or {})
+        existing_manifest = existing_enqueue.get("generation_source_manifest") or {}
+        if (
+            existing_enqueue.get("stage1_output_integration")
+            and str(existing_manifest.get("approved_discovery_version_id"))
+            == manifest["approved_discovery_version_id"]
+        ):
+            presentation, plan = _existing_presentation_payload(
+                store,
+                user_id=user_id,
+                job=existing,
+            )
+            return presentation, plan, existing, True
+
+    source = planning_input_from_approved_paper(approved)
+    try:
+        planned = plan_first_pitch_from_discovery(
+            source,
+            planner=get_live_planning_client(),
+        )
+    except PresentationPlanValidationError as exc:
+        raise bad_request("PPT1_PLAN_INVALID", str(exc)) from exc
+    plan_json = as_approved_generatable_plan(planned.model_dump(mode="json"))
+    framework = _framework_for_plan_storage(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+    )
     plan = store.create_presentation_plan(
         framework_version_id=framework["id"],
         user_id=user_id,
-        plan_json=_first_contact_plan_from_framework(framework, opportunity),
+        plan_json=plan_json,
     )
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     return enqueue_presentation_generate(
         store,
         opportunity_id=opportunity_id,
@@ -536,8 +626,12 @@ def enqueue_first_contact_presentation_generate(
         presentation_plan_id=plan["id"],
         name=str(plan["plan_json"]["title"]),
         journey_stage="first_contact",
-        enqueue_metadata={"stage1_output_integration": True},
+        enqueue_metadata={
+            "stage1_output_integration": True,
+            "generation_source_manifest": manifest,
+        },
         on_enqueued=on_enqueued,
+        existing_presentation_id=_stage1_presentation_id(opportunity),
     )
 
 
@@ -548,6 +642,8 @@ def execute_presentation_generation(
     user_id: UUID,
     journey_stage: str | None = None,
     prior_stage_presentation_version_id: UUID | None = None,
+    discovery_pages: list[dict[str, Any]] | None = None,
+    generation_source_manifest: dict[str, Any] | None = None,
 ) -> tuple[dict, dict]:
     install_runtime_stage_b_providers()
     presentation = store.get_presentation(presentation_id=presentation_id, user_id=user_id)
@@ -555,6 +651,11 @@ def execute_presentation_generation(
         presentation_plan_id=presentation["presentation_plan_id"],
         user_id=user_id,
     )
+    if _plan_uses_discovery(plan["plan_json"]) and discovery_pages is None:
+        raise RuntimeError(
+            "PPT1_DISCOVERY_SOURCE_MISSING: approved Discovery pages were not "
+            "loaded for this PPT #1 generation"
+        )
     if settings.RENDERER_EXECUTION_MODE == "live":
         _raise_if_plan_not_generatable(plan["plan_json"], as_http=False)
     version = store.create_presentation_version_with_slides(
@@ -563,8 +664,43 @@ def execute_presentation_generation(
         plan_json=plan["plan_json"],
         journey_stage=journey_stage,
         prior_stage_presentation_version_id=prior_stage_presentation_version_id,
+        discovery_pages=discovery_pages,
+        generation_source_manifest=generation_source_manifest,
     )
     return version, plan
+
+
+def _plan_uses_discovery(plan_json: dict[str, Any]) -> bool:
+    slides = list(plan_json.get("slides") or [])
+    if not slides:
+        return False
+    return all(
+        all(str(reference).startswith("discovery.") for reference in slide.get("frameworkReferences") or [])
+        for slide in slides
+    )
+
+
+def load_ppt1_discovery_pages(
+    store: DataStore,
+    *,
+    user_id: UUID,
+    manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Load the Discovery body frozen on the generation job, not the latest draft."""
+    from services.presentation.first_pitch import planning_input_from_approved_paper
+
+    version_id = manifest.get("approved_discovery_version_id")
+    if not version_id:
+        raise RuntimeError("PPT1_DISCOVERY_SOURCE_MISSING: generation manifest has no version id")
+    row = store.get_discovery_paper_version(
+        version_id=UUID(str(version_id)),
+        user_id=user_id,
+    )
+    if row.get("status") != "approved":
+        raise RuntimeError(
+            "PPT1_DISCOVERY_SOURCE_MISSING: frozen Discovery version is not approved"
+        )
+    return list(planning_input_from_approved_paper(row)["pages"])
 
 
 def load_presentation_generation_checkpoint(

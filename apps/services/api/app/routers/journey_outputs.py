@@ -34,6 +34,7 @@ from app.services.journey_generation import (
     generate_email_draft,
     generate_stage1_outputs,
     generate_stage2_outputs,
+    regenerate_stage1_presentation,
     get_meeting_feedback,
 )
 from app.services.meeting_extraction import (
@@ -140,6 +141,26 @@ def post_stage1_outputs(
         object_id=opportunity_id,
     )
     return generate_stage1_outputs(store, opportunity_id=opportunity_id, user_id=user.id)
+
+
+@router.post("/{opportunity_id}/stage1-outputs/presentation/regenerate")
+def post_regenerate_stage1_presentation(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.STAGE1_PRESENTATION_REGENERATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    return regenerate_stage1_presentation(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
 
 
 @router.get("/{opportunity_id}/discovery-paper")

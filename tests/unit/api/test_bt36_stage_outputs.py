@@ -119,14 +119,15 @@ def test_stage1_outputs_require_document_and_persist() -> None:
     store = get_memory_store()
     assert len(store.presentations) == 1
     assert len(store.presentation_versions) == 1
-    assert len(store.slides) == 3
+    assert len(store.slides) == 7
     plan = next(iter(store.presentation_plans.values()))
-    assert len(plan["plan_json"]["slides"]) == 3
+    assert len(plan["plan_json"]["slides"]) == 7
+    assert len(plan["plan_json"]["slides"]) <= 8
     version = next(iter(store.presentation_versions.values()))
     assert version["journey_stage"] == "first_contact"
     assert version["pptx_storage_path"]
     assert version["pdf_storage_path"]
-    assert len(version["preview_image_paths"]) == 3
+    assert len(version["preview_image_paths"]) == 7
     filed_kinds = {artifact.get("artifact_kind") for artifact in store.filed_artifacts.values()}
     assert {"pptx", "pdf"}.issubset(filed_kinds)
     assert any(

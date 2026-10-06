@@ -330,6 +330,15 @@ def test_bt36_transcript_summaries_are_numbered_031() -> None:
     assert "GRANT ALL ON public.transcript_summaries TO service_role" in content
 
 
+def test_jj34_generation_source_manifest_column() -> None:
+    content = (MIGRATIONS_DIR / "040_jj34_generation_source_manifest.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "ADD COLUMN IF NOT EXISTS generation_source_manifest JSONB" in content
+    assert "presentation_versions" in content
+    assert "CREATE TABLE" not in content
+
+
 def test_d3_employee_roles_and_activity_document_id() -> None:
     content = (MIGRATIONS_DIR / "027_employee_roles_and_activity.sql").read_text(
         encoding="utf-8"

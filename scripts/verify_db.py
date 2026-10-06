@@ -75,6 +75,9 @@ EXPECTED_COLUMNS = {
         "finalization_snapshot",
         "demo_marker",
     ),
+    "presentation_versions": (
+        "generation_source_manifest",
+    ),
     "transcript_summaries": (
         "transcript_id",
         "opportunity_id",

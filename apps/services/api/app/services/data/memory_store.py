@@ -1340,6 +1340,24 @@ class MemoryDataStore:
         _ = plan
         return row
 
+    def retarget_presentation_plan(
+        self,
+        *,
+        presentation_id: UUID,
+        presentation_plan_id: UUID,
+        user_id: UUID,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        row = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        self.get_presentation_plan(
+            presentation_plan_id=presentation_plan_id,
+            user_id=user_id,
+        )
+        row["presentation_plan_id"] = presentation_plan_id
+        if name:
+            row["name"] = name
+        return row
+
     def list_presentations(self, *, user_id: UUID) -> list[dict[str, Any]]:
         accessible_plan_ids = {
             plan_id
@@ -1396,6 +1414,8 @@ class MemoryDataStore:
         plan_json: dict[str, Any],
         journey_stage: str | None = None,
         prior_stage_presentation_version_id: UUID | None = None,
+        discovery_pages: list[dict[str, Any]] | None = None,
+        generation_source_manifest: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         presentation = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
         plan = self.get_presentation_plan(
@@ -1419,26 +1439,42 @@ class MemoryDataStore:
             "status": "generating",
             "journey_stage": journey_stage,
             "prior_stage_presentation_version_id": prior_stage_presentation_version_id,
+            "generation_source_manifest": (
+                copy.deepcopy(generation_source_manifest)
+                if generation_source_manifest is not None
+                else None
+            ),
             "created_at": _now(),
         }
         self.presentation_versions[presentation_version_id] = version_row
 
-        framework = self.get_framework_version(
-            framework_version_id=plan["framework_version_id"],
-            user_id=user_id,
-        )
-        slide_specs: list[dict[str, Any]] = []
-        for planned in planned_slides_with_generators(plan_json):
-            slide_spec = build_slide_spec_for_planned_slide(
-                planned=planned,
-                framework_json=framework["framework_json"],
+        if discovery_pages is not None:
+            from services.presentation.discovery_slide_content import (
+                build_discovery_slide_specs,
             )
+
+            generated_specs = build_discovery_slide_specs(plan_json, discovery_pages)
+        else:
+            framework = self.get_framework_version(
+                framework_version_id=plan["framework_version_id"],
+                user_id=user_id,
+            )
+            generated_specs = [
+                build_slide_spec_for_planned_slide(
+                    planned=planned,
+                    framework_json=framework["framework_json"],
+                )
+                for planned in planned_slides_with_generators(plan_json)
+            ]
+        slide_specs: list[dict[str, Any]] = []
+        for index, slide_spec in enumerate(generated_specs, start=1):
             persisted_slide_spec = copy.deepcopy(slide_spec)
+            persisted_slide_spec["slideId"] = f"slide_{index:02d}"
             slide_id = uuid.uuid4()
             slide_row = {
                 "id": slide_id,
                 "presentation_version_id": presentation_version_id,
-                "slide_index": int(planned["order"]) - 1,
+                "slide_index": index - 1,
                 "layout_id": persisted_slide_spec["layoutId"],
                 "slide_spec": persisted_slide_spec,
                 "source_chapter_ids": copy.deepcopy(
@@ -1589,6 +1625,9 @@ class MemoryDataStore:
             "journey_stage": previous.get("journey_stage"),
             "prior_stage_presentation_version_id": previous.get(
                 "prior_stage_presentation_version_id"
+            ),
+            "generation_source_manifest": copy.deepcopy(
+                previous.get("generation_source_manifest")
             ),
             "created_at": _now(),
         }

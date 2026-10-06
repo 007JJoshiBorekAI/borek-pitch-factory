@@ -103,7 +103,17 @@ _FIXTURE_PLAN = {
 
 
 class FixturePlanningClient:
-    def complete_planning(self, **_kwargs: Any) -> dict[str, Any]:
+    def complete_planning(self, **kwargs: Any) -> dict[str, Any]:
+        planning_input = kwargs.get("planning_input") or {}
+        approved = (
+            planning_input.get("approvedDiscovery")
+            if isinstance(planning_input, dict)
+            else None
+        )
+        if isinstance(approved, dict):
+            from services.presentation.first_pitch import deterministic_discovery_plan
+
+            return deterministic_discovery_plan(approved)
         return copy.deepcopy(_FIXTURE_PLAN)
 
 

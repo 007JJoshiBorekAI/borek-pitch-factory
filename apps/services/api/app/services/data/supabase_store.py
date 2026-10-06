@@ -2107,6 +2107,32 @@ class SupabaseDataStore:
             raise bad_request("PRESENTATION_CREATE_FAILED", response.text)
         return _normalize_presentation(response.json()[0])
 
+    def retarget_presentation_plan(
+        self,
+        *,
+        presentation_id: UUID,
+        presentation_plan_id: UUID,
+        user_id: UUID,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        self.get_presentation_plan(
+            presentation_plan_id=presentation_plan_id,
+            user_id=user_id,
+        )
+        payload: dict[str, Any] = {"presentation_plan_id": str(presentation_plan_id)}
+        if name:
+            payload["name"] = name
+        response = self._request(
+            "PATCH",
+            "presentations",
+            params={"id": f"eq.{presentation_id}"},
+            json_body=payload,
+        )
+        if response.status_code not in (200, 204) or not response.json():
+            raise bad_request("PRESENTATION_UPDATE_FAILED", response.text)
+        return _normalize_presentation(response.json()[0])
+
     def list_presentations(self, *, user_id: UUID) -> list[dict[str, Any]]:
         _ = user_id
         response = self._request(
@@ -2166,6 +2192,8 @@ class SupabaseDataStore:
         plan_json: dict[str, Any],
         journey_stage: str | None = None,
         prior_stage_presentation_version_id: UUID | None = None,
+        discovery_pages: list[dict[str, Any]] | None = None,
+        generation_source_manifest: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         self.get_presentation(presentation_id=presentation_id, user_id=user_id)
         latest = self._request(
@@ -2194,6 +2222,8 @@ class SupabaseDataStore:
                 else None
             ),
         }
+        if generation_source_manifest is not None:
+            version_payload["generation_source_manifest"] = generation_source_manifest
         version_response = self._request(
             "POST",
             "presentation_versions",
@@ -2208,20 +2238,31 @@ class SupabaseDataStore:
             presentation_plan_id=presentation["presentation_plan_id"],
             user_id=user_id,
         )
-        framework = self.get_framework_version(
-            framework_version_id=plan["framework_version_id"],
-            user_id=user_id,
-        )
-        slide_specs: list[dict[str, Any]] = []
-        for planned in planned_slides_with_generators(plan_json):
-            slide_spec = build_slide_spec_for_planned_slide(
-                planned=planned,
-                framework_json=framework["framework_json"],
+        if discovery_pages is not None:
+            from services.presentation.discovery_slide_content import (
+                build_discovery_slide_specs,
             )
+
+            generated_specs = build_discovery_slide_specs(plan_json, discovery_pages)
+        else:
+            framework = self.get_framework_version(
+                framework_version_id=plan["framework_version_id"],
+                user_id=user_id,
+            )
+            generated_specs = [
+                build_slide_spec_for_planned_slide(
+                    planned=planned,
+                    framework_json=framework["framework_json"],
+                )
+                for planned in planned_slides_with_generators(plan_json)
+            ]
+        slide_specs: list[dict[str, Any]] = []
+        for index, slide_spec in enumerate(generated_specs, start=1):
             persisted_slide_spec = copy.deepcopy(slide_spec)
+            persisted_slide_spec["slideId"] = f"slide_{index:02d}"
             slide_payload = {
                 "presentation_version_id": str(version_row["id"]),
-                "slide_index": int(planned["order"]) - 1,
+                "slide_index": index - 1,
                 "layout_id": persisted_slide_spec["layoutId"],
                 "slide_spec": persisted_slide_spec,
                 "source_chapter_ids": copy.deepcopy(
@@ -2383,21 +2424,24 @@ class SupabaseDataStore:
             framework_version_id=plan["framework_version_id"],
             user_id=user_id,
         )
+        edited_payload = {
+            "presentation_id": str(presentation_id),
+            "version_number": int(previous["version_number"]) + 1,
+            "slides_json": [],
+            "status": "generating",
+            "journey_stage": previous.get("journey_stage"),
+            "prior_stage_presentation_version_id": (
+                str(previous["prior_stage_presentation_version_id"])
+                if previous.get("prior_stage_presentation_version_id")
+                else None
+            ),
+        }
+        if previous.get("generation_source_manifest") is not None:
+            edited_payload["generation_source_manifest"] = previous["generation_source_manifest"]
         version_response = self._request(
             "POST",
             "presentation_versions",
-            json_body={
-                "presentation_id": str(presentation_id),
-                "version_number": int(previous["version_number"]) + 1,
-                "slides_json": [],
-                "status": "generating",
-                "journey_stage": previous.get("journey_stage"),
-                "prior_stage_presentation_version_id": (
-                    str(previous["prior_stage_presentation_version_id"])
-                    if previous.get("prior_stage_presentation_version_id")
-                    else None
-                ),
-            },
+            json_body=edited_payload,
         )
         if version_response.status_code not in (200, 201):
             raise bad_request("PRESENTATION_VERSION_CREATE_FAILED", version_response.text)
