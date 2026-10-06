@@ -3,6 +3,18 @@ import type { ClientInformationViewModel } from "./discoveryFirst";
 export type ClientInformationField = keyof ClientInformationViewModel;
 export type ClientInformationFieldErrors = Partial<Record<ClientInformationField, string>>;
 
+export interface ClientInformationExtras {
+  company_logo_name: string;
+  business_industry: string;
+  contact_phone: string;
+  contact_position: string;
+  pitch_notes: string;
+  pitch_file_names: string[];
+  additional_opportunity_information: string;
+}
+
+export type ClientInformationExtraErrors = Partial<Record<keyof ClientInformationExtras, string>>;
+
 export interface ClientInformationRecord {
   opportunity_id: string;
   revision: number;
@@ -52,6 +64,7 @@ export function validateClientInformation(
   if (!values.company_name.trim()) errors.company_name = "Enter the company name.";
   if (!values.contact_person.trim()) errors.contact_person = "Enter the contact person.";
   if (!values.meeting_purpose.trim()) errors.meeting_purpose = "Enter the meeting purpose.";
+  if (!values.additional_information.trim()) errors.additional_information = "Enter the additional client information.";
 
   const website = normalizeWebsiteUrl(values.website_url);
   if (!website) {
@@ -78,6 +91,28 @@ export function normalizeClientInformation(
     website_url: normalizeWebsiteUrl(values.website_url),
     meeting_purpose: values.meeting_purpose.trim(),
     additional_information: values.additional_information.trim(),
+  };
+}
+
+export function validateClientInformationExtras(values: ClientInformationExtras): ClientInformationExtraErrors {
+  const errors: ClientInformationExtraErrors = {};
+  if (!values.business_industry.trim()) errors.business_industry = "Select the business industry.";
+  if (!values.contact_position.trim()) errors.contact_position = "Enter the POC position.";
+  if (!/^[+\d][\d\s()./-]{6,}$/.test(values.contact_phone.trim())) {
+    errors.contact_phone = "Enter a valid phone number including the country code.";
+  }
+  return errors;
+}
+
+export function normalizeClientInformationExtras(values: ClientInformationExtras): ClientInformationExtras {
+  return {
+    company_logo_name: values.company_logo_name.trim(),
+    business_industry: values.business_industry.trim(),
+    contact_phone: values.contact_phone.trim(),
+    contact_position: values.contact_position.trim(),
+    pitch_notes: values.pitch_notes.trim(),
+    pitch_file_names: values.pitch_file_names.map((name) => name.trim()).filter(Boolean),
+    additional_opportunity_information: values.additional_opportunity_information.trim(),
   };
 }
 

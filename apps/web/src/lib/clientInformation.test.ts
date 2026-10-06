@@ -6,8 +6,10 @@ import {
   clientInformationErrorMessage,
   createFixtureClientInformationAdapter,
   normalizeClientInformation,
+  normalizeClientInformationExtras,
   normalizeWebsiteUrl,
   validateClientInformation,
+  validateClientInformationExtras,
   type ClientInformationRecord,
 } from "./clientInformation.js";
 
@@ -35,9 +37,40 @@ assert.deepEqual(validateClientInformation({
   company_name: "Enter the company name.",
   contact_person: "Enter the contact person.",
   meeting_purpose: "Enter the meeting purpose.",
+  additional_information: "Enter the additional client information.",
   website_url: "Enter a valid HTTP or HTTPS website URL.",
 });
 assert.equal(normalizeWebsiteUrl("example.com"), "https://example.com");
+assert.deepEqual(validateClientInformationExtras({
+  company_logo_name: "",
+  business_industry: "",
+  contact_phone: "123",
+  contact_position: "",
+  pitch_notes: "",
+  pitch_file_names: [],
+  additional_opportunity_information: "",
+}), {
+  business_industry: "Select the business industry.",
+  contact_phone: "Enter a valid phone number including the country code.",
+  contact_position: "Enter the POC position.",
+});
+assert.deepEqual(normalizeClientInformationExtras({
+  company_logo_name: " client-logo.svg ",
+  business_industry: " Technology and software ",
+  contact_phone: " +49 30 1234 5678 ",
+  contact_position: " COO ",
+  pitch_notes: " Sales context ",
+  pitch_file_names: [" brief.pdf ", ""],
+  additional_opportunity_information: " Procurement starts in Q1. ",
+}), {
+  company_logo_name: "client-logo.svg",
+  business_industry: "Technology and software",
+  contact_phone: "+49 30 1234 5678",
+  contact_position: "COO",
+  pitch_notes: "Sales context",
+  pitch_file_names: ["brief.pdf"],
+  additional_opportunity_information: "Procurement starts in Q1.",
+});
 assert.deepEqual(normalizeClientInformation({
   company_name: " Acme ",
   contact_person: " Jordan ",
@@ -96,6 +129,15 @@ for (const label of [
   "Website URL",
   "Meeting Purpose",
   "Additional Information",
+  "Company Logo",
+  "Business Industry",
+  "POC Phone Number",
+  "POC Position",
+  "Relevant Client Information",
+  "Sales Opportunity",
+  "Notes",
+  "Pitch Files",
+  "Additional Opportunity Information",
 ]) {
   assert.match(language, new RegExp(label));
 }
@@ -106,9 +148,11 @@ assert.match(component, /copy\.clientForm\.reload/);
 assert.match(component, /copy\.clientForm\.cancel/);
 assert.match(component, /client-form-section/);
 assert.match(component, /createStep === 1/);
-assert.match(component, /createStep >= 2/);
+assert.match(component, /createStep === 2/);
 assert.match(component, /createStep === 3/);
 assert.match(component, /disabled=\{createStep !== 3 \|\| busy\}/);
+assert.match(component, /accept="\.png,\.jpg,\.jpeg,\.svg"/);
+assert.match(component, /accept="\.pdf,\.doc,\.docx"/);
 assert.doesNotMatch(component, /sessionStorage|additional_client_information|discovery_questions/);
 
 console.log("MS-41 client information tests passed");

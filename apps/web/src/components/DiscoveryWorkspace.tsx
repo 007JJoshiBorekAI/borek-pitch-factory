@@ -23,10 +23,10 @@ interface DiscoveryWorkspaceProps {
 
 function downloadDiscoveryFixture(version: DiscoveryWorkspaceVersion) {
   const content = version.pages.map((page) => `${page.label}\n${page.title}\n${page.body}`).join("\n\n");
-  const url = URL.createObjectURL(new Blob([content], { type: "application/pdf" }));
+  const url = URL.createObjectURL(new Blob([`Preview fixture manifest; not a generated PDF.\n\n${content}`], { type: "text/plain" }));
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${version.version_id}-preview.pdf`;
+  anchor.download = `${version.version_id}-pdf-preview-manifest.txt`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -52,17 +52,24 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
   const selected = version.pages.find((page) => page.id === selectedId) ?? version.pages[0];
+  const preview = getOpportunity(initialVersion.opportunity_id);
+  const persistedVersion = preview?.discovery;
+  const readyCount = version.pages.filter((page) => page.state === "ready").length;
+  const generatingPage = version.pages.find((page) => page.state === "generating");
+  const failedCount = version.pages.filter((page) => page.state === "failed").length;
+  const pageNumber = String(version.pages.indexOf(selected) + 1).padStart(2, "0");
 
   useEffect(() => {
-    const preview = getOpportunity(initialVersion.opportunity_id);
-    if (!preview) return;
-    adapterRef.current = createFixtureDiscoveryWorkspaceAdapter(preview.discovery);
-    setVersion(preview.discovery);
-    setSelectedId(preview.discovery.pages[0].id);
-    setTitle(preview.discovery.pages[0].title);
-    setBody(preview.discovery.pages[0].body);
-  }, [getOpportunity, initialVersion.opportunity_id]);
+    const loaded = persistedVersion ?? initialVersion;
+    adapterRef.current = createFixtureDiscoveryWorkspaceAdapter(loaded);
+    setVersion(loaded);
+  }, [persistedVersion, initialVersion]);
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   function selectPage(page: DiscoveryWorkspacePage) {
     setSelectedId(page.id);
@@ -185,23 +192,28 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
   }
 
   return (
-    <section className="workflow-artifact-workspace" aria-labelledby="discovery-workspace-title">
+    <section className="workflow-artifact-workspace artifact-preview-workspace discovery-document-workspace">
       <WorkflowArtifactTabs opportunityId={version.opportunity_id} active="discovery" />
+      <progress className="discovery-progress" max={version.pages.length} value={readyCount} aria-label={`${readyCount} of ${version.pages.length} Discovery pages ready`} />
+      <div id="artifact-panel-discovery" role="tabpanel" aria-labelledby="artifact-tab-discovery">
       <h1 id="discovery-workspace-title" className="sr-only">Discovery Document</h1>
-      {error ? <p className="client-information-error" role="alert">{error}</p> : null}
-      {notice ? <p className="client-information-notice" role="status">{notice}</p> : null}
+      {error ? <p ref={errorRef} className="client-information-error" role="alert" tabIndex={-1}>{error}</p> : null}
+      {notice ? <p className="client-information-notice" role="status" aria-live="polite">{notice}</p> : null}
 
       <div className="workflow-artifact-grid">
         <aside className="workflow-page-list" aria-label="Discovery pages">
-          <div className="workflow-panel-label">Pages</div>
+          <div className="discovery-list-heading"><span>Pages</span><span>Status</span></div>
           <ol>
             {version.pages.map((page, index) => (
               <li key={page.id} className={page.id === selected.id ? "is-selected" : undefined}>
-                <button type="button" onClick={() => selectPage(page)} aria-current={page.id === selected.id ? "page" : undefined}>
-                  <span className="workflow-page-number">{String(index + 1).padStart(2, "0")}</span>
-                  <span>
-                    <strong>{page.label}</strong>
+                <button type="button" disabled={busy || editing} onClick={() => selectPage(page)} aria-current={page.id === selected.id ? "page" : undefined}>
+                  <span className={`discovery-thumbnail is-${page.state}`} aria-hidden="true"><i /><i /><i /><i /></span>
+                  <span className="discovery-page-label">
+                    <strong><span className="workflow-page-number">{String(index + 1).padStart(2, "0")}</span>{page.label}</strong>
                     <small className={`is-${page.state}`}>{STATUS_LABELS[page.state]}</small>
+                  </span>
+                  <span className={`discovery-status-mark is-${page.state}`} aria-hidden="true">
+                    {page.state === "ready" ? <svg viewBox="0 0 16 16" fill="none"><path d="m4 8 3 3 5-6" stroke="currentColor" strokeWidth="1.5" /></svg> : page.state === "failed" ? "!" : <i />}
                   </span>
                 </button>
               </li>
@@ -211,12 +223,13 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
 
         <article className="workflow-preview-panel">
           <div className="discovery-page-toolbar">
-            <p className="workflow-panel-label">Page {String(version.pages.indexOf(selected) + 1).padStart(2, "0")} · {selected.label}</p>
+            <p className="workflow-panel-label">Page {pageNumber} · {selected.label}</p>
             {selected.state === "ready" && version.document_state === "draft" && !editing ? (
-              <button className="btn btn-secondary" type="button" onClick={() => setEditing(true)}>Edit page</button>
+              <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => { setTitle(selected.title); setBody(selected.body); setEditing(true); }}>Edit page</button>
             ) : null}
           </div>
 
+          <div className="discovery-preview-content">
           {editing ? (
             <form className="discovery-page-editor" onSubmit={(event) => void savePage(event)}>
               <label>Page title<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label>
@@ -228,16 +241,11 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
             </form>
           ) : selected.state === "ready" ? (
             <div className="discovery-ready-page">
-              <p className="discovery-page-eyebrow">{selected.label}</p>
+              <div className="discovery-paper-header" aria-hidden="true" />
+              <p className="discovery-page-eyebrow">{preview?.client.values.company_name ?? "Discovery Paper"} · {selected.label}</p>
               <h2>{selected.title}</h2>
-              <p>{selected.body}</p>
-              {selected.source_references.length > 0 ? (
-                <div className="discovery-source-list" aria-label="Source references">
-                  {selected.source_references.map((reference) => (
-                    <details key={reference.id}><summary>{reference.label}</summary><p>{reference.detail}</p></details>
-                  ))}
-                </div>
-              ) : null}
+              <div className="discovery-paper-body">{selected.body.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
+              <footer className="discovery-paper-footer"><span>BOREK Solutions Group · {pageNumber}</span><span>CONFIDENTIAL</span></footer>
             </div>
           ) : selected.state === "failed" ? (
             <div className="discovery-page-state is-failed" role="alert">
@@ -251,26 +259,47 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
               <p>{selected.state === "generating" ? "This page is being prepared. Ready pages remain available for review." : "This page will start after the preceding generation work completes."}</p>
             </div>
           )}
+          <p className="discovery-preview-caption">Generated pages become available here immediately.</p>
+          {selected.state === "ready" && selected.source_references.length > 0 ? (
+                <div className="discovery-source-list" aria-label="Source references">
+                  {selected.source_references.map((reference) => (
+                    <details key={reference.id}><summary>{reference.label}</summary><p>{reference.detail}</p></details>
+                  ))}
+                </div>
+          ) : null}
 
-          <footer className="discovery-version-actions">
+          <div className="discovery-generation-card">
+            <div role="status" aria-live="polite">
+              <strong>{generatingPage ? `Generating page ${String(version.pages.indexOf(generatingPage) + 1).padStart(2, "0")}` : failedCount ? "Generation needs attention" : isDiscoveryComplete(version) ? "Discovery pages ready" : "Waiting for generation"}</strong>
+              <p>{generatingPage?.label ?? `${readyCount} of ${version.pages.length} pages ready`}{failedCount > 0 ? ` · ${failedCount} failed; select a failed page to retry.` : ""}</p>
+            </div>
             {!isDiscoveryComplete(version) && version.document_state === "draft" ? (
-              <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => void advanceGeneration()}>
+              <button className="btn btn-secondary" type="button" disabled={busy || editing} onClick={() => void advanceGeneration()}>
                 {busy ? "Generating..." : "Continue generation"}
               </button>
             ) : null}
+          </div>
+          <footer className="discovery-download-card">
+            <strong>{isDiscoveryComplete(version) ? "All seven pages are ready for review." : "Download will be available when all seven pages are ready."}</strong>
+            <p>{version.source === "fixture" ? "Local fixture preview. Real PDF downloads require live integration; the preview manifest is a text file." : "You can continue reviewing completed pages."}</p>
+            <div className="discovery-version-actions">
             {canDownloadDiscoveryPdf(version) ? (
-              <button className="btn btn-secondary" type="button" onClick={() => downloadDiscoveryFixture(version)} data-artifact-id={version.pdf_artifact_id!}>Download PDF</button>
+              <button className="btn btn-secondary" type="button" onClick={() => downloadDiscoveryFixture(version)} data-artifact-id={version.pdf_artifact_id!}>Download PDF preview manifest</button>
             ) : (
               <button className="btn btn-secondary" type="button" disabled>Download PDF</button>
             )}
             {version.document_state === "approved" ? (
               <button className="btn btn-primary" type="button" disabled={busy} onClick={() => void createSuccessor()}>Create successor draft</button>
             ) : (
-              <button className="btn btn-primary" type="button" disabled={busy || !canApproveDiscovery(version)} onClick={() => void approve()}>Approve {version.version_id}</button>
+              <button className="btn btn-primary" type="button" disabled={busy || editing || !canApproveDiscovery(version)} onClick={() => void approve()}>Approve {version.version_id}</button>
             )}
+          {!canApproveDiscovery(version) && version.document_state === "draft" ? <p className="discovery-gate-copy">Approval remains blocked until all seven pages and their exact-version PDF are ready.</p> : null}
+            </div>
+            <small className="discovery-version-label">{version.version_id} · Revision {version.revision} · {version.document_state === "approved" ? "Approved and locked" : "Draft"}</small>
           </footer>
-          {!canApproveDiscovery(version) && version.document_state === "draft" ? <p className="discovery-gate-copy">Approval remains blocked until all seven pages are ready.</p> : null}
+          </div>
         </article>
+      </div>
       </div>
     </section>
   );

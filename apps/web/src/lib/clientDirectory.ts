@@ -11,6 +11,7 @@ export interface ClientDirectoryItem {
   workflow_status: WorkflowStatus;
   phase: ClientPhase;
   last_activity: string;
+  preview_fixture?: boolean;
 }
 
 export const CLIENT_DIRECTORY_FIXTURE: readonly ClientDirectoryItem[] = [
@@ -23,6 +24,7 @@ export const CLIENT_DIRECTORY_FIXTURE: readonly ClientDirectoryItem[] = [
     workflow_status: "client_information",
     phase: "pre_meeting",
     last_activity: "Today",
+    preview_fixture: true,
   },
   {
     opportunity_id: "opp-nova",
@@ -33,6 +35,7 @@ export const CLIENT_DIRECTORY_FIXTURE: readonly ClientDirectoryItem[] = [
     workflow_status: "discovery_prepared",
     phase: "pre_meeting",
     last_activity: "3 min ago",
+    preview_fixture: true,
   },
   {
     opportunity_id: "opp-karo",
@@ -43,6 +46,7 @@ export const CLIENT_DIRECTORY_FIXTURE: readonly ClientDirectoryItem[] = [
     workflow_status: "transcript_added",
     phase: "post_meeting",
     last_activity: "Yesterday",
+    preview_fixture: true,
   },
   {
     opportunity_id: "opp-lindner",
@@ -53,6 +57,7 @@ export const CLIENT_DIRECTORY_FIXTURE: readonly ClientDirectoryItem[] = [
     workflow_status: "client_information",
     phase: "pre_meeting",
     last_activity: "4 Sep",
+    preview_fixture: true,
   },
   {
     opportunity_id: "opp-vela",
@@ -63,6 +68,7 @@ export const CLIENT_DIRECTORY_FIXTURE: readonly ClientDirectoryItem[] = [
     workflow_status: "ppt_1_ready",
     phase: "pre_meeting",
     last_activity: "2 Sep",
+    preview_fixture: true,
   },
   {
     opportunity_id: "opp-nordstern",
@@ -73,6 +79,7 @@ export const CLIENT_DIRECTORY_FIXTURE: readonly ClientDirectoryItem[] = [
     workflow_status: "owner_review",
     phase: "post_meeting",
     last_activity: "30 Aug",
+    preview_fixture: true,
   },
 ];
 

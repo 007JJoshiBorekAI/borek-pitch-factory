@@ -23,4 +23,22 @@ assert.match(shell, /"client_information", "discovery_prepared", "ppt_1_ready"/)
 assert.match(css, /\.pitch-sidebar-product/);
 assert.match(css, /@media \(max-width: 960px\)[\s\S]*?\.pitch-sidebar nav ul/);
 
+// Guard the shared layout rules, not just the new-client route.
+assert.match(css, /html:has\(\.app-workspace\),\s*body:has\(\.app-workspace\)\s*\{[^}]*overflow-x: clip;/);
+assert.match(css, /\.app-workspace,\s*\.app-workspace \*\s*\{[^}]*min-width: 0;/);
+assert.match(css, /\.app-workspace\s*\{[^}]*overflow-wrap: anywhere;/);
+assert.match(css, /\.discovery-version-actions\s*\{[^}]*flex-wrap: wrap;/);
+assert.match(css, /\.pitch-topline\s*\{[^}]*flex-wrap: wrap;/);
+assert.match(css, /\.pitch-sidebar nav ul\s*\{[^}]*flex-wrap: wrap;/);
+assert.match(css, /\.clients-phase-filter\s*\{[^}]*flex-wrap: wrap;/);
+assert.match(css, /\.clients-table\s*\{[^}]*table-layout: fixed;/);
+assert.match(css, /repeat\(auto-fit, minmax\(min\(100%, 120px\), 1fr\)\)/);
+assert.doesNotMatch(css, /overflow-x:\s*(auto|scroll)|min-width:\s*960px/);
+for (const token of ["title", "section", "body", "label", "caption"]) {
+  assert.match(css, new RegExp(`--pitch-text-${token}:`));
+  assert.match(css, new RegExp(`font-size: var\\(--pitch-text-${token}\\)`));
+}
+assert.match(css, /\.app-workspace\s*\{[^}]*font-family: var\(--font-body\);/);
+assert.match(css, /font-weight: var\(--pitch-weight-semibold\);/);
+
 console.log("Shared sidebar tests passed");

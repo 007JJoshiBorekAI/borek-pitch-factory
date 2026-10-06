@@ -91,6 +91,20 @@ async function run() {
   assert.equal(canApproveDiscovery(allReady), true);
   assert.equal(canDownloadDiscoveryPdf(allReady), true);
   assert.equal(allReady.pdf_artifact_id, "discovery-pdf-v1");
+  assert.equal(allReady.pdf_source_revision, allReady.revision);
+  const editAdapter = createFixtureDiscoveryWorkspaceAdapter(allReady);
+  const editedReady = await editAdapter.savePage({
+    opportunity_id: allReady.opportunity_id,
+    version_id: allReady.version_id,
+    page_id: "cover",
+    expected_revision: allReady.revision,
+    title: "Updated ready cover",
+    body: "The exact PDF must follow this revision.",
+  });
+  assert.equal(canApproveDiscovery(editedReady), true);
+  assert.equal(editedReady.pdf_source_revision, editedReady.revision);
+  assert.notEqual(editedReady.pdf_artifact_id, allReady.pdf_artifact_id);
+  assert.equal(canApproveDiscovery({ ...editedReady, pdf_source_revision: editedReady.revision - 1 }), false);
   const approvalAdapter = createFixtureDiscoveryWorkspaceAdapter(allReady);
   const approved = await approvalAdapter.approve({
     opportunity_id: allReady.opportunity_id,
@@ -114,8 +128,10 @@ async function run() {
     approved_version_id: approved.version_id,
   });
   assert.equal(successor.document_state, "draft");
-  assert.notEqual(successor.version_id, approved.version_id);
+  assert.equal(successor.version_id, "discovery-v2");
   assert.equal(successor.pdf_artifact_id, null);
+  assert.equal(approved.version_id, "discovery-v1", "creating a successor must not mutate approved data");
+  assert.equal(approved.document_state, "approved");
 
   assert.throws(
     () => requireDiscoveryWorkspaceVersion({ ...mixed, pages: mixed.pages.slice(0, 6) }),
@@ -132,6 +148,17 @@ async function run() {
   assert.match(component, /Continue generation/);
   assert.match(component, /Create successor draft/);
   assert.match(component, /data-artifact-id/);
+  assert.match(component, /<progress[^>]*max=\{version.pages.length\}[^>]*value=\{readyCount\}/);
+  assert.match(component, /discovery-thumbnail/);
+  assert.match(component, /discovery-paper-header/);
+  assert.match(component, /discovery-paper-footer/);
+  assert.match(component, /discovery-generation-card/);
+  assert.match(component, /discovery-download-card/);
+  assert.match(component, /Real PDF downloads require live integration/);
+  assert.doesNotMatch(component, /setSelectedId\(preview\.discovery\.pages\[0\]\.id\)/);
+  const css = readFileSync("src/app/pitch-shell.css", "utf8");
+  assert.match(css, /\.discovery-document-workspace \.discovery-ready-page\s*\{[^}]*aspect-ratio: 210 \/ 297;[^}]*border-radius: 0;/);
+  assert.match(css, /@media \(max-width: 960px\)\s*\{\s*\.artifact-preview-workspace \.workflow-artifact-grid\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/);
   assert.doesNotMatch(component, /discovery_questions|Gamma|concretisation/);
 
   console.log("MS-42 Discovery workspace tests passed");

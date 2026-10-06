@@ -78,7 +78,9 @@ export function ClientDirectoryPanel() {
                     <td data-label={copy.clients.contact}><strong>{item.contact_person}</strong><span>{item.contact_role}</span></td>
                     <td data-label={copy.clients.workflow}><span className={`clients-status is-${item.phase}`}><i aria-hidden="true" />{copy.workflow.statuses[item.workflow_status]}</span></td>
                     <td data-label={copy.clients.activity}><span>{item.last_activity === "Today" ? copy.clients.today : item.last_activity === "Yesterday" ? copy.clients.yesterday : item.last_activity}</span></td>
-                    <td><Link href={clientOpportunityHref(item)} className="clients-open">{copy.clients.open}</Link></td>
+                    <td>{item.preview_fixture
+                      ? <span className="clients-open" aria-label={`${item.company_name} preview fixture`}>Preview fixture</span>
+                      : <Link href={clientOpportunityHref(item)} className="clients-open">{copy.clients.open}</Link>}</td>
                   </tr>
                 ))}
               </tbody>

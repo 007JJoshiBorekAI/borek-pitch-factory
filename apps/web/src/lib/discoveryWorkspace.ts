@@ -31,6 +31,7 @@ export interface DiscoveryWorkspaceVersion {
   pages: DiscoveryWorkspacePage[];
   pdf_artifact_id: string | null;
   pdf_download_url: string | null;
+  pdf_source_revision?: number | null;
   source: "fixture" | "live";
 }
 
@@ -162,6 +163,7 @@ export function createDiscoveryWorkspaceFixture(
     pages: states.map(pageFixture),
     pdf_artifact_id: allReady ? "discovery-pdf-v1" : null,
     pdf_download_url: allReady ? `/fixtures/${encodeURIComponent(opportunityId)}/discovery-v1.pdf` : null,
+    pdf_source_revision: allReady ? 1 : null,
     source: "fixture",
   });
 }
@@ -203,11 +205,26 @@ export function isDiscoveryComplete(version: DiscoveryWorkspaceVersion): boolean
 }
 
 export function canApproveDiscovery(version: DiscoveryWorkspaceVersion): boolean {
-  return version.document_state === "draft" && isDiscoveryComplete(version);
+  return version.document_state === "draft" && canDownloadDiscoveryPdf(version);
 }
 
 export function canDownloadDiscoveryPdf(version: DiscoveryWorkspaceVersion): boolean {
-  return isDiscoveryComplete(version) && Boolean(version.pdf_artifact_id && version.pdf_download_url);
+  return isDiscoveryComplete(version) &&
+    version.pdf_source_revision === version.revision &&
+    Boolean(version.pdf_artifact_id && version.pdf_download_url);
+}
+
+function fixturePdf(version: DiscoveryWorkspaceVersion, revision: number) {
+  return {
+    pdf_artifact_id: `discovery-pdf-${version.version_id}-r${revision}`,
+    pdf_download_url: `/fixtures/${encodeURIComponent(version.opportunity_id)}/${version.version_id}-r${revision}.pdf`,
+    pdf_source_revision: revision,
+  };
+}
+
+function successorVersionId(versionId: string): string {
+  const match = /^(.*?)-v(\d+)$/.exec(versionId);
+  return match ? `${match[1]}-v${Number(match[2]) + 1}` : `${versionId}-v2`;
 }
 
 function assertIdentity(
@@ -249,11 +266,16 @@ export function createFixtureDiscoveryWorkspaceAdapter(
       if (!input.title.trim() || !input.body.trim()) {
         throw new DiscoveryWorkspaceError("validation", "Title and page content are required.");
       }
+      const revision = version.revision + 1;
+      const allReady = version.pages.every((current, index) => index === pageIndex || current.state === "ready");
       version = {
         ...version,
-        revision: version.revision + 1,
-        pdf_artifact_id: null,
-        pdf_download_url: null,
+        revision,
+        ...(allReady ? fixturePdf(version, revision) : {
+          pdf_artifact_id: null,
+          pdf_download_url: null,
+          pdf_source_revision: null,
+        }),
         pages: version.pages.map((current, index) => index === pageIndex
           ? { ...current, title: input.title.trim(), body: input.body.trim() }
           : current),
@@ -268,22 +290,26 @@ export function createFixtureDiscoveryWorkspaceAdapter(
       if (!page || page.state !== "failed") {
         throw new DiscoveryWorkspaceError("ineligible", "Only failed pages can be retried.");
       }
+      const pages = version.pages.map((current, index) => index === pageIndex
+        ? {
+            ...current,
+            ...PAGE_CONTENT[current.id],
+            state: "ready" as const,
+            failure_message: null,
+            source_references: [{
+              id: `source-${current.id}`,
+              label: "Client information",
+              detail: "Fixture evidence for UI integration only.",
+            }],
+          }
+        : current);
+      const revision = version.revision + 1;
+      const allReady = pages.every((page) => page.state === "ready");
       version = {
         ...version,
-        revision: version.revision + 1,
-        pages: version.pages.map((current, index) => index === pageIndex
-          ? {
-              ...current,
-              ...PAGE_CONTENT[current.id],
-              state: "ready",
-              failure_message: null,
-              source_references: [{
-                id: `source-${current.id}`,
-                label: "Client information",
-                detail: "Fixture evidence for UI integration only.",
-              }],
-            }
-          : current),
+        revision,
+        pages,
+        ...(allReady ? fixturePdf(version, revision) : {}),
       };
       return structuredClone(version);
     },
@@ -312,12 +338,16 @@ export function createFixtureDiscoveryWorkspaceAdapter(
       );
       if (waitingIndex >= 0) pages[waitingIndex] = { ...pages[waitingIndex], state: "generating" };
       const allReady = pages.every((page) => page.state === "ready");
+      const revision = version.revision + 1;
       version = {
         ...version,
-        revision: version.revision + 1,
+        revision,
         pages,
-        pdf_artifact_id: allReady ? `discovery-pdf-${version.version_id}` : null,
-        pdf_download_url: allReady ? `/fixtures/${encodeURIComponent(version.opportunity_id)}/${version.version_id}.pdf` : null,
+        ...(allReady ? fixturePdf(version, revision) : {
+          pdf_artifact_id: null,
+          pdf_download_url: null,
+          pdf_source_revision: null,
+        }),
       };
       return structuredClone(version);
     },
@@ -325,9 +355,10 @@ export function createFixtureDiscoveryWorkspaceAdapter(
       assertIdentity(version, input.opportunity_id, input.version_id);
       assertRevision(version, input.expected_revision);
       if (!canApproveDiscovery(version)) {
-        throw new DiscoveryWorkspaceError("ineligible", "Every Discovery page must be ready before approval.");
+        throw new DiscoveryWorkspaceError("ineligible", "Every Discovery page and its exact-version PDF must be ready before approval.");
       }
-      version = { ...version, revision: version.revision + 1, document_state: "approved" };
+      const revision = version.revision + 1;
+      version = { ...version, revision, document_state: "approved", pdf_source_revision: revision };
       return structuredClone(version);
     },
     async createSuccessor(input) {
@@ -337,11 +368,12 @@ export function createFixtureDiscoveryWorkspaceAdapter(
       }
       version = {
         ...version,
-        version_id: `${version.version_id}-successor`,
+        version_id: successorVersionId(version.version_id),
         revision: 1,
         document_state: "draft",
         pdf_artifact_id: null,
         pdf_download_url: null,
+        pdf_source_revision: null,
       };
       return structuredClone(version);
     },
