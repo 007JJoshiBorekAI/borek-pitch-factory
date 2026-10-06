@@ -25,20 +25,10 @@ import {
   type DiscoveryWorkspacePage,
   type DiscoveryWorkspaceVersion,
 } from "@/lib/discoveryWorkspace";
+import { SHEET_H, SHEET_W, buildContext, printDiscoveryPdf, renderDiscoverySheet } from "@/lib/discoveryWhitePaper";
 
 interface DiscoveryWorkspaceProps {
   initialVersion: DiscoveryWorkspaceVersion;
-}
-
-function downloadDiscoveryFixture(version: DiscoveryWorkspaceVersion) {
-  if (version.source !== "fixture") return;
-  const content = version.pages.map((page) => `${page.label}\n${page.title}\n${page.body}`).join("\n\n");
-  const url = URL.createObjectURL(new Blob([`Preview fixture manifest; not a generated PDF.\n\n${content}`], { type: "text/plain" }));
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `${version.version_id}-pdf-preview-manifest.txt`;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 function DiscoveryContent({ value }: { value: DiscoveryContentValue }): React.ReactNode {
@@ -52,6 +42,27 @@ function DiscoveryContent({ value }: { value: DiscoveryContentValue }): React.Re
     ))}</dl>;
   }
   return <span style={{ whiteSpace: "pre-wrap" }}>{String(value)}</span>;
+}
+
+function DiscoverySheetPreview({ version, page, client }: { version: DiscoveryWorkspaceVersion; page: DiscoveryWorkspacePage; client?: string }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.7);
+  useEffect(() => {
+    const node = boxRef.current;
+    if (!node) return;
+    const update = () => setScale(node.clientWidth / SHEET_W);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const index = version.pages.indexOf(page);
+  const html = renderDiscoverySheet(page, buildContext(version, client, "/whitepaper"), index + 1);
+  return (
+    <div ref={boxRef} className="discovery-sheet-frame" style={{ aspectRatio: `${SHEET_W} / ${SHEET_H}` }}>
+      <div className="discovery-sheet-scaler" style={{ width: SHEET_W, height: SHEET_H, transform: `scale(${scale})` }} dangerouslySetInnerHTML={{ __html: html }} />
+    </div>
+  );
 }
 
 const STATUS_LABELS = {
@@ -361,13 +372,7 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
               </div>
             </form>
           ) : selected.state === "ready" ? (
-            <div className="discovery-ready-page">
-              <div className="discovery-paper-header" aria-hidden="true" />
-              <p className="discovery-page-eyebrow">{live ? version.live?.client_name || "Discovery Paper" : preview?.client.values.company_name ?? "Discovery Paper"} · {selected.label}</p>
-              <h2>{selected.title}</h2>
-              <div className="discovery-paper-body" style={{ overflowWrap: "anywhere" }}>{selected.content ? <DiscoveryContent value={selected.content} /> : selected.body.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
-              <footer className="discovery-paper-footer"><span>BOREK Solutions Group · {pageNumber}</span><span>CONFIDENTIAL</span></footer>
-            </div>
+            <DiscoverySheetPreview version={version} page={selected} client={live ? version.live?.client_name : preview?.client.values.company_name} />
           ) : selected.state === "failed" ? (
             <div className="discovery-page-state is-failed" role="alert">
               <strong>Page generation failed</strong>
@@ -408,16 +413,12 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
           </div>
           <footer className="discovery-download-card">
             <strong>{isDiscoveryComplete(version) ? "All seven pages are ready for review." : live ? "Completed pages are available for review." : "Download will be available when all seven pages are ready."}</strong>
-            <p>{version.source === "fixture" ? "Local fixture preview. Real PDF downloads require live integration; the preview manifest is a text file." : "Live PDF unavailable: the backend does not expose a Discovery PDF endpoint. Approval does not require a PDF."}</p>
+            <p>The PDF uses the BOREK White Paper design: cover, contents, the seven Discovery pages and a closing page. In the print dialog choose "Save as PDF".</p>
             <div className="discovery-version-actions">
             {!live && version.document_state === "draft" && isDiscoveryComplete(version) && !canDownloadDiscoveryPdf(version) ? (
               <button className="btn btn-secondary" type="button" disabled={busy || editing} onClick={() => void advanceGeneration()}>Prepare PDF preview manifest</button>
             ) : null}
-            {canDownloadDiscoveryPdf(version) ? (
-              <button className="btn btn-secondary" type="button" onClick={() => downloadDiscoveryFixture(version)} data-artifact-id={version.pdf_artifact_id!}>Download PDF preview manifest</button>
-            ) : (
-              <button className="btn btn-secondary" type="button" disabled>Download PDF</button>
-            )}
+            <button className="btn btn-secondary" type="button" disabled={!isDiscoveryComplete(version)} onClick={() => printDiscoveryPdf(version, live ? version.live?.client_name : preview?.client.values.company_name)}>Download PDF</button>
             {version.document_state === "approved" ? (
               <button className="btn btn-primary" type="button" disabled={busy || live} onClick={() => void createSuccessor()}>Create successor draft</button>
             ) : (
