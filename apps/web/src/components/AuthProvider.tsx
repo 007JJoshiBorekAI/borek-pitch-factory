@@ -66,7 +66,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const devToken = process.env.NEXT_PUBLIC_DEV_ACCESS_TOKEN?.trim() || null;
-  const accessToken = session?.access_token ?? devToken;
+  // TEMPORARY: with NEXT_PUBLIC_BYPASS_LOGIN the API (AUTH_BYPASS=true) ignores the token value.
+  const bypassToken = process.env.NEXT_PUBLIC_BYPASS_LOGIN === "true" ? "dev-bypass" : null;
+  const accessToken = session?.access_token ?? devToken ?? bypassToken;
 
   function startPreviewSession() {
     if (!isLocalUiPreviewAvailable() || getSupabaseBrowserClient()) {

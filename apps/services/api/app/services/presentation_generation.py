@@ -23,10 +23,11 @@ from app.services import job_service
 from app.services.api_errors import bad_request, not_found
 from app.services.data import DataStore
 from app.services.journey_stage import require_startable_journey_stage
-from app.services.renderer_client import render_deck_assets
+from app.services.renderer_client import render_borek_deck_assets, render_deck_assets
 from app.services.stage_b_orchestration import plan_json_from_confirmed_framework
 from app.services.stage_b_providers import install_runtime_stage_b_providers
 from services.framework.stage1_intake import resolve_meeting_purpose
+from services.presentation.borek_deck.deck_plan import PRE_MEETING, is_borek_plan
 from services.presentation.generatable_layouts import filter_generatable_planned_slides
 
 
@@ -553,18 +554,20 @@ def enqueue_first_contact_presentation_generate(
 ):
     """Plan PPT #1 from the latest approved Discovery and render it internally.
 
+    The pre-meeting deck is written by the Borek AI Tech deck generator
+    (make_ai_tech_deck, at most 8 slides) from the approved Discovery pages.
+
     The first call allocates the Stage 1 presentation. A later call reuses that
     id and appends a version. An in-flight job for the same approved version is
     reused so a retry does not switch sources.
     """
     from app.services.discovery_paper import get_latest_approved_discovery_paper
     from app.services.stage_b_orchestration import get_live_planning_client
+    from services.presentation.borek_deck.planner import plan_pre_meeting_deck
     from services.presentation.first_pitch import (
-        plan_first_pitch_from_discovery,
         planning_input_from_approved_paper,
         ppt1_generation_manifest,
     )
-    from services.presentation.generatable_layouts import as_approved_generatable_plan
     from services.presentation.planner import PresentationPlanValidationError
 
     _require_approved_discovery_paper(
@@ -600,13 +603,9 @@ def enqueue_first_contact_presentation_generate(
 
     source = planning_input_from_approved_paper(approved)
     try:
-        planned = plan_first_pitch_from_discovery(
-            source,
-            planner=get_live_planning_client(),
-        )
+        plan_json = plan_pre_meeting_deck(source, planner=get_live_planning_client())
     except PresentationPlanValidationError as exc:
         raise bad_request("PPT1_PLAN_INVALID", str(exc)) from exc
-    plan_json = as_approved_generatable_plan(planned.model_dump(mode="json"))
     framework = _framework_for_plan_storage(
         store,
         opportunity_id=opportunity_id,
@@ -788,6 +787,10 @@ def enqueue_post_meeting_presentation_generate(
 ) -> dict[str, Any]:
     """Plan PPT #2 from the BT-46 context frozen at this request.
 
+    The post-meeting deck is written by the Borek Master deck generator
+    (make_master_deck) from the four frozen sources, kept separate
+    (see services.presentation.post_meeting).
+
     The worker consumes that frozen input. It does not call build_ppt2_context
     again. This path does not use journey-stage eligibility and does not write
     the Stage 1 presentation pointer. A second initial generate does not create
@@ -805,10 +808,9 @@ def enqueue_post_meeting_presentation_generate(
             return existing
     from app.services.ppt2_context import build_ppt2_context
     from app.services.stage_b_orchestration import get_live_planning_client
-    from services.presentation.generatable_layouts import as_approved_generatable_plan
+    from services.presentation.borek_deck.planner import plan_post_meeting_deck
     from services.presentation.planner import PresentationPlanValidationError
     from services.presentation.post_meeting import (
-        plan_post_meeting_from_context,
         planning_input_from_ppt2_context,
         ppt2_generation_manifest,
     )
@@ -827,13 +829,9 @@ def enqueue_post_meeting_presentation_generate(
     planner_input = planning_input_from_ppt2_context(context)
     manifest = ppt2_generation_manifest(context)
     try:
-        planned = plan_post_meeting_from_context(
-            planner_input,
-            planner=get_live_planning_client(),
-        )
+        plan_json = plan_post_meeting_deck(planner_input, planner=get_live_planning_client())
     except PresentationPlanValidationError as exc:
         raise bad_request("PPT2_PLAN_INVALID", str(exc)) from exc
-    plan_json = as_approved_generatable_plan(planned.model_dump(mode="json"))
     framework = _framework_for_plan_storage(
         store,
         opportunity_id=opportunity_id,
@@ -979,7 +977,16 @@ def execute_presentation_generation(
         presentation_plan_id=presentation["presentation_plan_id"],
         user_id=user_id,
     )
-    if _plan_uses_discovery(plan["plan_json"]) and discovery_pages is None and ppt2_generation_input is None:
+    # PPT #1 / PPT #2 written by the Borek deck generator carry their finished slides in the
+    # plan, so the source bodies are not needed to build the SlideSpecs. The frozen sources
+    # stay on the job (manifest + ppt2_generation_input) for provenance and retries.
+    borek_plan = is_borek_plan(plan["plan_json"])
+    if (
+        not borek_plan
+        and _plan_uses_discovery(plan["plan_json"])
+        and discovery_pages is None
+        and ppt2_generation_input is None
+    ):
         raise RuntimeError(
             "PPT1_DISCOVERY_SOURCE_MISSING: approved Discovery pages were not "
             "loaded for this PPT #1 generation"
@@ -1001,9 +1008,9 @@ def execute_presentation_generation(
         plan_json=plan["plan_json"],
         journey_stage=journey_stage,
         prior_stage_presentation_version_id=prior_stage_presentation_version_id,
-        discovery_pages=discovery_pages,
+        discovery_pages=None if borek_plan else discovery_pages,
         generation_source_manifest=generation_source_manifest,
-        ppt2_generation_input=ppt2_generation_input,
+        ppt2_generation_input=None if borek_plan else ppt2_generation_input,
     )
     return version, plan
 
@@ -1077,11 +1084,19 @@ def render_presentation_version(
     if settings.RENDERER_EXECUTION_MODE != "live":
         return version
     _assert_plan_matches_generated_specs(plan["plan_json"], version.get("slides_json"))
-    assets = render_deck_assets(
-        version_id=version["id"],
-        presentation_plan=plan["plan_json"],
-        slide_specs=version["slides_json"],
-    )
+    if is_borek_plan(plan["plan_json"]):
+        # PPT #1 (Ai Tech deck) and PPT #2 (Master deck) are rendered by the Borek generator.
+        assets = render_borek_deck_assets(
+            version_id=version["id"],
+            slide_specs=version["slides_json"],
+            deck_kind=str(plan["plan_json"].get("deck_kind") or PRE_MEETING),
+        )
+    else:
+        assets = render_deck_assets(
+            version_id=version["id"],
+            presentation_plan=plan["plan_json"],
+            slide_specs=version["slides_json"],
+        )
     updated = store.update_presentation_version_assets(
         presentation_version_id=version["id"],
         assets=assets,
@@ -1091,6 +1106,30 @@ def render_presentation_version(
     return updated
 
 
+def _reject_borek_deck_slide_edit(
+    store: DataStore,
+    *,
+    presentation_id: UUID,
+    user_id: UUID,
+) -> None:
+    """Per-slide regenerate / change-layout run the registered layout generators.
+
+    PPT #1 and PPT #2 are written by the Borek deck generator in one planning step, so
+    they are changed by regenerating the whole deck, not one slide.
+    """
+    presentation = store.get_presentation(presentation_id=presentation_id, user_id=user_id)
+    plan = store.get_presentation_plan(
+        presentation_plan_id=presentation["presentation_plan_id"],
+        user_id=user_id,
+    )
+    if is_borek_plan(plan["plan_json"]):
+        raise bad_request(
+            "BOREK_DECK_SLIDE_EDIT_UNSUPPORTED",
+            "This deck is generated as a whole. Regenerate the deck instead of "
+            "regenerating or re-laying out a single slide.",
+        )
+
+
 def enqueue_slide_regenerate(
     store: DataStore,
     *,
@@ -1098,6 +1137,7 @@ def enqueue_slide_regenerate(
     slide_id: UUID,
     user_id: UUID,
 ):
+    _reject_borek_deck_slide_edit(store, presentation_id=presentation_id, user_id=user_id)
     opportunity_id = store.get_presentation_opportunity_id(
         presentation_id=presentation_id,
         user_id=user_id,
@@ -1153,6 +1193,7 @@ def enqueue_slide_change_layout(
     user_id: UUID,
     layout_id: str,
 ):
+    _reject_borek_deck_slide_edit(store, presentation_id=presentation_id, user_id=user_id)
     if layout_id not in VALID_LAYOUT_IDS:
         raise bad_request(
             "INVALID_LAYOUT_ID",

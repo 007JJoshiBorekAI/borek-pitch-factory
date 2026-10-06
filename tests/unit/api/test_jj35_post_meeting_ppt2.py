@@ -189,12 +189,21 @@ def test_approved_v1_is_used_while_a_draft_exists_and_sources_stay_separate(monk
         )
         assert selected.status_code == 200, selected.text
 
-        def fail_framework_writer(*_args, **_kwargs):
-            raise AssertionError("PPT #2 must not use the framework slide writer")
+        import app.services.data.memory_store as memory_store_module
+
+        framework_slide_writer = memory_store_module.build_slide_spec_for_planned_slide
+
+        def only_borek_slides(*, planned, framework_json):
+            # PPT #2 slides come from the Borek master deck, not the framework slide writer.
+            assert planned.get("borekSlide") is not None, (
+                "PPT #2 must not use the framework slide writer"
+            )
+            return framework_slide_writer(planned=planned, framework_json=framework_json)
 
         monkeypatch.setattr(
-            "app.services.data.memory_store.build_slide_spec_for_planned_slide",
-            fail_framework_writer,
+            memory_store_module,
+            "build_slide_spec_for_planned_slide",
+            only_borek_slides,
         )
         generated = client.post(
             f"/opportunities/{opportunity_id}/ppt2/generate",
@@ -226,7 +235,7 @@ def test_approved_v1_is_used_while_a_draft_exists_and_sources_stay_separate(monk
         assert REQUIREMENT not in manifest_blob
         assert "paper_json" not in manifest
         assert "Draft Only Client" not in json.dumps(version["slides_json"])
-        assert version["slides_json"][0]["title"] == "Northwind"
+        assert "Northwind" in version["slides_json"][0]["title"]
         assert version["slides_json"][0]["sourceChapterIds"] == ["discovery.cover"]
         rendered = json.dumps(version["slides_json"])
         assert NOTE_A in rendered
@@ -240,7 +249,9 @@ def test_approved_v1_is_used_while_a_draft_exists_and_sources_stay_separate(monk
         assert REQUIREMENT in json.dumps(extraction_slide)
         assert NOTE_A not in json.dumps(extraction_slide)
         use_case_slide = next(
-            spec for spec in version["slides_json"] if spec["sourceChapterIds"][0].startswith("use_case.")
+            spec
+            for spec in version["slides_json"]
+            if spec["sourceChapterIds"] and spec["sourceChapterIds"][0].startswith("use_case.")
         )
         assert use_case_slide["sourceChapterIds"] == [f"use_case.{INVOICE_ID}"]
         job = next(
@@ -461,12 +472,12 @@ def test_explicit_regenerate_reuses_the_ppt2_id_and_refreshes_context() -> None:
         assert second["version_number"] == 2
         assert second["journey_stage"] == "post_meeting"
         assert NOTE_B in json.dumps(second["slides_json"])
-        assert second["slides_json"][0]["title"] == "Second Approved Client"
+        assert "Second Approved Client" in second["slides_json"][0]["title"]
         assert (
             second["generation_source_manifest"]["approved_discovery_version_id"]
             == second_paper.json()["id"]
         )
-        assert first_version["slides_json"][0]["title"] == "Northwind"
+        assert "Northwind" in first_version["slides_json"][0]["title"]
         edit_cover(client, opportunity_id, "Draft Only Client")
         still = client.post(
             f"/opportunities/{opportunity_id}/ppt2/{presentation_id}/regenerate",
@@ -475,7 +486,7 @@ def test_explicit_regenerate_reuses_the_ppt2_id_and_refreshes_context() -> None:
         assert still.status_code == 200, still.text
         third = latest_version(store, UUID(presentation_id))
         assert third["version_number"] == 3
-        assert third["slides_json"][0]["title"] == "Second Approved Client"
+        assert "Second Approved Client" in third["slides_json"][0]["title"]
         assert "Draft Only Client" not in json.dumps(third["slides_json"])
         assert len(store.presentations) == 2
         stolen = client.post(

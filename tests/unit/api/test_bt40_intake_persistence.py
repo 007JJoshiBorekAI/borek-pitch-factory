@@ -452,7 +452,5 @@ def test_fixture_framework_and_presentation_use_saved_intake() -> None:
         )
         assert plan["plan_json"]["title"] == "First meeting — Contoso"
         assert plan["plan_json"]["slides"][0]["frameworkReferences"] == ["discovery.cover"]
-        assert (
-            plan["plan_json"]["slides"][0]["purpose"]
-            == "Open the first meeting from the approved Discovery cover"
-        )
+        assert plan["plan_json"]["slides"][0]["layoutId"] == "cover"
+        assert plan["plan_json"]["engine"] == "borek_deck"

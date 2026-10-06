@@ -27,6 +27,9 @@ COPY apps/api ./apps/api
 COPY generated/python ./generated/python
 COPY config ./config
 COPY packages ./packages
+# Borek deck generator (pre-/post-meeting decks)
+COPY borek_pptx.py deck_text.py llm_planner.py make_ai_tech_deck.py make_master_deck.py preview_pptx.py ./
+COPY borek_assets ./borek_assets
 COPY tests/fixtures/renderer ./tests/fixtures/renderer
 
 EXPOSE 8000

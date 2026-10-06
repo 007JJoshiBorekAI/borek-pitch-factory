@@ -35,7 +35,7 @@ class Ppt2GenerationSourceManifest(BaseModel):
     meeting_extraction_generated_at: AwareDatetime | None
     extraction_notes_revision: AwareDatetime | None
     current_personal_notes_updated_at: AwareDatetime | None
-    selected_use_case_ids: list[str]
+    selected_use_case_ids: list[SelectedUseCaseId]
 
 
 class FinalizationSnapshot(BaseModel):
@@ -50,4 +50,8 @@ class FinalizationSnapshot(BaseModel):
     ppt2_presentation_id: UUID
     ppt2_version_id: UUID
     observed_sources: ObservedSources
-    ppt2_generation_source_manifest: Ppt2GenerationSourceManifest | None
+    ppt2_generation_source_manifest: (
+        Ppt2GenerationSourceManifest | None
+    ) = (
+        Field(..., description='Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.')
+    )

@@ -31,6 +31,12 @@ class Settings(BaseSettings):
         default=False,
         description="Explicit opt-in for installing the MS-30 demo fixture pack",
     )
+    AUTH_BYPASS: bool = Field(
+        default=False,
+        description="TEMPORARY dev-only: skip JWT auth and act as AUTH_BYPASS_USER_ID with the service-role store",
+    )
+    AUTH_BYPASS_USER_ID: str = Field(default="db65c438-deeb-4d51-923d-843844d5f254")
+    AUTH_BYPASS_EMAIL: str = Field(default="arvanit.telaku@boreksolutions.de")
     OPENAI_API_KEY: str = Field(
         default="",
         description="Required only when AI_EXECUTION_MODE=live",
@@ -61,6 +67,14 @@ class Settings(BaseSettings):
     RENDERER_EXECUTION_MODE: Literal["fixture", "live"] = Field(
         default="live",
         description="fixture only for isolated tests; live invokes the renderer service",
+    )
+    DECK_PDF_ENGINE: Literal["preview", "libreoffice"] = Field(
+        default="preview",
+        description=(
+            "PDF of the pre-/post-meeting decks (Borek deck generator): preview builds it from the "
+            "slide renders and needs no extra software; libreoffice uses soffice for selectable text "
+            "and falls back to preview when soffice is missing"
+        ),
     )
     ARTIFACT_ROOT: str = Field(
         default="tmp/deck_assets",

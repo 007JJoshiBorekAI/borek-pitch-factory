@@ -103,6 +103,10 @@ _FIXTURE_PLAN = {
 
 
 class FixturePlanningClient:
+    # The Borek deck planner (PPT #1 / PPT #2) builds its deterministic deck itself instead
+    # of sending a request to this client.
+    deterministic = True
+
     def complete_planning(self, **kwargs: Any) -> dict[str, Any]:
         planning_input = kwargs.get("planning_input") or {}
         ppt2_context = (

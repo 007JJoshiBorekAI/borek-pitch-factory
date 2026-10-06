@@ -55,7 +55,15 @@ def planning_target_schema() -> dict[str, Any]:
 def filter_generatable_planned_slides(
     plan_json: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """Split a saved plan into generatable slides vs skipped layout ids."""
+    """Split a saved plan into generatable slides vs skipped layout ids.
+
+    A Borek-engine plan (``engine: borek_deck``) carries finished slides in the generator's own
+    layout vocabulary, not registered ``*_01`` ids, so every slide of it is generatable.
+    """
+    from services.presentation.borek_deck.deck_plan import is_borek_plan
+
+    if is_borek_plan(plan_json):
+        return sorted(copy.deepcopy(plan_json.get("slides") or []), key=lambda item: item["order"]), []
     kept: list[dict[str, Any]] = []
     skipped: list[str] = []
     for planned in sorted(plan_json.get("slides") or [], key=lambda item: item["order"]):

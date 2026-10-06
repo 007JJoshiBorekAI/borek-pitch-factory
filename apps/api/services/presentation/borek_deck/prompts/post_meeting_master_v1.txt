@@ -1,0 +1,32 @@
+POST-MEETING PITCH (PPT #2) - "Borek Master Presentation" deck
+
+This deck follows the first meeting. It is built only from the four sources in the material, kept strictly separate.
+
+SOURCES AND PRIORITY
+- approved_discovery is the baseline approved pre-meeting narrative.
+- personal_notes are the owner's direct post-meeting observations. They only exist when a "Personal notes" block is present.
+- meeting_extraction is structured evidence from the meeting (requirements, challenges, priorities, opportunities, discussed solutions,
+  decisions, follow-ups). It only exists when a "Meeting extraction" block is present. A stale-notes warning does not forbid generation.
+- selected_use_cases are approved reusable Borek supporting material. They only exist when a "Selected Borek use cases" block is present.
+- Do not merge the four sources into one narrative and do not let a later source overwrite an earlier one. The priority order is an
+  authority order for conflicting claims, not an instruction to concatenate or replace text. Do not invent reconciliation facts.
+  If two sources disagree, show both and name the source of each.
+
+STRUCTURE
+- cover -> who_we_are (fixed, always slide 2) -> slides carrying the Discovery baseline -> a slide or two for the personal notes
+  -> slides for the meeting extraction (what we heard: requirements, challenges, priorities; what we discussed; decisions; follow-ups)
+  -> slides for the selected use cases -> closing (always last).
+- Leave out every part whose source block is absent. There is no slide cap; use as many slides as the content needs, but do not pad.
+- A slide draws on ONE source only: a Discovery slide uses only Discovery pages, a notes slide only the notes, a meeting slide only the
+  meeting sections, a use-case slide only the selected use cases. Never mix sources on one slide.
+- Close with the follow-ups and next steps from the meeting extraction when present.
+
+CONTENT
+- Use only facts that appear in the source material or in the fixed Borek facts above. Pricing is allowed only when it appears in the sources
+  or in the fixed Borek facts; never make up figures, prices, customers or commitments.
+- Quote the client's words from the notes or extraction only when they are short and clearly theirs.
+
+SOURCES FIELD
+- Every slide except who_we_are and closing carries "sources": a JSON array of the reference ids it draws on, written exactly as they
+  appear in the block headers (for example ["notes"], ["meeting.requirements", "meeting.priorities"], ["discovery.opportunity"],
+  ["use_case.<fact_id>"]). All ids on one slide must belong to the same source. Never invent an id.

@@ -1,0 +1,20 @@
+{
+  "client_information": {
+    "client_name": "Nordwind Logistik GmbH",
+    "website": "https://www.nordwind-logistik.example",
+    "point_of_contact": "Dr. Anna Keller",
+    "poc_position": "Head of Operations",
+    "relevant_client_information": "Mid-sized logistics company in Hannover, Germany, about 900 employees. Manual processing of 15,000 delivery documents per month (delivery notes, invoices, customs forms). Mostly SAP and Excel. Wants to cut processing time and errors."
+  },
+  "pitch_information": {
+    "sales_opportunity": "First pitch: automate incoming document processing and customer e-mail triage with AI.",
+    "notes": "Call on 1 Oct: Anna says the team loses ~3 hours a day on retyping data. GDPR and EU hosting are a must. Budget approved for a pilot in Q1. Decision by the COO in November. Interested in a fixed-price project first, later maybe a permanent team.",
+    "pitch_files": [],
+    "additional_opportunity_information": "Competitor already offered an OCR tool without SAP integration. Client prefers a German-speaking partner with on-site presence in Germany."
+  },
+  "options": {
+    "lang": "EN",
+    "audience": "client - Head of Operations and COO",
+    "slides": 10
+  }
+}

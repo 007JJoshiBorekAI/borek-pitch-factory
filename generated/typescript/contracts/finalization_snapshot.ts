@@ -17,17 +17,10 @@ export interface FinalizationSnapshot {
   ppt2_presentation_id: string;
   ppt2_version_id: string;
   observed_sources: ObservedSources;
-  ppt2_generation_source_manifest: Ppt2GenerationSourceManifest | null;
-}
-export interface Ppt2GenerationSourceManifest {
-  schema_version: "1.0";
-  kind: "ppt2";
-  approved_discovery_version_id: string;
-  transcript_id: string | null;
-  meeting_extraction_generated_at: string | null;
-  extraction_notes_revision: string | null;
-  current_personal_notes_updated_at: string | null;
-  selected_use_case_ids: string[];
+  /**
+   * Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.
+   */
+  ppt2_generation_source_manifest: null | Ppt2GenerationSourceManifest;
 }
 /**
  * Live source revisions observed at finalization. Absence is null. This object does not copy notes, extraction bodies, or use-case statements.
@@ -37,5 +30,15 @@ export interface ObservedSources {
   meeting_extraction_generated_at: string | null;
   extraction_notes_revision: string | null;
   personal_notes_updated_at: string | null;
+  selected_use_case_ids: string[];
+}
+export interface Ppt2GenerationSourceManifest {
+  schema_version: "1.0";
+  kind: "ppt2";
+  approved_discovery_version_id: string;
+  transcript_id: string | null;
+  meeting_extraction_generated_at: string | null;
+  extraction_notes_revision: string | null;
+  current_personal_notes_updated_at: string | null;
   selected_use_case_ids: string[];
 }

@@ -114,10 +114,21 @@ def decode_access_token(token: str) -> AuthUser:
     return _auth_user_from_payload(_payload_from_token(token))
 
 
+def _bypass_active() -> bool:
+    """TEMPORARY dev bypass; never honoured in the production runtime profile."""
+    return settings.AUTH_BYPASS and settings.RUNTIME_PROFILE != "production"
+
+
+def _bypass_user() -> AuthUser:
+    return AuthUser(id=UUID(settings.AUTH_BYPASS_USER_ID), email=settings.AUTH_BYPASS_EMAIL)
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> AuthUser:
     """Require a valid Supabase JWT on protected routes."""
+    if _bypass_active():
+        return _bypass_user()
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise _unauthorized()
 
@@ -128,6 +139,8 @@ def get_optional_auth_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> AuthUser | None:
     """Return authenticated user when a valid token is supplied."""
+    if _bypass_active():
+        return _bypass_user()
     if credentials is None:
         return None
     if credentials.scheme.lower() != "bearer":

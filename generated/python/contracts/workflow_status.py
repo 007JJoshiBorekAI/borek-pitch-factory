@@ -96,7 +96,17 @@ class Ppt2GenerationSourceManifest(BaseModel):
     meeting_extraction_generated_at: AwareDatetime | None
     extraction_notes_revision: AwareDatetime | None
     current_personal_notes_updated_at: AwareDatetime | None
-    selected_use_case_ids: list[str]
+    selected_use_case_ids: list[SelectedUseCaseId]
+
+
+class Documents(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    discovery_draft: DiscoveryDraft | None
+    approved_discovery: ApprovedDiscovery | None
+    ppt1: DeckLineage | None
+    ppt2: DeckLineage | None
 
 
 class FinalizationSnapshot(BaseModel):
@@ -111,17 +121,11 @@ class FinalizationSnapshot(BaseModel):
     ppt2_presentation_id: UUID
     ppt2_version_id: UUID
     observed_sources: ObservedSources
-    ppt2_generation_source_manifest: Ppt2GenerationSourceManifest | None
-
-
-class Documents(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
+    ppt2_generation_source_manifest: (
+        Ppt2GenerationSourceManifest | None
+    ) = (
+        Field(..., description='Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.')
     )
-    discovery_draft: DiscoveryDraft | None
-    approved_discovery: ApprovedDiscovery | None
-    ppt1: DeckLineage | None
-    ppt2: DeckLineage | None
 
 
 class WorkflowStatus(BaseModel):
@@ -135,5 +139,5 @@ class WorkflowStatus(BaseModel):
     documents: Documents
     finalization: FinalizationSnapshot | None = Field(
         ...,
-        description='Null until the first successful finalize. Afterwards this is the frozen BT-48 package. observed_sources are revisions seen at finalization, not a PPT #2 generation manifest.',
+        description='Null until the first successful finalize. Afterwards this is the frozen BT-48 package. observed_sources are revisions seen at finalization. ppt2_generation_source_manifest is copied from the frozen PPT #2 version, or null on historical snapshots.',
     )

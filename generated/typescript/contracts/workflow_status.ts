@@ -35,7 +35,7 @@ export interface WorkflowStatus {
   steps: [Step, Step, Step, Step, Step, Step, Step, Step];
   documents: Documents;
   /**
-   * Null until the first successful finalize. Afterwards this is the frozen BT-48 package. observed_sources are revisions seen at finalization, not a PPT #2 generation manifest.
+   * Null until the first successful finalize. Afterwards this is the frozen BT-48 package. observed_sources are revisions seen at finalization. ppt2_generation_source_manifest is copied from the frozen PPT #2 version, or null on historical snapshots.
    */
   finalization: null | FinalizationSnapshot;
 }
@@ -76,14 +76,18 @@ export interface FinalizationSnapshot {
     personal_notes_updated_at: string | null;
     selected_use_case_ids: string[];
   };
-  ppt2_generation_source_manifest: {
-    schema_version: "1.0";
-    kind: "ppt2";
-    approved_discovery_version_id: string;
-    transcript_id: string | null;
-    meeting_extraction_generated_at: string | null;
-    extraction_notes_revision: string | null;
-    current_personal_notes_updated_at: string | null;
-    selected_use_case_ids: string[];
-  } | null;
+  /**
+   * Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.
+   */
+  ppt2_generation_source_manifest: null | Ppt2GenerationSourceManifest;
+}
+export interface Ppt2GenerationSourceManifest {
+  schema_version: "1.0";
+  kind: "ppt2";
+  approved_discovery_version_id: string;
+  transcript_id: string | null;
+  meeting_extraction_generated_at: string | null;
+  extraction_notes_revision: string | null;
+  current_personal_notes_updated_at: string | null;
+  selected_use_case_ids: string[];
 }

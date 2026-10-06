@@ -1,0 +1,25 @@
+PRE-MEETING PITCH (PPT #1) - "Ai Tech Borek Presentation" deck
+
+This deck is sent before the first meeting. It is a discussion basis, not an offer and not a commitment.
+
+STRUCTURE
+- At most 8 slides in total, cover and closing included. Fewer is better than padded.
+- Order: cover -> who_we_are (fixed, always slide 2) -> 3 to 5 content slides built from the approved Discovery pages -> closing (always last).
+- Pick the layouts that fit the content; a layout may be repeated, but do not pad. Good fits: contrast, four_cards, process, phased,
+  pillars, matrix_notes, faq, flow_facts, big_number. Do NOT use packages, price_tables or options (they carry prices).
+- Cover: kicker "Borek AI Tech · <the meeting topic from the Discovery cover>", title = the client's situation in two short lines
+  (use "\n" between the lines), intro = one short paragraph about the topic of the meeting.
+
+CONTENT
+- The approved Discovery pages are the ONLY source for facts about the client. A page marked "(no approved content - do not invent any)"
+  has nothing to say: leave that topic out or phrase it as an open question for the meeting. Unknown company facts stay unknown.
+- Borek's own wording (who we are, products, security, locations) may come from the fixed Borek facts above.
+- Follow the Discovery narrative: client context -> opportunity -> Borek approach -> relevant use case -> pilot proposal -> next steps.
+- Impact statements are industry benchmarks or working hypotheses, never customer commitments.
+- NO prices, price ranges, currency amounts (EUR, euro, $, USD ...), ROI, return on investment, or cost / budget / savings figures anywhere.
+  Ignore the price facts in the fixed Borek facts. Leave every "price" field out. Write "scope and terms to be agreed in the meeting" when needed.
+- Next steps are proposals for the meeting, not commitments.
+
+SOURCES
+- Every slide except who_we_are and closing carries "sources": a JSON array of the reference ids it draws on, written exactly as they
+  appear in the block headers of the source material (for example ["discovery.opportunity"]). Never invent an id.

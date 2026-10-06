@@ -307,6 +307,16 @@ def _allowed_references(ppt2_context: dict[str, Any]) -> set[str]:
     return allowed
 
 
+def ppt2_allowed_references(ppt2_context: dict[str, Any]) -> set[str]:
+    """Reference ids a PPT #2 slide may cite for this frozen context."""
+    return _allowed_references(ppt2_context)
+
+
+def ppt2_title(ppt2_context: dict[str, Any]) -> str:
+    """Deck title for a frozen PPT #2 context (``Post-meeting — <client>``)."""
+    return _title(list(ppt2_context["approved_discovery"]["pages"]))
+
+
 def _family(reference: str) -> str:
     if reference.startswith("discovery."):
         return "discovery"

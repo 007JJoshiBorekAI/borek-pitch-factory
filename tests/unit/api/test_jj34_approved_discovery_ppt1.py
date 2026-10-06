@@ -157,9 +157,13 @@ def test_approved_v1_grounds_plan_and_slide_content() -> None:
         assert 1 <= len(plan["slides"]) <= 8
         assert plan["slides"][0]["frameworkReferences"] == ["discovery.cover"]
         specs = version["slides_json"]
-        assert specs[0]["title"] == "Northwind"
+        assert "Northwind" in specs[0]["title"]
         assert specs[0]["sourceChapterIds"] == ["discovery.cover"]
-        assert "client context" in json.dumps(specs[1]).lower() or "Northwind" in json.dumps(specs)
+        assert plan["engine"] == "borek_deck"
+        assert plan["deck_kind"] == "pre_meeting"
+        assert specs[0]["layoutId"] == "cover"
+        assert specs[-1]["layoutId"] == "closing"
+        assert "Northwind" in json.dumps(specs)
         framework = next(iter(store.framework_versions.values()))
         framework_blob = json.dumps(framework["framework_json"])
         assert approved["id"] not in framework_blob
@@ -196,7 +200,7 @@ def test_draft_after_approval_does_not_change_the_planner_source() -> None:
         store = get_memory_store()
         presentation_id = UUID(generated.json()["outputs"]["presentation"]["presentation_id"])
         specs = latest_version(store, presentation_id)["slides_json"]
-        assert specs[0]["title"] == "Northwind"
+        assert "Northwind" in specs[0]["title"]
         assert "Edited after approval" not in json.dumps(specs)
         manifest = latest_version(store, presentation_id)["generation_source_manifest"]
         assert manifest["approved_discovery_version_id"] == approved["id"]
@@ -231,7 +235,7 @@ def test_explicit_regenerate_uses_v2_and_keeps_the_stage1_presentation() -> None
         assert len(store.presentations) == 1
         version = latest_version(store, UUID(presentation_id))
         assert version["version_number"] == 2
-        assert version["slides_json"][0]["title"] == "Second Approved Client"
+        assert "Second Approved Client" in version["slides_json"][0]["title"]
         assert version["generation_source_manifest"]["approved_discovery_version_id"] == second.json()["id"]
         edit_cover(client, opportunity_id, "Draft Only Client")
         again = client.post(
@@ -241,7 +245,7 @@ def test_explicit_regenerate_uses_v2_and_keeps_the_stage1_presentation() -> None
         assert again.status_code == 200, again.text
         latest = latest_version(store, UUID(presentation_id))
         assert latest["version_number"] == 3
-        assert latest["slides_json"][0]["title"] == "Second Approved Client"
+        assert "Second Approved Client" in latest["slides_json"][0]["title"]
         assert "Draft Only Client" not in json.dumps(latest["slides_json"])
         assert again.json()["outputs"]["presentation"]["presentation_id"] == presentation_id
 
@@ -292,7 +296,7 @@ def test_retry_of_the_same_job_keeps_the_original_approved_version(monkeypatch) 
         retried = client.post(f"/jobs/{job['id']}/retry", headers=headers())
         assert retried.status_code == 202, retried.text
         version = latest_version(store, UUID(presentation_id))
-        assert version["slides_json"][0]["title"] == "Northwind"
+        assert "Northwind" in version["slides_json"][0]["title"]
         assert "Later Approved Client" not in json.dumps(version["slides_json"])
         assert (
             version["generation_source_manifest"]["approved_discovery_version_id"]
@@ -359,3 +363,33 @@ def test_direct_enqueue_without_approval_creates_nothing() -> None:
             )
         assert getattr(raised.value, "status_code", None) == 400
         assert len(store.presentation_plans) == before
+
+
+def test_single_slide_edits_are_not_offered_for_the_borek_deck() -> None:
+    reset_memory_store()
+    with TestClient(create_app()) as client:
+        opportunity_id = create_opportunity(client)
+        upload_document(client, opportunity_id)
+        approve_discovery(client, opportunity_id)
+        generated = client.post(
+            f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+            headers=headers(),
+        )
+        assert generated.status_code == 200, generated.text
+        presentation_id = generated.json()["outputs"]["presentation"]["presentation_id"]
+        slides = client.get(f"/presentations/{presentation_id}/slides", headers=headers())
+        assert slides.status_code == 200, slides.text
+        slide = slides.json()[0]
+        regenerate = client.post(
+            f"/presentations/{presentation_id}/slides/{slide['id']}/regenerate",
+            headers=headers(),
+        )
+        assert regenerate.status_code == 400
+        assert regenerate.json()["error"]["code"] == "BOREK_DECK_SLIDE_EDIT_UNSUPPORTED"
+        relayout = client.post(
+            f"/presentations/{presentation_id}/slides/{slide['id']}/change-layout",
+            headers=headers(),
+            json={"layout_id": slide["layout_id"]},
+        )
+        assert relayout.status_code == 400
+        assert relayout.json()["error"]["code"] == "BOREK_DECK_SLIDE_EDIT_UNSUPPORTED"

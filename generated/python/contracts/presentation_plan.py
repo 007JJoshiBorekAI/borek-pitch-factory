@@ -30,7 +30,7 @@ class LayoutId(Enum):
 class FrameworkReference(RootModel[str]):
     root: str = Field(
         ...,
-        description='Pointer to FrameworkObject content (opportunity, chapter_1) or an approved Discovery page (discovery.cover).',
+        description='Pointer to FrameworkObject content, an approved Discovery page, a meeting-extraction section, owner notes, or a selected use case.',
         pattern='^(opportunity|chapter_([0-9]|1[0-3])|discovery\\.(cover|client_context|opportunity|borek_approach|relevant_use_case|pilot_proposal|next_steps)|meeting\\.(requirements|challenges|priorities|opportunities|discussed_solutions|decisions|follow_ups)|notes|use_case\\.[A-Za-z0-9][A-Za-z0-9._-]{0,120})$',
     )
 
@@ -50,7 +50,7 @@ class PlannedSlide(BaseModel):
     layoutId: LayoutId
     frameworkReferences: list[FrameworkReference] = Field(
         ...,
-        description='FrameworkObject fields/chapters this slide draws from.',
+        description='Framework chapters or approved Discovery pages this slide draws from.',
         min_length=1,
     )
 

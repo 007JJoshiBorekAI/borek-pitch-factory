@@ -17,7 +17,7 @@ function resolvePostAuthPath(): string {
 export function AuthCard() {
   const router = useRouter();
   const { language, setLanguage, copy } = useLanguage();
-  const { session, startPreviewSession } = useAuth();
+  const { session, isAuthenticated, startPreviewSession } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewAvailable, setPreviewAvailable] = useState(false);
@@ -26,8 +26,8 @@ export function AuthCard() {
 
   useEffect(() => {
     setPreviewAvailable(!configured && isLocalUiPreviewAvailable());
-    if (session) router.replace(resolvePostAuthPath());
-  }, [configured, router, session]);
+    if (session || isAuthenticated) router.replace(resolvePostAuthPath());
+  }, [configured, isAuthenticated, router, session]);
 
   async function handleMicrosoftSignIn() {
     if (previewAvailable) {

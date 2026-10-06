@@ -1,29 +1,44 @@
-# TSK-008 – TSK-016 board assignment
+# Discovery-first assignment — 2 October 2026
 
-**Source:** Control Tower / implementation board (TSK-008–TSK-016)  
-**Added:** 22 September 2026  
-**Rule:** assignees follow the board. Feature-redefinition **MS-*** tickets are owned by **Blenard**; **BT-*** tickets are owned by **Mayank**.
+**Scope:** Pre-meeting + post-meeting only. Concretisation is out of the owner path.  
+**Rule:** Jaya owns Gamma + both decks. Mayank owns core workflow. Blenard owns remaining UI / email / approvals.  
+**PDF:** `docs/tickets/Pitch_Factory_Discovery_First_Jaya_Mayank_Blenard.pdf`
 
 ## By person
 
 | Owner | Tickets | Vertical |
 | --- | --- | --- |
-| Jaya Joshi | TSK-008, TSK-011, TSK-016 | Login / SSO, Control Tower, approval + filing |
-| Mayank Somwani | TSK-009, TSK-013, TSK-015 (+ BT-34–36) | Jamie connector, follow-up email, automated MOM, pipeline |
-| Blenard Tahiraj | TSK-010, TSK-012, TSK-014 (+ MS-33–35) | CI design tokens, content agent, design agent, UI |
+| Jaya Joshi | JJ-33 – JJ-37 | Gamma, master template, PPT #1 (max 8), PPT #2 (Ai Tech), editable PPTX/PDF |
+| Mayank Somwani | BT-40 – BT-48 | Intake, Discovery Paper, gates, transcript AI, use-case attach, PPT #2 context, status, versions |
+| Blenard Tahiraj | MS-40 – MS-47 | Figma/brand UI, forms, discovery editor, post-meeting UX, approvals, Elena email |
+| Shared | QA-26 | End-to-end sample client |
 
 ## Ticket list
 
-| ID | Title | Type | Owner | Priority | Done when |
-| --- | --- | --- | --- | --- | --- |
-| TSK-008 | Build employee login, role model and activity log (D3) | Implementation | Jaya | Critical | Sign-in via Microsoft 365 SSO; every generation, edit and release is logged with user, time and document ID. |
-| TSK-009 | Build Jamie AI connector (D8) | Implementation | Mayank | Critical | A finished meeting is picked up automatically; transcript, participants and actions are available within ten minutes. |
-| TSK-010 | Translate the CI sheet into design tokens | Design | Blenard | High | CI sheet from Euron is translated into the design tokens used by the design agent. |
-| TSK-011 | Build Control Tower routing, versioning and logging (D5) | Implementation | Jaya | Critical | Journey stage and output type are selectable; the request is routed, versioned and logged end-to-end. |
-| TSK-012 | Build content agent for the three journey stages (D6) | Implementation | Blenard | Critical | For each stage a factually complete draft is produced from a test transcript without manual editing. |
-| TSK-013 | Build follow-up e-mail in three lengths (D9) | Implementation | Mayank | Critical | For one test meeting: a short, a medium and an extensive draft, with the option to attach a generated deck. |
-| TSK-014 | Build design agent on the design tokens (D7) | Implementation | Blenard | Critical | Output carries the CI and is judged sendable without rework against the reference deck. |
-| TSK-015 | Build automated minutes of meeting (D10) | Implementation | Mayank | High | Minutes with participants, decisions, actions, owners and dates are generated and filed automatically. |
-| TSK-016 | Build approval workflow and automatic filing (D11) | Implementation | Jaya | Critical | No document reaches ready-to-send without a Managing Partner release; released documents are filed automatically. |
+| ID | Title | Owner | Reqs | Done when |
+| --- | --- | --- | --- | --- |
+| JJ-33 | Lock Master PPT as Gamma template | Jaya | 6, 14 | PPT #1 and PPT #2 render from the locked master; branding keys stay locked |
+| JJ-34 | PPT #1 from approved Discovery (≤8 slides) | Jaya | 7, 17 | First-contact profile ≤8 cards; sourced from approved Discovery |
+| JJ-35 | PPT #2 on Ai Tech master + use cases | Jaya | 13–16 | New versioned deck; does not overwrite PPT #1 |
+| JJ-36 | Editable PPTX (+ PDF) outputs | Jaya | 17 | PPTX is first-class; previews are not the only artifact |
+| JJ-37 | Preview raster, engine-neutral UI | Jaya | (MS-42 support) | Progressive previews; no user-facing “Gamma” |
+| BT-40 | Client/opportunity intake persistence | Mayank | 3 | Fields stored and reused on the opportunity |
+| BT-41 | Structured Discovery Paper generation | Mayank | 4 | 7 Figma sections; not unstructured Q-only |
+| BT-42 | Discovery edit / approve / versions | Mayank | 5, 24 | Approved version is PPT #1 source |
+| BT-43 | Gate: Discovery approved before PPT #1 | Mayank | 7, 22 | PPT #1 job refused until approve |
+| BT-44 | Transcript + notes + AI extract | Mayank | 8–10 | Separate stores; extraction JSON for PPT #2 |
+| BT-45 | Attach existing use cases | Mayank | 11, 16 | Reuse bodies; no regenerate |
+| BT-46 | Unified PPT #2 context | Mayank | 12 | Tagged sources; approved info wins |
+| BT-47 | Status tracking + document lineage | Mayank | 18, 23, 24 | Eight statuses; PPT1 ≠ PPT2 versions |
+| BT-48 | Finalize from latest approved; drop concretisation | Mayank | 18 | Stale drafts cannot be final |
+| MS-40 | Figma + brand book on platform UI | Blenard | 1–2 | Creating-your-pitch matches Figma 259-2 |
+| MS-41 | Client information form | Blenard | 3 | Bound to BT-40 |
+| MS-42 | Discovery UI: generate, edit, approve, PDF | Blenard | 4–5 | PDF disabled until all pages ready |
+| MS-43 | Presentation tab, versioned decks | Blenard | 7, 13, 17 | PPT #1 and PPT #2 never mixed |
+| MS-44 | Transcript upload + personal notes | Blenard | 8–9 | Bound to BT-44 |
+| MS-45 | Use-case picker | Blenard | 11 | Bound to BT-45 |
+| MS-46 | Owner checkpoints + stepper | Blenard | 22–23 | Eight statuses visible |
+| MS-47 | Elena email: edit + attachments | Blenard | 19–21 | Draft/export only; final files listed |
+| QA-26 | E2E sample client | Shared | 26 | Full path consistent; PPT #1 preserved |
 
-Specs: see `borek-ai-suite/docs/tickets/TSK008_` … `TSK016_` (same assignment).
+Requirement 25 is unused.

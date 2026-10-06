@@ -80,6 +80,9 @@ GROUP_A_PLAN = {
 
 
 class DeterministicPlanningClient:
+    # PPT #1 / PPT #2 (Borek deck engine) build their fixture deck instead of calling a model.
+    deterministic = True
+
     def complete_planning(self, **kwargs: Any) -> dict[str, Any]:
         planning_input = kwargs.get("planning_input") or {}
         ppt2_context = (

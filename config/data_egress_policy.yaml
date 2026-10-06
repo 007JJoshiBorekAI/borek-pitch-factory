@@ -44,6 +44,9 @@ field_classifications:
   "/chapters": client_confidential
   "/offendingValues": client_confidential
   "/user": client_confidential
+  # Borek deck generator (PPT #1 / PPT #2): the rendered approved-Discovery / frozen meeting
+  # material plus retry feedback. Needs O4 sign-off before live use (see allowlist below).
+  "/borekDeckBrief": client_confidential
   # Presentation slot paths. Framework-fed content is client_confidential;
   # only the opportunity title is internal.
   "/slots/cover.title": internal
@@ -72,6 +75,7 @@ client_confidential_allowlist:
     - "/frameworkObject"
     - "/chapters"
     - "/offendingValues"
+    - "/borekDeckBrief"
   anthropic:
     - "/user"
 

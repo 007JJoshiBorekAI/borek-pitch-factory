@@ -103,6 +103,35 @@ def render_deck_assets(
     )
 
 
+def render_borek_deck_assets(
+    *,
+    version_id: UUID,
+    slide_specs: list[dict[str, Any]],
+    deck_kind: str,
+) -> dict[str, object]:
+    """Render PPT #1 / PPT #2 in-process with the Borek deck generator.
+
+    Produces the same artifact bundle the renderer service returns, so publication,
+    filing and downloads are shared with every other deck.
+    """
+    from services.presentation.borek_deck.engine import BorekDeckEngineUnavailable
+    from services.presentation.borek_deck.render import BorekDeckRenderError, render_deck_bundle
+
+    try:
+        content = render_deck_bundle(
+            slide_specs,
+            deck_kind=deck_kind,
+            pdf_engine=settings.DECK_PDF_ENGINE,
+        )
+    except (BorekDeckRenderError, BorekDeckEngineUnavailable) as exc:
+        raise RendererClientError(exc.code, str(exc), retryable=False) from exc
+    return _extract_bundle(
+        version_id=version_id,
+        content=content,
+        expected_slide_count=len(slide_specs),
+    )
+
+
 def _extract_bundle(
     *,
     version_id: UUID,
