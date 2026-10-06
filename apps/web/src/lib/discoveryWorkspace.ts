@@ -83,6 +83,31 @@ export interface DiscoveryWorkspaceAdapter {
   }): Promise<DiscoveryWorkspaceVersion>;
 }
 
+export async function continueDiscoveryGeneration(
+  adapter: DiscoveryWorkspaceAdapter,
+  version: DiscoveryWorkspaceVersion,
+): Promise<DiscoveryWorkspaceVersion> {
+  let current = version;
+  for (const page of version.pages) {
+    const latest = current.pages.find((candidate) => candidate.id === page.id);
+    if (latest?.state !== "failed") continue;
+    current = await adapter.retryPage({
+      opportunity_id: current.opportunity_id,
+      version_id: current.version_id,
+      page_id: latest.id,
+      expected_revision: current.revision,
+    });
+  }
+  if (current.pages.every((page) => page.state === "ready") || current.document_state !== "draft") {
+    return current;
+  }
+  return adapter.advanceGeneration({
+    opportunity_id: current.opportunity_id,
+    version_id: current.version_id,
+    expected_revision: current.revision,
+  });
+}
+
 const PAGE_CONTENT: Record<DiscoveryPageId, { title: string; body: string }> = {
   cover: {
     title: "Acme GmbH Discovery Paper",

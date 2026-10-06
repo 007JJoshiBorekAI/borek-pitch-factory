@@ -10,6 +10,7 @@ import { ApiRequestError, approveDiscoveryPaper, generateDiscoveryPaper } from "
 import {
   canApproveDiscovery,
   canDownloadDiscoveryPdf,
+  continueDiscoveryGeneration,
   createFixtureDiscoveryWorkspaceAdapter,
   discoveryWorkspaceErrorMessage,
   isDiscoveryComplete,
@@ -135,11 +136,7 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
       if (live && accessToken) {
         await generateDiscoveryPaper(accessToken, version.opportunity_id);
       }
-      const advanced = await adapterRef.current.advanceGeneration({
-        opportunity_id: version.opportunity_id,
-        version_id: version.version_id,
-        expected_revision: version.revision,
-      });
+      const advanced = await continueDiscoveryGeneration(adapterRef.current, version);
       setVersion(advanced);
       updateDiscovery(advanced);
     } catch (advanceError) {

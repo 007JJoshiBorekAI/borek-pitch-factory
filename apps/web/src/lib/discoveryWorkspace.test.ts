@@ -6,6 +6,7 @@ import {
   DiscoveryWorkspaceError,
   canApproveDiscovery,
   canDownloadDiscoveryPdf,
+  continueDiscoveryGeneration,
   createDiscoveryWorkspaceFixture,
   createFixtureDiscoveryWorkspaceAdapter,
   isDiscoveryComplete,
@@ -50,6 +51,35 @@ async function run() {
   }
   assert.equal(isDiscoveryComplete(progressed), true);
   assert.equal(canDownloadDiscoveryPdf(progressed), true);
+
+  const readyBeforeContinue = mixed.pages.filter((page) => page.state === "ready").map((page) => ({
+    id: page.id,
+    title: page.title,
+    body: page.body,
+  }));
+  const continueAdapter = createFixtureDiscoveryWorkspaceAdapter(mixed);
+  let continued = await continueDiscoveryGeneration(continueAdapter, mixed);
+  assert.equal(continued.version_id, mixed.version_id);
+  assert.equal(continued.pages[3].state, "ready");
+  assert.equal(continued.pages[4].state, "ready");
+  assert.equal(continued.pages[4].failure_message, null);
+  assert.equal(continued.pages[5].state, "generating");
+  assert.equal(continued.pages[6].state, "waiting");
+  assert.deepEqual(
+    continued.pages.filter((page) => readyBeforeContinue.some((ready) => ready.id === page.id)).map((page) => ({
+      id: page.id,
+      title: page.title,
+      body: page.body,
+    })),
+    readyBeforeContinue,
+  );
+  assert.equal(canApproveDiscovery(continued), false);
+  while (!isDiscoveryComplete(continued)) {
+    continued = await continueDiscoveryGeneration(continueAdapter, continued);
+  }
+  assert.equal(isDiscoveryComplete(continued), true);
+  assert.equal(canApproveDiscovery(continued), true);
+  assert.deepEqual(continued.pages.map((page) => page.state), Array(7).fill("ready"));
 
   const adapter = createFixtureDiscoveryWorkspaceAdapter(mixed);
   const readyBeforeRetry = mixed.pages.filter((page) => page.state === "ready");
