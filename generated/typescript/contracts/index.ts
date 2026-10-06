@@ -21,4 +21,15 @@ export type { Compliance01SlideSpec } from "./slide_spec_group_c_compliance_01";
 export type { SuccessMetrics01SlideSpec } from "./slide_spec_group_c_success_metrics_01";
 export type { OpenQuestions01SlideSpec } from "./slide_spec_group_c_open_questions_01";
 export type { NextSteps01SlideSpec } from "./slide_spec_group_c_next_steps_01";
+export type { Stage1Research } from "./stage1_research";
+export type { TranscriptSummary } from "./transcript_summary";
+export type { Stage1OutputsEnvelope } from "./stage1_outputs";
+export type { Stage2OutputsEnvelope } from "./stage2_outputs";
+export type { EmailDraftEnvelope } from "./email_draft";
+export type { MeetingFeedback } from "./meeting_feedback";
+export type { DiscoveryPaper } from "./discovery_paper";
+export type { MeetingExtraction } from "./meeting_extraction";
+export type { Ppt2Context } from "./ppt2_context";
+export type { WorkflowStatus } from "./workflow_status";
+export type { FinalizationSnapshot } from "./finalization_snapshot";
 

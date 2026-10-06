@@ -90,29 +90,30 @@ def resolve_deck_file_path(
     if kind not in ("pptx", "pdf"):
         raise not_found("DECK_FILE_NOT_FOUND", f"Unknown deck file type: {kind}")
 
-    # JJ-28: whichever engine produced the deck, it is downloaded from the same
-    # URL. A Gamma export supersedes the internal render for this version.
-    gamma_path = _resolve_gamma_deck_file(
+    if kind == "pptx":
+        path = Path(version["pptx_storage_path"]) if version.get("pptx_storage_path") else resolve_pptx_path(version_id=version_id)
+    else:
+        path = Path(version["pdf_storage_path"]) if version.get("pdf_storage_path") else resolve_pdf_path(version_id=version_id)
+
+    if path.is_file():
+        return path
+
+    # Historical decks filed before the internal renderer was the only engine.
+    # Read-only: new renders do not write these files.
+    legacy_path = _resolve_legacy_gamma_deck_file(
         store,
         presentation_id=presentation_id,
         user_id=user_id,
         version_id=version_id,
         kind=kind,
     )
-    if gamma_path is not None:
-        return gamma_path
+    if legacy_path is not None:
+        return legacy_path
 
-    if kind == "pptx":
-        path = Path(version["pptx_storage_path"]) if version.get("pptx_storage_path") else resolve_pptx_path(version_id=version_id)
-    else:
-        path = Path(version["pdf_storage_path"]) if version.get("pdf_storage_path") else resolve_pdf_path(version_id=version_id)
-
-    if not path.is_file():
-        raise not_found("DECK_FILE_NOT_FOUND", f"Deck {kind} file is not available")
-    return path
+    raise not_found("DECK_FILE_NOT_FOUND", f"Deck {kind} file is not available")
 
 
-def _resolve_gamma_deck_file(
+def _resolve_legacy_gamma_deck_file(
     store: DataStore,
     *,
     presentation_id: UUID,

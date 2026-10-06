@@ -18,7 +18,6 @@ from app.routers import (
     knowledge,
     opportunities,
     presentations,
-    public_logos,
     transcripts,
     journey_outputs,
 )
@@ -52,7 +51,6 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
-    app.include_router(public_logos.router)
     app.include_router(opportunities.router, prefix="/opportunities", tags=["opportunities"])
     app.include_router(transcripts.router, prefix="/opportunities", tags=["transcripts"])
     app.include_router(

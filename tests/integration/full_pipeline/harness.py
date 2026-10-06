@@ -319,6 +319,39 @@ def create_opportunity_with_transcript(
     return opportunity_id, upload.json()["transcript"]["id"]
 
 
+def create_opportunity_with_client_document(
+    client: TestClient,
+    *,
+    headers: dict[str, str],
+    client_name: str = "Pipeline Test Corp",
+    opportunity_name: str = "Automated Pipeline Harness",
+    language: str = "en",
+    additional_client_information: dict | None = None,
+) -> tuple[str, str]:
+    """First contact input. Meeting transcripts are not accepted for that stage."""
+    payload: dict[str, object] = {
+        "client_name": client_name,
+        "opportunity_name": opportunity_name,
+        "department": "Finance",
+        "language": language,
+    }
+    if additional_client_information is not None:
+        payload["additional_client_information"] = additional_client_information
+    opportunity = client.post("/opportunities", headers=headers, json=payload)
+    if opportunity.status_code != 201:
+        raise AssertionError(f"create opportunity failed: {opportunity.status_code} {opportunity.text}")
+    opportunity_id = opportunity.json()["id"]
+    upload = client.post(
+        f"/opportunities/{opportunity_id}/client-documents",
+        headers=headers,
+        files={"file": ("brief.txt", b"Client background for the first meeting.", "text/plain")},
+    )
+    if upload.status_code != 201:
+        raise AssertionError(f"upload client document failed: {upload.status_code} {upload.text}")
+    document = upload.json().get("document") or upload.json()
+    return opportunity_id, str(document["id"])
+
+
 def generate_and_confirm_framework(
     client: TestClient,
     *,
@@ -360,6 +393,7 @@ def run_automated_pipeline(
     additional_client_information: dict | None = None,
     client_name: str = "Pipeline Test Corp",
     opportunity_name: str = "Automated Pipeline Harness",
+    use_client_document: bool = False,
 ) -> AutomatedPipelineResult:
     """BT-27: upload → framework → human approval → automated deck.
 
@@ -367,15 +401,25 @@ def run_automated_pipeline(
     ``auto_continue``. Presentation generation is never requested: the backend
     owns that step (BT-25), and this harness only observes it.
     """
-    opportunity_id, transcript_id = create_opportunity_with_transcript(
-        client,
-        headers=headers,
-        transcript_path=transcript_path,
-        language=language,
-        additional_client_information=additional_client_information,
-        client_name=client_name,
-        opportunity_name=opportunity_name,
-    )
+    if use_client_document:
+        opportunity_id, transcript_id = create_opportunity_with_client_document(
+            client,
+            headers=headers,
+            language=language,
+            additional_client_information=additional_client_information,
+            client_name=client_name,
+            opportunity_name=opportunity_name,
+        )
+    else:
+        opportunity_id, transcript_id = create_opportunity_with_transcript(
+            client,
+            headers=headers,
+            transcript_path=transcript_path,
+            language=language,
+            additional_client_information=additional_client_information,
+            client_name=client_name,
+            opportunity_name=opportunity_name,
+        )
     framework_version_id, framework_job_id, framework_stages = generate_and_confirm_framework(
         client,
         headers=headers,

@@ -24,6 +24,7 @@ def test_job_stage_enum_values_in_order() -> None:
     expected = [
         "QUEUED",
         "TRANSCRIPT_PROCESSING",
+        "TRANSCRIPT_SUMMARIZING",
         "KNOWLEDGE_EXTRACTING",
         "FRAMEWORK_SYNTHESIZING",
         "FRAMEWORK_VALIDATING",
@@ -38,8 +39,17 @@ def test_job_stage_enum_values_in_order() -> None:
         "FAILED",
     ]
     assert [stage.value for stage in JobStage] == expected
-    assert len(JobStage) == 14
-    assert list(JOB_PIPELINE_STAGES) == [JobStage.QUEUED, *expected[1:-2]]
+    assert len(JobStage) == 15
+    assert JobStage.TRANSCRIPT_SUMMARIZING not in JOB_PIPELINE_STAGES
+    assert JobStage.GAMMA_RENDERING not in JOB_PIPELINE_STAGES
+    assert list(JOB_PIPELINE_STAGES) == [
+        JobStage.QUEUED,
+        *[
+            JobStage(value)
+            for value in expected[1:-2]
+            if value not in {"TRANSCRIPT_SUMMARIZING", "GAMMA_RENDERING"}
+        ],
+    ]
 
 
 def test_job_status_enum_has_four_values() -> None:

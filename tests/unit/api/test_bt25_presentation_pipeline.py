@@ -554,10 +554,12 @@ def test_continuation_http_error_records_failed_generation_job(
     assert failed.failed_stage == JobStage.SLIDE_GENERATING
 
 
-def test_continuation_preserves_worker_gamma_failure_without_duplicate_job(
+def test_continuation_preserves_worker_render_failure_without_duplicate_job(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from services.gamma.contract import GammaTimeoutError
+    class RendererTimeout(Exception):
+        code = "RENDERER_TIMEOUT"
+        retryable = True
 
     store, opportunity, framework = _store_with_confirmed_framework()
     plan = _persist_plan(store, framework)
@@ -573,7 +575,7 @@ def test_continuation_preserves_worker_gamma_failure_without_duplicate_job(
         presentation = current_store.create_presentation(
             presentation_plan_id=plan["id"],
             user_id=USER_ID,
-            name="BT-25 Gamma failure",
+            name="BT-25 render failure",
         )
         job = job_service.create_job(
             opportunity["id"],
@@ -587,13 +589,13 @@ def test_continuation_preserves_worker_gamma_failure_without_duplicate_job(
         )
         job_service.fail_job(
             job.id,
-            "GAMMA_TIMEOUT",
-            "Gamma generation timed out.",
-            JobStage.GAMMA_RENDERING,
+            "RENDERER_TIMEOUT",
+            "Rendering the presentation timed out.",
+            JobStage.PPTX_RENDERING,
             True,
             repository=current_store,
         )
-        raise GammaTimeoutError()
+        raise RendererTimeout("Rendering the presentation timed out.")
 
     monkeypatch.setattr(
         presentation_generation,
@@ -601,7 +603,7 @@ def test_continuation_preserves_worker_gamma_failure_without_duplicate_job(
         _fail_after_enqueue,
     )
 
-    with pytest.raises(GammaTimeoutError):
+    with pytest.raises(RendererTimeout):
         continue_after_planning(store, planning_job_id=planning_job.id)
 
     generation_jobs = _jobs(store, "presentation_generation")
@@ -609,8 +611,8 @@ def test_continuation_preserves_worker_gamma_failure_without_duplicate_job(
     failed = job_service.get_job(generation_jobs[0]["id"], repository=store)
     assert failed is not None
     assert failed.status == JobStatus.FAILED
-    assert failed.error_code == "GAMMA_TIMEOUT"
-    assert failed.failed_stage == JobStage.GAMMA_RENDERING
+    assert failed.error_code == "RENDERER_TIMEOUT"
+    assert failed.failed_stage == JobStage.PPTX_RENDERING
     assert failed.error_retryable is True
 
 

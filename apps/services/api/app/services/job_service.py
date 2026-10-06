@@ -508,6 +508,8 @@ def job_to_response(job: Job) -> JobResponse:
 
     result = dict(job.result_json)
     enqueue = dict(result.get("_enqueue") or {})
+    # Frozen PPT #2 source bodies stay on the stored job for same-job retry.
+    enqueue.pop("ppt2_generation_input", None)
     enqueue["auto_continue"] = job.auto_continue
     result["_enqueue"] = enqueue
 

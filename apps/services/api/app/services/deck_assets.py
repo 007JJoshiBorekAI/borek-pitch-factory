@@ -107,11 +107,9 @@ def resolve_gamma_artifact_path(
     version_id: UUID | str,
     kind: str,
 ) -> Path | None:
-    """JJ-28 / BT-28: locate a Gamma export for this version, if the Gamma stage ran.
+    """Read-only lookup for a historical export under gamma/{opportunity}/{version}/.
 
-    Canonical location is `packages/contracts/gamma_artifact_location.json`:
-    `gamma/{opportunity}/{version}/{generation}.{kind}`. The generation id is not
-    known here, so the newest matching export wins.
+    New renders do not write this layout. The newest matching file wins.
     """
     relative = Path("gamma") / str(opportunity_id) / str(version_id)
     roots = {deck_assets_root(), Path(settings.ARTIFACT_ROOT)}

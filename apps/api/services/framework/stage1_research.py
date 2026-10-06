@@ -20,7 +20,7 @@ from services.framework.client_documents import (
 from services.framework.stage1_intake import (
     SOURCE_RULE,
     format_stage1_intake_for_prompt,
-    intake_from_opportunity,
+    intake_for_generation,
     safe_intake_for_llm,
 )
 from services.observability.llm_logger import run_logged_llm_call
@@ -139,7 +139,7 @@ def generate_stage1_research(
     complete: Callable[[str, str, dict[str, Any]], dict[str, Any]] | None = None,
     client_document_sources: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    intake = intake_from_opportunity(opportunity) or {
+    intake = intake_for_generation(opportunity) or {
         "client_name": opportunity["client_name"]
     }
     evidence = (

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/finalization_snapshot.schema.json",
+  "title": "FinalizationSnapshot",
+  "description": "BT-48 identities captured on the first successful finalize. observed_sources are the live persisted revisions at that moment. ppt2_generation_source_manifest is copied from the ready PPT #2 version, or null on historical snapshots. No document bodies.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "captured_at",
+    "approved_discovery_version_id",
+    "ppt1_presentation_id",
+    "ppt1_version_id",
+    "ppt2_presentation_id",
+    "ppt2_version_id",
+    "observed_sources",
+    "ppt2_generation_source_manifest"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "captured_at": { "type": "string", "format": "date-time" },
+    "approved_discovery_version_id": { "type": "string", "format": "uuid" },
+    "ppt1_presentation_id": { "type": ["string", "null"], "format": "uuid" },
+    "ppt1_version_id": { "type": ["string", "null"], "format": "uuid" },
+    "ppt2_presentation_id": { "type": "string", "format": "uuid" },
+    "ppt2_version_id": { "type": "string", "format": "uuid" },
+    "observed_sources": { "$ref": "#/$defs/ObservedSources" },
+    "ppt2_generation_source_manifest": {
+      "description": "Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.",
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/Ppt2GenerationSourceManifest" }
+      ]
+    }
+  },
+  "$defs": {
+    "ObservedSources": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Live source revisions observed at finalization. Absence is null. This object does not copy notes, extraction bodies, or use-case statements.",
+      "required": [
+        "transcript_id",
+        "meeting_extraction_generated_at",
+        "extraction_notes_revision",
+        "personal_notes_updated_at",
+        "selected_use_case_ids"
+      ],
+      "properties": {
+        "transcript_id": { "type": ["string", "null"], "format": "uuid" },
+        "meeting_extraction_generated_at": { "type": ["string", "null"], "format": "date-time" },
+        "extraction_notes_revision": { "type": ["string", "null"], "format": "date-time" },
+        "personal_notes_updated_at": { "type": ["string", "null"], "format": "date-time" },
+        "selected_use_case_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "Ppt2GenerationSourceManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "approved_discovery_version_id",
+        "transcript_id",
+        "meeting_extraction_generated_at",
+        "extraction_notes_revision",
+        "current_personal_notes_updated_at",
+        "selected_use_case_ids"
+      ],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "kind": { "const": "ppt2" },
+        "approved_discovery_version_id": { "type": "string", "format": "uuid" },
+        "transcript_id": { "type": ["string", "null"], "format": "uuid" },
+        "meeting_extraction_generated_at": { "type": ["string", "null"], "format": "date-time" },
+        "extraction_notes_revision": { "type": ["string", "null"], "format": "date-time" },
+        "current_personal_notes_updated_at": { "type": ["string", "null"], "format": "date-time" },
+        "selected_use_case_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,3 +1,7 @@
+# LEGACY / RETIRED / NOT ACTIVE ARCHITECTURE
+
+BT-28 described a retired provider stage. New jobs render with the internal PPTX/PDF renderer. `GAMMA_RENDERING` remains only so old stored jobs can be decoded.
+
 # BT-28 — Gamma rendering stage
 
 Phase 4. Owner: Blenard Tahiraj. Priority: P0.

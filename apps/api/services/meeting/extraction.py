@@ -1,0 +1,229 @@
+"""BT-44 meeting extraction. Transcript and owner notes stay separate sources."""
+
+from __future__ import annotations
+
+import copy
+import json
+import re
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+import jsonschema
+
+from llm.claude.client import (
+    CLAUDE_STRUCTURED_MAX_TOKENS,
+    ClaudeClientError,
+    sonnet_model,
+    structured_complete,
+)
+from services.observability.llm_logger import run_logged_llm_call
+
+PROMPT_VERSION = "meeting-extraction:v1"
+SCHEMA_VERSION = "1.0"
+STAGE_MEETING_EXTRACTION = "meeting_extraction"
+CATEGORIES = (
+    "requirements",
+    "challenges",
+    "priorities",
+    "opportunities",
+    "discussed_solutions",
+    "decisions",
+    "follow_ups",
+)
+_LINE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("requirements", re.compile(r"(?i)^requirement\s*:\s*(.+)$")),
+    ("challenges", re.compile(r"(?i)^challenge\s*:\s*(.+)$")),
+    ("priorities", re.compile(r"(?i)^priority\s*:\s*(.+)$")),
+    ("opportunities", re.compile(r"(?i)^opportunity\s*:\s*(.+)$")),
+    ("discussed_solutions", re.compile(r"(?i)^discussed solution\s*:\s*(.+)$")),
+    ("decisions", re.compile(r"(?i)^decision\s*:\s*(.+)$")),
+    ("follow_ups", re.compile(r"(?i)^follow-up\s*:\s*(.+)$")),
+)
+
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+_SCHEMA_PATH = _REPO_ROOT / "packages" / "contracts" / "meeting_extraction.schema.json"
+_PROMPT_PATH = _REPO_ROOT / "apps" / "api" / "llm" / "claude" / "prompts" / "meeting_extraction_v1.txt"
+
+ClaudeComplete = Callable[[str, str, dict[str, Any]], dict[str, Any]]
+
+
+class MeetingExtractionError(ValueError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.user_message = message
+
+
+def load_meeting_extraction_schema() -> dict[str, Any]:
+    return json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
+
+
+def validate_meeting_extraction(payload: dict[str, Any]) -> dict[str, Any]:
+    jsonschema.Draft202012Validator(load_meeting_extraction_schema()).validate(payload)
+    return payload
+
+
+def transcript_text_from_sections(sections: list[dict[str, Any]]) -> str:
+    lines: list[str] = []
+    for section in sections:
+        speaker = str(section.get("speaker_role") or section.get("speaker") or "Speaker").strip()
+        text = str(section.get("content") or section.get("text") or "").strip()
+        if text:
+            lines.append(f"{speaker}: {text}")
+    return "\n".join(lines)
+
+
+def build_separated_user_message(*, transcript_text: str, personal_notes: str | None) -> str:
+    """Label the two sources. Do not join them into one unlabeled blob."""
+    notes = (personal_notes or "").strip()
+    return "\n".join(
+        [
+            "TRANSCRIPT:",
+            transcript_text.strip() or "(none)",
+            "",
+            "OWNER PERSONAL NOTES:",
+            notes or "(none)",
+        ]
+    )
+
+
+def extract_meeting_categories(
+    *,
+    sections: list[dict[str, Any]],
+    personal_notes: str | None,
+    live: bool,
+    opportunity_id: str | None = None,
+    complete: ClaudeComplete | None = None,
+) -> dict[str, list[str]]:
+    transcript_text = transcript_text_from_sections(sections)
+    if live:
+        return _extract_live(
+            transcript_text=transcript_text,
+            personal_notes=personal_notes,
+            opportunity_id=opportunity_id,
+            complete=complete,
+        )
+    return _extract_fixture(sections=sections, personal_notes=personal_notes)
+
+
+def _empty_categories() -> dict[str, list[str]]:
+    return {category: [] for category in CATEGORIES}
+
+
+def _append_unique(items: list[str], value: str) -> None:
+    text = value.strip()
+    if text and text not in items:
+        items.append(text)
+
+
+def _collect_marked_lines(source: str, categories: dict[str, list[str]]) -> None:
+    for raw_line in source.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        for category, pattern in _LINE_PATTERNS:
+            match = pattern.match(line)
+            if match:
+                _append_unique(categories[category], match.group(1))
+                break
+
+
+def _extract_fixture(
+    *,
+    sections: list[dict[str, Any]],
+    personal_notes: str | None,
+) -> dict[str, list[str]]:
+    categories = _empty_categories()
+    for section in sections:
+        _collect_marked_lines(str(section.get("content") or section.get("text") or ""), categories)
+    if personal_notes and personal_notes.strip():
+        _collect_marked_lines(personal_notes, categories)
+    return categories
+
+
+def _category_tool_schema() -> dict[str, Any]:
+    string_array = {
+        "type": "array",
+        "items": {"type": "string", "minLength": 1},
+    }
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": list(CATEGORIES),
+        "properties": {category: string_array for category in CATEGORIES},
+    }
+
+
+def _string_items(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    items: list[str] = []
+    for item in value:
+        if isinstance(item, str):
+            _append_unique(items, item)
+    return items
+
+
+def _is_grounded(item: str, transcript_text: str, personal_notes: str | None) -> bool:
+    needle = item.casefold()
+    if needle in transcript_text.casefold():
+        return True
+    notes = (personal_notes or "").casefold()
+    return bool(notes) and needle in notes
+
+
+def _extract_live(
+    *,
+    transcript_text: str,
+    personal_notes: str | None,
+    opportunity_id: str | None,
+    complete: ClaudeComplete | None,
+) -> dict[str, list[str]]:
+    system = _PROMPT_PATH.read_text(encoding="utf-8")
+    user = build_separated_user_message(
+        transcript_text=transcript_text,
+        personal_notes=personal_notes,
+    )
+    tool_schema = _category_tool_schema()
+    runner = complete or _anthropic_complete
+
+    def invoke() -> dict[str, Any]:
+        return _anthropic_complete(system, user, tool_schema)
+
+    if complete is None:
+        raw = run_logged_llm_call(
+            stage=STAGE_MEETING_EXTRACTION,
+            prompt_version=PROMPT_VERSION,
+            model=sonnet_model(),
+            attempt=1,
+            opportunity_id=opportunity_id,
+            invoke=invoke,
+        )
+    else:
+        raw = runner(system, user, tool_schema)
+    if not isinstance(raw, dict):
+        raise MeetingExtractionError("Claude did not return a JSON object for the meeting extraction.")
+    categories = _empty_categories()
+    for category in CATEGORIES:
+        for item in _string_items(raw.get(category)):
+            if _is_grounded(item, transcript_text, personal_notes):
+                _append_unique(categories[category], item)
+    return categories
+
+
+def _anthropic_complete(system: str, user: str, schema: dict[str, Any]) -> dict[str, Any]:
+    try:
+        raw = structured_complete(
+            system,
+            user,
+            schema,
+            tool_name="submit_meeting_extraction",
+            tool_description="Submit the seven meeting-extraction arrays. Empty arrays are valid.",
+            max_tokens=CLAUDE_STRUCTURED_MAX_TOKENS,
+            temperature=0,
+        )
+    except ClaudeClientError as exc:
+        raise MeetingExtractionError(exc.user_message) from exc
+    if not isinstance(raw, dict):
+        raise MeetingExtractionError("Claude did not return a JSON object for the meeting extraction.")
+    return copy.deepcopy(raw)

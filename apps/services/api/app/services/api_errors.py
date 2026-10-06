@@ -20,7 +20,7 @@ def failed_stage_from_exception(exc: BaseException) -> "JobStage":
 
     code = str(getattr(exc, "code", "") or getattr(exc, "error_code", "") or "")
     if code.startswith("GAMMA_"):
-        return JobStage.GAMMA_RENDERING
+        return JobStage.PPTX_RENDERING
     if code in {"RENDERER_TIMEOUT", "RENDERER_UNAVAILABLE"}:
         return JobStage.PPTX_RENDERING
     return JobStage.SLIDE_GENERATING

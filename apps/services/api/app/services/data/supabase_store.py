@@ -31,6 +31,7 @@ from app.services.deck_assets import (
 )
 from app.services.framework_status import require_reviewable_framework
 from app.services.framework_stub_template import load_framework_stub_template
+from services.framework.stage1_intake import apply_persisted_intake_to_framework
 
 logger = logging.getLogger(__name__)
 _HTTP_CLIENT: httpx.Client | None = None
@@ -193,6 +194,20 @@ def _present_client_document(row: dict[str, Any], *, section_count: int) -> dict
     }
 
 
+def _normalize_discovery_paper_version(row: dict[str, Any]) -> dict[str, Any]:
+    approved_at = row.get("approved_at")
+    return {
+        **row,
+        "id": UUID(str(row["id"])),
+        "opportunity_id": UUID(str(row["opportunity_id"])),
+        "document_id": UUID(str(row["document_id"])),
+        "created_by": UUID(str(row["created_by"])),
+        "created_at": _parse_timestamp(row["created_at"]),
+        "updated_at": _parse_timestamp(row["updated_at"]),
+        "approved_at": _parse_timestamp(approved_at) if approved_at else None,
+    }
+
+
 def _normalize_framework(row: dict[str, Any]) -> dict[str, Any]:
     return {
         **row,
@@ -336,6 +351,23 @@ class SupabaseDataStore:
             raise bad_request("JOB_READ_FAILED", response.text)
         rows = response.json()
         return _normalize_generation_job(rows[0]) if rows else None
+
+    def list_generation_jobs_for_opportunity(
+        self,
+        opportunity_id: UUID,
+    ) -> list[dict[str, Any]]:
+        response = self._request(
+            "GET",
+            "generation_jobs",
+            params={
+                "opportunity_id": f"eq.{opportunity_id}",
+                "select": "*",
+                "order": "created_at.asc,id.asc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("JOB_LIST_FAILED", response.text)
+        return [_normalize_generation_job(row) for row in response.json()]
 
     def update_generation_job(
         self,
@@ -689,10 +721,15 @@ class SupabaseDataStore:
         user_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
-        from app.services.journey_outputs_store import JOURNEY_OUTPUT_DB_COLUMNS
+        from app.services.journey_outputs_store import (
+            JOURNEY_OUTPUT_DB_COLUMNS,
+            reject_finalization_snapshot_change,
+        )
         from app.services.stage1_intake_store import STAGE1_DB_COLUMNS, expand_opportunity_updates
 
+        current = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         expanded = expand_opportunity_updates(dict(updates))
+        reject_finalization_snapshot_change(current, expanded)
         payload = {
             key: value
             for key, value in expanded.items()
@@ -971,25 +1008,9 @@ class SupabaseDataStore:
         opportunity_id: UUID,
         ttl_seconds: int,
     ) -> str | None:
-        """JJ-29 fallback: short-lived Supabase storage sign URL when API signing is unavailable."""
-        from services.gamma.signed_logo import mint_supabase_storage_signed_logo_url
-
-        response = self._request(
-            "GET",
-            "opportunity_client_logos",
-            params={"opportunity_id": f"eq.{opportunity_id}", "select": "storage_path", "limit": "1"},
-        )
-        if response.status_code != 200 or not response.json():
-            return None
-        storage_path = str(response.json()[0].get("storage_path") or "").strip()
-        if not storage_path:
-            return None
-        return mint_supabase_storage_signed_logo_url(
-            supabase_url=self._base_url,
-            service_role_key=settings.SUPABASE_SERVICE_ROLE_KEY,
-            storage_path=storage_path,
-            ttl_seconds=ttl_seconds,
-        )
+        """Retired provider-logo mint. Stored logos remain readable; no signed fetch URL is issued."""
+        del opportunity_id, ttl_seconds
+        return None
 
     def get_client_logo_for_signed_fetch(
         self, *, opportunity_id: UUID
@@ -1532,6 +1553,206 @@ class SupabaseDataStore:
         self.get_opportunity(opportunity_id=row["opportunity_id"], user_id=user_id)
         return row
 
+    def create_discovery_paper_version(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        document_id: UUID,
+        paper_json: dict[str, Any],
+        version_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        latest = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={
+                "select": "version_number",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "order": "version_number.desc",
+                "limit": "1",
+            },
+        )
+        if latest.status_code != 200:
+            raise bad_request("DISCOVERY_PAPER_VERSION_CREATE_FAILED", latest.text)
+        version_number = int(latest.json()[0]["version_number"]) + 1 if latest.json() else 1
+        now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        payload = {
+            "opportunity_id": str(opportunity_id),
+            "version_number": version_number,
+            "document_id": str(document_id),
+            "status": "draft",
+            "paper_json": copy.deepcopy(paper_json),
+            "created_by": str(user_id),
+            "created_at": now,
+            "updated_at": now,
+            "approved_at": None,
+        }
+        if version_id is not None:
+            payload["id"] = str(version_id)
+        response = self._request("POST", "discovery_paper_versions", json_body=payload)
+        if response.status_code not in (200, 201) or not response.json():
+            raise bad_request("DISCOVERY_PAPER_VERSION_CREATE_FAILED", response.text)
+        return _normalize_discovery_paper_version(response.json()[0])
+
+    def get_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        response = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={"select": "*", "id": f"eq.{version_id}", "limit": "1"},
+        )
+        if response.status_code != 200 or not response.json():
+            raise not_found(
+                "DISCOVERY_PAPER_VERSION_NOT_FOUND",
+                f"Discovery Paper version {version_id} was not found",
+            )
+        row = _normalize_discovery_paper_version(response.json()[0])
+        self.get_opportunity(opportunity_id=row["opportunity_id"], user_id=user_id)
+        return row
+
+    def list_discovery_paper_versions(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={
+                "select": "*",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "order": "version_number.asc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("DISCOVERY_PAPER_VERSION_LIST_FAILED", response.text)
+        return [_normalize_discovery_paper_version(row) for row in response.json()]
+
+    def get_latest_approved_discovery_paper(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={
+                "select": "*",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "status": "eq.approved",
+                "order": "approved_at.desc,version_number.desc",
+                "limit": "1",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("DISCOVERY_PAPER_VERSION_LIST_FAILED", response.text)
+        if not response.json():
+            return None
+        return _normalize_discovery_paper_version(response.json()[0])
+
+    def get_draft_discovery_paper_version(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        document_id: UUID,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "discovery_paper_versions",
+            params={
+                "select": "*",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "document_id": f"eq.{document_id}",
+                "status": "eq.draft",
+                "order": "version_number.desc",
+                "limit": "1",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("DISCOVERY_PAPER_VERSION_LIST_FAILED", response.text)
+        if not response.json():
+            return None
+        return _normalize_discovery_paper_version(response.json()[0])
+
+    def update_discovery_paper_draft(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._write_discovery_paper_version(
+            version_id=version_id,
+            user_id=user_id,
+            paper_json=paper_json,
+            status="draft",
+        )
+
+    def approve_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._write_discovery_paper_version(
+            version_id=version_id,
+            user_id=user_id,
+            paper_json=paper_json,
+            status="approved",
+        )
+
+    def _write_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+        status: str,
+    ) -> dict[str, Any]:
+        current = self.get_discovery_paper_version(version_id=version_id, user_id=user_id)
+        if current["status"] == "approved":
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions are immutable",
+            )
+        if status not in {"draft", "approved"} or current["status"] != "draft":
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions cannot return to draft",
+            )
+        now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        payload: dict[str, Any] = {
+            "paper_json": copy.deepcopy(paper_json),
+            "status": status,
+            "updated_at": now,
+        }
+        if status == "approved":
+            payload["approved_at"] = now
+        response = self._request(
+            "PATCH",
+            "discovery_paper_versions",
+            params={"id": f"eq.{version_id}", "status": "eq.draft"},
+            json_body=payload,
+        )
+        if response.status_code not in (200, 204) or not response.json():
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions are immutable",
+            )
+        return _normalize_discovery_paper_version(response.json()[0])
+
     def update_latest_framework(
         self,
         *,
@@ -1760,6 +1981,10 @@ class SupabaseDataStore:
         user_id: UUID,
     ) -> dict[str, Any]:
         payload = load_framework_stub_template(opportunity_id)
+        apply_persisted_intake_to_framework(
+            payload,
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id),
+        )
         return self.create_framework_version(
             opportunity_id=opportunity_id,
             user_id=user_id,
@@ -1899,6 +2124,32 @@ class SupabaseDataStore:
             raise bad_request("PRESENTATION_CREATE_FAILED", response.text)
         return _normalize_presentation(response.json()[0])
 
+    def retarget_presentation_plan(
+        self,
+        *,
+        presentation_id: UUID,
+        presentation_plan_id: UUID,
+        user_id: UUID,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        self.get_presentation_plan(
+            presentation_plan_id=presentation_plan_id,
+            user_id=user_id,
+        )
+        payload: dict[str, Any] = {"presentation_plan_id": str(presentation_plan_id)}
+        if name:
+            payload["name"] = name
+        response = self._request(
+            "PATCH",
+            "presentations",
+            params={"id": f"eq.{presentation_id}"},
+            json_body=payload,
+        )
+        if response.status_code not in (200, 204) or not response.json():
+            raise bad_request("PRESENTATION_UPDATE_FAILED", response.text)
+        return _normalize_presentation(response.json()[0])
+
     def list_presentations(self, *, user_id: UUID) -> list[dict[str, Any]]:
         _ = user_id
         response = self._request(
@@ -1958,6 +2209,9 @@ class SupabaseDataStore:
         plan_json: dict[str, Any],
         journey_stage: str | None = None,
         prior_stage_presentation_version_id: UUID | None = None,
+        discovery_pages: list[dict[str, Any]] | None = None,
+        generation_source_manifest: dict[str, Any] | None = None,
+        ppt2_generation_input: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         self.get_presentation(presentation_id=presentation_id, user_id=user_id)
         latest = self._request(
@@ -1986,6 +2240,8 @@ class SupabaseDataStore:
                 else None
             ),
         }
+        if generation_source_manifest is not None:
+            version_payload["generation_source_manifest"] = generation_source_manifest
         version_response = self._request(
             "POST",
             "presentation_versions",
@@ -2000,20 +2256,40 @@ class SupabaseDataStore:
             presentation_plan_id=presentation["presentation_plan_id"],
             user_id=user_id,
         )
-        framework = self.get_framework_version(
-            framework_version_id=plan["framework_version_id"],
-            user_id=user_id,
-        )
-        slide_specs: list[dict[str, Any]] = []
-        for planned in planned_slides_with_generators(plan_json):
-            slide_spec = build_slide_spec_for_planned_slide(
-                planned=planned,
-                framework_json=framework["framework_json"],
+        if ppt2_generation_input is not None:
+            from services.presentation.post_meeting_slide_content import (
+                build_post_meeting_slide_specs,
             )
+
+            generated_specs = build_post_meeting_slide_specs(
+                plan_json,
+                ppt2_generation_input,
+            )
+        elif discovery_pages is not None:
+            from services.presentation.discovery_slide_content import (
+                build_discovery_slide_specs,
+            )
+
+            generated_specs = build_discovery_slide_specs(plan_json, discovery_pages)
+        else:
+            framework = self.get_framework_version(
+                framework_version_id=plan["framework_version_id"],
+                user_id=user_id,
+            )
+            generated_specs = [
+                build_slide_spec_for_planned_slide(
+                    planned=planned,
+                    framework_json=framework["framework_json"],
+                )
+                for planned in planned_slides_with_generators(plan_json)
+            ]
+        slide_specs: list[dict[str, Any]] = []
+        for index, slide_spec in enumerate(generated_specs, start=1):
             persisted_slide_spec = copy.deepcopy(slide_spec)
+            persisted_slide_spec["slideId"] = f"slide_{index:02d}"
             slide_payload = {
                 "presentation_version_id": str(version_row["id"]),
-                "slide_index": int(planned["order"]) - 1,
+                "slide_index": index - 1,
                 "layout_id": persisted_slide_spec["layoutId"],
                 "slide_spec": persisted_slide_spec,
                 "source_chapter_ids": copy.deepcopy(
@@ -2175,21 +2451,24 @@ class SupabaseDataStore:
             framework_version_id=plan["framework_version_id"],
             user_id=user_id,
         )
+        edited_payload = {
+            "presentation_id": str(presentation_id),
+            "version_number": int(previous["version_number"]) + 1,
+            "slides_json": [],
+            "status": "generating",
+            "journey_stage": previous.get("journey_stage"),
+            "prior_stage_presentation_version_id": (
+                str(previous["prior_stage_presentation_version_id"])
+                if previous.get("prior_stage_presentation_version_id")
+                else None
+            ),
+        }
+        if previous.get("generation_source_manifest") is not None:
+            edited_payload["generation_source_manifest"] = previous["generation_source_manifest"]
         version_response = self._request(
             "POST",
             "presentation_versions",
-            json_body={
-                "presentation_id": str(presentation_id),
-                "version_number": int(previous["version_number"]) + 1,
-                "slides_json": [],
-                "status": "generating",
-                "journey_stage": previous.get("journey_stage"),
-                "prior_stage_presentation_version_id": (
-                    str(previous["prior_stage_presentation_version_id"])
-                    if previous.get("prior_stage_presentation_version_id")
-                    else None
-                ),
-            },
+            json_body=edited_payload,
         )
         if version_response.status_code not in (200, 201):
             raise bad_request("PRESENTATION_VERSION_CREATE_FAILED", version_response.text)

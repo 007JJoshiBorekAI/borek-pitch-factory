@@ -3,8 +3,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useAuth } from "@/components/AuthProvider";
 import { WorkflowArtifactTabs } from "@/components/WorkflowArtifactTabs";
 import { usePreviewJourney } from "@/components/PreviewJourneyProvider";
+import { ApiRequestError, approveDiscoveryPaper, generateDiscoveryPaper } from "@/lib/api";
 import {
   canApproveDiscovery,
   canDownloadDiscoveryPdf,
@@ -38,6 +40,8 @@ const STATUS_LABELS = {
 
 export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) {
   const router = useRouter();
+  const { accessToken, previewMode } = useAuth();
+  const live = Boolean(accessToken) && !previewMode;
   const { getOpportunity, updateDiscovery, approveDiscovery } = usePreviewJourney();
   const adapterRef = useRef(createFixtureDiscoveryWorkspaceAdapter(initialVersion));
   const [version, setVersion] = useState(initialVersion);
@@ -121,6 +125,9 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
     setError(null);
     setNotice(null);
     try {
+      if (live && accessToken) {
+        await generateDiscoveryPaper(accessToken, version.opportunity_id);
+      }
       const advanced = await adapterRef.current.advanceGeneration({
         opportunity_id: version.opportunity_id,
         version_id: version.version_id,
@@ -129,7 +136,7 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
       setVersion(advanced);
       updateDiscovery(advanced);
     } catch (advanceError) {
-      setError(discoveryWorkspaceErrorMessage(advanceError));
+      setError(advanceError instanceof ApiRequestError ? advanceError.message : discoveryWorkspaceErrorMessage(advanceError));
     } finally {
       setBusy(false);
     }
@@ -139,6 +146,9 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
     setBusy(true);
     setError(null);
     try {
+      if (live && accessToken) {
+        await approveDiscoveryPaper(accessToken, version.opportunity_id);
+      }
       const approved = await adapterRef.current.approve({
         opportunity_id: version.opportunity_id,
         version_id: version.version_id,
@@ -150,7 +160,7 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
       setNotice(`${approved.version_id} approved and locked.`);
       router.push(`/opportunities/${encodeURIComponent(approved.opportunity_id)}/presentations`);
     } catch (approvalError) {
-      setError(discoveryWorkspaceErrorMessage(approvalError));
+      setError(approvalError instanceof ApiRequestError ? approvalError.message : discoveryWorkspaceErrorMessage(approvalError));
     } finally {
       setBusy(false);
     }

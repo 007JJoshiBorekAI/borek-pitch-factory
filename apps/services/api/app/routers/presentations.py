@@ -116,11 +116,13 @@ def get_journey_stage_eligibility(
     store: DataStoreDep,
     journey_stage: str | None = None,
 ) -> JourneyStageEligibilityResponse:
-    payload = journey_stage_eligibility.evaluate_opportunity_eligibility(
-        store,
-        opportunity_id=opportunity_id,
-        user_id=user.id,
-        requested_journey_stage=journey_stage,
+    payload = journey_stage_eligibility.apply_owner_concretisation_policy(
+        journey_stage_eligibility.evaluate_opportunity_eligibility(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user.id,
+            requested_journey_stage=journey_stage,
+        )
     )
     return journey_stage_eligibility.eligibility_response(payload)
 
@@ -136,6 +138,7 @@ def generate_presentation_plan(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> PresentationPlanGenerateResponse:
+    journey_stage_eligibility.reject_owner_concretisation(body.journey_stage)
     plan, job, is_existing = presentation_generation.enqueue_presentation_plan_generate(
         store,
         opportunity_id=opportunity_id,
@@ -171,6 +174,7 @@ def generate_presentation(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> PresentationGenerateResponse:
+    journey_stage_eligibility.reject_owner_concretisation(body.journey_stage)
     try:
         presentation, plan, job, is_existing = presentation_generation.enqueue_presentation_generate(
             store,
