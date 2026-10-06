@@ -65,22 +65,8 @@ def require_first_contact_client_documents(
         opportunity_id=opportunity_id,
         user_id=user_id,
     )
-    if processed:
-        return processed
-
-    transcripts = store.list_transcripts(
-        opportunity_id=opportunity_id,
-        user_id=user_id,
-    )
-    if transcripts:
-        raise bad_request(
-            "TRANSCRIPT_NOT_ALLOWED_FOR_FIRST_CONTACT",
-            "Meeting transcripts cannot be used for First contact. Upload client documents instead.",
-        )
-    raise bad_request(
-        "CLIENT_DOCUMENT_REQUIRED",
-        "Upload at least one client document before starting First contact research or generation.",
-    )
+    # Client documents are optional: generation proceeds with whatever info exists.
+    return processed
 
 
 def require_deepening_transcripts(
@@ -124,15 +110,6 @@ def assert_framework_generation_inputs(
             opportunity_id=opportunity_id,
             user_id=user_id,
         )
-        transcripts = store.list_transcripts(
-            opportunity_id=opportunity_id,
-            user_id=user_id,
-        )
-        if transcripts and not processed:
-            raise bad_request(
-                "TRANSCRIPT_NOT_ALLOWED_FOR_FIRST_CONTACT",
-                "Meeting transcripts cannot be used for First contact. Upload client documents instead.",
-            )
         return
     require_deepening_transcripts(
         store,

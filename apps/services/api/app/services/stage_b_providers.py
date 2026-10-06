@@ -131,7 +131,25 @@ class FixturePlanningClient:
 
 
 def _live_llm_client() -> LlmClient:
-    """Build the shared OpenAI-backed client without affecting fixture execution."""
+    """Build the shared live LLM client (Claude by default) without affecting fixture execution."""
+    if settings.STAGE_B_LLM_PROVIDER == "anthropic":
+        from llm.claude_executor import ClaudeStageBExecutor
+        from llm.claude.client import sonnet_model
+
+        api_key = settings.ANTHROPIC_API_KEY.strip()
+        if not api_key:
+            from llm.openai_executor import OpenAIProviderConfigurationError
+
+            raise OpenAIProviderConfigurationError(
+                "ANTHROPIC_API_KEY is required when AI_EXECUTION_MODE=live"
+            )
+        model = sonnet_model()
+        return LlmClient(
+            model=model,
+            executor=ClaudeStageBExecutor(api_key=api_key, model=model),
+            external_provider="anthropic",
+        )
+
     from llm.openai_executor import OpenAIResponsesExecutor
 
     api_key = settings.OPENAI_API_KEY.strip()

@@ -25,7 +25,17 @@ FIXED_LAYOUTS = frozenset({"who_we_are", "closing"})
 
 
 def is_borek_plan(plan_json: Any) -> bool:
-    return isinstance(plan_json, dict) and plan_json.get("engine") == PLAN_ENGINE
+    if not isinstance(plan_json, dict):
+        return False
+    if plan_json.get("engine") == PLAN_ENGINE:
+        return True
+    # Plans stored before the ``engine`` marker existed still carry finished slides in ``borekSlide``.
+    slides = plan_json.get("slides")
+    return (
+        isinstance(slides, list)
+        and bool(slides)
+        and all(isinstance(slide, dict) and isinstance(slide.get("borekSlide"), dict) for slide in slides)
+    )
 
 
 def is_borek_slide_specs(slide_specs: Any) -> bool:

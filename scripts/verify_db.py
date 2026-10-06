@@ -7,6 +7,7 @@ to the Supabase REST API (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY).
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import uuid
@@ -338,8 +339,12 @@ def verify_via_postgres(db_url: str) -> tuple[int, bool]:
                 policies = cur.fetchall()
             ok(f"{len(policies)} policies found")
             policy_tables = {row[0] for row in policies}
+            # Internal pipeline tables: RLS on, no policies by design (service role only).
+            service_only = {"knowledge_model_checkpoints", "transcript_summaries"}
             for table in EXPECTED_TABLES:
-                if table not in policy_tables:
+                if table in service_only and table not in policy_tables:
+                    ok(f"{table}: RLS on, service-role only (no policy by design)")
+                elif table not in policy_tables:
                     fail(f"{table}: no policy")
                     errors += 1
 
@@ -420,10 +425,17 @@ def verify_via_postgres(db_url: str) -> tuple[int, bool]:
                 cur.execute(
                     """
                     INSERT INTO opportunities (
-                      id, client_name, opportunity_name, department, created_by
-                    ) VALUES (%s, %s, %s, %s, %s)
+                      id, client_name, opportunity_name, department, created_by, pitch_owner
+                    ) VALUES (%s, %s, %s, %s, %s, %s::jsonb)
                     """,
-                    (test_id, "Verify Client", "Verify Opp", "IT", user_id),
+                    (
+                        test_id,
+                        "Verify Client",
+                        "Verify Opp",
+                        "IT",
+                        user_id,
+                        json.dumps({"source": "employee", "employee_id": str(user_id)}),
+                    ),
                 )
                 cur.execute("SELECT count(*) FROM opportunities WHERE id = %s", (test_id,))
                 if cur.fetchone()[0] == 1:
@@ -455,7 +467,8 @@ def verify_via_rest(supabase_url: str, service_role_key: str) -> int:
             response = client.get(
                 f"{supabase_url}/rest/v1/{table}",
                 headers=headers,
-                params={"select": "id", "limit": "0"},
+                # Not every table has an id column (user_roles, transcript_summaries, ...).
+                params={"select": "*", "limit": "0"},
             )
             if response.status_code in (200, 206):
                 ok(table)
@@ -475,6 +488,7 @@ def verify_via_rest(supabase_url: str, service_role_key: str) -> int:
                 "opportunity_name": "Verify Opp",
                 "department": "IT",
                 "created_by": user_id,
+                "pitch_owner": {"source": "employee", "employee_id": user_id},
             },
         )
         if insert.status_code not in (200, 201, 204):

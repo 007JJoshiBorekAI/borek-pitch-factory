@@ -537,7 +537,12 @@ def _framework_for_plan_storage(
             user_id=user_id,
         )
     if framework["status"] != "confirmed":
-        framework = store.confirm_framework(
+        # Framework rows are immutable (migration 025); confirming appends a
+        # confirmed successor version instead of patching the row in place.
+        from app.services.framework_generation import confirm_framework
+
+        framework = confirm_framework(
+            store,
             opportunity_id=opportunity_id,
             user_id=user_id,
             framework_version_id=framework["id"],

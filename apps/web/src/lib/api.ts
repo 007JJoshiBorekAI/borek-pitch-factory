@@ -130,7 +130,7 @@ export async function getActiveJob(
   const query = stageGroup ? `?stage_group=${stageGroup}` : "";
   try {
     return await apiFetch<ActiveJobResponse>(
-      `/opportunities/${opportunityId}/jobs/active${query}`,
+      `/opportunities/${resolveBackendOpportunityId(opportunityId)}/jobs/active${query}`,
       accessToken,
     );
   } catch (error) {
@@ -218,7 +218,7 @@ export interface AvailableUseCase {
 }
 
 function opportunityPath(opportunityId: string): string {
-  return `/opportunities/${opportunityId}`;
+  return `/opportunities/${resolveBackendOpportunityId(opportunityId)}`;
 }
 
 export interface PreviewClientSeed {
@@ -279,6 +279,12 @@ export async function ensureBackendOpportunityId(
   map[opportunityId] = created.id;
   window.localStorage.setItem(BACKEND_OPPORTUNITY_MAP_KEY, JSON.stringify(map));
   return created.id;
+}
+
+/** Map a local preview id to its backend UUID (created during Discovery generation). */
+export function resolveBackendOpportunityId(opportunityId: string): string {
+  if (UUID_RE.test(opportunityId)) return opportunityId;
+  return readBackendOpportunityMap()[opportunityId] ?? opportunityId;
 }
 
 export async function generateDiscoveryPaper(

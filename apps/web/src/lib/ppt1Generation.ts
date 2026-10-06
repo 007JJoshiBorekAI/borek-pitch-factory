@@ -5,6 +5,7 @@ import {
   getJob,
   getStage1Outputs,
   getWorkflowStatus,
+  resolveBackendOpportunityId,
   waitForJob,
   type JobResponse,
   type Stage1OutputsEnvelope,
@@ -26,12 +27,21 @@ function presentationOf(envelope: Stage1OutputsEnvelope) {
  */
 export async function generateAndAwaitFirstPitch(
   accessToken: string,
-  opportunityId: string,
+  previewOrBackendId: string,
   onJob?: (job: JobResponse) => void,
 ): Promise<FirstPitchResult> {
+  const opportunityId = resolveBackendOpportunityId(previewOrBackendId);
   const started = await generateStage1Outputs(accessToken, opportunityId);
   let presentation = presentationOf(started);
   let jobId: string | null = null;
+
+  if (presentation?.status === "failed") {
+    throw new ApiRequestError(
+      `PPT #1 generation failed: ${presentation.code ?? "unknown error"}`,
+      409,
+      presentation.code ?? "PPT1_FAILED",
+    );
+  }
 
   if (presentation?.status !== "ready") {
     const active = await getActiveJob(accessToken, opportunityId, "presentation");

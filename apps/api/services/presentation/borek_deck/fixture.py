@@ -56,17 +56,124 @@ def deterministic_pre_meeting_deck(approved_discovery: dict[str, Any]) -> dict[s
         },
         {"layout": "who_we_are"},
     ]
-    content_pages = []
-    for key in _PAGE_KICKERS:
-        lines = _lines(pages.get(key, {}).get("content"), drop=is_ppt1_commercial_text)
-        if lines:
-            content_pages.append((key, lines))
-    if len(content_pages) > _PRE_MAX_PAGES:
-        content_pages = content_pages[: _PRE_MAX_PAGES - 1] + content_pages[-1:]
-    for key, lines in content_pages:
-        slides.append(_list_slide(*_PAGE_KICKERS[key], lines, [f"discovery.{key}"]))
+    slides.extend(_pre_meeting_content_slides(pages))
     slides.append({"layout": "closing", "title": "Let’s talk", "tagline": "We look forward to the conversation.", "sources": []})
     return {"slides": slides}
+
+
+_PANEL_KICKER = "For the meeting"
+_PANEL_TEXT = "Everything on this slide is a basis for discussion in our first meeting."
+
+
+def _usable(pages: dict[str, dict[str, Any]], key: str) -> list[str]:
+    return _lines(pages.get(key, {}).get("content"), drop=is_ppt1_commercial_text)
+
+
+def _pair(line: str, title_limit: int = 30, text_limit: int = 150) -> tuple[str, str]:
+    """``label: value`` -> (label, value); free text -> (first words, whole sentence)."""
+    label, _, value = line.partition(": ")
+    if value and len(label) <= title_limit:
+        return label.strip().capitalize(), _clip(value, text_limit)
+    short = " ".join(line.split()[:4])
+    return _clip(short, title_limit), _clip(line, text_limit)
+
+
+def _pairs(lines: list[str], limit: int, title_limit: int, text_limit: int) -> list[tuple[str, str]]:
+    """(title, text) per line. A repeated field name (``items: ...``) is not a title.
+
+    Unlabelled sentences become the card title on their own (cards wrap it), so nothing repeats.
+    """
+    pairs = [_pair(line, title_limit, text_limit) for line in lines[:limit]]
+    if len({title.lower() for title, _ in pairs}) < len(pairs):
+        pairs = [(_clip(line.partition(": ")[2] or line, 64), "") for line in lines[:limit]]
+    return pairs
+
+
+def _bullets(lines: list[str], limit: int = 4, size: int = 92) -> list[str]:
+    return [_clip(line.partition(": ")[2] or line, size) for line in lines[:limit]]
+
+
+def _pre_meeting_content_slides(pages: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Content slides in the layouts of the first deck: contrast, pillars, notes, phased steps, process.
+
+    Every slide uses only approved Discovery lines. A topic without approved content gets no slide,
+    so the deck never exceeds cover + who_we_are + 5 content slides + closing = 8.
+    """
+    context, opportunity = _usable(pages, "client_context"), _usable(pages, "opportunity")
+    approach, use_case = _usable(pages, "borek_approach"), _usable(pages, "relevant_use_case")
+    pilot, next_steps = _usable(pages, "pilot_proposal"), _usable(pages, "next_steps")
+    panel = {"kicker": _PANEL_KICKER, "text": _PANEL_TEXT}
+    out: list[dict[str, Any]] = []
+
+    if context and opportunity:
+        out.append(
+            {
+                "layout": "contrast",
+                "kicker": "Client context",
+                "title": "Where you are, where we could help",
+                "lead": _clip(context[0].partition(": ")[2] or context[0], 150),
+                "left": {"label": "Context", "title": "What we know", "bullets": _bullets(context[1:] or context)},
+                "right": {"label": "Opportunity", "title": "What we want to explore", "bullets": _bullets(opportunity)},
+                "statement": dict(panel),
+                "sources": ["discovery.client_context", "discovery.opportunity"],
+            }
+        )
+    else:
+        for key, lines in (("client_context", context), ("opportunity", opportunity)):
+            if lines:
+                out.append(_list_slide(*_PAGE_KICKERS[key], lines, [f"discovery.{key}"]))
+
+    if approach:
+        cards = []
+        for index, (title, text) in enumerate(_pairs(approach, 5, 24, 120), start=1):
+            cards.append({"n": f"{index:02d}", "title": title, "text": text})
+        out.append(
+            {
+                "layout": "pillars",
+                "kicker": "Our approach",
+                "title": "How Borek would approach it",
+                "lead": "Our proposed approach, based on what we heard.",
+                "cards": cards,
+                "statement": dict(panel),
+                "sources": ["discovery.borek_approach"],
+            }
+        )
+
+    if use_case:
+        out.append(_list_slide(*_PAGE_KICKERS["relevant_use_case"], use_case, ["discovery.relevant_use_case"]))
+
+    if pilot:
+        steps = []
+        for index, (title, text) in enumerate(_pairs(pilot, 4, 28, 130), start=1):
+            steps.append({"when": f"Step {index}", "title": title, "text": text})
+        out.append(
+            {
+                "layout": "phased",
+                "kicker": "Pilot",
+                "title": "A possible pilot",
+                "lead": "A proposal to discuss, not a commitment.",
+                "steps": steps,
+                "panel": dict(panel),
+                "sources": ["discovery.pilot_proposal"],
+            }
+        )
+
+    if next_steps:
+        stages = []
+        for index, (title, text) in enumerate(_pairs(next_steps, 3, 28, 150), start=1):
+            stages.append({"n": f"{index:02d}", "title": title, "text": text})
+        out.append(
+            {
+                "layout": "process",
+                "kicker": "Next steps",
+                "title": "How we proceed",
+                "lead": "Proposals for the meeting, not commitments.",
+                "stages": stages,
+                "panel": dict(panel),
+                "sources": ["discovery.next_steps"],
+            }
+        )
+    return out[:_PRE_MAX_PAGES]
 
 
 def deterministic_post_meeting_deck(ppt2_input: dict[str, Any]) -> dict[str, Any]:

@@ -78,6 +78,10 @@ client_confidential_allowlist:
     - "/borekDeckBrief"
   anthropic:
     - "/user"
+    - "/frameworkObject"
+    - "/chapters"
+    - "/offendingValues"
+    - "/borekDeckBrief"
 
 requirements:
   unclassified_fields: deny

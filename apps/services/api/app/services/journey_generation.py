@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -314,6 +315,7 @@ def generate_stage1_outputs(store: Any, *, opportunity_id: UUID, user_id: UUID) 
             on_enqueued=mark_queued,
         )
     except Exception as exc:
+        logging.getLogger(__name__).exception("PPT #1 enqueue failed: %s", exc)
         detail = getattr(exc, "detail", None)
         eligibility_code = detail.get("code") if isinstance(detail, dict) else None
         _stage1_presentation_update(

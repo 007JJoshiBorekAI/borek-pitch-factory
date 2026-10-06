@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     )
     AUTH_BYPASS_USER_ID: str = Field(default="db65c438-deeb-4d51-923d-843844d5f254")
     AUTH_BYPASS_EMAIL: str = Field(default="arvanit.telaku@boreksolutions.de")
+    STAGE_B_LLM_PROVIDER: Literal["anthropic", "openai"] = Field(
+        default="anthropic",
+        description="Live LLM provider for Stage B planning, slide generation and compression",
+    )
     OPENAI_API_KEY: str = Field(
         default="",
         description="Required only when AI_EXECUTION_MODE=live",

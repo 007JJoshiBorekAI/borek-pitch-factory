@@ -48,11 +48,25 @@ def test_runtime_warnings_flag_live_without_openai_key() -> None:
         Settings(
             _env_file=None,
             AI_EXECUTION_MODE="live",
+            STAGE_B_LLM_PROVIDER="openai",
             OPENAI_API_KEY="",
             API_DATA_BACKEND="supabase",
         )
     )
     assert any("OPENAI_API_KEY" in warning for warning in warnings)
+
+
+def test_runtime_warnings_do_not_require_openai_key_for_claude() -> None:
+    warnings = runtime_warnings(
+        Settings(
+            _env_file=None,
+            AI_EXECUTION_MODE="live",
+            STAGE_B_LLM_PROVIDER="anthropic",
+            OPENAI_API_KEY="",
+            API_DATA_BACKEND="supabase",
+        )
+    )
+    assert not any("OPENAI_API_KEY" in warning for warning in warnings)
 
 
 def test_runtime_warnings_flag_live_filing_without_repository() -> None:

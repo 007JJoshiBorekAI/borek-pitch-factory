@@ -75,7 +75,11 @@ def runtime_warnings(current: Settings | None = None) -> list[str]:
         warnings.append(_PRODUCTION_FIXTURE_REFUSAL)
     if cfg.API_DATA_BACKEND == "supabase" and cfg.AI_EXECUTION_MODE == "fixture":
         warnings.append(_FIXTURE_WITH_SUPABASE_WARNING)
-    if cfg.AI_EXECUTION_MODE == "live" and not cfg.OPENAI_API_KEY.strip():
+    if (
+        cfg.AI_EXECUTION_MODE == "live"
+        and cfg.STAGE_B_LLM_PROVIDER == "openai"
+        and not cfg.OPENAI_API_KEY.strip()
+    ):
         warnings.append(
             "AI_EXECUTION_MODE=live but OPENAI_API_KEY is empty: presentation planning will fail."
         )
