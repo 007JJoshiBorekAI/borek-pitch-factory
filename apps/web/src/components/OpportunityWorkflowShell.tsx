@@ -26,8 +26,8 @@ export function OpportunityWorkflowShell({ fixture, children }: OpportunityWorkf
     ? "pre_meeting"
     : "post_meeting";
   const readyPages = preview?.discovery.pages.filter((page) => page.state === "ready").length ?? 0;
-  const workspaceProgress = pathname.endsWith("/presentations") && preview?.presentation.state === "ready"
-    ? `${preview.presentation.slide_count} of ${preview.presentation.slide_count} slides ready`
+  const workspaceProgress = pathname.endsWith("/presentations")
+    ? `${preview?.presentation.slide_count ?? 0} of 7 slides ready`
     : `${readyPages} of 7 pages ready`;
   return (
     <RequireAuth>
@@ -36,7 +36,7 @@ export function OpportunityWorkflowShell({ fixture, children }: OpportunityWorkf
         <main className="discovery-workflow-main">
           <div className="discovery-workflow-heading">
             <div>
-              <p className="discovery-workflow-kicker">{copy.workflow.opportunity} {preview?.client.values.company_name ?? fixture.opportunity_id}</p>
+              <p className="discovery-workflow-kicker">{activeSection === "pre_meeting" ? copy.sidebar.preMeeting : copy.sidebar.postMeeting} · {preview?.client.values.company_name ?? fixture.client_information.company_name}</p>
               <h2>{copy.workflow.creating}</h2>
               <p className="discovery-workflow-meta">{workspaceProgress}</p>
             </div>

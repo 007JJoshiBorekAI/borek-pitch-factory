@@ -14,6 +14,51 @@
   --pitch-orange: #db3d00;
   --pitch-red: #dd3d00;
   --pitch-teal: #02a69f;
+  --pitch-control-radius: 6px;
+  --pitch-panel-radius: 8px;
+  --pitch-text-title: 1.75rem;
+  --pitch-text-section: 1.125rem;
+  --pitch-text-body: 0.875rem;
+  --pitch-text-label: 0.75rem;
+  --pitch-text-caption: 0.6875rem;
+  --pitch-weight-regular: 400;
+  --pitch-weight-medium: 500;
+  --pitch-weight-semibold: 600;
+  --pitch-weight-bold: 700;
+  --pitch-leading-heading: 1.3;
+  --pitch-leading-body: 1.6;
+}
+
+/* Keep the viewport vertical-only; workspace content wraps within its tracks. */
+html:has(.app-workspace),
+body:has(.app-workspace) {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.app-workspace,
+.app-workspace * {
+  min-width: 0;
+}
+
+.app-workspace {
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.app-workspace :is(button, .btn) {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.app-workspace :is(img, video, canvas, iframe) {
+  max-width: 100%;
+}
+
+.app-workspace pre {
+  white-space: pre-wrap;
 }
 
 .app-workspace:has(.pitch-sidebar) {
@@ -23,6 +68,13 @@
   min-height: 100vh;
   background: #fff;
   color: var(--pitch-navy);
+  overflow-x: clip;
+}
+
+.app-workspace:has(.pitch-sidebar) > .pitch-topbar,
+.app-workspace:has(.pitch-sidebar) > main {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .pitch-sidebar {
@@ -31,7 +83,8 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border-right: 1px solid var(--pitch-gray-200);
   padding: 36px 28px;
   background: #fff;
@@ -111,6 +164,7 @@
 
 .pitch-topline {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
@@ -125,12 +179,14 @@
 
 .pitch-header-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
 }
 
 .pitch-title-underline {
   width: 230px;
+  max-width: 100%;
   height: 3px;
   margin-top: 20px;
   background: var(--pitch-teal);
@@ -440,7 +496,8 @@
   grid-column: 2;
   grid-row: 2;
   max-width: 1500px;
-  width: 100%;
+  width: auto;
+  justify-self: stretch;
   margin: 0;
   padding: 8px 48px 60px;
 }
@@ -1335,9 +1392,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 24px;
-  padding-bottom: 18px;
-  border-bottom: 3px solid var(--pitch-teal);
+  margin-bottom: 18px;
 }
 
 .discovery-workflow-kicker,
@@ -1353,7 +1408,13 @@
 .discovery-workflow-heading h2 {
   margin: 0;
   font-size: 2rem;
-  font-weight: 500;
+  font-weight: 400;
+}
+
+.discovery-workflow-meta {
+  margin: 6px 0 0;
+  color: var(--pitch-gray-500);
+  font-size: 0.8rem;
 }
 
 .discovery-fixture-badge {
@@ -1366,13 +1427,11 @@
 
 .discovery-workflow-stepper {
   margin-bottom: 20px;
-  overflow-x: auto;
 }
 
 .discovery-workflow-stepper ol {
   display: grid;
-  grid-template-columns: repeat(8, minmax(120px, 1fr));
-  min-width: 960px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1541,6 +1600,7 @@
   padding: 18px;
   background: var(--pitch-gray-50);
   border-bottom: 0;
+  border-radius: 6px;
 }
 
 .client-form-section legend {
@@ -1568,18 +1628,20 @@
 }
 
 .client-information-form input,
-.client-information-form textarea {
+.client-information-form textarea,
+.client-information-form select {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid var(--pitch-gray-200);
-  border-radius: 0;
+  border-radius: 6px;
   background: #fff;
   color: var(--pitch-navy);
   resize: vertical;
 }
 
 .client-information-form input:focus-visible,
-.client-information-form textarea:focus-visible {
+.client-information-form textarea:focus-visible,
+.client-information-form select:focus-visible {
   outline: 3px solid rgba(18, 79, 148, 0.22);
   outline-offset: 1px;
   border-color: var(--pitch-blue);
@@ -1596,6 +1658,7 @@
 
 .client-information-form-actions {
   display: flex !important;
+  flex-wrap: wrap;
   justify-content: flex-end;
   flex-direction: row;
   gap: 10px !important;
@@ -1616,7 +1679,7 @@
 
 .workflow-artifact-tabs [role="tablist"] {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   border-bottom: 5px solid var(--pitch-gray-100);
 }
 
@@ -1741,6 +1804,7 @@
 .discovery-page-toolbar,
 .discovery-version-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
@@ -2005,6 +2069,112 @@
   color: #9a5b00;
 }
 
+.client-information-form select:disabled {
+  background: var(--pitch-gray-50);
+  color: var(--pitch-gray-600);
+  opacity: 1;
+}
+
+.client-logo-upload {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 1px 10px;
+  min-height: 54px;
+  padding: 9px 12px;
+  border: 1px solid var(--pitch-gray-200);
+  background: var(--pitch-gray-50);
+  cursor: pointer;
+  border-radius: 6px;
+  text-transform: none !important;
+}
+
+.client-pitch-upload {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 2px 10px;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px dashed var(--pitch-gray-200);
+  background: #fff;
+  cursor: pointer;
+  border-radius: 6px;
+  text-transform: none !important;
+}
+
+.client-pitch-upload > span {
+  display: grid;
+  grid-row: 1 / 3;
+  place-items: center;
+  color: var(--pitch-blue);
+  font-size: 1.25rem;
+}
+
+.client-pitch-upload strong {
+  color: var(--pitch-navy);
+  font-size: 0.76rem;
+}
+
+.client-pitch-upload small {
+  overflow: hidden;
+  color: var(--pitch-gray-500);
+  font-size: 0.68rem;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.client-pitch-upload.is-disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.premeeting-pitch-fields > .is-wide:first-child {
+  grid-column: 1 / -1;
+}
+
+.client-logo-upload > span {
+  display: grid;
+  grid-row: 1 / 3;
+  place-items: center;
+  border: 1px solid var(--pitch-gray-200);
+  background: #fff;
+  color: var(--pitch-blue);
+  font-size: 1rem;
+}
+
+.client-logo-upload strong {
+  overflow: hidden;
+  color: var(--pitch-blue);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-logo-upload small,
+.client-input-help,
+.client-section-help {
+  color: var(--pitch-gray-500);
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.client-logo-upload.is-disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.client-section-help {
+  margin: -11px 0 14px;
+}
+
+.workflow-state-badge.is-failed {
+  border-color: var(--pitch-red);
+  color: #a9321b;
+}
+
 .presentation-preview {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 180px;
@@ -2074,8 +2244,32 @@
   animation: presentation-spin 0.8s linear infinite;
 }
 
+.presentation-failed {
+  display: grid;
+  min-height: 300px;
+  place-content: center;
+  justify-items: center;
+  padding: 28px;
+  border-left: 3px solid var(--pitch-red);
+  background: #fff3f0;
+  text-align: center;
+}
+
 @keyframes presentation-spin {
   to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presentation-generating > span {
+    animation: none;
+  }
+
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 .workflow-presentation-card h2,
@@ -2298,6 +2492,211 @@
   }
 }
 
+/* Discovery application chrome follows pre meeting 2; the paper stays square. */
+.artifact-preview-workspace .workflow-artifact-tabs {
+  margin-bottom: 6px;
+}
+
+.artifact-preview-workspace .workflow-artifact-tabs [role="tablist"],
+.artifact-preview-workspace .workflow-artifact-tabs [role="tab"] {
+  border-bottom: 0;
+}
+
+.artifact-preview-workspace .workflow-artifact-tabs [role="tab"]:not(.is-active) {
+  background: var(--pitch-gray-50);
+}
+
+.discovery-progress {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  margin-bottom: 10px;
+  border: 0;
+  border-radius: var(--pitch-control-radius);
+  overflow: hidden;
+  background: var(--pitch-gray-50);
+  color: var(--pitch-blue);
+}
+
+.discovery-progress::-webkit-progress-bar { background: var(--pitch-gray-50); }
+.discovery-progress::-webkit-progress-value { background: var(--pitch-blue); }
+.discovery-progress::-moz-progress-bar { background: var(--pitch-blue); }
+
+.artifact-preview-workspace .workflow-artifact-grid {
+  grid-template-columns: minmax(220px, 0.29fr) minmax(0, 0.71fr);
+  align-items: stretch;
+  gap: 20px;
+}
+
+.artifact-preview-workspace :is(.workflow-page-list, .workflow-preview-panel) {
+  border-radius: var(--pitch-control-radius);
+}
+
+.artifact-preview-workspace .workflow-page-list { padding: 14px; }
+.artifact-preview-workspace .workflow-preview-panel { padding: 0; }
+
+.discovery-list-heading {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--pitch-gray-200);
+  color: var(--pitch-gray-500);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+}
+
+.artifact-preview-workspace .workflow-page-list li {
+  border-left: 0;
+  border-radius: var(--pitch-control-radius);
+}
+
+.artifact-preview-workspace .workflow-page-list li > button {
+  align-items: center;
+  padding: 8px 4px;
+  gap: 10px;
+  border-radius: var(--pitch-control-radius);
+}
+
+.discovery-thumbnail {
+  display: flex;
+  flex: 0 0 42px;
+  flex-direction: column;
+  gap: 5px;
+  height: 60px;
+  padding: 5px;
+  border: 1px solid var(--pitch-gray-200);
+  background: #fff;
+}
+
+.discovery-thumbnail i { height: 3px; background: var(--pitch-gray-50); }
+.discovery-thumbnail i:first-child { background: var(--pitch-navy); }
+.discovery-thumbnail i:last-child { width: 60%; }
+.discovery-thumbnail:not(.is-ready) { background: var(--pitch-gray-50); }
+.discovery-thumbnail:not(.is-ready) i:not(:first-child) { visibility: hidden; }
+
+.discovery-page-label { flex: 1; display: grid; gap: 5px; font-size: 0.75rem; }
+.discovery-page-label strong { display: flex; gap: 8px; align-items: baseline; }
+.artifact-preview-workspace .workflow-page-list small.is-ready { color: var(--pitch-blue); }
+
+.discovery-status-mark {
+  display: grid;
+  flex: 0 0 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid var(--pitch-gray-200);
+  border-radius: 50%;
+  color: var(--pitch-blue);
+  background: #fff;
+  font-size: 0.7rem;
+}
+
+.discovery-status-mark svg { width: 14px; height: 14px; }
+.discovery-status-mark i { width: 6px; height: 6px; border-radius: 50%; background: var(--pitch-gray-200); }
+.discovery-status-mark.is-generating i { background: #b36a00; }
+.discovery-status-mark.is-failed { color: var(--pitch-red); }
+
+.artifact-preview-workspace .discovery-page-toolbar {
+  margin: 0;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--pitch-gray-200);
+}
+
+.artifact-preview-workspace .discovery-page-toolbar .btn { padding: 5px 10px; font-size: 0.75rem; }
+.discovery-preview-content { padding: 20px; }
+
+.discovery-document-workspace .discovery-ready-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
+  min-height: 0;
+  aspect-ratio: 210 / 297;
+  padding: clamp(16px, 2vw, 24px);
+  border-radius: 0;
+}
+
+.discovery-paper-header {
+  height: 9px;
+  margin-bottom: 10px;
+  border-top: 3px solid var(--pitch-navy);
+  border-bottom: 2px solid var(--pitch-teal);
+}
+
+.discovery-document-workspace .discovery-page-eyebrow { font-size: 0.6rem; margin-bottom: 8px; }
+.discovery-document-workspace .discovery-ready-page h2 { font-size: 1.1rem; font-weight: 600; line-height: 1.4; margin-bottom: 16px; }
+.discovery-paper-body { color: var(--pitch-gray-500); font-size: 0.8rem; line-height: 1.7; white-space: pre-wrap; }
+.discovery-paper-body p { margin: 0 0 14px; }
+.discovery-paper-footer { display: grid; gap: 4px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--pitch-gray-200); color: var(--pitch-gray-500); font-size: 0.58rem; }
+.discovery-preview-caption { margin: 16px 0; color: var(--pitch-gray-500); font-size: 0.75rem; }
+.discovery-document-workspace .discovery-source-list { margin: 0 0 16px; }
+
+.discovery-generation-card,
+.discovery-download-card {
+  padding: 16px;
+  border: 1px solid var(--pitch-gray-200);
+  border-radius: var(--pitch-control-radius);
+  background: #fff;
+  font-size: 0.78rem;
+}
+
+.discovery-generation-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.discovery-generation-card p,
+.discovery-download-card > p { margin: 5px 0 0; color: var(--pitch-gray-500); font-size: 0.72rem; }
+.artifact-preview-workspace .discovery-version-actions { justify-content: flex-start; gap: 10px; border-top: 0; margin-top: 12px; padding-top: 0; }
+.artifact-preview-workspace .discovery-version-actions .btn { font-size: 0.75rem; padding: 9px 12px; }
+.discovery-document-workspace .discovery-gate-copy { text-align: left; margin: 0; }
+.discovery-version-label { display: block; margin-top: 12px; color: var(--pitch-gray-500); }
+.discovery-document-workspace .discovery-page-editor > div { flex-wrap: wrap; }
+
+@media (max-width: 960px) {
+  .artifact-preview-workspace .workflow-artifact-grid { grid-template-columns: minmax(0, 1fr); }
+  .artifact-preview-workspace .workflow-page-list ol { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .discovery-preview-content { padding: 12px; }
+  .artifact-preview-workspace .discovery-version-actions { flex-direction: column; align-items: stretch; }
+}
+
+.presentation-document-workspace .presentation-thumbnail {
+  flex-basis: 58px;
+  height: 36px;
+  gap: 3px;
+}
+
+.presentation-slide-canvas {
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 16 / 9;
+  padding: clamp(16px, 2.5vw, 32px);
+  border: 1px solid var(--pitch-gray-200);
+  border-top: 2px solid var(--pitch-teal);
+  border-radius: 0;
+  background: #fff;
+}
+
+.presentation-slide-canvas h2 {
+  margin: 8px 0 24px;
+  font-size: var(--pitch-text-section);
+  font-weight: var(--pitch-weight-regular);
+  line-height: var(--pitch-leading-heading);
+}
+
+.presentation-slide-body {
+  flex: 1;
+  color: var(--pitch-gray-500);
+  font-size: var(--pitch-text-label);
+  line-height: var(--pitch-leading-body);
+  white-space: pre-wrap;
+}
+
+.presentation-slide-body p { margin: 0 0 12px; }
+.presentation-slide-canvas footer { margin-top: 24px; font-size: var(--pitch-text-caption); color: var(--pitch-gray-500); }
+.presentation-slide-state { justify-content: center; text-align: center; }
+.presentation-view-only { font-size: var(--pitch-text-caption); color: var(--pitch-gray-500); }
+
 .clients-main,
 .new-client-main {
   grid-column: 2;
@@ -2337,7 +2736,7 @@
 
 .clients-controls {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
   margin-bottom: 18px;
 }
@@ -2358,6 +2757,7 @@
 
 .clients-phase-filter {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -2387,12 +2787,12 @@
 }
 
 .clients-table-wrap {
-  overflow-x: auto;
   border: 1px solid var(--pitch-gray-200);
 }
 
 .clients-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.82rem;
 }
@@ -2428,7 +2828,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .clients-status i {
@@ -2444,7 +2844,7 @@
 
 .clients-open {
   display: inline-flex;
-  min-width: 104px;
+  max-width: 100%;
   justify-content: center;
   padding: 8px 12px;
   border: 1px solid var(--pitch-gray-200);
@@ -2480,6 +2880,8 @@
 .new-client-main {
   width: 100%;
   max-width: 1280px;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 .premeeting-intro {
@@ -2499,6 +2901,12 @@
   font-size: 0.85rem;
 }
 
+.premeeting-intro .premeeting-breadcrumb {
+  margin-bottom: 8px;
+  color: var(--pitch-gray-500);
+  font-size: 0.72rem;
+}
+
 .premeeting-create-steps {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -2506,6 +2914,7 @@
   padding: 15px 20px;
   list-style: none;
   background: var(--pitch-gray-50);
+  border-radius: 8px;
 }
 
 .premeeting-create-steps li {
@@ -2569,11 +2978,14 @@
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 26px;
   align-items: stretch;
+  min-width: 0;
 }
 
 .new-client-main .discovery-client-information.is-create {
   padding: 24px;
   border: 1px solid var(--pitch-gray-200);
+  border-radius: 8px;
+  min-width: 0;
 }
 
 .new-client-main .discovery-client-information.is-create > header {
@@ -2633,6 +3045,8 @@
   flex-direction: column;
   padding: 24px;
   background: var(--pitch-gray-50);
+  border-radius: 8px;
+  min-width: 0;
 }
 
 .premeeting-create-summary > p {
@@ -2720,12 +3134,12 @@
 
   .pitch-sidebar nav ul {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
-    overflow-x: auto;
   }
 
   .pitch-sidebar nav li {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     border-left: 0;
     border-bottom: 3px solid transparent;
   }
@@ -2756,11 +3170,11 @@
   }
 
   .clients-phase-filter {
-    overflow-x: auto;
+    flex-wrap: wrap;
   }
 
   .clients-phase-filter a {
-    min-width: max-content;
+    min-width: 0;
   }
 
   .clients-table-wrap {
@@ -2809,4 +3223,55 @@
   .clients-open {
     width: 100%;
   }
+}
+
+/* Shared application text roles. Artifact master typography and login are separate. */
+.app-workspace {
+  font-family: var(--font-body);
+  font-size: var(--pitch-text-body);
+  font-weight: var(--pitch-weight-regular);
+  line-height: var(--pitch-leading-body);
+}
+
+.app-workspace :is(.premeeting-intro h1, .clients-heading h2, .discovery-workflow-heading h2, .pitch-greet, .workflow-section-header h1) {
+  font-size: var(--pitch-text-title);
+  font-weight: var(--pitch-weight-regular);
+  line-height: var(--pitch-leading-heading);
+}
+
+.app-workspace :is(.pitch-page-title, .premeeting-create-summary > h2, .workflow-standard-page h2),
+.new-client-main .discovery-client-information.is-create > header h2 {
+  font-size: var(--pitch-text-section);
+  font-weight: var(--pitch-weight-medium);
+  line-height: var(--pitch-leading-heading);
+}
+
+.app-workspace :is(.btn, input, select, textarea) {
+  font-family: inherit;
+  font-size: var(--pitch-text-body);
+  line-height: 1.5;
+}
+
+.app-workspace :is(input, select, textarea) { font-weight: var(--pitch-weight-regular); }
+.app-workspace :is(strong, .btn) { font-weight: var(--pitch-weight-semibold); }
+
+.app-workspace :is(.client-information-form label, .discovery-page-editor label, .discovery-page-label, .workflow-artifact-tabs [role="tab"]) {
+  font-size: var(--pitch-text-label);
+  font-weight: var(--pitch-weight-medium);
+  line-height: 1.5;
+}
+
+.app-workspace .workflow-artifact-tabs [role="tab"].is-active { font-weight: var(--pitch-weight-semibold); }
+
+.app-workspace :is(.workflow-panel-label, .discovery-list-heading, .discovery-workflow-kicker, .client-form-section legend) {
+  font-size: var(--pitch-text-caption);
+  font-weight: var(--pitch-weight-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.app-workspace :is(.discovery-preview-caption, .discovery-version-label, .discovery-page-label small, .client-input-help, .discovery-workflow-meta) {
+  font-size: var(--pitch-text-label);
+  font-weight: var(--pitch-weight-regular);
+  line-height: 1.5;
 }

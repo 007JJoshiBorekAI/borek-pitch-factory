@@ -46,3 +46,12 @@ tmp/
 .tmp_*/
 .tmp_*.txt
 .tmp_*.tsx
+
+# Local product workflow and visual-reference files
+ui snippets/
+docs/CURRENT_CONTEXT.md
+docs/IMPLEMENTATION_PLAN_DISCOVERY_FIRST.md
+docs/MAYANK_IMPLEMENTATION_PLAN.md
+docs/MAYANK_TICKETS.md
+docs/OBSIDIAN_CONTEXT.md
+docs/README.md

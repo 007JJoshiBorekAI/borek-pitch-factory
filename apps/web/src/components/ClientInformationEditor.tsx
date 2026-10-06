@@ -11,7 +11,11 @@ import {
   clientInformationErrorMessage,
   createFixtureClientInformationAdapter,
   normalizeClientInformation,
+  normalizeClientInformationExtras,
   validateClientInformation,
+  validateClientInformationExtras,
+  type ClientInformationExtraErrors,
+  type ClientInformationExtras,
   type ClientInformationField,
   type ClientInformationFieldErrors,
   type ClientInformationRecord,
@@ -32,8 +36,37 @@ const FIELDS: Array<{
   { key: "contact_person", required: true },
   { key: "website_url", type: "url", required: true },
   { key: "meeting_purpose", multiline: true, required: true },
-  { key: "additional_information", multiline: true },
+  { key: "additional_information", multiline: true, required: true },
 ];
+
+const CREATE_DRAFT_STORAGE_KEY = "borek-premeeting-create-draft-v1";
+
+interface CreateDraft {
+  step: 1 | 2 | 3;
+  values: ClientInformationViewModel;
+  extras: ClientInformationExtras;
+}
+
+const EMPTY_EXTRAS: ClientInformationExtras = {
+  company_logo_name: "",
+  business_industry: "",
+  contact_phone: "",
+  contact_position: "",
+  pitch_notes: "",
+  pitch_file_names: [],
+  additional_opportunity_information: "",
+};
+
+const INDUSTRIES = [
+  "Automotive and mobility",
+  "Consumer and retail",
+  "Financial services",
+  "Healthcare",
+  "Industrial and manufacturing",
+  "Professional services",
+  "Technology and software",
+  "Other",
+] as const;
 
 export function ClientInformationEditor({ initialRecord }: ClientInformationEditorProps) {
   const router = useRouter();
@@ -46,6 +79,8 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
   const [editing, setEditing] = useState(initialRecord.opportunity_id === "new");
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ClientInformationFieldErrors>({});
+  const [extras, setExtras] = useState<ClientInformationExtras>(EMPTY_EXTRAS);
+  const [extraErrors, setExtraErrors] = useState<ClientInformationExtraErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
@@ -66,6 +101,60 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
     setRecord(preview.client);
     setDraft(preview.client.values);
   }, [createMode, getOpportunity, initialRecord.opportunity_id]);
+
+  useEffect(() => {
+    if (!createMode) return;
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(CREATE_DRAFT_STORAGE_KEY) ?? "null") as Partial<CreateDraft> | null;
+      if (!stored || !stored.values || (stored.step !== 2 && stored.step !== 3)) return;
+      setDraft({ ...initialRecord.values, ...stored.values });
+      setExtras({ ...EMPTY_EXTRAS, ...(stored.extras ?? {}) });
+      setCreateStep(stored.step);
+      setNotice("Your saved pre-meeting draft was restored.");
+    } catch {
+      window.localStorage.removeItem(CREATE_DRAFT_STORAGE_KEY);
+    }
+  }, [createMode, initialRecord.values]);
+
+  function persistCreateDraft(step: 2 | 3) {
+    const saved: CreateDraft = {
+      step,
+      values: normalizeClientInformation(draft),
+      extras: normalizeClientInformationExtras(extras),
+    };
+    window.localStorage.setItem(CREATE_DRAFT_STORAGE_KEY, JSON.stringify(saved));
+  }
+
+  function updateExtra<Key extends keyof ClientInformationExtras>(key: Key, value: ClientInformationExtras[Key]) {
+    setExtras((current) => ({ ...current, [key]: value }));
+    setExtraErrors((current) => ({ ...current, [key]: undefined }));
+  }
+
+  function selectLogo(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/svg+xml"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setExtraErrors((current) => ({ ...current, company_logo_name: "Use a PNG, JPG, or SVG file up to 5 MB." }));
+      event.target.value = "";
+      return;
+    }
+    updateExtra("company_logo_name", file.name);
+  }
+
+  function selectPitchFiles(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    const allowed = new Set([
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ]);
+    if (files.some((file) => !allowed.has(file.type) || file.size > 10 * 1024 * 1024)) {
+      setExtraErrors((current) => ({ ...current, pitch_file_names: "Use PDF, DOC, or DOCX files up to 10 MB each." }));
+      event.target.value = "";
+      return;
+    }
+    updateExtra("pitch_file_names", files.map((file) => file.name));
+  }
 
   function updateField(key: ClientInformationField, value: string) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -95,15 +184,20 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
     if (createMode && createStep === 1) {
       const stepErrors = validateClientInformation({ ...draft, meeting_purpose: "Pending pitch information" });
       delete stepErrors.meeting_purpose;
-      if (Object.keys(stepErrors).length > 0) {
+      const stepExtraErrors = validateClientInformationExtras(extras);
+      if (Object.keys(stepErrors).length > 0 || Object.keys(stepExtraErrors).length > 0) {
         setFieldErrors(stepErrors);
+        setExtraErrors(stepExtraErrors);
         setError("Check the highlighted fields and try again.");
         requestAnimationFrame(() => errorSummaryRef.current?.focus());
         return;
       }
       setFieldErrors({});
+      setExtraErrors({});
       setError(null);
+      persistCreateDraft(2);
       setCreateStep(2);
+      setNotice("Client Information saved in this local preview.");
       return;
     }
     const localErrors = validateClientInformation(draft);
@@ -116,7 +210,9 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
     if (createMode && createStep === 2) {
       setFieldErrors({});
       setError(null);
+      persistCreateDraft(3);
       setCreateStep(3);
+      setNotice("Pitch Information saved in this local preview.");
       return;
     }
     setBusy(true);
@@ -124,7 +220,11 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
     setNotice(null);
     try {
       if (createMode) {
-        const created = createOpportunity(normalizeClientInformation(draft));
+        const created = createOpportunity(
+          normalizeClientInformation(draft),
+          normalizeClientInformationExtras(extras),
+        );
+        window.localStorage.removeItem(CREATE_DRAFT_STORAGE_KEY);
         router.push(`/opportunities/${encodeURIComponent(created.opportunity_id)}/discovery`);
         return;
       }
@@ -152,6 +252,7 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
 
   function cancel() {
     if (record.opportunity_id === "new") {
+      window.localStorage.removeItem(CREATE_DRAFT_STORAGE_KEY);
       router.push("/clients");
       return;
     }
@@ -162,9 +263,9 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
     setEditing(false);
   }
 
-  function renderField(key: ClientInformationField, locked = false) {
+  function renderField(key: ClientInformationField, locked = false, labelOverride?: string) {
     const field = FIELDS.find((candidate) => candidate.key === key)!;
-    const label = labels[key];
+    const label = labelOverride ?? labels[key];
     const errorId = `${key}-error`;
     const controlProps = {
       id: key,
@@ -196,8 +297,9 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
     return (
       <section className="premeeting-create-flow" aria-labelledby="premeeting-create-title">
         <header className="premeeting-intro">
-          <h1 id="premeeting-create-title">{copy.clientForm.preMeetingTitle}</h1>
-          <p>{copy.clientForm.preMeetingLead}</p>
+          <p className="premeeting-breadcrumb">{copy.clientForm.breadcrumb}</p>
+          <h1 id="premeeting-create-title">{copy.clientForm.createTitle}</h1>
+          <p>{copy.clientForm.createLead}</p>
         </header>
         <ol className="premeeting-create-steps" aria-label={copy.clientForm.preMeetingTitle}>
           <li className={stepClass(1)}><span>1</span><strong>{copy.clientForm.stepClient}</strong></li>
@@ -209,21 +311,83 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
             <strong>Client information was not saved.</strong><span>{error}</span>
           </div>
         ) : null}
+        {notice ? <p className="client-information-notice" role="status" aria-live="polite">{notice}</p> : null}
         <div className="premeeting-create-grid">
           <form id="client-information-form" className="discovery-client-information is-create client-information-form" onSubmit={(event) => void save(event)} noValidate>
-            <header><p>01</p><h2>{copy.clientForm.informationSection}</h2></header>
-            <fieldset className="client-form-section">
+            <header>
+              <p>{String(createStep).padStart(2, "0")}</p>
+              <h2>{createStep === 1 ? copy.clientForm.informationSection : createStep === 2 ? copy.clientForm.stepPitch : copy.clientForm.reviewTitle}</h2>
+            </header>
+            {createStep === 1 ? <>
+              <fieldset className="client-form-section">
               <legend>{copy.clientForm.companySection}</legend>
-              <div className="client-form-section-grid">{renderField("company_name", createStep > 1)}{renderField("website_url", createStep > 1)}</div>
-            </fieldset>
-            <fieldset className="client-form-section is-muted">
+              <div className="client-form-section-grid">
+                {renderField("company_name", createStep > 1)}
+                {renderField("website_url", createStep > 1)}
+                <div>
+                  <label htmlFor="company_logo">{copy.clientForm.logo} <small>{copy.clientForm.optional}</small></label>
+                  <label className={`client-logo-upload${createStep > 1 ? " is-disabled" : ""}`} htmlFor="company_logo">
+                    <span aria-hidden="true">+</span>
+                    <strong>{extras.company_logo_name || copy.clientForm.uploadLogo}</strong>
+                    <small>PNG, JPG or SVG · max 5 MB</small>
+                  </label>
+                  <input id="company_logo" className="sr-only" type="file" accept=".png,.jpg,.jpeg,.svg" disabled={busy || createStep > 1} onChange={selectLogo} />
+                  {extraErrors.company_logo_name ? <span className="client-field-error">{extraErrors.company_logo_name}</span> : null}
+                </div>
+                <div>
+                  <label htmlFor="business_industry">{copy.clientForm.industry}<span aria-hidden="true"> *</span></label>
+                  <select id="business_industry" value={extras.business_industry} disabled={busy || createStep > 1} required aria-invalid={Boolean(extraErrors.business_industry)} onChange={(event) => updateExtra("business_industry", event.target.value)}>
+                    <option value="">{copy.clientForm.selectIndustry}</option>
+                    {INDUSTRIES.map((industry) => <option key={industry}>{industry}</option>)}
+                  </select>
+                  {extraErrors.business_industry ? <span className="client-field-error">{extraErrors.business_industry}</span> : null}
+                </div>
+              </div>
+              </fieldset>
+              <fieldset className="client-form-section is-muted">
               <legend>{copy.clientForm.contactSection}</legend>
-              <div className="client-form-section-grid">{renderField("contact_person", createStep > 1)}</div>
-            </fieldset>
-            {createStep >= 2 ? (
+              <p className="client-section-help">{copy.clientForm.contactHelp}</p>
+              <div className="client-form-section-grid">
+                {renderField("contact_person", createStep > 1)}
+                <div>
+                  <label htmlFor="contact_position">{copy.clientForm.position}<span aria-hidden="true"> *</span></label>
+                  <input id="contact_position" value={extras.contact_position} placeholder={copy.clientForm.positionPlaceholder} disabled={busy || createStep > 1} required aria-invalid={Boolean(extraErrors.contact_position)} onChange={(event) => updateExtra("contact_position", event.target.value)} />
+                  {extraErrors.contact_position ? <span className="client-field-error">{extraErrors.contact_position}</span> : null}
+                </div>
+                <div>
+                  <label htmlFor="contact_phone">{copy.clientForm.phone}<span aria-hidden="true"> *</span></label>
+                  <input id="contact_phone" type="tel" value={extras.contact_phone} placeholder="+49 30 1234 5678" disabled={busy || createStep > 1} required aria-invalid={Boolean(extraErrors.contact_phone)} onChange={(event) => updateExtra("contact_phone", event.target.value)} />
+                  <small className="client-input-help">{copy.clientForm.countryCode}</small>
+                  {extraErrors.contact_phone ? <span className="client-field-error">{extraErrors.contact_phone}</span> : null}
+                </div>
+                {renderField("additional_information", createStep > 1, copy.clientForm.relevantInformation)}
+              </div>
+              </fieldset>
+            </> : null}
+            {createStep === 2 ? (
               <fieldset className="client-form-section premeeting-pitch-section">
                 <legend>{copy.clientForm.stepPitch}</legend>
-                <div className="client-form-section-grid">{renderField("meeting_purpose", createStep > 2)}{renderField("additional_information", createStep > 2)}</div>
+                <div className="client-form-section-grid premeeting-pitch-fields">
+                  {renderField("meeting_purpose", createStep > 2, copy.clientForm.salesOpportunity)}
+                  <div>
+                    <label htmlFor="pitch_notes">{copy.clientForm.notes} <small>{copy.clientForm.optional}</small></label>
+                    <textarea id="pitch_notes" rows={4} value={extras.pitch_notes} placeholder={copy.clientForm.notesPlaceholder} disabled={busy || createStep > 2} onChange={(event) => updateExtra("pitch_notes", event.target.value)} />
+                  </div>
+                  <div>
+                    <label htmlFor="pitch_files">{copy.clientForm.pitchFiles} <small>{copy.clientForm.optional}</small></label>
+                    <label className={`client-pitch-upload${createStep > 2 ? " is-disabled" : ""}`} htmlFor="pitch_files">
+                      <span aria-hidden="true">+</span>
+                      <strong>{copy.clientForm.addPitchFiles}</strong>
+                      <small>{extras.pitch_file_names.length > 0 ? extras.pitch_file_names.join(", ") : "PDF, DOC or DOCX files"}</small>
+                    </label>
+                    <input id="pitch_files" className="sr-only" type="file" accept=".pdf,.doc,.docx" multiple disabled={busy || createStep > 2} onChange={selectPitchFiles} />
+                    {extraErrors.pitch_file_names ? <span className="client-field-error">{extraErrors.pitch_file_names}</span> : null}
+                  </div>
+                  <div className="is-wide">
+                    <label htmlFor="additional_opportunity_information">{copy.clientForm.additionalOpportunity} <small>{copy.clientForm.optional}</small></label>
+                    <textarea id="additional_opportunity_information" rows={4} value={extras.additional_opportunity_information} disabled={busy || createStep > 2} onChange={(event) => updateExtra("additional_opportunity_information", event.target.value)} />
+                  </div>
+                </div>
               </fieldset>
             ) : null}
             {createStep === 3 ? (

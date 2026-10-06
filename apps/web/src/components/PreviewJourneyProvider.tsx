@@ -4,16 +4,21 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import type { ClientDirectoryItem } from "@/lib/clientDirectory";
-import { normalizeClientInformation, type ClientInformationRecord } from "@/lib/clientInformation";
+import { normalizeClientInformation, normalizeClientInformationExtras, type ClientInformationExtras, type ClientInformationRecord } from "@/lib/clientInformation";
 import type { ClientInformationViewModel, WorkflowSnapshotViewModel } from "@/lib/discoveryFirst";
 import { createDiscoveryWorkspaceFixture, type DiscoveryWorkspaceVersion } from "@/lib/discoveryWorkspace";
 import {
   EMPTY_PREVIEW_JOURNEY,
-  PREVIEW_JOURNEY_STORAGE_KEY,
   parsePreviewJourney,
   previewClientRecord,
   previewDirectoryItem,
   previewOpportunityId,
+  previewJourneyStorageKey,
+  withApprovedDiscovery,
+  withPresentationAdvanced,
+  withPresentationCompleted,
+  withPresentationStarted,
+  withUpdatedDiscovery,
   type PreviewJourneyState,
   type PreviewOpportunity,
 } from "@/lib/previewJourney";
@@ -24,11 +29,12 @@ interface PreviewJourneyContextValue {
   opportunities: PreviewOpportunity[];
   directoryItems: ClientDirectoryItem[];
   getOpportunity: (opportunityId: string) => PreviewOpportunity | null;
-  createOpportunity: (values: ClientInformationViewModel) => PreviewOpportunity;
+  createOpportunity: (values: ClientInformationViewModel, extras: ClientInformationExtras) => PreviewOpportunity;
   updateClient: (record: ClientInformationRecord) => void;
   updateDiscovery: (version: DiscoveryWorkspaceVersion) => void;
   approveDiscovery: (version: DiscoveryWorkspaceVersion) => void;
   startPresentation: (opportunityId: string) => void;
+  advancePresentation: (opportunityId: string) => void;
   completePresentation: (opportunityId: string) => void;
 }
 
@@ -43,28 +49,30 @@ function workflow(
 }
 
 export function PreviewJourneyProvider({ children }: { children: React.ReactNode }) {
-  const { previewMode } = useAuth();
+  const { previewMode, session } = useAuth();
+  const ownerId = session?.user.id ?? (previewMode ? "local-preview" : null);
   const [state, setState] = useState<PreviewJourneyState>(EMPTY_PREVIEW_JOURNEY);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    if (!previewMode || !isLocalUiPreviewAvailable()) {
+    if (!ownerId || !isLocalUiPreviewAvailable()) {
+      setState(EMPTY_PREVIEW_JOURNEY);
       setHydrated(true);
       return;
     }
     try {
-      setState(parsePreviewJourney(JSON.parse(window.localStorage.getItem(PREVIEW_JOURNEY_STORAGE_KEY) ?? "null")));
+      setState(parsePreviewJourney(JSON.parse(window.localStorage.getItem(previewJourneyStorageKey(ownerId)) ?? "null")));
     } catch {
       setState(EMPTY_PREVIEW_JOURNEY);
     }
     setHydrated(true);
-  }, [previewMode]);
+  }, [ownerId]);
 
   function commit(update: (current: PreviewJourneyState) => PreviewJourneyState) {
     setState((current) => {
       const next = update(current);
-      if (previewMode && isLocalUiPreviewAvailable()) {
-        window.localStorage.setItem(PREVIEW_JOURNEY_STORAGE_KEY, JSON.stringify(next));
+      if (ownerId && isLocalUiPreviewAvailable()) {
+        window.localStorage.setItem(previewJourneyStorageKey(ownerId), JSON.stringify(next));
       }
       return next;
     });
@@ -81,7 +89,7 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
     return state.opportunities[opportunityId] ?? null;
   }
 
-  function createOpportunity(values: ClientInformationViewModel): PreviewOpportunity {
+  function createOpportunity(values: ClientInformationViewModel, extras: ClientInformationExtras): PreviewOpportunity {
     const normalized = normalizeClientInformation(values);
     const opportunityId = previewOpportunityId(normalized.company_name);
     const now = new Date().toISOString();
@@ -106,9 +114,10 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
       created_at: now,
       updated_at: now,
       client: previewClientRecord(opportunityId, normalized),
+      client_extras: normalizeClientInformationExtras(extras),
       discovery,
       presentation: { state: "waiting", version_id: null, source_discovery_version_id: null, slide_count: 0 },
-      workflow: workflow(1, "discovery_prepared", ["client_information"]),
+      workflow: workflow(1, "client_information", []),
     };
     replaceOpportunity(opportunity);
     return opportunity;
@@ -123,45 +132,31 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
   function updateDiscovery(version: DiscoveryWorkspaceVersion) {
     const current = getOpportunity(version.opportunity_id);
     if (!current) return;
-    replaceOpportunity({ ...current, discovery: version, updated_at: new Date().toISOString() });
+    replaceOpportunity({ ...withUpdatedDiscovery(current, version), updated_at: new Date().toISOString() });
   }
 
   function approveDiscovery(version: DiscoveryWorkspaceVersion) {
     const current = getOpportunity(version.opportunity_id);
     if (!current) return;
-    replaceOpportunity({
-      ...current,
-      discovery: version,
-      presentation: { ...current.presentation, source_discovery_version_id: version.version_id },
-      workflow: workflow(current.workflow.revision + 1, "ppt_1_ready", ["client_information", "discovery_prepared"]),
-      updated_at: new Date().toISOString(),
-    });
+    replaceOpportunity({ ...withApprovedDiscovery(current, version), updated_at: new Date().toISOString() });
   }
 
   function startPresentation(opportunityId: string) {
     const current = getOpportunity(opportunityId);
-    if (!current || current.discovery.document_state !== "approved") return;
-    replaceOpportunity({
-      ...current,
-      presentation: { ...current.presentation, state: "generating", source_discovery_version_id: current.discovery.version_id },
-      updated_at: new Date().toISOString(),
-    });
+    if (!current) return;
+    replaceOpportunity({ ...withPresentationStarted(current), updated_at: new Date().toISOString() });
   }
 
   function completePresentation(opportunityId: string) {
     const current = getOpportunity(opportunityId);
     if (!current || current.presentation.state !== "generating") return;
-    replaceOpportunity({
-      ...current,
-      presentation: {
-        state: "ready",
-        version_id: "ppt-1-v1",
-        source_discovery_version_id: current.discovery.version_id,
-        slide_count: 7,
-      },
-      workflow: workflow(current.workflow.revision + 1, "ppt_1_ready", ["client_information", "discovery_prepared"]),
-      updated_at: new Date().toISOString(),
-    });
+    replaceOpportunity({ ...withPresentationCompleted(current), updated_at: new Date().toISOString() });
+  }
+
+  function advancePresentation(opportunityId: string) {
+    const current = getOpportunity(opportunityId);
+    if (!current || current.presentation.state !== "generating") return;
+    replaceOpportunity({ ...withPresentationAdvanced(current), updated_at: new Date().toISOString() });
   }
 
   const opportunities = Object.values(state.opportunities).sort((a, b) => b.updated_at.localeCompare(a.updated_at));
@@ -176,6 +171,7 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
       updateDiscovery,
       approveDiscovery,
       startPresentation,
+      advancePresentation,
       completePresentation,
     }}>
       {children}
