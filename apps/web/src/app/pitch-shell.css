@@ -951,6 +951,12 @@ body:has(.app-workspace) {
   line-height: 1.5;
 }
 
+.auth-preview {
+  margin-top: 14px;
+  min-height: 46px;
+  border-radius: 8px;
+}
+
 .auth-microsoft:disabled {
   opacity: 1;
   background: #0d1240;

@@ -3,6 +3,7 @@ import { BACKEND_OPPORTUNITY_MAP_PREFIX } from "./backendOpportunityMap";
 
 const AUTH_USER_KEY = "borek.authUserId";
 const PREVIEW_KEY = "borek-ui-preview";
+const DEV_AUTH_KEY = "borek-dev-auth";
 const PREVIEW_JOURNEY_STORAGE_KEY = "borek-preview-journey-v1";
 const SIGNED_OUT_KEY = "borek.authSignedOut";
 
@@ -47,9 +48,14 @@ export function isPreviewSessionActive(): boolean {
   return !isAuthSessionEnded() && read(PREVIEW_KEY) === "true";
 }
 
-export function beginAuthSession(preview = false): void {
+export function isDevAuthSessionActive(): boolean {
+  return !isAuthSessionEnded() && read(DEV_AUTH_KEY) === "true";
+}
+
+export function beginAuthSession(preview = false, devAuth = false): void {
   write(SIGNED_OUT_KEY, null);
   write(PREVIEW_KEY, preview ? "true" : null);
+  write(DEV_AUTH_KEY, devAuth && !preview ? "true" : null);
 }
 
 export function clearAuthSession(ownerId = getAuthOwnerId() ?? (isPreviewSessionActive() ? "local-preview" : null)): void {
@@ -69,14 +75,16 @@ export function clearAuthSession(ownerId = getAuthOwnerId() ?? (isPreviewSession
   }
   write(AUTH_USER_KEY, null);
   write(PREVIEW_KEY, null);
+  write(DEV_AUTH_KEY, null);
   write(SIGNED_OUT_KEY, "true");
 }
 
 export function syncAuthOwner(userId: string | null): void {
   const previous = getAuthOwnerId() ?? (isPreviewSessionActive() ? "local-preview" : null);
   if (previous && previous !== userId) {
+    const devAuth = isDevAuthSessionActive();
     clearAuthSession(previous);
-    if (userId) beginAuthSession(userId === "local-preview");
+    if (userId) beginAuthSession(userId === "local-preview", devAuth);
   }
   clearIntakeDraft(null);
   write(AUTH_USER_KEY, userId);

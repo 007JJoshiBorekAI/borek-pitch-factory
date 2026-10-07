@@ -14,6 +14,13 @@ _FIXTURE_WITH_SUPABASE_WARNING = (
     "deterministic fixtures (same plan/slide content every run). Set "
     "AI_EXECUTION_MODE=live in .env for API and worker when testing real transcripts."
 )
+_DEV_AUTH_ACTIVE_WARNING = (
+    "AUTH_BYPASS=true: JWT auth is skipped and every request acts as DEV_AUTH_EMAIL. "
+    "Local development only."
+)
+_DEV_AUTH_IGNORED_WARNING = (
+    "AUTH_BYPASS=true is ignored because RUNTIME_PROFILE=production; a valid access token is required."
+)
 _PRODUCTION_FIXTURE_REFUSAL = (
     "RUNTIME_PROFILE=production cannot use AI_EXECUTION_MODE=fixture. "
     "Fixture Frameworks are for tests and local development only."
@@ -49,6 +56,18 @@ def assert_live_frameworks_in_production(
         raise ProductionFixtureModeError(_PRODUCTION_FIXTURE_REFUSAL)
 
 
+def auth_mode(current: Settings | None = None) -> str:
+    """dev_bypass when the development bypass is active, otherwise supabase_jwt."""
+    cfg = current or settings
+    return "dev_bypass" if cfg.dev_auth_active else "supabase_jwt"
+
+
+def _auth_warnings(cfg: Settings) -> list[str]:
+    if cfg.AUTH_BYPASS and not cfg.dev_auth_active:
+        return [_DEV_AUTH_IGNORED_WARNING]
+    return [_DEV_AUTH_ACTIVE_WARNING] if cfg.dev_auth_active else []
+
+
 def log_runtime_profile(*, component: str, current: Settings | None = None) -> None:
     """Log execution modes at process startup and warn on common misconfiguration."""
     cfg = current or settings
@@ -65,12 +84,14 @@ def log_runtime_profile(*, component: str, current: Settings | None = None) -> N
     )
     if cfg.API_DATA_BACKEND == "supabase" and cfg.AI_EXECUTION_MODE == "fixture":
         logger.warning(_FIXTURE_WITH_SUPABASE_WARNING)
+    for warning in _auth_warnings(cfg):
+        logger.warning(warning)
 
 
 def runtime_warnings(current: Settings | None = None) -> list[str]:
     """Human-readable warnings for /health/runtime and ops checks."""
     cfg = current or settings
-    warnings: list[str] = []
+    warnings: list[str] = _auth_warnings(cfg)
     if cfg.RUNTIME_PROFILE == "production" and cfg.AI_EXECUTION_MODE != "live":
         warnings.append(_PRODUCTION_FIXTURE_REFUSAL)
     if cfg.API_DATA_BACKEND == "supabase" and cfg.AI_EXECUTION_MODE == "fixture":
@@ -98,5 +119,6 @@ def runtime_health_payload(current: Settings | None = None) -> dict[str, Any]:
     return {
         "status": "ok",
         **profile,
+        "auth_mode": auth_mode(current),
         "warnings": runtime_warnings(current),
     }
