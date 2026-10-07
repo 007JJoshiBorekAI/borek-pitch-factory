@@ -71,19 +71,16 @@ export function normalizeWebsiteUrl(value: string): string {
   return `https://${trimmed}`;
 }
 
+/**
+ * Every user-entered field is optional: an empty value is valid and stays empty.
+ * A value that is provided is still checked.
+ */
 export function validateClientInformation(
   values: ClientInformationViewModel,
 ): ClientInformationFieldErrors {
   const errors: ClientInformationFieldErrors = {};
-  if (!values.company_name.trim()) errors.company_name = "Enter the company name.";
-  if (!values.contact_person.trim()) errors.contact_person = "Enter the contact person.";
-  if (!values.meeting_purpose.trim()) errors.meeting_purpose = "Enter the meeting purpose.";
-  if (!values.additional_information.trim()) errors.additional_information = "Enter the additional client information.";
-
   const website = normalizeWebsiteUrl(values.website_url);
-  if (!website) {
-    errors.website_url = "Enter the website URL.";
-  } else {
+  if (website) {
     try {
       const parsed = new URL(website);
       if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname.includes(".")) {
@@ -110,12 +107,16 @@ export function normalizeClientInformation(
 
 export function validateClientInformationExtras(values: ClientInformationExtras): ClientInformationExtraErrors {
   const errors: ClientInformationExtraErrors = {};
-  if (!values.business_industry.trim()) errors.business_industry = "Select the business industry.";
-  if (!values.contact_position.trim()) errors.contact_position = "Enter the POC position.";
-  if (!/^[+\d][\d\s()./-]{6,}$/.test(values.contact_phone.trim())) {
+  const phone = values.contact_phone.trim();
+  if (phone && !/^[+\d][\d\s()./-]{6,}$/.test(phone)) {
     errors.contact_phone = "Enter a valid phone number including the country code.";
   }
   return errors;
+}
+
+/** Shown in place of a missing company name. Display only: it is never saved or sent to the API. */
+export function displayClientName(name: string | null | undefined, placeholder: string): string {
+  return name?.trim() || placeholder;
 }
 
 export function normalizeClientInformationExtras(values: ClientInformationExtras): ClientInformationExtras {

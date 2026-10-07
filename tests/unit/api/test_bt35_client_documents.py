@@ -160,16 +160,17 @@ def test_authorization_and_opportunity_association() -> None:
     assert delete.status_code == 204
 
 
-def test_first_contact_research_requires_documents_and_rejects_transcript_only() -> None:
+def test_first_contact_research_works_without_documents_and_uses_them_when_present() -> None:
+    # User-provided documents are optional: research is never blocked because none was uploaded.
     client = TestClient(create_app())
     opportunity_id = create_opportunity(client)
 
-    missing = client.post(
+    without_documents = client.post(
         f"/opportunities/{opportunity_id}/stage1-research",
         headers=headers(),
     )
-    assert missing.status_code == 400
-    assert missing.json()["error"]["code"] == "CLIENT_DOCUMENT_REQUIRED"
+    assert without_documents.status_code == 200, without_documents.text
+    assert "client_documents" not in without_documents.json()["user_statements"]
 
     transcript_only = client.post(
         f"/opportunities/{opportunity_id}/transcripts",
@@ -178,12 +179,12 @@ def test_first_contact_research_requires_documents_and_rejects_transcript_only()
     )
     assert transcript_only.status_code == 201
 
-    blocked = client.post(
+    still_available = client.post(
         f"/opportunities/{opportunity_id}/stage1-research",
         headers=headers(),
     )
-    assert blocked.status_code == 400
-    assert blocked.json()["error"]["code"] == "TRANSCRIPT_NOT_ALLOWED_FOR_FIRST_CONTACT"
+    assert still_available.status_code == 200, still_available.text
+    assert "client_documents" not in still_available.json()["user_statements"]
 
     upload_client_document(
         client,
@@ -207,7 +208,8 @@ def test_first_contact_research_requires_documents_and_rejects_transcript_only()
     )
 
 
-def test_transcript_only_first_contact_framework_generate_is_rejected() -> None:
+def test_first_contact_framework_generate_is_not_blocked_by_a_missing_client_document() -> None:
+    # No client document is required; a transcript on its own does not block the first-contact stage.
     client = TestClient(create_app())
     opportunity_id = create_opportunity(client)
     client.post(
@@ -219,8 +221,8 @@ def test_transcript_only_first_contact_framework_generate_is_rejected() -> None:
         f"/opportunities/{opportunity_id}/framework/generate",
         headers=headers(),
     )
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "TRANSCRIPT_NOT_ALLOWED_FOR_FIRST_CONTACT"
+    assert response.status_code == 202, response.text
+    assert "error" not in response.json()
 
 
 def test_deepening_requires_transcript_after_first_contact_completed() -> None:

@@ -251,7 +251,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
                 </div>
               ) : selected?.state === "ready" ? (
                 <div className="presentation-slide-canvas">
-                  <p className="discovery-page-eyebrow">{opportunity?.client.values.company_name} · {selected.label}</p>
+                  <p className="discovery-page-eyebrow">{[opportunity?.client.values.company_name, selected.label].filter(Boolean).join(" · ")}</p>
                   <h2>{selected.title}</h2>
                   <div className="presentation-slide-body">{selected.body.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
                   <footer>BOREK Solutions Group · {pageNumber}</footer>

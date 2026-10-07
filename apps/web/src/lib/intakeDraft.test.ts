@@ -72,7 +72,6 @@ try {
     { ...draft, extras: { ...draft.extras, contact_phone: null } },
     { ...draft, extras: { ...draft.extras, pitch_file_names: "brief.pdf" } },
     { ...draft, extras: { ...draft.extras, pitch_file_names: [42] } },
-    { ...draft, extras: { ...draft.extras, business_industry: "" } },
   ]) {
     local.setItem(intakeDraftStorageKey("invalid"), JSON.stringify(value));
     assert.equal(restoreIntakeDraft("invalid", local), null);
@@ -82,7 +81,9 @@ try {
   assert.equal(restoreIntakeDraft("invalid", local), null);
   assert.equal(local.getItem(intakeDraftStorageKey("invalid")), null);
   assert.equal(parseIntakeDraft({ ...draft, step: 2, values: { ...draft.values, meeting_purpose: "" } })?.step, 2);
-  assert.equal(parseIntakeDraft({ ...draft, step: 3, values: { ...draft.values, meeting_purpose: "" } }), null);
+  // Inputs are optional: a later step with an empty field is still a valid draft.
+  assert.equal(parseIntakeDraft({ ...draft, step: 3, values: { ...draft.values, meeting_purpose: "" } })?.step, 3);
+  assert.equal(parseIntakeDraft({ ...draft, extras: { ...draft.extras, business_industry: "" } })?.extras.business_industry, "");
   assert.equal(parseIntakeDraft({ ...draft, step: 1, values: { ...draft.values, company_name: "" } })?.step, 1);
   const stripped = parseIntakeDraft({ ...draft, values: { ...draft.values, contact_phone: "not canonical" } });
   assert.deepEqual(Object.keys(stripped!.values), Object.keys(draft.values));

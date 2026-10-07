@@ -35,10 +35,7 @@ assert.deepEqual(validateClientInformation({
   meeting_purpose: "",
   additional_information: "",
 }), {
-  company_name: "Enter the company name.",
-  contact_person: "Enter the contact person.",
-  meeting_purpose: "Enter the meeting purpose.",
-  additional_information: "Enter the additional client information.",
+  // Empty fields are accepted; only the value that was provided is checked.
   website_url: "Enter a valid HTTP or HTTPS website URL.",
 });
 assert.equal(normalizeWebsiteUrl("example.com"), "https://example.com");
@@ -51,9 +48,7 @@ assert.deepEqual(validateClientInformationExtras({
   pitch_file_names: [],
   additional_opportunity_information: "",
 }), {
-  business_industry: "Select the business industry.",
   contact_phone: "Enter a valid phone number including the country code.",
-  contact_position: "Enter the POC position.",
 });
 assert.deepEqual(normalizeClientInformationExtras({
   company_logo_name: " client-logo.svg ",

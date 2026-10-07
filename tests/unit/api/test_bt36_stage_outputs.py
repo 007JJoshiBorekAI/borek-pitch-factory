@@ -80,7 +80,7 @@ def create_opportunity(client: TestClient) -> str:
     return response.json()["id"]
 
 
-def test_stage1_outputs_require_document_and_persist() -> None:
+def test_stage1_outputs_need_no_client_document_and_persist() -> None:
     reset_memory_store()
     client = TestClient(create_app())
     opportunity_id = create_opportunity(client)
@@ -94,14 +94,12 @@ def test_stage1_outputs_require_document_and_persist() -> None:
         f"/opportunities/{opportunity_id}/stage1-outputs/generate",
         headers=headers(),
     )
+    # The only gate is the approved Discovery Paper; no client document is uploaded at any point.
     assert blocked.status_code == 400
-    assert blocked.json()["error"]["code"] == "CLIENT_DOCUMENT_REQUIRED"
-    upload = client.post(
-        f"/opportunities/{opportunity_id}/client-documents",
-        headers=headers(),
-        files={"file": ("brief.txt", b"Client background material.", "text/plain")},
-    )
-    assert upload.status_code == 201, upload.text
+    assert blocked.json()["error"]["code"] == "DISCOVERY_PAPER_APPROVAL_REQUIRED"
+    assert get_memory_store().list_client_document_sources(
+        opportunity_id=UUID(opportunity_id), user_id=OWNER
+    ) == []
     approve_discovery_paper(client, opportunity_id)
     generated = client.post(
         f"/opportunities/{opportunity_id}/stage1-outputs/generate",

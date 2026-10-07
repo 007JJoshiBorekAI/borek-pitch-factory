@@ -111,7 +111,10 @@ class Stage1Research(BaseModel):
     )
     schema_version: Literal['1.0']
     opportunity_id: UUID
-    client_name: str = Field(..., min_length=1, pattern='\\S')
+    client_name: str = Field(
+        ...,
+        description='Company name as entered by the user; an empty string means it was not provided.',
+    )
     company_facts: CompanyFacts
     user_statements: UserStatements
     borek_offering: Fact

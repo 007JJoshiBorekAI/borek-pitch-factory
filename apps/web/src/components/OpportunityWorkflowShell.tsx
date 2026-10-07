@@ -9,6 +9,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { useLanguage } from "@/components/LanguageProvider";
 import { usePreviewJourney } from "@/components/PreviewJourneyProvider";
 import { useAuth } from "@/components/AuthProvider";
+import { displayClientName } from "@/lib/clientInformation";
 import type { DiscoveryFirstWorkspaceFixture } from "@/lib/discoveryFirst";
 import { PostMeetingShell } from "@/components/PostMeetingShell";
 
@@ -48,7 +49,7 @@ export function OpportunityWorkflowShell({ fixture, children }: OpportunityWorkf
         <main className="discovery-workflow-main">
           <div className="discovery-workflow-heading">
             <div>
-              <p className="discovery-workflow-kicker">{activeSection === "pre_meeting" ? copy.sidebar.preMeeting : copy.sidebar.postMeeting} · {preview?.client.values.company_name ?? fixture.client_information.company_name}</p>
+              <p className="discovery-workflow-kicker">{activeSection === "pre_meeting" ? copy.sidebar.preMeeting : copy.sidebar.postMeeting} · {displayClientName(preview?.client.values.company_name ?? fixture.client_information.company_name, copy.clients.unnamed)}</p>
               <h2>{copy.workflow.creating}</h2>
               <p className="discovery-workflow-meta">{live ? "Live workspace · Progress is shown with each artifact below." : workspaceProgress}</p>
             </div>

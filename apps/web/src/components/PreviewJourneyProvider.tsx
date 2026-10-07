@@ -105,10 +105,12 @@ export function PreviewJourneyProvider({ children }: { children: React.ReactNode
       ...baseDiscovery,
       pages: baseDiscovery.pages.map((page) => {
         if (page.id === "cover") {
-          return { ...page, title: `${normalized.company_name} Discovery Paper`, body: `Prepared for the first conversation with ${normalized.company_name}.` };
+          return normalized.company_name
+            ? { ...page, title: `${normalized.company_name} Discovery Paper`, body: `Prepared for the first conversation with ${normalized.company_name}.` }
+            : { ...page, title: "Discovery Paper", body: "Prepared for the first conversation." };
         }
         if (page.id === "client_context") {
-          return { ...page, body: normalized.additional_information || `${normalized.company_name} context will be validated during the first meeting.` };
+          return { ...page, body: normalized.additional_information || `${normalized.company_name || "Client"} context will be validated during the first meeting.` };
         }
         if (page.id === "opportunity") {
           return { ...page, body: normalized.meeting_purpose };

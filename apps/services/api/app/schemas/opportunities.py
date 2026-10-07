@@ -116,8 +116,10 @@ class PitchOwnerRef(BaseModel):
 
 
 class OpportunityCreateRequest(BaseModel):
-    client_name: str = Field(..., min_length=1)
-    opportunity_name: str = Field(..., min_length=1)
+    # User-entered names are optional: an empty string means "not provided" and is never replaced
+    # by a made-up value. The columns stay NOT NULL, so missing names are stored as "".
+    client_name: str = Field(default="", max_length=500)
+    opportunity_name: str = Field(default="", max_length=500)
     department: str = Field(..., min_length=1)
     language: str = Field(default="en", min_length=2, max_length=10)
     pii_redaction_enabled: bool = True
@@ -129,8 +131,8 @@ class OpportunityCreateRequest(BaseModel):
 
 
 class OpportunityUpdateRequest(BaseModel):
-    client_name: str | None = Field(default=None, min_length=1)
-    opportunity_name: str | None = Field(default=None, min_length=1)
+    client_name: str | None = Field(default=None, max_length=500)
+    opportunity_name: str | None = Field(default=None, max_length=500)
     department: str | None = Field(default=None, min_length=1)
     language: str | None = Field(default=None, min_length=2, max_length=10)
     status: str | None = Field(default=None, min_length=1)

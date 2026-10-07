@@ -134,6 +134,8 @@ for (const [width, height] of viewports) {
 
   await page.goto(`${base}/opportunities/new/client-information`, { waitUntil: "networkidle" });
   await record("add client, step 1");
+  // Inputs are optional, so an empty form no longer shows errors: enter an invalid value to get that state.
+  await page.locator('input[type="tel"]').fill("123");
   await page.getByRole("button", { name: "Save client information" }).click();
   await record("add client, step 1 with errors");
   await page.locator('input[name="company_name"]').fill("Viewport Check GmbH");
