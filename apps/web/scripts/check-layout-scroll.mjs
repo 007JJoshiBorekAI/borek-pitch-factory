@@ -64,6 +64,52 @@ function measure() {
   return problems;
 }
 
+// The login screen is designed as one full-screen frame: nothing may need scrolling.
+function measureLogin() {
+  const doc = document.documentElement;
+  const problems = [];
+  if (doc.scrollHeight > window.innerHeight + 1) problems.push(`needs ${doc.scrollHeight - window.innerHeight}px of vertical scrolling`);
+  if (doc.scrollWidth > window.innerWidth) problems.push(`horizontal overflow of ${doc.scrollWidth - window.innerWidth}px`);
+  const required = {
+    artwork: ".auth-brand-visual",
+    headline: ".auth-brand-headline",
+    "supporting copy": ".auth-tagline",
+    "brand footer": ".auth-footer-brand",
+    welcome: ".auth-main-header h1",
+    "sign-in button": "button.auth-microsoft",
+    "language selector": ".auth-language",
+    "support copy": ".auth-support",
+  };
+  const boxes = {};
+  for (const [label, selector] of Object.entries(required)) {
+    const el = document.querySelector(selector);
+    if (!el) { problems.push(`${label} is missing`); continue; }
+    const rect = el.getBoundingClientRect();
+    boxes[label] = rect;
+    if (rect.height < 2 || rect.top < 0 || rect.left < 0 || rect.bottom > window.innerHeight + 1 || rect.right > window.innerWidth + 1) {
+      problems.push(`${label} is not fully inside the viewport`);
+    }
+  }
+  // Only shown where Microsoft sign-in (or the deployed preview) is active.
+  const remember = document.querySelector(".auth-remember");
+  if (remember && remember.getBoundingClientRect().bottom > window.innerHeight + 1) problems.push("keep-me-signed-in is below the fold");
+  const order = ["headline", "supporting copy", "brand footer"];
+  for (let index = 1; index < order.length; index += 1) {
+    const above = boxes[order[index - 1]];
+    const below = boxes[order[index]];
+    if (above && below && below.top < above.bottom - 1) problems.push(`${order[index]} overlaps ${order[index - 1]}`);
+  }
+  const image = document.querySelector(".auth-artwork");
+  const frame = document.querySelector(".auth-brand-visual");
+  if (image && frame) {
+    const a = image.getBoundingClientRect();
+    const b = frame.getBoundingClientRect();
+    if (Math.abs(a.height - b.height) > 1 || Math.abs(a.width - b.width) > 1) problems.push("artwork does not fill its panel");
+    if (getComputedStyle(image).objectFit !== "cover") problems.push("artwork may be distorted (object-fit is not cover)");
+  }
+  return problems;
+}
+
 const id = await opportunityId();
 const browser = await chromium.launch();
 const failures = [];
@@ -79,6 +125,9 @@ for (const [width, height] of viewports) {
   };
 
   await page.goto(`${base}/login`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(300);
+  checked += 1;
+  for (const problem of await page.evaluate(measureLogin)) failures.push(`${width}x${height} login: ${problem}`);
   await page.locator("main button.auth-microsoft").click();
   await page.waitForURL((url) => url.pathname === "/clients", { timeout: 20000 });
   await record("clients");

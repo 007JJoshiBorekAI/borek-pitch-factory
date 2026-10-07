@@ -894,6 +894,55 @@ body:has(.app-workspace) {
   color: #fff;
 }
 
+/*
+ * Two-column login fits the viewport, following the 1440 x 1024 design frame: the message block
+ * takes 505/1024 (49.3%) of the height and the artwork the rest. The artwork fills that space
+ * (cropped, never stretched) instead of deriving its height from its width, which pushed the
+ * message below the fold. If the message needs more than its share, the artwork gives way first.
+ */
+@media (min-width: 961px) {
+  .auth-layout {
+    min-height: 100dvh;
+  }
+
+  .auth-brand {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .auth-brand-visual {
+    flex: 1 1 0;
+    min-height: 0;
+    aspect-ratio: auto;
+  }
+
+  .auth-artwork {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .auth-brand-message {
+    flex: none;
+    box-sizing: border-box;
+    min-height: 49.3vh;
+    min-height: 49.3dvh;
+    padding-bottom: clamp(40px, 8.6vh, 88px);
+  }
+
+  /* Headline, supporting copy and footer share the spare height evenly, as in the design frame. */
+  .auth-tagline {
+    margin-top: auto;
+    padding-top: 20px;
+  }
+
+  .auth-footer-brand {
+    padding-top: 16px;
+  }
+}
+
 .auth-main {
   justify-content: flex-start;
   padding: 21vh 72px 48px;

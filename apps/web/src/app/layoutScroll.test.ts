@@ -52,6 +52,35 @@ assert.match(connector, /flex:\s*0 1 calc\(46% - 20px\)/);
 assert.match(connector, /min-width:\s*0/);
 assert.match(rule(shell, ".premeeting-create-steps li > strong"), /flex:\s*none/);
 
+// Login is one full-screen frame on the two-column layout: the artwork fills the height the message
+// block leaves, so the page height never depends on the artwork's width.
+const loginStart = shell.indexOf("@media (min-width: 961px) {\n  .auth-layout {");
+assert.notEqual(loginStart, -1, "missing two-column login viewport rules");
+const login = shell.slice(loginStart, shell.indexOf("\n}\n", loginStart));
+const inLogin = (selector: string) => {
+  const start = login.indexOf(`  ${selector} {`);
+  assert.notEqual(start, -1, `missing login rule: ${selector}`);
+  return login.slice(start, login.indexOf("}", start) + 1);
+};
+assert.match(inLogin(".auth-layout"), /min-height:\s*100dvh/);
+assert.match(inLogin(".auth-brand"), /display:\s*flex/);
+assert.match(inLogin(".auth-brand"), /flex-direction:\s*column/);
+const visual = inLogin(".auth-brand-visual");
+assert.match(visual, /flex:\s*1 1 0/);
+assert.match(visual, /min-height:\s*0/);
+assert.match(visual, /aspect-ratio:\s*auto/, "a width-derived artwork height is what pushed the page past the viewport");
+const artwork = inLogin(".auth-artwork");
+assert.match(artwork, /position:\s*absolute/);
+assert.match(artwork, /object-fit:\s*cover/, "the artwork is cropped, never stretched");
+const message = inLogin(".auth-brand-message");
+assert.match(message, /flex:\s*none/);
+assert.match(message, /min-height:\s*49\.3dvh/, "the message block keeps its 505/1024 share of the design frame");
+assert.doesNotMatch(login, /overflow(-y)?:\s*(hidden|auto|scroll)/, "the login fix must not clip or add inner scrolling");
+assert.doesNotMatch(login, /display:\s*none|visibility:\s*hidden|font-size/, "nothing is hidden or shrunk to make it fit");
+assert.ok(loginStart > shell.indexOf(".auth-brand-message {"), "the viewport rules come after the base login rules");
+// Below the two-column breakpoint the stacked login layout keeps its own sizing.
+assert.match(shell, /@media \(max-width: 960px\) \{[\s\S]*?\.auth-layout \{\s*display: block;/);
+
 // The development preview badge floats above the page and never takes part in layout or blocks clicks.
 const badge = rule(shell, ".dev-preview-badge");
 assert.match(badge, /position:\s*fixed/);
