@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AuthProvider } from "@/components/AuthProvider";
+import { DevPreviewBadge } from "@/components/DevPreviewBadge";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import { PreviewJourneyProvider } from "@/components/PreviewJourneyProvider";
 
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>
           <AuthProvider>
             <PreviewJourneyProvider>{children}</PreviewJourneyProvider>
+            <DevPreviewBadge />
           </AuthProvider>
         </LanguageProvider>
       </body>

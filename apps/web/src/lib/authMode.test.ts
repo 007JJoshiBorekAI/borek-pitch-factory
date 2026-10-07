@@ -35,6 +35,9 @@ const base: AuthModeInput = {
   devAccessToken: undefined,
   runtimeProfile: "development",
   localHost: true,
+  deployedDevBypassFlag: undefined,
+  deployedDevHost: undefined,
+  hostname: "localhost",
 };
 
 // Mode resolution: Microsoft, development sign-in, preview and unconfigured stay distinct.
@@ -42,7 +45,7 @@ assert.equal(resolveAuthMode({ ...base, supabaseConfigured: true }).mode, "supab
 assert.equal(resolveAuthMode(base).mode, "preview");
 assert.equal(resolveAuthMode({ ...base, localHost: false }).mode, "unconfigured");
 assert.deepEqual(resolveAuthMode({ ...base, bypassFlag: "true" }), {
-  mode: "dev", devAccessToken: null, bypassIgnoredReason: null,
+  mode: "dev", devAccessToken: null, bypassIgnoredReason: null, deployedDevPreview: false,
 });
 assert.equal(resolveAuthMode({ ...base, bypassFlag: "true", runtimeProfile: "test" }).mode, "dev");
 assert.equal(resolveAuthMode({ ...base, bypassFlag: "true", runtimeProfile: undefined }).mode, "dev");
@@ -53,17 +56,17 @@ for (const flag of ["false", "", "1", "TRUE", undefined]) {
 
 // Production fails closed: the flag and the tooling token are both ignored and reported.
 assert.deepEqual(resolveAuthMode({ ...base, bypassFlag: "true", devAccessToken: "token", runtimeProfile: "production" }), {
-  mode: "preview", devAccessToken: null, bypassIgnoredReason: "production_profile",
+  mode: "preview", devAccessToken: null, bypassIgnoredReason: "production_profile", deployedDevPreview: false,
 });
 assert.deepEqual(
   resolveAuthMode({ ...base, bypassFlag: "true", runtimeProfile: "production", supabaseConfigured: true, localHost: false }),
-  { mode: "supabase", devAccessToken: null, bypassIgnoredReason: "production_profile" },
+  { mode: "supabase", devAccessToken: null, bypassIgnoredReason: "production_profile", deployedDevPreview: false },
 );
 assert.deepEqual(resolveAuthMode({ ...base, bypassFlag: "true", devAccessToken: "token", localHost: false }), {
-  mode: "unconfigured", devAccessToken: null, bypassIgnoredReason: "non_local_host",
+  mode: "unconfigured", devAccessToken: null, bypassIgnoredReason: "non_local_host", deployedDevPreview: false,
 });
 assert.deepEqual(resolveAuthMode({ ...base, devAccessToken: " token " }), {
-  mode: "preview", devAccessToken: "token", bypassIgnoredReason: null,
+  mode: "preview", devAccessToken: "token", bypassIgnoredReason: null, deployedDevPreview: false,
 });
 
 // Return paths stay inside the app.
@@ -135,7 +138,7 @@ assert.equal(isDevAuthSessionActive(), false);
 // Wiring: the login card never turns the Microsoft button into a preview or development sign-in.
 const source = (name: string) => readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8");
 const card = source("../components/AuthCard.tsx");
-assert.match(card, /disabled=\{busy \|\| authMode !== "supabase"\}/);
+assert.match(card, /disabled=\{busy \|\| signInAction\(authMode\) === null\}/);
 assert.doesNotMatch(card.slice(card.indexOf("async function handleMicrosoftSignIn"), card.indexOf("async function handleDevSignIn")),
   /startPreviewSession|startDevSession/);
 assert.match(card, /rememberPostAuthPath\(/);
@@ -144,7 +147,7 @@ assert.match(card, /authCopy\.signInFailed/);
 assert.match(card, /redirectTo: `\$\{window\.location\.origin\}\/login`/);
 const provider = source("../components/AuthProvider.tsx");
 assert.doesNotMatch(provider, /process\.env\.NEXT_PUBLIC_(BYPASS_LOGIN|DEV_ACCESS_TOKEN)/, "bypass env is read only through authMode");
-assert.match(provider, /const profile = await getEmployeeMe\(DEV_AUTH_TOKEN\);/);
+assert.match(provider, /await startDevAuthSession\(/);
 assert.match(source("./supabase.ts"), /currentAuthMode\(\)\.mode === "dev"/);
 
 console.log("Auth mode, return path and development session tests passed");
