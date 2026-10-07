@@ -34,12 +34,6 @@ def get_data_store(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> DataStore:
     """Return memory or Supabase-backed store for the current request."""
-    from app.auth import _bypass_active
-    from app.config import settings
-
-    if _bypass_active():
-        # TEMPORARY: service-role store so RLS does not need a user JWT.
-        return build_data_store(settings.SUPABASE_SERVICE_ROLE_KEY)
     token = credentials.credentials if credentials and credentials.scheme.lower() == "bearer" else None
     return build_data_store(token)
 

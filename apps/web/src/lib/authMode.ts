@@ -1,0 +1,116 @@
+import { isLocalUiPreviewAvailable } from "./uiPreview";
+
+/**
+ * supabase     - Microsoft sign-in through Supabase.
+ * dev          - development-only sign-in against a local API running with AUTH_BYPASS.
+ * preview      - browser-only sample data on localhost; the API is never called.
+ * unconfigured - no sign-in is available for this build.
+ */
+export type AuthMode = "supabase" | "dev" | "preview" | "unconfigured";
+
+export type BypassIgnoredReason = "production_profile" | "non_local_host";
+
+export interface AuthModeInput {
+  supabaseConfigured: boolean;
+  bypassFlag: string | undefined;
+  devAccessToken: string | undefined;
+  runtimeProfile: string | undefined;
+  localHost: boolean;
+}
+
+export interface AuthModeResult {
+  mode: AuthMode;
+  /** Pre-issued Supabase token for local tooling; honoured only where development auth is allowed. */
+  devAccessToken: string | null;
+  bypassIgnoredReason: BypassIgnoredReason | null;
+}
+
+/** The API ignores the token value while AUTH_BYPASS is active; it only marks the request as dev auth. */
+export const DEV_AUTH_TOKEN = "dev-bypass";
+export const DEFAULT_POST_AUTH_PATH = "/clients";
+
+const POST_AUTH_PATH_KEY = "borek.authNext";
+const PATH_BASE = "http://borek.invalid";
+
+export function resolveAuthMode(input: AuthModeInput): AuthModeResult {
+  const bypassRequested = input.bypassFlag?.trim() === "true";
+  const token = input.devAccessToken?.trim() || null;
+  // Mirrors the API default: an unset profile is development, only "production" refuses the bypass.
+  const production = (input.runtimeProfile?.trim() || "development") === "production";
+  const developmentAllowed = !production && input.localHost;
+  const bypassIgnoredReason = (bypassRequested || token) && !developmentAllowed
+    ? production ? "production_profile" : "non_local_host"
+    : null;
+  const fallback: AuthMode = input.supabaseConfigured ? "supabase" : input.localHost ? "preview" : "unconfigured";
+  return {
+    mode: bypassRequested && developmentAllowed ? "dev" : fallback,
+    devAccessToken: developmentAllowed ? token : null,
+    bypassIgnoredReason,
+  };
+}
+
+export function currentAuthMode(): AuthModeResult {
+  return resolveAuthMode({
+    supabaseConfigured: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+    bypassFlag: process.env.NEXT_PUBLIC_BYPASS_LOGIN,
+    devAccessToken: process.env.NEXT_PUBLIC_DEV_ACCESS_TOKEN,
+    runtimeProfile: process.env.NEXT_PUBLIC_RUNTIME_PROFILE,
+    localHost: isLocalUiPreviewAvailable(),
+  });
+}
+
+/** Returns a same-origin app path, or null when the value could leave the app or loop back to /login. */
+export function sanitizeNextPath(value: string | null | undefined): string | null {
+  const candidate = value?.trim();
+  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) return null;
+  if (/[\\\u0000-\u001f\u007f]/.test(candidate)) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate, PATH_BASE);
+  } catch {
+    return null;
+  }
+  if (parsed.origin !== PATH_BASE || parsed.pathname.startsWith("//")) return null;
+  if (parsed.pathname === "/login" || parsed.pathname.startsWith("/login/")) return null;
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+}
+
+function storage(): Storage | null {
+  try {
+    return globalThis.sessionStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Keeps the return path across the identity-provider round trip, which only returns to /login. */
+export function rememberPostAuthPath(value: string | null | undefined): void {
+  const path = sanitizeNextPath(value);
+  try {
+    if (path) storage()?.setItem(POST_AUTH_PATH_KEY, path);
+    else storage()?.removeItem(POST_AUTH_PATH_KEY);
+  } catch {
+    // Without storage the user lands on the default page after sign-in.
+  }
+}
+
+export function clearPostAuthPath(): void {
+  try {
+    storage()?.removeItem(POST_AUTH_PATH_KEY);
+  } catch {
+    // Nothing to clear when storage is unavailable.
+  }
+}
+
+/** The ?next= of the current URL wins; the remembered path covers the provider round trip. */
+export function resolvePostAuthPath(search: string): string {
+  const fromQuery = sanitizeNextPath(new URLSearchParams(search).get("next"));
+  if (fromQuery) return fromQuery;
+  let remembered: string | null = null;
+  try {
+    remembered = storage()?.getItem(POST_AUTH_PATH_KEY) ?? null;
+  } catch {
+    remembered = null;
+  }
+  return sanitizeNextPath(remembered) ?? DEFAULT_POST_AUTH_PATH;
+}

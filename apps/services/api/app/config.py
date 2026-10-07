@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Literal, Self
+from uuid import UUID
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,6 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.database_url import resolve_database_url
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
+_DEV_AUTH_EMAIL_PATTERN = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
 class Settings(BaseSettings):
@@ -33,10 +36,19 @@ class Settings(BaseSettings):
     )
     AUTH_BYPASS: bool = Field(
         default=False,
-        description="TEMPORARY dev-only: skip JWT auth and act as AUTH_BYPASS_USER_ID with the service-role store",
+        description=(
+            "Development-only auth bypass: skip JWT auth and act as DEV_AUTH_USER_ID / DEV_AUTH_EMAIL. "
+            "Requires API_DATA_BACKEND=memory; ignored when RUNTIME_PROFILE=production"
+        ),
     )
-    AUTH_BYPASS_USER_ID: str = Field(default="db65c438-deeb-4d51-923d-843844d5f254")
-    AUTH_BYPASS_EMAIL: str = Field(default="arvanit.telaku@boreksolutions.de")
+    DEV_AUTH_USER_ID: str = Field(
+        default="",
+        description="UUID of the development user; required when AUTH_BYPASS is active",
+    )
+    DEV_AUTH_EMAIL: str = Field(
+        default="",
+        description="Email of the development user; required when AUTH_BYPASS is active",
+    )
     STAGE_B_LLM_PROVIDER: Literal["anthropic", "openai"] = Field(
         default="anthropic",
         description="Live LLM provider for Stage B planning, slide generation and compression",
@@ -113,6 +125,36 @@ class Settings(BaseSettings):
 
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
+
+    @property
+    def dev_auth_active(self) -> bool:
+        """True only when the bypass is requested outside the production profile."""
+        return self.AUTH_BYPASS and self.RUNTIME_PROFILE != "production"
+
+    @model_validator(mode="after")
+    def validate_dev_auth(self) -> Self:
+        """Fail at startup rather than bypass row-level security or assume an identity."""
+        if not self.dev_auth_active:
+            return self
+        if self.API_DATA_BACKEND != "memory":
+            raise ValueError(
+                "AUTH_BYPASS=true is only supported with API_DATA_BACKEND=memory. "
+                f"With API_DATA_BACKEND={self.API_DATA_BACKEND} it would skip row-level security; "
+                "use real Microsoft/Supabase sign-in for Supabase-backed development."
+            )
+        try:
+            UUID(self.DEV_AUTH_USER_ID.strip())
+        except ValueError as exc:
+            raise ValueError(
+                "AUTH_BYPASS=true requires DEV_AUTH_USER_ID to be a valid UUID "
+                "(see .env.example); there is no default development identity."
+            ) from exc
+        if not _DEV_AUTH_EMAIL_PATTERN.fullmatch(self.DEV_AUTH_EMAIL.strip()):
+            raise ValueError(
+                "AUTH_BYPASS=true requires DEV_AUTH_EMAIL to be a valid email address "
+                "(see .env.example); there is no default development identity."
+            )
+        return self
 
     @model_validator(mode="after")
     def apply_resolved_database_url(self) -> Self:

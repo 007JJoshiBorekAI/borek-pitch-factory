@@ -472,7 +472,7 @@ async function employeeRequest(path: string, token: string, method = "GET"): Pro
       Authorization: `Bearer ${await resolveAccessToken(token)}`,
     },
   });
-  if (!response.ok) throw new Error(`Employee request failed (${response.status}).`);
+  if (!response.ok) throw await parseError(response);
   return response.json() as Promise<EmployeeMe>;
 }
 

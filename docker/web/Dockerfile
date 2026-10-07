@@ -16,14 +16,20 @@ COPY package.json package-lock.json ./
 COPY apps/web ./apps/web
 COPY apps/renderer/package.json apps/renderer/
 COPY packages/contracts ./packages/contracts
+# AuthShell and BrandLogo import the brand assets from the repository root.
+COPY ["static images", "./static images"]
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ARG NEXT_PUBLIC_SUPABASE_URL=
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=
+ARG NEXT_PUBLIC_RUNTIME_PROFILE=production
+ARG NEXT_PUBLIC_BYPASS_LOGIN=false
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_RUNTIME_PROFILE=$NEXT_PUBLIC_RUNTIME_PROFILE
+ENV NEXT_PUBLIC_BYPASS_LOGIN=$NEXT_PUBLIC_BYPASS_LOGIN
 
 WORKDIR /app/apps/web
 RUN npm run build
