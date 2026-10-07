@@ -68,5 +68,23 @@
 .root .notesField { display: block; margin-bottom: 8px; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
 .notesField > span { font-weight: var(--pitch-weight-regular); color: var(--pitch-gray-500); }
 .root .notesField textarea { display: block; margin-top: 12px; min-height: 96px; }
-@media (max-width: 960px) { .columns { grid-template-columns: minmax(0, 1fr); } .workflow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.followUpColumns { grid-template-columns: minmax(0, 2.2fr) minmax(240px, 1fr); align-items: stretch; }
+.packageSidebar { display: flex; flex-direction: column; padding: 20px; }
+.root .packageLabel { display: block; margin: 0 0 12px; color: var(--pitch-gray-500); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-medium); line-height: 1.5; text-transform: uppercase; }
+.packageSidebar > header .packageLabel, .packageExport .packageLabel { color: var(--pitch-blue); }
+.packageDocument { display: grid; gap: 8px; padding: 16px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); }
+.packageDocument strong { font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
+.packageDocumentActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.root .packageDocumentActions :global(.btn) { padding: 6px 12px; min-height: 28px; border-radius: 999px; font-size: var(--pitch-text-caption); line-height: 1.4; text-transform: uppercase; }
+.root .packageSidebar p { margin: 0; font-size: var(--pitch-text-label); line-height: 1.6; }
+.packageChanges { padding: 24px 0; border-bottom: 1px solid var(--pitch-gray-200); }
+.packageAttachments { flex: 1; padding: 24px 0; min-height: 160px; }
+.packageAttachments ul { list-style: none; margin: 0; padding: 0; }
+.packageAttachments li { padding: 12px 0; font-size: var(--pitch-text-label); color: var(--pitch-gray-500); }
+.packageExport { margin-top: auto; padding-top: 24px; border-top: 1px solid var(--pitch-gray-200); }
+.root .packageExport h2 { margin: 0 0 8px; font-weight: var(--pitch-weight-semibold); }
+.root .packageSidebar .packageExport :global(.btn-primary) { width: 100%; margin-top: 18px; background: var(--pitch-blue); border-color: var(--pitch-blue); }
+.packageExport > small { display: block; margin-top: 10px; line-height: 1.5; }
+.packageError { color: var(--pitch-red); }
+@media (max-width: 960px) { .columns, .followUpColumns { grid-template-columns: minmax(0, 1fr); } .workflow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .phaseNav, .extraction, .workflow ol { grid-template-columns: minmax(0, 1fr); } .card, .summary { padding: 16px; } .actions { align-items: stretch; flex-direction: column; } .actions > * { width: 100%; } }
