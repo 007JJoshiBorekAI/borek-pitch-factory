@@ -2188,6 +2188,12 @@ samp {
   border: 0;
 }
 
+/* Form rules size inputs to 100%; a visually hidden input must stay 1px or it widens the page. */
+.app-workspace :is(input, select, textarea).sr-only {
+  width: 1px;
+  min-width: 0;
+}
+
 @media (max-width: 1024px) {
   .pipeline-rail {
     grid-template-columns: repeat(4, minmax(0, 1fr));
