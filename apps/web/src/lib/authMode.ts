@@ -2,7 +2,8 @@ import { isLocalUiPreviewAvailable } from "./uiPreview";
 
 /**
  * supabase     - Microsoft sign-in through Supabase.
- * dev          - development-only sign-in against a local API running with AUTH_BYPASS.
+ * dev          - development-only sign-in against an API running with AUTH_BYPASS (memory backend):
+ *                on localhost, or on the one deployed development host as a temporary preview.
  * preview      - browser-only sample data on localhost; the API is never called.
  * unconfigured - no sign-in is available for this build.
  */
@@ -10,12 +11,22 @@ export type AuthMode = "supabase" | "dev" | "preview" | "unconfigured";
 
 export type BypassIgnoredReason = "production_profile" | "non_local_host";
 
+/**
+ * The only deployed host that may use development sign-in. It is fixed in code on purpose:
+ * build configuration can switch the preview off, but can never point it at another host.
+ */
+export const DEPLOYED_DEV_PREVIEW_HOST = "web.gentletree-93d291c0.germanywestcentral.azurecontainerapps.io";
+
 export interface AuthModeInput {
   supabaseConfigured: boolean;
   bypassFlag: string | undefined;
   devAccessToken: string | undefined;
   runtimeProfile: string | undefined;
   localHost: boolean;
+  deployedDevBypassFlag: string | undefined;
+  deployedDevHost: string | undefined;
+  /** window.location.hostname, or "" outside the browser. */
+  hostname: string;
 }
 
 export interface AuthModeResult {
@@ -23,6 +34,8 @@ export interface AuthModeResult {
   /** Pre-issued Supabase token for local tooling; honoured only where development auth is allowed. */
   devAccessToken: string | null;
   bypassIgnoredReason: BypassIgnoredReason | null;
+  /** True only for development sign-in on the deployed development host. */
+  deployedDevPreview: boolean;
 }
 
 /** The API ignores the token value while AUTH_BYPASS is active; it only marks the request as dev auth. */
@@ -38,14 +51,22 @@ export function resolveAuthMode(input: AuthModeInput): AuthModeResult {
   // Mirrors the API default: an unset profile is development, only "production" refuses the bypass.
   const production = (input.runtimeProfile?.trim() || "development") === "production";
   const developmentAllowed = !production && input.localHost;
-  const bypassIgnoredReason = (bypassRequested || token) && !developmentAllowed
+  // Every condition is an exact match: an explicit development profile, both flags, and the one
+  // allowed host named in the build and seen by the browser. No defaults, patterns or subdomains.
+  const deployedDevPreview = bypassRequested &&
+    input.deployedDevBypassFlag === "true" &&
+    input.runtimeProfile === "development" &&
+    input.deployedDevHost === DEPLOYED_DEV_PREVIEW_HOST &&
+    input.hostname === DEPLOYED_DEV_PREVIEW_HOST;
+  const bypassIgnoredReason = (bypassRequested || token) && !developmentAllowed && !deployedDevPreview
     ? production ? "production_profile" : "non_local_host"
     : null;
   const fallback: AuthMode = input.supabaseConfigured ? "supabase" : input.localHost ? "preview" : "unconfigured";
   return {
-    mode: bypassRequested && developmentAllowed ? "dev" : fallback,
+    mode: bypassRequested && (developmentAllowed || deployedDevPreview) ? "dev" : fallback,
     devAccessToken: developmentAllowed ? token : null,
     bypassIgnoredReason,
+    deployedDevPreview,
   };
 }
 
@@ -56,6 +77,9 @@ export function currentAuthMode(): AuthModeResult {
     devAccessToken: process.env.NEXT_PUBLIC_DEV_ACCESS_TOKEN,
     runtimeProfile: process.env.NEXT_PUBLIC_RUNTIME_PROFILE,
     localHost: isLocalUiPreviewAvailable(),
+    deployedDevBypassFlag: process.env.NEXT_PUBLIC_DEPLOYED_DEV_BYPASS,
+    deployedDevHost: process.env.NEXT_PUBLIC_DEPLOYED_DEV_HOST,
+    hostname: typeof window === "undefined" ? "" : window.location.hostname,
   });
 }
 

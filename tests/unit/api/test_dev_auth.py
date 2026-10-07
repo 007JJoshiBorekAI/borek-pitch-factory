@@ -149,3 +149,54 @@ def test_dev_auth_never_activates_in_production(monkeypatch: pytest.MonkeyPatch)
     real = client.get("/employees/me", headers={"Authorization": f"Bearer {token}"})
     assert real.status_code == 200
     assert real.json()["email"] == "user-a@example.com"
+
+
+def test_dev_user_can_open_the_current_journey_on_the_memory_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_dev_auth(monkeypatch)
+    client = TestClient(create_app())
+    token = {"Authorization": "Bearer dev-bypass"}
+
+    assert client.get("/employees/me", headers=token).json()["email"] == DEV_EMAIL
+    assert client.post("/employees/session", headers=token).status_code == 200
+    assert client.get("/opportunities", headers=token).json() == []
+
+    created = client.post(
+        "/opportunities",
+        headers=token,
+        json={
+            "client_name": "Preview Client GmbH",
+            "opportunity_name": "Preview pitch",
+            "department": "Sales",
+            "stage1_intake": {
+                "client_web_page": "https://preview.example",
+                "poc_name": "Pat Preview",
+                "poc_position": "Operations",
+                "sales_topic_description": "Support automation review",
+                "about_company": "Synthetic preview company.",
+            },
+        },
+    )
+    assert created.status_code == 201, created.text
+    opportunity_id = created.json()["id"]
+    assert created.json()["created_by"] == DEV_USER_ID
+
+    listed = client.get("/opportunities", headers=token).json()
+    assert [row["id"] for row in listed] == [opportunity_id]
+    assert client.get(f"/opportunities/{opportunity_id}", headers=token).status_code == 200
+    workflow = client.get(f"/opportunities/{opportunity_id}/workflow-status", headers=token)
+    assert workflow.status_code == 200, workflow.text
+    assert workflow.json()["opportunity_id"] == opportunity_id
+
+    generated = client.post(f"/opportunities/{opportunity_id}/discovery-paper/generate", headers=token)
+    assert generated.status_code == 200, generated.text
+    assert client.get(f"/opportunities/{opportunity_id}/discovery-paper", headers=token).status_code == 200
+    assert client.get(f"/opportunities/{opportunity_id}/discovery-paper/versions", headers=token).status_code == 200
+
+
+def test_memory_backend_never_builds_a_supabase_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_dev_auth(monkeypatch)
+    from app.services.data import build_data_store
+    from app.services.data.memory_store import MemoryDataStore
+
+    assert isinstance(build_data_store(None), MemoryDataStore)
+    assert isinstance(build_data_store("dev-bypass"), MemoryDataStore)

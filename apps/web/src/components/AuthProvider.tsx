@@ -6,6 +6,7 @@ import type { Session } from "@supabase/supabase-js";
 import { ApiRequestError, getEmployeeMe, recordEmployeeSession } from "@/lib/api";
 import { currentAuthMode, DEV_AUTH_TOKEN, type AuthMode, type BypassIgnoredReason } from "@/lib/authMode";
 import { authOwnerId, beginAuthSession, clearAuthSession, isAuthSessionEnded, isDevAuthSessionActive, isPreviewSessionActive, syncAuthOwner } from "@/lib/authSession";
+import { restoreDevAuthSession, startDevAuthSession } from "@/lib/devAuthSession";
 import { EMPTY_CAPABILITIES, type EmployeeMe } from "@/lib/employeeRoles";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
@@ -23,6 +24,8 @@ interface AuthContextValue {
   /** null until the browser has resolved which sign-in this build supports. */
   authMode: AuthMode | null;
   bypassIgnoredReason: BypassIgnoredReason | null;
+  /** Development sign-in is running on the deployed development host. */
+  deployedDevPreview: boolean;
   ownerId: string | null;
   startPreviewSession: () => void;
   startDevSession: () => Promise<void>;
@@ -40,6 +43,7 @@ const AuthContext = createContext<AuthContextValue>({
   devAuthMode: false,
   authMode: null,
   bypassIgnoredReason: null,
+  deployedDevPreview: false,
   ownerId: null,
   startPreviewSession: () => undefined,
   startDevSession: async () => undefined,
@@ -54,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [devUserId, setDevUserId] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [bypassIgnoredReason, setBypassIgnoredReason] = useState<BypassIgnoredReason | null>(null);
+  const [deployedDevPreview, setDeployedDevPreview] = useState(false);
   const [developmentToken, setDevelopmentToken] = useState<string | null>(null);
   const [sessionEnded, setSessionEnded] = useState(false);
   const endedRef = useRef(false);
@@ -73,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const developmentToken = resolved.devAccessToken;
     setAuthMode(resolved.mode);
     setBypassIgnoredReason(resolved.bypassIgnoredReason);
+    setDeployedDevPreview(resolved.deployedDevPreview);
     setDevelopmentToken(developmentToken);
     if (resolved.mode === "dev") {
       if (endedRef.current || !isDevAuthSessionActive()) {
@@ -83,17 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // Restore only once the API confirms it still runs in development auth mode.
       const generation = authGeneration.current;
-      void getEmployeeMe(DEV_AUTH_TOKEN).then((profile) => {
+      void restoreDevAuthSession(() => getEmployeeMe(DEV_AUTH_TOKEN)).then((profile) => {
         if (!active || authGeneration.current !== generation) return;
-        ownerRef.current = profile.user_id;
-        syncAuthOwner(profile.user_id);
+        ownerRef.current = profile?.user_id ?? null;
+        if (profile) syncAuthOwner(profile.user_id);
         setEmployee(profile);
-        setDevUserId(profile.user_id);
-        setLoading(false);
-      }).catch(() => {
-        if (!active || authGeneration.current !== generation) return;
-        ownerRef.current = null;
-        setDevUserId(null);
+        setDevUserId(profile?.user_id ?? null);
         setLoading(false);
       });
       return () => {
@@ -178,11 +179,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authGeneration.current += 1;
     const generation = authGeneration.current;
     // The session only starts once the API answers as the development user.
-    const profile = await getEmployeeMe(DEV_AUTH_TOKEN);
-    if (authGeneration.current !== generation) return;
+    const profile = await startDevAuthSession(
+      () => getEmployeeMe(DEV_AUTH_TOKEN),
+      () => authGeneration.current === generation,
+    );
+    if (!profile) return;
     endedRef.current = false;
-    syncAuthOwner(profile.user_id);
-    beginAuthSession(false, true);
     ownerRef.current = profile.user_id;
     setSessionEnded(false);
     setPreviewMode(false);
@@ -249,12 +251,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       devAuthMode: Boolean(devUserId) && Boolean(accessToken),
       authMode,
       bypassIgnoredReason,
+      deployedDevPreview,
       ownerId,
       startPreviewSession,
       startDevSession,
       endPreviewSession,
     };
-  }, [accessToken, authMode, bypassIgnoredReason, developmentToken, devUserId, employee, loading, ownerId, previewMode, session]);
+  }, [accessToken, authMode, bypassIgnoredReason, deployedDevPreview, developmentToken, devUserId, employee, loading, ownerId, previewMode, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

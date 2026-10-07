@@ -9,12 +9,15 @@ import { ApiRequestError } from "@/lib/api";
 import {
   clearPostAuthPath, readAuthCallbackError, rememberPostAuthPath, resolvePostAuthPath, withoutAuthCallbackError,
 } from "@/lib/authMode";
+import { performSignIn, signInAction } from "@/lib/signIn";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 export function AuthCard() {
   const router = useRouter();
   const { language, setLanguage, copy } = useLanguage();
-  const { session, isAuthenticated, authMode, bypassIgnoredReason, startPreviewSession, startDevSession } = useAuth();
+  const {
+    session, isAuthenticated, authMode, bypassIgnoredReason, deployedDevPreview, startPreviewSession, startDevSession,
+  } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callbackError, setCallbackError] = useState<string | null>(null);
@@ -67,39 +70,33 @@ export function AuthCard() {
     }
   }
 
+  // On the deployed development host the Microsoft button itself performs the development sign-in.
+  const microsoftStyledButton = authMode !== "dev" || deployedDevPreview;
+
   return (
     <div className="auth-card">
       {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
       {callbackError && !error ? (
         <div className="alert alert-error" role="alert">{authCopy.signInFailed} {callbackError}</div>
       ) : null}
-      {authMode === "dev" ? (
-        <button
-          type="button"
-          className="btn btn-primary btn-block auth-microsoft"
-          disabled={busy}
-          onClick={() => void handleDevSignIn()}
-        >
-          {busy ? authCopy.wait : authCopy.devSignIn}
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="btn btn-primary btn-block auth-microsoft"
-          disabled={busy || authMode !== "supabase"}
-          onClick={() => void handleMicrosoftSignIn()}
-        >
+      <button
+        type="button"
+        className="btn btn-primary btn-block auth-microsoft"
+        disabled={busy || signInAction(authMode) === null}
+        onClick={() => void performSignIn(authMode, { microsoft: handleMicrosoftSignIn, dev: handleDevSignIn })}
+      >
+        {microsoftStyledButton ? (
           <span className="auth-microsoft-mark" aria-hidden="true"><span /><span /><span /><span /></span>
-          {busy ? authCopy.wait : authCopy.continueMicrosoft}
-        </button>
-      )}
-      {authMode === "supabase" ? (
+        ) : null}
+        {busy ? authCopy.wait : microsoftStyledButton ? authCopy.continueMicrosoft : authCopy.devSignIn}
+      </button>
+      {authMode === "supabase" || deployedDevPreview ? (
         <label className="auth-remember">
           <input type="checkbox" defaultChecked />
           <span>{authCopy.remember}</span>
         </label>
       ) : null}
-      {authMode === "dev" ? <p className="auth-availability" role="status">{authCopy.devNotice}</p> : null}
+      {authMode === "dev" && !deployedDevPreview ? <p className="auth-availability" role="status">{authCopy.devNotice}</p> : null}
       {authMode === "preview" || authMode === "unconfigured" ? (
         <p className="auth-availability" role="status">{authCopy.unavailable}</p>
       ) : null}

@@ -951,6 +951,22 @@ body:has(.app-workspace) {
   line-height: 1.5;
 }
 
+.dev-preview-badge {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 50;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #0d1240;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
 .auth-preview {
   margin-top: 14px;
   min-height: 46px;
