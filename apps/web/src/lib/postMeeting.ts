@@ -1,4 +1,4 @@
-import { apiFetch, resolveBackendOpportunityId, type WorkflowDeckLine } from "./api";
+import { apiFetch, generateMeetingExtraction, resolveBackendOpportunityId, savePersonalNotes, type WorkflowDeckLine } from "./api";
 
 export const EXTRACTION_FIELDS = [
   ["requirements", "Requirements"], ["challenges", "Challenges"], ["priorities", "Priorities"],
@@ -25,17 +25,8 @@ export interface PersonalNotes { text: string | null; updated_at: string | null 
 export type MeetingExtraction = {
   transcript_id: string; generated_at: string; personal_notes_updated_at: string | null;
 } & Record<(typeof EXTRACTION_FIELDS)[number][0], string[]>;
-export interface AttachableUseCase {
-  fact_id: string; title: string | null; statement: string | null;
-  document_id: string; document_version: string; service_key: string | null;
-}
-export interface SavedUseCases {
-  use_case_ids: string[];
-  use_cases: { fact_id: string; status: "resolved" | "unresolved"; document_version: string | null; payload: Record<string, unknown> | null }[];
-}
 export interface MeetingInputs {
   transcripts: MeetingTranscript[]; notes: PersonalNotes; extraction: MeetingExtraction | null;
-  available: AttachableUseCase[]; selected: SavedUseCases;
 }
 
 export function postMeetingPath(opportunityId: string, suffix: string) {
@@ -64,12 +55,11 @@ export function parseMeetingExtraction(value: unknown): MeetingExtraction | null
 
 export async function loadMeetingInputs(token: string, opportunityId: string, signal?: AbortSignal): Promise<MeetingInputs> {
   const read = <T>(suffix: string) => apiFetch<T>(postMeetingPath(opportunityId, suffix), token, { signal, cache: "no-store" });
-  const [transcripts, notes, extraction, available, selected] = await Promise.all([
+  const [transcripts, notes, extraction] = await Promise.all([
     read<MeetingTranscript[]>("transcripts"), read<PersonalNotes>("personal-notes"),
-    read<unknown>("meeting-extraction"), read<{ use_cases: AttachableUseCase[] }>("available-use-cases"),
-    read<SavedUseCases>("selected-use-cases"),
+    read<unknown>("meeting-extraction"),
   ]);
-  return { transcripts, notes, extraction: parseMeetingExtraction(extraction), available: available.use_cases, selected };
+  return { transcripts, notes, extraction: parseMeetingExtraction(extraction) };
 }
 
 export function extractionIsCurrent(extraction: MeetingExtraction | null, transcriptId: string, notes: PersonalNotes) {
@@ -77,8 +67,46 @@ export function extractionIsCurrent(extraction: MeetingExtraction | null, transc
     extraction.personal_notes_updated_at === (notes.text?.trim() ? notes.updated_at : null));
 }
 
-export function meetingEvidenceKey(inputs: MeetingInputs) {
-  return JSON.stringify({ extraction: inputs.extraction, notes: inputs.notes, selected: inputs.selected });
+export class MeetingNotesConflict extends Error {
+  constructor(readonly savedNotes: PersonalNotes) {
+    super("Additional notes changed in another session. Your text is retained; choose which notes to use before continuing.");
+  }
+}
+
+export async function prepareMeetingEvidence(
+  token: string, opportunityId: string, transcriptId: string, notes: string, expectedNotes: PersonalNotes,
+  options: { signal?: AbortSignal; onProgress?: (message: string) => void; onInputs?: (inputs: MeetingInputs) => void } = {},
+) {
+  const { signal, onProgress, onInputs } = options;
+  const [inputs, workflow] = await Promise.all([
+    loadMeetingInputs(token, opportunityId, signal), loadPostMeetingWorkflow(token, opportunityId, signal),
+  ]);
+  signal?.throwIfAborted();
+  if (!workflowCompleted(workflow, "first_meeting_completed") || workflow.finalization || !workflow.documents.approved_discovery) {
+    throw new Error("This pitch is not eligible for document generation. Check meeting completion and the approved Discovery document.");
+  }
+  if (!inputs.transcripts.some((item) => item.id === transcriptId)) throw new Error("Upload a transcript before generating documents.");
+  if (notes.length > 20000) throw new Error("Additional notes must be 20,000 characters or fewer.");
+  if (inputs.notes.updated_at !== expectedNotes.updated_at || inputs.notes.text !== expectedNotes.text) throw new MeetingNotesConflict(inputs.notes);
+  if (notes.trim() !== (inputs.notes.text ?? "")) {
+    onProgress?.("Saving additional notes");
+    await savePersonalNotes(token, opportunityId, notes);
+    signal?.throwIfAborted();
+    inputs.notes = await apiFetch<PersonalNotes>(postMeetingPath(opportunityId, "personal-notes"), token, { signal, cache: "no-store" });
+    signal?.throwIfAborted();
+    if ((inputs.notes.text ?? "") !== notes.trim()) throw new MeetingNotesConflict(inputs.notes);
+  }
+  onInputs?.({ ...inputs });
+  if (!extractionIsCurrent(inputs.extraction, transcriptId, inputs.notes)) {
+    onProgress?.("Processing transcript");
+    inputs.extraction = parseMeetingExtraction(await generateMeetingExtraction(token, opportunityId, transcriptId));
+    signal?.throwIfAborted();
+    if (!extractionIsCurrent(inputs.extraction, transcriptId, inputs.notes)) {
+      throw new Error("The transcript has not finished processing for these notes. Retry generation.");
+    }
+    onInputs?.({ ...inputs });
+  }
+  return { inputs, workflow };
 }
 
 export function workflowCompleted(workflow: PostMeetingWorkflow | null, key: string) {

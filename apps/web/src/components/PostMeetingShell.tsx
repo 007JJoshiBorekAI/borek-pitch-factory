@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { SiteHeader } from "@/components/SiteHeader";
+import { usePreviewMeeting } from "@/components/usePreviewMeeting";
 import { WORKFLOW_STATUS_CATALOG } from "@/lib/discoveryFirst";
 import { loadPostMeetingWorkflow, postMeetingError, workflowCompleted, type PostMeetingWorkflow } from "@/lib/postMeeting";
 import styles from "./post-meeting.module.css";
@@ -35,12 +36,14 @@ function PostMeetingSession({ opportunityId, companyName, contactPerson, childre
   opportunityId: string; companyName: string; contactPerson: string; children: ReactNode;
 }) {
   const { accessToken, previewMode } = useAuth();
+  const preview = usePreviewMeeting(opportunityId);
   const pathname = usePathname();
   const [workflow, setWorkflow] = useState<PostMeetingWorkflow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [accessGranted, setAccessGranted] = useState(false);
   const live = Boolean(accessToken) && !previewMode;
+  const canView = previewMode ? preview.enabled && preview.completed : live && accessGranted;
   const root = `/opportunities/${encodeURIComponent(opportunityId)}`;
 
   useEffect(() => {
@@ -61,15 +64,18 @@ function PostMeetingSession({ opportunityId, companyName, contactPerson, childre
     <div className="app-workspace discovery-workflow-shell">
       <SiteHeader opportunityId={opportunityId} activeSection="post_meeting" />
       <main className={`discovery-workflow-main ${styles.root}`}>
+        {previewMode && canView ? <p className={styles.notice}>Layout preview only. No files or notes are saved to the server.</p> : null}
+        {preview.error ? <div className={styles.error} role="alert">{preview.error} <button className="btn btn-secondary" onClick={preview.reload}>Retry preview access</button></div> : null}
         {error ? <div className={styles.error} role="alert">{error} <button className="btn btn-secondary" onClick={() => setRevision((value) => value + 1)}>Retry workflow</button></div> : null}
         {live && !workflow && !error ? <p role="status">Loading workflow status...</p> : null}
-        {live && accessGranted ? children : !error && (!live || workflow) ? <section className={styles.card} aria-labelledby="post-meeting-locked-title">
+        {previewMode && preview.loading ? <p role="status">Checking local preview confirmation...</p> : null}
+        {canView ? children : !error && !preview.loading && (!live || workflow) ? <section className={styles.card} aria-labelledby="post-meeting-locked-title">
           <h1 id="post-meeting-locked-title">Complete the first meeting to continue</h1>
           <p>Post-meeting inputs unlock after you mark the first meeting completed on the pre-meeting presentation screen.</p>
-          {!live ? <p>A signed-in API session is required. Layout preview cannot confirm meeting completion.</p> : null}
+          {previewMode ? <p>Complete the preview PPT #1 and confirm the preview meeting to inspect the post-meeting screens.</p> : !live ? <p>A signed-in API session is required.</p> : null}
           <Link className="btn btn-primary" href={`${root}/presentations`}>Back to pre-meeting presentation</Link>
         </section> : null}
-        {live && accessGranted ? <details className={styles.workflow}>
+        {live && accessGranted && !pathname.endsWith("/meeting") ? <details className={styles.workflow}>
           <summary>Workflow checkpoints {workflow ? `(${workflow.steps.filter((step) => step.state === "completed").length}/8 completed)` : "(awaiting server status)"}</summary>
           <ol>{WORKFLOW_STATUS_CATALOG.map((step) => {
             const key = step.id.replace("ppt_1", "ppt1").replace("ppt_2", "ppt2");

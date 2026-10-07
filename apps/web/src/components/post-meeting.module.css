@@ -53,5 +53,20 @@
 .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .tabs a { padding: 12px 16px; color: inherit; text-decoration: none; border-bottom: 2px solid transparent; font-size: var(--pitch-text-label); }
 .tabs a[aria-current] { background: var(--pitch-gray-50); border-color: var(--pitch-blue); font-weight: var(--pitch-weight-semibold); }
+.meetingColumns { align-items: stretch; }
+.meetingCard { min-height: 340px; }
+.meetingCard .eyebrow, .meetingSummary .eyebrow { color: var(--pitch-teal); }
+.meetingIntro { color: var(--pitch-gray-500); margin: 0 0 24px; }
+.meetingSummary { border: 0; }
+.transcriptCard { display: flex; gap: 12px; align-items: center; margin: 20px 0 28px; padding: 18px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); }
+.transcriptCard > div { flex: 1; min-width: 0; }
+.transcriptCard strong { display: block; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); overflow-wrap: anywhere; }
+.transcriptCard small { display: block; margin-top: 6px; }
+.transcriptIcon { display: grid; place-items: center; width: 32px; height: 36px; flex-shrink: 0; background: white; border-radius: var(--pitch-control-radius); color: var(--pitch-teal); }
+.transcriptIcon svg { width: 20px; height: 20px; }
+.transcriptBadge { color: var(--pitch-teal); font-size: var(--pitch-text-caption); text-transform: uppercase; }
+.root .notesField { display: block; margin-bottom: 8px; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
+.notesField > span { font-weight: var(--pitch-weight-regular); color: var(--pitch-gray-500); }
+.root .notesField textarea { display: block; margin-top: 12px; min-height: 96px; }
 @media (max-width: 960px) { .columns { grid-template-columns: minmax(0, 1fr); } .workflow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .phaseNav, .extraction, .workflow ol { grid-template-columns: minmax(0, 1fr); } .card, .summary { padding: 16px; } .actions { align-items: stretch; flex-direction: column; } .actions > * { width: 100%; } }
