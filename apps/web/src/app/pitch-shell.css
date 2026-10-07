@@ -3365,3 +3365,47 @@ body:has(.app-workspace) {
 .discovery-sheet-scaler h1, .discovery-sheet-scaler h2 { font-family: 'Inter', Verdana, sans-serif; }
 @font-face{font-family:'Inter';font-style:normal;font-weight:300 600;font-display:swap;src:url('/whitepaper/inter-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 @font-face{font-family:'Inter';font-style:normal;font-weight:300 600;font-display:swap;src:url('/whitepaper/inter-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1E00-1E9F,U+20A0-20AB,U+20AD-20C0,U+2C60-2C7F,U+A720-A7FF}
+
+/* AI Opportunity Analysis (Discovery v2): the page list is grouped by chapter and only the
+   chapter being read is expanded, so it stays short whatever the page count is. */
+.discovery-analysis-group + .discovery-analysis-group { margin-top: 4px; }
+.discovery-analysis-group-label {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: var(--pitch-control-radius);
+  background: transparent;
+  color: var(--pitch-gray-700, #33384d);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.discovery-analysis-group-label > span { min-width: 0; overflow-wrap: anywhere; }
+.discovery-analysis-group-label > small { flex: none; color: var(--pitch-gray-500); font-weight: 400; }
+.discovery-analysis-group-label[aria-expanded="true"] { background: var(--pitch-gray-50); }
+.discovery-analysis-group-label:focus-visible { outline: 2px solid var(--pitch-blue); outline-offset: 1px; }
+.discovery-analysis-group-label:disabled { cursor: default; opacity: 0.6; }
+.discovery-analysis-group ol[hidden] { display: none; }
+.discovery-analysis-stages { display: grid; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; text-align: left; }
+.discovery-analysis-stages li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); font-size: 0.78rem; }
+.discovery-analysis-stages li small { color: var(--pitch-gray-500); }
+.discovery-analysis-stages li.is-ready small { color: #08754b; }
+.discovery-analysis-stages li.is-generating small { color: #9a5b00; }
+.discovery-analysis-stages li.is-failed small { color: #a9321b; }
+.discovery-analysis-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; color: var(--pitch-gray-500); font-size: 0.75rem; }
+.discovery-analysis-edit .btn { padding: 5px 10px; font-size: 0.75rem; }
+.discovery-analysis-research { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); font-size: 0.78rem; }
+.discovery-analysis-research summary { cursor: pointer; font-weight: 600; }
+.discovery-analysis-research dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 4px 12px; margin: 10px 0; }
+.discovery-analysis-research dt { color: var(--pitch-gray-500); }
+.discovery-analysis-research dd { margin: 0; overflow-wrap: anywhere; }
+.discovery-analysis-fieldset { min-width: 0; margin: 0; padding: 10px 12px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); display: grid; gap: 10px; }
+.discovery-analysis-fieldset legend { padding: 0 4px; color: var(--pitch-gray-500); font-size: 0.7rem; }
+.discovery-page-editor select { width: 100%; padding: 8px 10px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); background: #fff; font: inherit; }
+.discovery-analysis-legacy { margin-bottom: 12px; }

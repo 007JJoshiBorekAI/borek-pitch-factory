@@ -43,8 +43,8 @@ def create(client: TestClient, body: dict) -> dict:
     return response.json()
 
 
-def page(paper: dict, key: str) -> dict:
-    return next(item for item in paper["pages"] if item["key"] == key)["content"]
+def page(paper: dict, page_id: str) -> dict:
+    return next(item for item in paper["page_manifest"] if item["id"] == page_id)["content"]
 
 
 @pytest.mark.parametrize(
@@ -104,7 +104,9 @@ def test_empty_client_moves_through_discovery_and_ppt1_without_invented_facts(cl
     assert generated.status_code == 200, generated.text
     paper = generated.json()
     assert paper["status"] == "ready"
-    assert [item["status"] for item in paper["pages"]] == ["ready"] * 7
+    assert paper["schema_version"] == "2.0"
+    assert paper["generation"]["specificity"] == "generic"
+    assert len(paper["page_manifest"]) > 7
 
     # Missing input stays missing: nothing is filled in on the user's behalf.
     assert paper["intake_context"] == {
@@ -115,17 +117,19 @@ def test_empty_client_moves_through_discovery_and_ppt1_without_invented_facts(cl
         "meeting_purpose_source": "unavailable",
         "additional_information": None,
     }
-    cover = page(paper, "cover")
-    assert (cover["client_name"], cover["contact_name"], cover["website_url"], cover["meeting_purpose"]) == ("", None, None, "")
-    context = page(paper, "client_context")
-    assert context["known_facts"] == []
-    assert context["unknowns"] == ["description", "headquarters", "employee_headcount", "decision_makers", "revenue"]
-    assert context["additional_information"] is None
-    assert page(paper, "opportunity")["statement"] == "No meeting purpose is stored for this opportunity."
+    research = paper["analysis"]["research"]
+    assert research["known_facts"] == []
+    assert research["company_profile"] == {"text": None, "origin": "UNKNOWN"}
+    assert research["web_research"]["performed"] is False
+    assert research["unknown_facts"][:4] == ["Company name", "Contact person", "Website", "Meeting purpose"]
+    assert paper["analysis"]["provenance"]["customer_facts_origin"] == "none"
+    assert page(paper, "cover")["title"] == "AI opportunity analysis"
+    assert "generic discussion basis" in page(paper, "contents")["scope_note"]
+    assert "No company profile is available" in page(paper, "ch-overview")["paragraphs"][0]
     rendered = json.dumps(paper)
     for placeholder in INVENTED_PLACEHOLDERS:
         assert f'"{placeholder}"' not in rendered
-    for invented in ("GmbH", "employees", "revenue of", "headquartered"):
+    for invented in ("GmbH", "revenue of", "headquartered", "founded in", "employees at"):
         assert invented not in rendered
 
     approved = client.post(f"/opportunities/{opportunity_id}/discovery-paper/approve", headers=headers())
@@ -141,7 +145,7 @@ def test_empty_flow_is_deterministic_in_fixture_mode(client: TestClient) -> None
     def pages() -> list:
         opportunity_id = create(client, {"department": "Sales"})["id"]
         paper = client.post(f"/opportunities/{opportunity_id}/discovery-paper/generate", headers=headers()).json()
-        return [item["content"] for item in paper["pages"]]
+        return [(item["id"], item["type"], item["content"]) for item in paper["page_manifest"]]
 
     assert pages() == pages()
 
@@ -181,13 +185,19 @@ def test_populated_client_still_flows_and_keeps_its_data(client: TestClient) -> 
     )["id"]
     paper = client.post(f"/opportunities/{opportunity_id}/discovery-paper/generate", headers=headers()).json()
     assert paper["status"] == "ready"
-    cover = page(paper, "cover")
-    assert cover["client_name"] == "Northwind GmbH"
-    assert cover["contact_name"] == "Ada Lovelace"
-    assert cover["website_url"] == "https://northwind.example"
-    assert cover["meeting_purpose"] == "Warehouse slotting review"
-    labels = [fact["label"] for fact in page(paper, "client_context")["known_facts"]]
-    assert labels[:4] == ["Company Name", "Contact Person", "Website URL", "Additional Information"]
+    assert paper["generation"]["specificity"] == "company"
+    assert page(paper, "cover")["title"] == "AI opportunities for Northwind GmbH"
+    facts = {fact["label"]: fact for fact in paper["analysis"]["research"]["known_facts"]}
+    assert {label: fact["value"] for label, fact in facts.items()} == {
+        "Company name": "Northwind GmbH",
+        "Contact person": "Ada Lovelace",
+        "Website": "https://northwind.example",
+        "Meeting purpose": "Warehouse slotting review",
+        "Additional information": "Family-owned distributor in Hamburg.",
+    }
+    assert {fact["origin"] for fact in facts.values()} == {"USER_INPUT"}
+    assert "Warehouse slotting review" in paper["analysis"]["research"]["core_thesis"]["text"]
+    assert "Family-owned distributor in Hamburg." in page(paper, "ch-overview")["paragraphs"][0]
     assert client.post(f"/opportunities/{opportunity_id}/discovery-paper/approve", headers=headers()).status_code == 200
     outputs = client.post(f"/opportunities/{opportunity_id}/stage1-outputs/generate", headers=headers())
     assert outputs.status_code == 200, outputs.text

@@ -16,6 +16,10 @@ from services.presentation.planner import (
     run_planning_attempts,
 )
 from packages.contracts.validators import ContractValidationError
+from services.presentation.discovery_brief_adapter import (
+    is_opportunity_analysis,
+    planner_pages_from_brief,
+)
 from services.presentation.ppt1_constraints import (
     DISCOVERY_PAGE_KEYS,
     PPT1_MAX_SLIDES,
@@ -62,7 +66,10 @@ def planning_input_from_approved_paper(version_row: dict[str, Any]) -> dict[str,
         if isinstance(page, dict)
     }
     pages: list[dict[str, Any]] = []
-    for order, key in enumerate(DISCOVERY_PAGE_KEYS, start=1):
+    if is_opportunity_analysis(paper):
+        # Discovery v2 hands over its presentation brief, not its printed pages.
+        pages = planner_pages_from_brief(paper)
+    for order, key in enumerate(() if pages else DISCOVERY_PAGE_KEYS, start=1):
         page = by_key.get(key)
         if page is None:
             raise ValueError(f"Approved Discovery is missing page {key}")

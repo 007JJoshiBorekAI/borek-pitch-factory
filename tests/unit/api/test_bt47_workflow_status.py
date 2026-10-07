@@ -210,12 +210,10 @@ def test_approved_discovery_completes_preparation_and_keeps_a_later_draft() -> N
     assert step(prepared, "discovery_prepared")["evidence"]["version_id"] == approved.json()["id"]
     assert prepared["documents"]["discovery_draft"]["differs_from_approved"] is False
 
-    cover = copy.deepcopy(generated.json()["pages"][0]["content"])
-    cover["client_name"] = "Draft After Approval"
     edited = client.patch(
         f"/opportunities/{opportunity_id}/discovery-paper",
         headers=headers(),
-        json={"pages": [{"key": "cover", "content": cover}]},
+        json={"edits": [{"target": "framing", "value": {"document": {"title": "Draft After Approval"}}}]},
     )
     assert edited.status_code == 200, edited.text
     later = status_of(client, opportunity_id)
@@ -227,7 +225,7 @@ def test_approved_discovery_completes_preparation_and_keeps_a_later_draft() -> N
         version_id=UUID(approved.json()["id"]),
         user_id=OWNER,
     )
-    assert stored["paper_json"]["pages"][0]["content"]["client_name"] != "Draft After Approval"
+    assert stored["paper_json"]["analysis"]["framing"]["document"]["title"] != "Draft After Approval"
 
 
 def test_ppt1_uses_stage1_identity_and_ppt2_stays_separate() -> None:

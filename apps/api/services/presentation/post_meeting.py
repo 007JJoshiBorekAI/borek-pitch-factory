@@ -22,6 +22,10 @@ from services.presentation.planner import (
     PresentationPlan,
     run_planning_attempts,
 )
+from services.presentation.discovery_brief_adapter import (
+    is_opportunity_analysis,
+    planner_pages_from_brief,
+)
 from services.presentation.ppt1_constraints import DISCOVERY_PAGE_KEYS
 
 MEETING_SECTION_KEYS: tuple[str, ...] = (
@@ -251,6 +255,9 @@ def _planner_payload(ppt2_context: dict[str, Any]) -> dict[str, Any]:
 
 
 def _discovery_pages(paper: dict[str, Any]) -> list[dict[str, Any]]:
+    if is_opportunity_analysis(paper):
+        # Discovery v2 hands over its presentation brief, not its printed pages.
+        return planner_pages_from_brief(paper)
     by_key = {
         str(page.get("key")): page
         for page in paper.get("pages") or []

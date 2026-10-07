@@ -74,12 +74,11 @@ def edit_cover(client: TestClient, opportunity_id: str, client_name: str) -> Non
         f"/opportunities/{opportunity_id}/discovery-paper",
         headers=headers(),
     ).json()
-    cover = dict(paper["pages"][0]["content"])
-    cover["client_name"] = client_name
+    assert paper["schema_version"] == "2.0"
     edited = client.patch(
         f"/opportunities/{opportunity_id}/discovery-paper",
         headers=headers(),
-        json={"pages": [{"key": "cover", "content": cover}]},
+        json={"edits": [{"target": "thesis", "value": {"text": f"Working hypothesis: {client_name}"}}]},
     )
     assert edited.status_code == 200, edited.text
 
@@ -235,7 +234,7 @@ def test_explicit_regenerate_uses_v2_and_keeps_the_stage1_presentation() -> None
         assert len(store.presentations) == 1
         version = latest_version(store, UUID(presentation_id))
         assert version["version_number"] == 2
-        assert "Second Approved Client" in version["slides_json"][0]["title"]
+        assert "Second Approved Client" in str(version["slides_json"])
         assert version["generation_source_manifest"]["approved_discovery_version_id"] == second.json()["id"]
         edit_cover(client, opportunity_id, "Draft Only Client")
         again = client.post(
@@ -245,7 +244,7 @@ def test_explicit_regenerate_uses_v2_and_keeps_the_stage1_presentation() -> None
         assert again.status_code == 200, again.text
         latest = latest_version(store, UUID(presentation_id))
         assert latest["version_number"] == 3
-        assert "Second Approved Client" in latest["slides_json"][0]["title"]
+        assert "Second Approved Client" in str(latest["slides_json"])
         assert "Draft Only Client" not in json.dumps(latest["slides_json"])
         assert again.json()["outputs"]["presentation"]["presentation_id"] == presentation_id
 
@@ -296,7 +295,7 @@ def test_retry_of_the_same_job_keeps_the_original_approved_version(monkeypatch) 
         retried = client.post(f"/jobs/{job['id']}/retry", headers=headers())
         assert retried.status_code == 202, retried.text
         version = latest_version(store, UUID(presentation_id))
-        assert "Northwind" in version["slides_json"][0]["title"]
+        assert "Northwind" in str(version["slides_json"])
         assert "Later Approved Client" not in json.dumps(version["slides_json"])
         assert (
             version["generation_source_manifest"]["approved_discovery_version_id"]

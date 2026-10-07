@@ -75,12 +75,11 @@ def approve_discovery(client: TestClient, opportunity_id: str) -> dict:
 
 def edit_cover(client: TestClient, opportunity_id: str, client_name: str) -> None:
     paper = client.get(f"/opportunities/{opportunity_id}/discovery-paper", headers=headers()).json()
-    cover = dict(paper["pages"][0]["content"])
-    cover["client_name"] = client_name
+    assert paper["schema_version"] == "2.0"
     edited = client.patch(
         f"/opportunities/{opportunity_id}/discovery-paper",
         headers=headers(),
-        json={"pages": [{"key": "cover", "content": cover}]},
+        json={"edits": [{"target": "thesis", "value": {"text": f"Working hypothesis: {client_name}"}}]},
     )
     assert edited.status_code == 200, edited.text
 
@@ -235,7 +234,7 @@ def test_approved_v1_is_used_while_a_draft_exists_and_sources_stay_separate(monk
         assert REQUIREMENT not in manifest_blob
         assert "paper_json" not in manifest
         assert "Draft Only Client" not in json.dumps(version["slides_json"])
-        assert "Northwind" in version["slides_json"][0]["title"]
+        assert "Northwind" in str(version["slides_json"])
         assert version["slides_json"][0]["sourceChapterIds"] == ["discovery.cover"]
         rendered = json.dumps(version["slides_json"])
         assert NOTE_A in rendered
@@ -472,12 +471,12 @@ def test_explicit_regenerate_reuses_the_ppt2_id_and_refreshes_context() -> None:
         assert second["version_number"] == 2
         assert second["journey_stage"] == "post_meeting"
         assert NOTE_B in json.dumps(second["slides_json"])
-        assert "Second Approved Client" in second["slides_json"][0]["title"]
+        assert "Second Approved Client" in str(second["slides_json"])
         assert (
             second["generation_source_manifest"]["approved_discovery_version_id"]
             == second_paper.json()["id"]
         )
-        assert "Northwind" in first_version["slides_json"][0]["title"]
+        assert "Northwind" in str(first_version["slides_json"])
         edit_cover(client, opportunity_id, "Draft Only Client")
         still = client.post(
             f"/opportunities/{opportunity_id}/ppt2/{presentation_id}/regenerate",
@@ -486,7 +485,7 @@ def test_explicit_regenerate_reuses_the_ppt2_id_and_refreshes_context() -> None:
         assert still.status_code == 200, still.text
         third = latest_version(store, UUID(presentation_id))
         assert third["version_number"] == 3
-        assert "Second Approved Client" in third["slides_json"][0]["title"]
+        assert "Second Approved Client" in str(third["slides_json"])
         assert "Draft Only Client" not in json.dumps(third["slides_json"])
         assert len(store.presentations) == 2
         stolen = client.post(

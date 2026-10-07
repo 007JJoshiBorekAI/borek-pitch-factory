@@ -17,7 +17,7 @@ from app.main import create_app
 from app.services.data.memory_store import get_memory_store, reset_memory_store
 from app.services.data.supabase_store import SupabaseDataStore
 from app.services.discovery_paper import approve_discovery_paper, edit_discovery_paper
-from services.framework.discovery_paper import build_discovery_paper, render_page
+from services.framework.discovery_paper import build_discovery_paper
 
 OWNER = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 ROOT = Path(__file__).resolve().parents[3]
@@ -89,23 +89,23 @@ def test_draft_edit_approve_and_later_draft_keep_approved_history() -> None:
         stored_draft = _version(client, opportunity_id, draft_id)
         assert stored_draft["paper_json"] == first
 
-        cover = copy.deepcopy(first["pages"][0]["content"])
-        cover["client_name"] = "Edited Northwind"
-        untouched_statement = first["pages"][2]["content"]["statement"]
+        untouched_thesis = first["analysis"]["research"]["core_thesis"]["text"]
         edited = client.patch(
             f"/opportunities/{opportunity_id}/discovery-paper",
             headers=headers(),
-            json={"expected_document_id": first["document_id"], "pages": [{"key": "cover", "content": cover}]},
+            json={"expected_document_id": first["document_id"], "edits": [{"target": "framing", "value": {"document": {"title": "Edited Northwind"}}}]},
         )
         assert edited.status_code == 200, edited.text
         paper = edited.json()
-        assert paper["pages"][0]["content"]["client_name"] == "Edited Northwind"
-        assert paper["pages"][2]["content"]["statement"] == untouched_statement
+        assert paper["analysis"]["framing"]["document"]["title"] == "Edited Northwind"
+        assert paper["page_manifest"][0]["content"]["title"] == "Edited Northwind"
+        assert paper["presentation_brief"]["document_title"] == "Edited Northwind"
+        assert paper["analysis"]["research"]["core_thesis"]["text"] == untouched_thesis
         assert paper["document_id"] == first["document_id"]
         assert paper["generated_at"] == first["generated_at"]
         assert paper["latest_approved_version_id"] is None
-        assert [page["key"] for page in paper["pages"]] == [page["key"] for page in first["pages"]]
-        assert [page["status"] for page in paper["pages"]] == ["ready"] * 7
+        assert [page["id"] for page in paper["page_manifest"]] == [page["id"] for page in first["page_manifest"]]
+        assert paper["status"] == "ready"
         updated_draft = _version(client, opportunity_id, draft_id)
         assert updated_draft["version_number"] == 1
         assert updated_draft["paper_json"] == paper
@@ -140,15 +140,13 @@ def test_draft_edit_approve_and_later_draft_keep_approved_history() -> None:
                 paper_json=working,
             )
 
-        revised = copy.deepcopy(working["pages"][0]["content"])
-        revised["client_name"] = "After approval"
         after = client.patch(
             f"/opportunities/{opportunity_id}/discovery-paper",
             headers=headers(),
-            json={"pages": [{"key": "cover", "content": revised}]},
+            json={"edits": [{"target": "framing", "value": {"document": {"title": "After approval"}}}]},
         )
         assert after.status_code == 200, after.text
-        assert after.json()["pages"][0]["content"]["client_name"] == "After approval"
+        assert after.json()["analysis"]["framing"]["document"]["title"] == "After approval"
         assert after.json()["latest_approved_version_id"] == draft_id
         assert _version(client, opportunity_id, draft_id)["paper_json"] == approved_snapshot
         forked = _versions(client, opportunity_id)
@@ -170,8 +168,8 @@ def test_draft_edit_approve_and_later_draft_keep_approved_history() -> None:
         assert versions[2]["document_id"] == second["document_id"]
         assert _version(client, opportunity_id, draft_id)["paper_json"] == approved_snapshot
         assert (
-            _version(client, opportunity_id, edit_draft_id)["paper_json"]["pages"][0]["content"][
-                "client_name"
+            _version(client, opportunity_id, edit_draft_id)["paper_json"]["analysis"]["framing"]["document"][
+                "title"
             ]
             == "After approval"
         )
@@ -182,20 +180,19 @@ def test_draft_edit_approve_and_later_draft_keep_approved_history() -> None:
         assert latest.status_code == 200, latest.text
         assert latest.json()["id"] == draft_id
 
-        pilot = {
-            "concept": "A revised discovery pilot focused on the first meeting.",
-            "commercial_terms": "not_included",
-            "origin": "GROUNDED_TEMPLATE",
-        }
+        closing = {"headline": "A revised conclusion for the first meeting"}
         revised_draft = client.patch(
             f"/opportunities/{opportunity_id}/discovery-paper",
             headers=headers(),
-            json={"pages": [{"key": "pilot_proposal", "content": pilot}]},
+            json={"edits": [{"target": "closing", "value": closing}]},
         )
         assert revised_draft.status_code == 200, revised_draft.text
         second_id = versions[2]["id"]
         assert [row["version_number"] for row in _versions(client, opportunity_id)] == [1, 2, 3]
-        assert _version(client, opportunity_id, second_id)["paper_json"]["pages"][5]["content"] == pilot
+        assert (
+            _version(client, opportunity_id, second_id)["paper_json"]["analysis"]["closing"]["headline"]
+            == closing["headline"]
+        )
         assert _version(client, opportunity_id, draft_id)["paper_json"] == approved_snapshot
 
         second_approval = client.post(
@@ -245,12 +242,11 @@ def test_edit_after_approval_forks_one_draft_then_approval_moves_the_pointer() -
             headers=headers(),
         ).json()
 
-        first_cover = copy.deepcopy(working["pages"][0]["content"])
-        first_cover["client_name"] = "First post-approval edit"
+        assert working["schema_version"] == "2.0"
         first = client.patch(
             f"/opportunities/{opportunity_id}/discovery-paper",
             headers=headers(),
-            json={"pages": [{"key": "cover", "content": first_cover}]},
+            json={"edits": [{"target": "framing", "value": {"document": {"title": "First post-approval edit"}}}]},
         )
         assert first.status_code == 200, first.text
         versions = _versions(client, opportunity_id)
@@ -263,12 +259,10 @@ def test_edit_after_approval_forks_one_draft_then_approval_moves_the_pointer() -
         assert _version(client, opportunity_id, v1_id)["paper_json"] == approved_snapshot
         assert _version(client, opportunity_id, v2_id)["paper_json"] == first.json()
 
-        second_cover = copy.deepcopy(first.json()["pages"][0]["content"])
-        second_cover["client_name"] = "Second post-approval edit"
         second = client.patch(
             f"/opportunities/{opportunity_id}/discovery-paper",
             headers=headers(),
-            json={"pages": [{"key": "cover", "content": second_cover}]},
+            json={"edits": [{"target": "framing", "value": {"document": {"title": "Second post-approval edit"}}}]},
         )
         assert second.status_code == 200, second.text
         assert [row["version_number"] for row in _versions(client, opportunity_id)] == [1, 2]
@@ -310,7 +304,7 @@ def test_invalid_edits_and_unready_approval_are_rejected(monkeypatch) -> None:
             headers=headers(),
             json={
                 "document_id": str(uuid4()),
-                "pages": [{"key": "cover", "content": paper["pages"][0]["content"], "status": "failed"}],
+                "edits": [{"target": "framing", "value": {"document": {"title": "Forbidden field"}}}],
             },
         )
         assert forbidden.status_code == 422
@@ -319,33 +313,36 @@ def test_invalid_edits_and_unready_approval_are_rejected(monkeypatch) -> None:
             headers=headers(),
             json={
                 "expected_document_id": str(uuid4()),
-                "pages": [{"key": "cover", "content": paper["pages"][0]["content"]}],
+                "edits": [{"target": "framing", "value": {"document": {"title": "Stale edit"}}}],
             },
         )
         assert stale.status_code == 409
         assert stale.json()["error"]["code"] == "DISCOVERY_PAPER_STALE"
-        priced = copy.deepcopy(paper["pages"][5]["content"])
-        priced["concept"] = "A pilot for EUR 1000 per day."
-        rejected = client.patch(
-            f"/opportunities/{opportunity_id}/discovery-paper",
-            headers=headers(),
-            json={"pages": [{"key": "pilot_proposal", "content": priced}]},
-        )
-        assert rejected.status_code == 400
-        assert rejected.json()["error"]["code"] == "DISCOVERY_PAPER_INVALID"
+        rejections = {
+            "unsupported figure": {"target": "closing", "value": {"headline": "The client loses EUR 1000 per day."}},
+            "unknown section": {"target": "pricing", "value": {"text": "x"}},
+            "system field": {"target": "closing", "value": {"schema_version": "9"}},
+            "too long": {"target": "closing", "value": {"headline": "x" * 400}},
+            "page edit on an analysis": None,
+        }
+        for label, edit in rejections.items():
+            body = {"edits": [edit]} if edit else {"pages": [{"key": "cover", "content": {}}]}
+            rejected = client.patch(
+                f"/opportunities/{opportunity_id}/discovery-paper", headers=headers(), json=body
+            )
+            assert rejected.status_code == 400, label
+            assert rejected.json()["error"]["code"] == "DISCOVERY_PAPER_INVALID", label
         assert client.get(
             f"/opportunities/{opportunity_id}/discovery-paper",
             headers=headers(),
-        ).json()["pages"][5]["content"]["concept"] == paper["pages"][5]["content"]["concept"]
+        ).json() == paper
 
     reset_memory_store()
 
-    def fail_page(key: str, **kwargs):
-        if key == "relevant_use_case":
-            raise RuntimeError("page five failed")
-        return render_page(key, **kwargs)
+    def fail_layout(paper: dict):
+        raise RuntimeError("layout failed")
 
-    monkeypatch.setattr("services.framework.discovery_paper.render_page", fail_page)
+    monkeypatch.setattr("services.framework.discovery_analysis.pipeline.build_page_manifest", fail_layout)
     with TestClient(create_app()) as client:
         created = client.post("/opportunities", headers=headers(), json=create_payload())
         opportunity_id = created.json()["id"]

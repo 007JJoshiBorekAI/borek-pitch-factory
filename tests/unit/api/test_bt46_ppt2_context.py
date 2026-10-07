@@ -143,7 +143,7 @@ def test_latest_approved_discovery_is_used_and_newer_draft_is_ignored() -> None:
     assert before_approval["sources"]["approved_discovery"]["version_id"] is None
     assert "approved_discovery" in before_approval["missing_sources"]
     assert "DISCOVERY_NOT_APPROVED" in warning_codes(before_approval)
-    assert draft["pages"][0]["content"]["client_name"]
+    assert draft["analysis"]["framing"]["document"]["title"]
     assert before_approval["sources"]["approved_discovery"]["paper_json"] != draft
 
     approved = client.post(
@@ -156,19 +156,18 @@ def test_latest_approved_discovery_is_used_and_newer_draft_is_ignored() -> None:
         f"/opportunities/{opportunity_id}/discovery-paper/versions/{version_id}",
         headers=headers(),
     ).json()["paper_json"]
-    revised = copy.deepcopy(approved_paper["pages"][0]["content"])
-    revised["client_name"] = "Draft Only Name"
     edited = client.patch(
         f"/opportunities/{opportunity_id}/discovery-paper",
         headers=headers(),
-        json={"pages": [{"key": "cover", "content": revised}]},
+        json={"edits": [{"target": "framing", "value": {"document": {"title": "Draft Only Name"}}}]},
     )
     assert edited.status_code == 200, edited.text
     working = client.get(
         f"/opportunities/{opportunity_id}/discovery-paper",
         headers=headers(),
     ).json()
-    assert working["pages"][0]["content"]["client_name"] == "Draft Only Name"
+    assert working["analysis"]["framing"]["document"]["title"] == "Draft Only Name"
+    assert working["presentation_brief"]["document_title"] == "Draft Only Name"
 
     body = context_of(client, opportunity_id)
     source = body["sources"]["approved_discovery"]
@@ -178,7 +177,8 @@ def test_latest_approved_discovery_is_used_and_newer_draft_is_ignored() -> None:
     assert source["document_id"] == approved_paper["document_id"]
     assert source["approved_at"]
     assert source["paper_json"] == approved_paper
-    assert source["paper_json"]["pages"][0]["content"]["client_name"] != "Draft Only Name"
+    assert source["paper_json"]["analysis"]["framing"]["document"]["title"] != "Draft Only Name"
+    assert source["paper_json"]["presentation_brief"]["document_title"] != "Draft Only Name"
     assert source["paper_json"] != working
     assert "approved_discovery" not in body["missing_sources"]
     assert "DISCOVERY_NOT_APPROVED" not in warning_codes(body)
@@ -411,7 +411,7 @@ def test_builder_and_get_do_not_mutate_or_generate(monkeypatch: pytest.MonkeyPat
         user_id=OWNER,
     )
     original_sources = copy.deepcopy(built["sources"])
-    built["sources"]["approved_discovery"]["paper_json"]["pages"][0]["content"]["client_name"] = "Mutated"
+    built["sources"]["approved_discovery"]["paper_json"]["presentation_brief"]["client_name"] = "Mutated"
     built["sources"]["personal_notes"]["text"] = "Mutated"
     built["sources"]["meeting_extraction"]["extraction"]["decisions"].append("Mutated")
     built["sources"]["selected_use_cases"]["use_cases"][0]["statement"] = "Mutated"

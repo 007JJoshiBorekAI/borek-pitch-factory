@@ -28,6 +28,7 @@ export type { Stage2OutputsEnvelope } from "./stage2_outputs";
 export type { EmailDraftEnvelope } from "./email_draft";
 export type { MeetingFeedback } from "./meeting_feedback";
 export type { DiscoveryPaper } from "./discovery_paper";
+export type { DiscoveryAnalysis } from "./discovery_analysis";
 export type { MeetingExtraction } from "./meeting_extraction";
 export type { Ppt2Context } from "./ppt2_context";
 export type { WorkflowStatus } from "./workflow_status";
