@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 from uuid import UUID
 
 import pytest
@@ -141,12 +140,11 @@ def test_approved_discovery_allows_first_contact_and_a_newer_draft_stays_eligibl
             f"/opportunities/{opportunity_id}/discovery-paper",
             headers=headers(),
         ).json()
-        cover = copy.deepcopy(paper["pages"][0]["content"])
-        cover["client_name"] = "Edited after approval"
+        assert paper["schema_version"] == "2.0"
         edited = client.patch(
             f"/opportunities/{opportunity_id}/discovery-paper",
             headers=headers(),
-            json={"pages": [{"key": "cover", "content": cover}]},
+            json={"edits": [{"target": "framing", "value": {"document": {"title": "Edited after approval"}}}]},
         )
         assert edited.status_code == 200, edited.text
         versions = client.get(

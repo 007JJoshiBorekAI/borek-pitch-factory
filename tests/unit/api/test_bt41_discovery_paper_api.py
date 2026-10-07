@@ -15,7 +15,7 @@ from app.main import create_app
 from app.services.data.memory_store import get_memory_store, reset_memory_store
 from app.services.data.supabase_store import SupabaseDataStore
 from app.services.discovery_paper import get_discovery_paper
-from services.framework.discovery_paper import render_page
+from services.framework.discovery_analysis import pipeline as analysis_pipeline
 
 OWNER = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 
@@ -59,7 +59,10 @@ def test_generate_reads_persisted_intake_after_patch() -> None:
         )
         assert waiting.status_code == 200, waiting.text
         assert waiting.json()["status"] == "not_generated"
-        assert [page["status"] for page in waiting.json()["pages"]] == ["waiting"] * 7
+        assert waiting.json()["schema_version"] == "2.0"
+        assert waiting.json()["analysis"] is None
+        assert waiting.json()["page_manifest"] == []
+        assert {stage["status"] for stage in waiting.json()["generation"]["stages"]} == {"waiting", "skipped"}
 
         discarded = copy.deepcopy(create_payload())
         discarded["stage1_intake"]["sales_topic_description"] = "SHOULD NOT APPEAR"
@@ -87,7 +90,9 @@ def test_generate_reads_persisted_intake_after_patch() -> None:
         assert paper["status"] == "ready"
         assert paper["latest_approved_version_id"] is None
         assert "approved_document_id" not in paper
-        assert len(paper["pages"]) == 7
+        assert "pages" not in paper
+        assert len(paper["page_manifest"]) > 7
+        assert paper["page_manifest"][0]["content"]["title"] == "AI opportunities for Contoso"
         assert paper["intake_context"]["client_name"] == "Contoso"
         assert paper["intake_context"]["contact_name"] == "Grace Hopper"
         assert paper["intake_context"]["website_url"] == "https://contoso.example"
@@ -173,20 +178,17 @@ def test_get_returns_persisted_progress_and_failed_paper(monkeypatch) -> None:
     reset_memory_store()
     captured: dict[str, dict] = {}
 
-    def render(key: str, **kwargs):
-        if key == "opportunity":
-            captured["intermediate"] = copy.deepcopy(
-                get_discovery_paper(
-                    get_memory_store(),
-                    opportunity_id=UUID(captured["opportunity_id"]),
-                    user_id=OWNER,
-                )
+    def failing_manifest(paper: dict):
+        captured["intermediate"] = copy.deepcopy(
+            get_discovery_paper(
+                get_memory_store(),
+                opportunity_id=UUID(captured["opportunity_id"]),
+                user_id=OWNER,
             )
-        if key == "relevant_use_case":
-            raise RuntimeError("page five failed")
-        return render_page(key, **kwargs)
+        )
+        raise RuntimeError("layout failed")
 
-    monkeypatch.setattr("services.framework.discovery_paper.render_page", render)
+    monkeypatch.setattr(analysis_pipeline, "build_page_manifest", failing_manifest)
     with TestClient(create_app()) as client:
         created = client.post("/opportunities", headers=headers(), json=create_payload())
         opportunity_id = created.json()["id"]
@@ -196,7 +198,7 @@ def test_get_returns_persisted_progress_and_failed_paper(monkeypatch) -> None:
             headers=headers(),
         )
         assert generated.status_code == 400, generated.text
-        assert generated.json()["error"]["code"] == "DISCOVERY_PAPER_PAGE_FAILED"
+        assert generated.json()["error"]["code"] == "DISCOVERY_PAPER_GENERATION_FAILED"
         stored = client.get(
             f"/opportunities/{opportunity_id}/discovery-paper",
             headers=headers(),
@@ -205,25 +207,18 @@ def test_get_returns_persisted_progress_and_failed_paper(monkeypatch) -> None:
         paper = stored.json()
         assert paper["status"] == "failed"
         assert paper["document_id"]
-        assert [page["status"] for page in paper["pages"]] == [
-            "ready",
-            "ready",
-            "ready",
-            "ready",
-            "failed",
-            "waiting",
-            "waiting",
-        ]
-        assert paper["pages"][0]["content"]["client_name"] == "Northwind"
+        stages = {stage["key"]: stage["status"] for stage in paper["generation"]["stages"]}
+        assert stages["validation"] == "ready"
+        assert stages["layout"] == "failed"
+        assert stages["optional_parts"] == "skipped"
+        # A failed analysis never exposes partial content, pages or a brief.
+        assert paper["analysis"] is None
+        assert paper["page_manifest"] == []
+        assert paper["presentation_brief"] is None
+        assert paper["intake_context"]["client_name"] == "Northwind"
         assert captured["intermediate"]["status"] == "generating"
-        assert [page["status"] for page in captured["intermediate"]["pages"]] == [
-            "ready",
-            "ready",
-            "generating",
-            "waiting",
-            "waiting",
-            "waiting",
-            "waiting",
-        ]
+        intermediate = {stage["key"]: stage["status"] for stage in captured["intermediate"]["generation"]["stages"]}
+        assert intermediate["research"] == "ready"
+        assert intermediate["layout"] == "generating"
         assert captured["intermediate"]["document_id"] == paper["document_id"]
         assert paper["status"] != "not_generated"

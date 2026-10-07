@@ -402,9 +402,7 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
             {live && version.live?.status === "not_generated" ? (
               <button className="btn btn-secondary" type="button" disabled={busy || liveState !== "loaded"} onClick={() => void runLive("generate")}>{liveAction === "generate" ? "Generating..." : "Generate Discovery"}</button>
             ) : live && version.live?.status === "failed" ? (
-              <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => {
-                if (window.confirm("Restart the entire Discovery paper? This generates a new draft for all seven pages, not just the failed page.")) void runLive("generate");
-              }}>Restart whole-paper generation</button>
+              <p className="discovery-gate-copy">Use "Generate new analysis" above to replace this failed document.</p>
             ) : !live && !isDiscoveryComplete(version) && version.document_state === "draft" ? (
               <button className="btn btn-secondary" type="button" disabled={busy || editing} onClick={() => void advanceGeneration()}>
                 {busy ? "Generating..." : "Continue generation"}
@@ -412,8 +410,8 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
             ) : null}
           </div>
           <footer className="discovery-download-card">
-            <strong>{isDiscoveryComplete(version) ? "All seven pages are ready for review." : live ? "Completed pages are available for review." : "Download will be available when all seven pages are ready."}</strong>
-            <p>The PDF uses the BOREK White Paper design: cover, contents, the seven Discovery pages and a closing page. In the print dialog choose "Save as PDF".</p>
+            <strong>{isDiscoveryComplete(version) ? "All pages are ready for review." : live ? "Completed pages are available for review." : "Download will be available when all pages are ready."}</strong>
+            <p>This document was stored in the earlier Discovery format. The PDF uses the BOREK White Paper design: cover, contents, the stored pages and a closing page. In the print dialog choose "Save as PDF".</p>
             <div className="discovery-version-actions">
             {!live && version.document_state === "draft" && isDiscoveryComplete(version) && !canDownloadDiscoveryPdf(version) ? (
               <button className="btn btn-secondary" type="button" disabled={busy || editing} onClick={() => void advanceGeneration()}>Prepare PDF preview manifest</button>
@@ -425,7 +423,7 @@ export function DiscoveryWorkspace({ initialVersion }: DiscoveryWorkspaceProps) 
               <button className="btn btn-primary" type="button" disabled={busy || editing || (live && liveState !== "loaded") || !canApproveDiscovery(version)} onClick={() => void approve()}>Approve {version.version_id}</button>
             )}
           {live && version.document_state === "approved" ? <p className="discovery-gate-copy">Successor creation is unavailable: there is no clone/successor endpoint. Whole-paper regeneration is not a successor edit.</p> : null}
-          {!canApproveDiscovery(version) && version.document_state === "draft" ? <p className="discovery-gate-copy">{live ? "Approval requires seven ready server pages and matching server draft version metadata." : "Approval remains blocked until all seven pages and their exact-version PDF are ready."}</p> : null}
+          {!canApproveDiscovery(version) && version.document_state === "draft" ? <p className="discovery-gate-copy">{live ? "Approval requires every stored page to be ready and matching server draft version metadata." : "Approval remains blocked until every page and its exact-version PDF are ready."}</p> : null}
             </div>
             <small className="discovery-version-label">{version.version_id} · {live ? `Server version ${version.live?.version_number ?? "not available"}` : `Revision ${version.revision}`} · {version.document_state === "approved" ? "Approved and locked" : "Draft"}</small>
           </footer>

@@ -31,10 +31,10 @@ export function OpportunityWorkflowShell({ fixture, children }: OpportunityWorkf
   const activeSection = preMeetingPage || preMeetingStatuses.has(workflowSnapshot.current_status)
     ? "pre_meeting"
     : "post_meeting";
-  const readyPages = preview?.discovery.pages.filter((page) => page.state === "ready").length ?? 0;
+  // Neither the analysis nor the deck has a fixed length, so progress is never "n of 7".
   const workspaceProgress = pathname.endsWith("/presentations")
-    ? `${preview?.presentation.slide_count ?? 0} of 7 slides ready`
-    : `${readyPages} of 7 pages ready`;
+    ? `${preview?.presentation.slide_count ?? 0} slides ready`
+    : preview?.discovery.document_state === "approved" ? "Discovery approved" : "Discovery in review";
   if (/\/(meeting|review|follow-up|post-meeting-presentation)$/.test(pathname)) {
     return <RequireAuth><PostMeetingShell opportunityId={fixture.opportunity_id}
       companyName={preview?.client.values.company_name ?? fixture.client_information.company_name}

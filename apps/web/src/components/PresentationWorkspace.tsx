@@ -259,7 +259,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
               ) : (
                 <div className="presentation-slide-canvas presentation-slide-state">
                   <strong>{!approved ? "Discovery approval required" : selected?.state === "generating" ? "Generating this slide" : selected?.state === "failed" ? "Slide generation failed" : phase === "failed" ? "PPT #1 generation failed" : "Waiting for this slide"}</strong>
-                  <p>{!approved ? "Approve all seven Discovery pages before generating PPT #1." : "Completed slides remain available in the slide list."}</p>
+                  <p>{!approved ? "Approve the Discovery analysis before generating PPT #1." : "Completed slides remain available in the slide list."}</p>
                 </div>
               )}
               <p className="discovery-preview-caption">{live ? "Live rendered previews. The API serves only the latest deck, previews and downloads; it cannot pin historical versions. Version changes detected during requests are rejected." : "Local content preview from approved Discovery, not a rendered presentation artifact."}</p>

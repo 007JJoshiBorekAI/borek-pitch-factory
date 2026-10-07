@@ -6,7 +6,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
@@ -104,11 +104,39 @@ class DiscoveryPaperPageEdit(BaseModel):
     content: dict
 
 
+class DiscoveryAnalysisSectionEdit(BaseModel):
+    """One logical section of an AI Opportunity Analysis, e.g. ``opportunity:<area>/<id>``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target: str = Field(pattern=r"^[a-z_]+(:[a-z0-9_]+(/[a-z0-9_]+)?)?$", max_length=160)
+    value: dict
+
+
 class DiscoveryPaperEditRequest(BaseModel):
+    """``edits`` for an AI Opportunity Analysis (schema 2.0), ``pages`` for a stored v1 paper."""
+
     model_config = ConfigDict(extra="forbid")
 
     expected_document_id: UUID | None = None
-    pages: list[DiscoveryPaperPageEdit] = Field(min_length=1)
+    pages: list[DiscoveryPaperPageEdit] | None = Field(default=None, min_length=1)
+    edits: list[DiscoveryAnalysisSectionEdit] | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def _one_kind(self) -> "DiscoveryPaperEditRequest":
+        if (self.pages is None) == (self.edits is None):
+            raise ValueError("Provide either pages or edits")
+        return self
+
+
+class DiscoveryPaperGenerateRequest(BaseModel):
+    """Parts 5 and 6 of the analysis are optional and off unless explicitly requested."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    roles_employees: bool = False
+    decision_map: bool = False
+    system_interfaces: bool = False
 
 
 class EmailConfirmRequest(BaseModel):
@@ -178,6 +206,7 @@ def post_opportunity_discovery_paper(
     user: AuthUserDep,
     store: DataStoreDep,
     provider: CompanyResearchProvider | None = Depends(get_company_research_provider),
+    body: DiscoveryPaperGenerateRequest | None = None,
 ) -> dict:
     record_audit_event(
         store,
@@ -191,6 +220,7 @@ def post_opportunity_discovery_paper(
         opportunity_id=opportunity_id,
         user_id=user.id,
         provider=provider,
+        optional_parts=body.model_dump() if body else None,
     )
 
 
@@ -205,7 +235,8 @@ def patch_opportunity_discovery_paper(
         store,
         opportunity_id=opportunity_id,
         user_id=user.id,
-        pages=[page.model_dump() for page in body.pages],
+        pages=[page.model_dump() for page in body.pages] if body.pages else None,
+        edits=[edit.model_dump() for edit in body.edits] if body.edits else None,
         expected_document_id=str(body.expected_document_id) if body.expected_document_id else None,
     )
     record_audit_event(

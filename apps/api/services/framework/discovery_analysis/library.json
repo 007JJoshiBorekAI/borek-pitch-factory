@@ -1,0 +1,890 @@
+{
+  "library_version": "1.0",
+  "language": "en",
+  "note": "Hand-written, industry-neutral opportunity library for deterministic (fixture) generation. It contains typical patterns and industry benchmarks only - never facts about a specific customer.",
+  "areas": [
+    {
+      "id": "sales_quoting",
+      "name": "Sales & Quoting",
+      "keywords": [
+        "sales",
+        "quote",
+        "quoting",
+        "offer",
+        "proposal",
+        "tender",
+        "pricing",
+        "crm",
+        "lead",
+        "pipeline",
+        "bid",
+        "rfp",
+        "rfq"
+      ],
+      "lead": "Four opportunities at the start of every order — where response time decides win rates.",
+      "business_case": {
+        "value_levers": [
+          "Quote drafts in hours instead of days",
+          "pricing and feasibility consistent across the team",
+          "no open quote left unfollowed"
+        ],
+        "impact_ranges": [
+          {
+            "metric": "Quote turnaround time",
+            "range": "−50–70 %",
+            "basis": "industry_benchmark"
+          }
+        ],
+        "outcome": "win rates typically rise with response time",
+        "payback_type": "quick_win"
+      },
+      "opportunities": [
+        {
+          "id": "inquiry_quote_drafting",
+          "title": "Inquiry intake & quote drafting",
+          "solution": "AI-assisted quote production: requirements extracted, earlier quotes reused, draft generated in house format.",
+          "ai_technology": "LLM extraction of inquiry requirements plus drafting from past quotes and price lists.",
+          "how_it_works": "Reads the inquiry, extracts scope, pulls comparable earlier quotes and drafts the offer; sales refines the strategy instead of formatting documents.",
+          "result": "Quote drafts in hours instead of days — typically 50–70 % less turnaround time (industry benchmark).",
+          "discovery_questions": [
+            "How many days does a full quote take today, from inquiry to send-out?",
+            "How much of a quote is genuinely new versus reusable?",
+            "Do you know your win rate as a function of response time?"
+          ],
+          "opportunity_signal": "Quotes take days, and most of the content already exists somewhere."
+        },
+        {
+          "id": "pricing_feasibility",
+          "title": "Pricing & feasibility check",
+          "solution": "Consistent price and feasibility estimates built from historical orders.",
+          "ai_technology": "Estimation model over past orders with scope, effort and margin corridors.",
+          "how_it_works": "Matches the request against delivered orders, proposes effort and price corridors and flags risk factors; the pricing decision gets a data floor.",
+          "result": "Estimates consistent across the team — margin erosion from optimistic one-off estimates stops.",
+          "discovery_questions": [
+            "How consistent are estimates across people for comparable requests?",
+            "How often does delivery discover that the estimate was optimistic?"
+          ],
+          "opportunity_signal": "Estimates vary by estimator, and margins erode quietly in delivery."
+        },
+        {
+          "id": "win_loss_signals",
+          "title": "Win/loss & pipeline signals",
+          "solution": "Ongoing analysis of quotes, wins, losses and customer behaviour.",
+          "ai_technology": "Analytics over pipeline and win/loss history with prioritised signals.",
+          "how_it_works": "Links outcomes to request type, price and response time, surfaces patterns and flags at-risk opportunities with context.",
+          "result": "Sales learns from every bid — systematically, not anecdotally.",
+          "discovery_questions": [
+            "What do you systematically learn from lost bids today?",
+            "How early do you see an opportunity going cold?"
+          ],
+          "opportunity_signal": "Win/loss insight is anecdotal, and cold opportunities come as a surprise."
+        },
+        {
+          "id": "quote_follow_up",
+          "title": "Quote follow-up",
+          "solution": "Automated, context-aware follow-up on open quotes.",
+          "ai_technology": "LLM drafting of follow-ups prioritised by value and probability.",
+          "how_it_works": "Detects open quotes, prioritises them and drafts individual follow-ups; sales sends with one click.",
+          "result": "No quote goes quiet — win rate rises without additional sales time.",
+          "discovery_questions": [
+            "How systematically are open quotes followed up?",
+            "What share of quotes never receives a follow-up?"
+          ],
+          "opportunity_signal": "Follow-up depends on individual bandwidth — and stops in busy weeks."
+        }
+      ]
+    },
+    {
+      "id": "order_service",
+      "name": "Order Processing & Customer Service",
+      "keywords": [
+        "order",
+        "orders",
+        "customer service",
+        "support",
+        "service",
+        "ticket",
+        "complaint",
+        "claim",
+        "inbox",
+        "mail",
+        "delivery",
+        "shipment",
+        "logistics"
+      ],
+      "lead": "Four opportunities in the daily volume — where retyping and inboxes decide the day.",
+      "business_case": {
+        "value_levers": [
+          "Order intake largely without retyping",
+          "inquiries answered from one view",
+          "complaints decided with precedent on the table"
+        ],
+        "impact_ranges": [
+          {
+            "metric": "Dark processing on order intake",
+            "range": "60–90 %",
+            "basis": "industry_benchmark"
+          }
+        ],
+        "outcome": "peaks stop deciding the day",
+        "payback_type": "quick_win"
+      },
+      "opportunities": [
+        {
+          "id": "order_intake",
+          "title": "Order intake automation",
+          "solution": "An AI pipeline that reads incoming orders (mail, PDF, spreadsheet) and books them into the order system.",
+          "ai_technology": "LLM extraction plus validation rules against master data.",
+          "how_it_works": "Reads every order, extracts positions, dates and prices, validates against master data and books clean cases; exceptions reach a person with full context.",
+          "result": "60–90 % dark processing on order intake (industry benchmark) — the classic first win.",
+          "discovery_questions": [
+            "How many orders arrive per month, and in which formats?",
+            "How many minutes does one manual booking take today?"
+          ],
+          "opportunity_signal": "Order intake is retyping work, and peaks decide the day."
+        },
+        {
+          "id": "inquiry_triage",
+          "title": "Customer inquiry triage",
+          "solution": "Incoming inquiries are classified, enriched with order context and answered with a draft.",
+          "ai_technology": "LLM classification and response drafting over the shared inbox.",
+          "how_it_works": "Sorts every message by intent and urgency, attaches order and delivery data and drafts the reply; service staff approve or adjust.",
+          "result": "First response in minutes instead of hours — without adding service headcount.",
+          "discovery_questions": [
+            "How many inquiries reach the shared inbox per day?",
+            "How long does a customer wait for a first qualified answer?",
+            "How much of the answer is looking things up?"
+          ],
+          "opportunity_signal": "Service spends most of its time searching, not answering."
+        },
+        {
+          "id": "complaint_handling",
+          "title": "Complaint & claims handling",
+          "solution": "AI-drafted assessments and proposals for complaints, built on comparable past cases.",
+          "ai_technology": "LLM drafting with retrieval of precedent cases and terms.",
+          "how_it_works": "Structures the case, retrieves comparable complaints and drafts assessment and reply; the responsible person classifies and decides.",
+          "result": "Complaints closed in days instead of weeks — with more consistent decisions.",
+          "discovery_questions": [
+            "How long does an average complaint take from receipt to closure?",
+            "How consistent are decisions across handlers?"
+          ],
+          "opportunity_signal": "Complaints take weeks, and the outcome depends on who handles them."
+        },
+        {
+          "id": "delivery_status",
+          "title": "Delivery status communication",
+          "solution": "Proactive status updates generated from order and delivery data.",
+          "ai_technology": "Rule-based exception detection plus LLM message drafting.",
+          "how_it_works": "Watches orders against plan, detects delays early and drafts the customer update with the reason and the new date.",
+          "result": "Customers hear about delays from you first — status calls drop noticeably.",
+          "discovery_questions": [
+            "How do customers learn about a delay today?",
+            "How many inbound contacts are pure status questions?"
+          ],
+          "opportunity_signal": "Status questions fill the inbox, and delays surface through the customer."
+        }
+      ]
+    },
+    {
+      "id": "procurement",
+      "name": "Procurement & Supplier Management",
+      "keywords": [
+        "procurement",
+        "purchasing",
+        "purchase",
+        "supplier",
+        "vendor",
+        "sourcing",
+        "material",
+        "supply"
+      ],
+      "lead": "Three opportunities on the supply side — where documents and approvals bind buyer time.",
+      "business_case": {
+        "value_levers": [
+          "Purchase requests routed and pre-checked automatically",
+          "supplier documents verified without manual reading",
+          "supplier risk visible weeks earlier"
+        ],
+        "impact_ranges": [
+          {
+            "metric": "Buyer time on administrative checks",
+            "range": "−30–50 %",
+            "basis": "industry_benchmark"
+          }
+        ],
+        "outcome": "buyers negotiate instead of administrating",
+        "payback_type": "strategic"
+      },
+      "opportunities": [
+        {
+          "id": "purchase_request_routing",
+          "title": "Purchase request routing",
+          "solution": "Purchase requests are completed, checked against contracts and routed to the right approver.",
+          "ai_technology": "LLM completion and classification plus approval rules.",
+          "how_it_works": "Completes missing fields, matches the request to existing contracts and budgets and routes it; buyers see only cases that need a decision.",
+          "result": "Requests approved in hours instead of days — maverick buying becomes visible.",
+          "discovery_questions": [
+            "How long does a purchase request take from entry to order?",
+            "How many requests bypass existing contracts?"
+          ],
+          "opportunity_signal": "Requests wait in approval loops, and contracts are bypassed unnoticed."
+        },
+        {
+          "id": "supplier_document_checks",
+          "title": "Supplier document checks",
+          "solution": "Certificates, confirmations and delivery documents are read and checked automatically.",
+          "ai_technology": "LLM extraction with validation against order and specification.",
+          "how_it_works": "Reads each document, compares it with the order and the specification and flags deviations; buyers handle the flagged cases only.",
+          "result": "Document checks by exception — deviations are found before goods arrive.",
+          "discovery_questions": [
+            "Who checks order confirmations against the order today?",
+            "How often are deviations noticed only at goods receipt?"
+          ],
+          "opportunity_signal": "Confirmations are filed unread, and deviations surface at the ramp."
+        },
+        {
+          "id": "supplier_performance",
+          "title": "Supplier performance signals",
+          "solution": "An early-warning view on delivery reliability, quality and price drift per supplier.",
+          "ai_technology": "Analytics over delivery, quality and price history with ML risk signals.",
+          "how_it_works": "Learns normal behaviour per supplier, flags drifting reliability or prices and prepares the facts for the next supplier conversation.",
+          "result": "Supplier risk is managed, not discovered — conversations happen early, with data.",
+          "discovery_questions": [
+            "When do you learn that a supplier is becoming unreliable?",
+            "How are supplier reviews prepared today?"
+          ],
+          "opportunity_signal": "Supplier problems are noticed when they have already cost a delivery."
+        }
+      ]
+    },
+    {
+      "id": "operations_planning",
+      "name": "Operations & Planning",
+      "keywords": [
+        "operations",
+        "planning",
+        "production",
+        "manufacturing",
+        "capacity",
+        "schedule",
+        "scheduling",
+        "warehouse",
+        "shift",
+        "forecast",
+        "demand",
+        "erp"
+      ],
+      "lead": "Three opportunities in the engine room — where plans meet reality every day.",
+      "business_case": {
+        "value_levers": [
+          "Demand and capacity planned on one forecast",
+          "slippage visible weeks earlier",
+          "hand-offs without lost context"
+        ],
+        "impact_ranges": [
+          {
+            "metric": "Forecast error",
+            "range": "−20–40 %",
+            "basis": "industry_benchmark"
+          }
+        ],
+        "outcome": "scarce capacity runs at plan",
+        "payback_type": "strategic"
+      },
+      "opportunities": [
+        {
+          "id": "demand_capacity_forecast",
+          "title": "Demand & capacity forecast",
+          "solution": "A rolling forecast that connects demand signals with available capacity.",
+          "ai_technology": "ML forecasting on order history, seasonality and open pipeline.",
+          "how_it_works": "Learns demand patterns, projects load against capacity and proposes adjustments; planners decide on the proposals instead of building spreadsheets.",
+          "result": "Forecast error typically down 20–40 % (industry benchmark) — fewer rush jobs, less idle capacity.",
+          "discovery_questions": [
+            "How is demand forecast today, and how often is it right?",
+            "What does one week of unplanned overtime or idle capacity cost?"
+          ],
+          "opportunity_signal": "Planning runs on experience and spreadsheets, and surprises are routine."
+        },
+        {
+          "id": "schedule_early_warning",
+          "title": "Schedule early warning",
+          "solution": "Early detection of slippage per order or project — weeks before the review finds it.",
+          "ai_technology": "ML early warning on progress, resource and dependency signals.",
+          "how_it_works": "Learns from task progress and dependency chains and flags items at risk with causes and options.",
+          "result": "Slippage is managed, not discovered — customer conversations happen early, with options.",
+          "discovery_questions": [
+            "When do you learn that an order will slip — before or at the review?",
+            "What did the last late-discovered delay cost in customer trust?"
+          ],
+          "opportunity_signal": "Slippage surfaces late, and customer calls happen without options."
+        },
+        {
+          "id": "handoff_summaries",
+          "title": "Shift & hand-off summaries",
+          "solution": "Automatic hand-off summaries per team, shift or site.",
+          "ai_technology": "LLM summarisation of system events, notes and open items.",
+          "how_it_works": "Collects what happened, what is open and what needs a decision, and hands it over in one structured summary.",
+          "result": "Hand-offs without lost context — the next shift starts informed.",
+          "discovery_questions": [
+            "How is information handed over between shifts or sites today?",
+            "How often does something get lost at a hand-off?"
+          ],
+          "opportunity_signal": "Hand-offs run on memory and chat messages, and context is lost at every pass."
+        }
+      ]
+    },
+    {
+      "id": "finance_controlling",
+      "name": "Finance & Controlling",
+      "keywords": [
+        "finance",
+        "controlling",
+        "invoice",
+        "invoices",
+        "accounting",
+        "receivable",
+        "payment",
+        "month-end",
+        "closing",
+        "audit",
+        "deduction",
+        "billing"
+      ],
+      "lead": "Four opportunities in the back office — fast to measure, fast to pay back.",
+      "business_case": {
+        "value_levers": [
+          "Invoices matched and released without manual touch",
+          "receivables followed up systematically",
+          "month-end commentary drafted from the numbers"
+        ],
+        "impact_ranges": [
+          {
+            "metric": "Dark processing on inbound invoices",
+            "range": "60–90 %",
+            "basis": "industry_benchmark"
+          }
+        ],
+        "outcome": "the close gets faster and calmer",
+        "payback_type": "quick_win"
+      },
+      "opportunities": [
+        {
+          "id": "invoice_processing",
+          "title": "Invoice processing (three-way match)",
+          "solution": "Automated matching of invoice, purchase order and goods receipt with automatic release.",
+          "ai_technology": "LLM extraction plus deterministic matching rules.",
+          "how_it_works": "Extracts, codes and matches; clean invoices flow through dark, exceptions reach a person with context and a suggested resolution.",
+          "result": "60–90 % dark processing (industry benchmark) — fast to measure, fast to pay back.",
+          "discovery_questions": [
+            "How many inbound invoices per month, across how many hands?",
+            "How long from receipt to release today?"
+          ],
+          "opportunity_signal": "Invoice handling is manual, with idle time between steps."
+        },
+        {
+          "id": "receivables_follow_up",
+          "title": "Receivables follow-up",
+          "solution": "Prioritised, individually worded payment reminders based on customer history.",
+          "ai_technology": "Scoring on payment behaviour plus LLM drafting.",
+          "how_it_works": "Ranks open items by amount and risk, drafts the fitting reminder and logs every contact; accounting approves in batches.",
+          "result": "Days sales outstanding falls — without straining customer relationships.",
+          "discovery_questions": [
+            "How is the order of payment reminders decided today?",
+            "How much is overdue for more than 30 days?"
+          ],
+          "opportunity_signal": "Reminders go out in bulk or not at all, and large overdue items wait."
+        },
+        {
+          "id": "variance_commentary",
+          "title": "Month-end variance commentary",
+          "solution": "First drafts of variance explanations generated from the ledger and operational data.",
+          "ai_technology": "Analytics over actual versus plan with LLM narrative drafting.",
+          "how_it_works": "Finds the drivers behind each variance, drafts the explanation with numbers and marks what needs a human view.",
+          "result": "Controllers interpret instead of assembling — commentary ready on day one.",
+          "discovery_questions": [
+            "How many days of the close go into explaining variances?",
+            "How much of that time is assembling numbers?"
+          ],
+          "opportunity_signal": "The close is a hunt for explanations, repeated every month."
+        },
+        {
+          "id": "deduction_audit",
+          "title": "Contract & deduction audit",
+          "solution": "Every deduction or credit claim is matched against agreed conditions and proof of delivery.",
+          "ai_technology": "LLM extraction plus rule-based matching.",
+          "how_it_works": "Checks each claim systematically, flags unjustified ones and drafts the reclaim with evidence attached.",
+          "result": "Unjustified deductions get reclaimed — what dies as single cases today becomes routine.",
+          "discovery_questions": [
+            "How many deductions arrive per month, and what share is audited?",
+            "Have you ever quantified accepted-but-unjustified deductions?"
+          ],
+          "opportunity_signal": "Deductions are accepted by default because auditing seems dearer than the single case."
+        }
+      ]
+    },
+    {
+      "id": "quality_compliance",
+      "name": "Quality & Compliance",
+      "keywords": [
+        "quality",
+        "compliance",
+        "qa",
+        "qm",
+        "iso",
+        "gmp",
+        "regulatory",
+        "regulation",
+        "certification",
+        "deviation",
+        "capa",
+        "documentation"
+      ],
+      "lead": "Three opportunities in the regulated core — automated drafting, human release, full trail.",
+      "business_case": {
+        "value_levers": [
+          "Records reviewed by exception",
+          "deviations drafted with precedent",
+          "audit evidence assembled automatically"
+        ],
+        "impact_ranges": [
+          {
+            "metric": "Review time per record",
+            "range": "−40–60 %",
+            "basis": "industry_benchmark"
+          }
+        ],
+        "outcome": "quality staff decide instead of reading every page",
+        "payback_type": "strategic"
+      },
+      "opportunities": [
+        {
+          "id": "document_review_by_exception",
+          "title": "Document review by exception",
+          "solution": "Quality records are checked automatically against specification; reviewers see deviations only.",
+          "ai_technology": "LLM and rule-based checks of records against specifications.",
+          "how_it_works": "Reads each record, verifies completeness and limits and flags findings; reviewers confirm flagged pages instead of every page.",
+          "result": "Review in minutes instead of hours — inside the existing quality system.",
+          "discovery_questions": [
+            "How many hours does a record review take today?",
+            "What share of review time goes to pages with no findings?"
+          ],
+          "opportunity_signal": "Review reads every page, and most pages are clean."
+        },
+        {
+          "id": "deviation_drafting",
+          "title": "Deviation & corrective actions",
+          "solution": "AI-drafted deviation assessments and corrective-action proposals from precedent.",
+          "ai_technology": "LLM drafting with retrieval of comparable deviations.",
+          "how_it_works": "Structures the event, retrieves comparable cases and drafts assessment and actions; quality classifies, decides and approves.",
+          "result": "Deviations closed in days instead of weeks — with more consistent investigations.",
+          "discovery_questions": [
+            "How long does an average deviation take from event to closure?",
+            "How consistent are investigations across authors?"
+          ],
+          "opportunity_signal": "Deviations take weeks, and investigation quality varies by author."
+        },
+        {
+          "id": "audit_evidence",
+          "title": "Audit evidence assembly",
+          "solution": "Evidence packs for audits and customer questionnaires assembled from existing documents.",
+          "ai_technology": "Retrieval over the document landscape with gap lists.",
+          "how_it_works": "Maps requirements to available documents, assembles the pack and lists what is missing; experts close gaps instead of hunting files.",
+          "result": "Audit packs in days — with a live view of what is still missing.",
+          "discovery_questions": [
+            "How long does preparing an audit or customer questionnaire take?",
+            "How do you track what is still missing?"
+          ],
+          "opportunity_signal": "Audit preparation is a document hunt, and gaps surface late."
+        }
+      ]
+    },
+    {
+      "id": "knowledge_people",
+      "name": "Knowledge & People",
+      "keywords": [
+        "knowledge",
+        "onboarding",
+        "hr",
+        "people",
+        "training",
+        "documentation",
+        "wiki",
+        "sharepoint",
+        "retire",
+        "retirement",
+        "skills"
+      ],
+      "lead": "Three opportunities in the foundation — knowledge that outlives tenure.",
+      "business_case": {
+        "value_levers": [
+          "Answers on procedures and precedent in seconds",
+          "new colleagues productive weeks earlier",
+          "decisions documented without extra work"
+        ],
+        "impact_ranges": [
+          {
+            "metric": "Time spent searching for information",
+            "range": "−30–50 %",
+            "basis": "industry_benchmark"
+          }
+        ],
+        "outcome": "expertise becomes retrievable instead of person-bound",
+        "payback_type": "quick_win"
+      },
+      "opportunities": [
+        {
+          "id": "knowledge_assistant",
+          "title": "Company knowledge assistant",
+          "solution": "An internal assistant over documents, mails, wikis and drives that answers with sources.",
+          "ai_technology": "RAG with rights-aware retrieval and source citations.",
+          "how_it_works": "Employees ask in natural language and get answers with source links — knowledge stops depending on who is in the office.",
+          "result": "Answers in seconds instead of asking around — and onboarding time drops by weeks.",
+          "discovery_questions": [
+            "How long does finding internal information take today?",
+            "What knowledge leaves when experienced colleagues retire?"
+          ],
+          "opportunity_signal": "Knowledge lives in heads and folders, and the same questions are asked again and again."
+        },
+        {
+          "id": "onboarding_assistant",
+          "title": "Onboarding assistant",
+          "solution": "A guided onboarding companion that explains procedures, systems and contacts per role.",
+          "ai_technology": "RAG over procedures and role descriptions with guided learning paths.",
+          "how_it_works": "Answers role-specific questions, points to the applicable procedure and tracks what has been covered; mentors focus on judgement, not basics.",
+          "result": "New colleagues reach productivity weeks earlier — mentors are relieved.",
+          "discovery_questions": [
+            "How long until a new colleague is fully productive?",
+            "How much mentor time does one onboarding bind?"
+          ],
+          "opportunity_signal": "Onboarding depends on who has time to explain."
+        },
+        {
+          "id": "meeting_summaries",
+          "title": "Meeting & decision summaries",
+          "solution": "Meetings are summarised into decisions, tasks and open points — and filed where the work happens.",
+          "ai_technology": "LLM summarisation of transcripts and notes with task extraction.",
+          "how_it_works": "Captures the meeting, extracts decisions and owners, drafts the follow-up and feeds the knowledge base.",
+          "result": "Decisions are documented without extra work — nothing agreed gets lost.",
+          "discovery_questions": [
+            "Where are decisions from meetings documented today?",
+            "How often is something agreed and then forgotten?"
+          ],
+          "opportunity_signal": "Decisions live in memory and personal notes, and follow-ups depend on individuals."
+        }
+      ]
+    }
+  ],
+  "shadow_processes": [
+    {
+      "id": "prioritisation",
+      "decision": "Prioritisation under scarcity: which order gets the slot?",
+      "handled_today_via": "Escalation meetings, seniority and who shouts loudest",
+      "ai_approach": "Rule-based proposal from order value, due-date risk and downstream impact — documented, human decides"
+    },
+    {
+      "id": "date_promises",
+      "decision": "Delivery-date promises to customers",
+      "handled_today_via": "Experience and optimism of the individual planner",
+      "ai_approach": "Data floor from delivered orders: realistic corridors per order type, visible before the promise"
+    },
+    {
+      "id": "discounts_exceptions",
+      "decision": "Discounts and commercial exceptions",
+      "handled_today_via": "Individual judgement, precedent from memory",
+      "ai_approach": "Retrieved precedent with proposed corridor — sales decides with the history on the table"
+    },
+    {
+      "id": "goodwill",
+      "decision": "Goodwill in complaints",
+      "handled_today_via": "Judgement of the individual handler, mail threads",
+      "ai_approach": "Comparable cases and customer value summarised — the handler decides, consistently"
+    },
+    {
+      "id": "master_tracker",
+      "decision": "Order status and the “master tracker”",
+      "handled_today_via": "One spreadsheet per team, maintained beside the day job",
+      "ai_approach": "Live status view from system data — the tracker updates itself"
+    },
+    {
+      "id": "clarifications",
+      "decision": "Customer clarifications and technical Q&A",
+      "handled_today_via": "Personal inboxes — knowledge sits in individual mail threads",
+      "ai_approach": "Shared record with LLM summaries — anyone is instantly conversation-ready"
+    },
+    {
+      "id": "handoffs",
+      "decision": "Hand-offs between teams, shifts and sites",
+      "handled_today_via": "Meetings and chat messages — context lost at every pass",
+      "ai_approach": "Automatic hand-off summaries per order, team and shift"
+    },
+    {
+      "id": "expert_know_how",
+      "decision": "Expert know-how: edge cases and precedent",
+      "handled_today_via": "A few senior heads — bottleneck at holidays and retirements",
+      "ai_approach": "Knowledge assistant with citations — judgement preserved and retrievable"
+    }
+  ],
+  "shadow_findings": {
+    "cards": [
+      {
+        "label": "Typical finding",
+        "value": "Tracker + inbox",
+        "text": "The defining decisions run beside the systems — fast and experience-driven, but person-bound, scattered across inboxes and spreadsheets, and impossible to scale."
+      },
+      {
+        "label": "Person-bound risk",
+        "value": "Knowledge in heads",
+        "text": "Judgement, precedent and customer context leave the company with their carriers — unless they are made explicit first."
+      }
+    ],
+    "points": [
+      {
+        "title": "Invisible to classic digitalisation",
+        "text": "Shadow processes appear in no system manual and no process documentation — whoever looks only at systems will not find them. They surface in conversation with the people who steer them daily."
+      },
+      {
+        "title": "Elicitation through structured interviews, not system analysis",
+        "text": "Structured interviews translate judgement — what a planner weighs in a conflict, when an exception is granted — into documented decision logic. That is automation groundwork and knowledge preservation in one."
+      },
+      {
+        "title": "AI as an assistance layer, not a system replacement",
+        "text": "No system change, no migration: the assistants sit on top of the existing tools and connect via interfaces. The AI delivers the reasoned proposal with its data basis; approvals and customer relationships stay with people."
+      }
+    ]
+  },
+  "target_workflows": [
+    {
+      "id": "inquiry_to_order",
+      "name": "Inquiry to order",
+      "stages": [
+        "Inquiry extraction",
+        "Pricing & feasibility",
+        "Quote draft & follow-up"
+      ],
+      "autonomous_flow": "Inquiry is extracted and structured → pricing and feasibility build on precedent → quote draft emerges in house format → follow-up runs automatically",
+      "human_decision_gate": "The bid, the price and the strategic fit"
+    },
+    {
+      "id": "order_to_delivery",
+      "name": "Order to delivery",
+      "stages": [
+        "Order intake",
+        "Capacity & schedule",
+        "Status communication"
+      ],
+      "autonomous_flow": "Orders book themselves by exception → capacity and schedule are planned as one system → status updates draft themselves",
+      "human_decision_gate": "Priorities and exceptions"
+    },
+    {
+      "id": "purchase_to_pay",
+      "name": "Purchase to pay",
+      "stages": [
+        "Request routing",
+        "Document checks",
+        "Invoice matching"
+      ],
+      "autonomous_flow": "Requests are completed and routed → supplier documents check themselves → invoices match and release without manual touch",
+      "human_decision_gate": "Supplier choice and release above limits"
+    },
+    {
+      "id": "issue_to_resolution",
+      "name": "Issue to resolution",
+      "stages": [
+        "Case triage",
+        "Precedent retrieval",
+        "Assessment draft"
+      ],
+      "autonomous_flow": "Complaints and deviations are structured → comparable cases are retrieved → assessment and reply draft themselves",
+      "human_decision_gate": "Classification, goodwill and approval"
+    },
+    {
+      "id": "plan_to_report",
+      "name": "Plan to report",
+      "stages": [
+        "Forecast",
+        "Early warning",
+        "Variance commentary"
+      ],
+      "autonomous_flow": "Demand and capacity forecast roll forward → slippage surfaces early → variance commentary drafts itself from the numbers",
+      "human_decision_gate": "Interpretation and steering decisions"
+    },
+    {
+      "id": "learning_loop",
+      "name": "Learning loop",
+      "stages": [
+        "Outcome capture",
+        "Pattern analysis",
+        "Knowledge base update"
+      ],
+      "autonomous_flow": "Won and lost bids, planned versus actual dates and complaints are analysed → feed pricing, planning corridors and precedent → every order makes the next one smarter",
+      "human_decision_gate": "Which patterns become the house standard"
+    }
+  ],
+  "target_picture": {
+    "diagram_title": "The target picture at a glance",
+    "diagram_lead": "Each chain runs left to right through automated blocks to a human gate; the vertical band feeds every experience back to the start.",
+    "dark_processing_pattern": {
+      "label": "Autonomous base pattern",
+      "value": "80 / 20",
+      "text": "Routine flows run autonomously through the chain; exceptions reach a person with full context — measured per block as a dark-processing rate."
+    },
+    "maturity_levels": {
+      "label": "Maturity per block",
+      "value": "3 levels",
+      "text": "Assist (AI proposes) → semi-autonomous (AI executes, human reviews exceptions) → autonomous (AI executes, human audits). Every block starts as a proposer.",
+      "levels": [
+        "Assist",
+        "Semi-autonomous",
+        "Autonomous"
+      ]
+    },
+    "learning_loop": "Every completed order, decision and exception is fed back into pricing, planning corridors and precedent — so each run makes the next one better.",
+    "points": [
+      {
+        "title": "Chaining instead of point tools",
+        "text": "Individual AI tools save minutes; chained workflows change the operating model. The target picture is planned per chain: which blocks exist, which are missing, where the flow breaks today."
+      },
+      {
+        "title": "People at the gates",
+        "text": "Semi-autonomy does not mean unstaffed: bids, approvals, releases and customer relationships remain deliberately human gates — with complete, automatically prepared decision material."
+      },
+      {
+        "title": "Making autonomy measurable",
+        "text": "The autonomy level per process becomes a metric: dark-processing rate, days per quote, hours per review. That makes progress steerable — and competitively visible."
+      }
+    ]
+  },
+  "chapters": {
+    "overview": {
+      "name": "Overview: areas & opportunities",
+      "headline_named": "Where {client} loses time today — and where AI gives it back",
+      "headline_generic": "Where organisations lose time today — and where AI gives it back",
+      "profile_unknown": "No company profile is available for this analysis: no verified company research has been performed and no company description was provided. The areas below are therefore typical patterns, not statements about a specific organisation.",
+      "context_paragraph": "The constraint is rarely the core work. It is the work around it: quotes, orders, documents, approvals, hand-offs. Each of these lives in inboxes, spreadsheets and individual experience — exactly the territory where AI drafts, checks, matches and orchestrates while people keep every decision.",
+      "key_message": "Every removed hand-off is margin — and a faster promise the competition has to match.",
+      "map_lead": "{count} opportunities along the value chain — each deepened in part 2 with solution, mechanics, result and discovery questions.",
+      "business_case_lead": "Industry-typical impact ranges from comparable organisations, ordered by payback horizon.",
+      "business_case_footnote": "Industry benchmarks as working hypotheses — to be validated against real metrics in the baseline workshop, not commitments. AI drafts, checks and orchestrates; people retain every approval, release and sign-off. Deployed via interfaces to the existing system landscape, no migration.",
+      "profile_provided": "Context provided for this analysis: {text}",
+      "thesis_title": "Working hypothesis",
+      "map_columns": [
+        "Area",
+        "Opportunities"
+      ],
+      "business_case_columns": [
+        "Area",
+        "Value levers & typical impact",
+        "Payback"
+      ]
+    },
+    "deep_dive": {
+      "name": "Deep dive per opportunity",
+      "headline_named": "Where does {client} stand today — and where is the real opportunity?",
+      "headline_generic": "Where do you stand today — and where is the real opportunity?",
+      "paragraphs": [
+        "The following pages show, per opportunity, the solution including the AI technology, how it works and the result — plus the questions that reveal in conversation where days and specialist hours are bound today.",
+        "Every opportunity carries a signal — the answer that shows a deep dive is worth it. If the signal stays absent, that is valuable too: the area is not a pilot candidate. The result is a defensible priority list per function."
+      ],
+      "key_message": "We do not decide where the opportunity lies — the answers from your teams do."
+    },
+    "shadow": {
+      "name": "Processes outside the systems",
+      "headline": "What runs on trackers, inboxes and experience today",
+      "paragraphs": [
+        "The systems carry the record — but not the steering around it: which order gets the contested slot, what date sales may promise, how an exception is judged. That runs on experience, meetings, personal inboxes and the famous spreadsheet.",
+        "These shadow processes are invisible to classic digitalisation: they appear in no system manual. That is exactly why they are the largest untapped potential — and the biggest risk at once: when the person leaves, the process leaves."
+      ],
+      "key_message": "The defining judgement lives in no system. It lives in heads, trackers and inboxes.",
+      "table_lead": "Typical decisions and workflows that bypass the systems today — and the AI approach that supports each without replacing it:",
+      "table_footnote": "A selection of typical patterns from comparable organisations — the real map emerges in the baseline workshop through structured interviews. Some approaches pick up part-2 opportunities; here the object is the decision and its path, not the system behind it.",
+      "findings_lead": "Why these processes are the real lever — and how to unlock them:",
+      "table_columns": [
+        "Decision / process",
+        "Steered today via",
+        "AI approach"
+      ]
+    },
+    "target": {
+      "name": "Target picture: semi-autonomy",
+      "headline": "When the building blocks interlock, automations become workflows",
+      "paragraphs": [
+        "Every opportunity from parts 2 and 3 is an efficiency gain on its own. Their real value emerges in the chain: the output of one block becomes the input of the next — the inquiry becomes the quote, the quote the order, the order the delivery, the data the report.",
+        "Step by step this builds a semi-autonomous organisation: routine flows run end-to-end without manual hand-offs, and people stand at defined decision gates instead of at the conveyor belt of intermediate steps."
+      ],
+      "key_message": "Semi-autonomy emerges through chaining — people stand at the gates, not at the conveyor belt.",
+      "table_lead": "{count} workflow chains in which the blocks from parts 2 and 3 interlock — autonomous flow on the left, human decision gates on the right:",
+      "table_footnote": "Every chain connects blocks as a layer over the existing system landscape — via interfaces, not migration; approvals and releases remain with people. Chains grow stepwise: each block delivers value alone and is chained once the next one stands.",
+      "findings_lead": "How semi-autonomy emerges, is measured — and what it means competitively:",
+      "table_columns": [
+        "Workflow",
+        "Autonomous flow (block chain)",
+        "Human decides on"
+      ]
+    },
+    "closing": {
+      "name": "Conclusion",
+      "headline": "The baseline decides, not gut feeling",
+      "paragraphs": [
+        "The answers to these questions form the baseline: where do quotes, orders, documents and reports bind days today — and which two opportunities carry the strongest validated value. Three steps follow: a baseline workshop, a pilot measurable within weeks, and scaling as a roadmap.",
+        "The quick wins typically pay back in three to six months and carry the programme on their own — in live operations, without replacing systems, with every approval where it belongs."
+      ],
+      "steps": [
+        {
+          "title": "Baseline workshop",
+          "text": "A structured workshop with the people who steer the processes daily: real volumes, cycle times and decision paths are recorded, and the benchmark ranges of this paper are validated or discarded. The result is a ranked list of two pilot candidates."
+        },
+        {
+          "title": "Pilot within weeks",
+          "text": "One opportunity is built on the existing systems via interfaces and measured against the baseline within weeks, not quarters. People keep every decision; the pilot proves the mechanism and the measured effect before anything is scaled."
+        },
+        {
+          "title": "Scaling roadmap",
+          "text": "Proven blocks are chained step by step into the workflows of part 4. The roadmap sets the order by validated value, defines the human decision gates and makes the autonomy level per process a steerable metric."
+        }
+      ],
+      "steps_lead": "Three steps lead from this discussion basis to a measured result:"
+    }
+  },
+  "cover": {
+    "eyebrow": "AI & Automation · Discussion basis",
+    "title_named": "AI opportunities for {client}",
+    "title_generic": "AI opportunity analysis",
+    "subtitle": "Opportunity map, business case and deep dives across {area_count} business areas and {opportunity_count} opportunities. As a working basis for our conversation.",
+    "document_type": "Discussion basis",
+    "short_title": "AI opportunity analysis"
+  },
+  "in_short": {
+    "first_statement": "{opportunity_count} AI opportunities across {area_count} business areas — from quick wins to strategic levers.",
+    "second_statement": "Working hypothesis: the lever lies less in the core work than in the hand-offs, documents and decisions around it.",
+    "third_statement": "For every opportunity: the discovery questions for the conversation and the signal that real potential exists.",
+    "scope_named": "Prepared as a discussion basis for the conversation with {client}. All impact figures are industry benchmarks as working hypotheses, not commitments. People retain every decision, release and sign-off.",
+    "scope_context": "Prepared as a discussion basis from the context provided; no company research was performed. All impact figures are industry benchmarks as working hypotheses, not commitments. People retain every decision.",
+    "scope_generic": "Prepared as a generic discussion basis: no company context was available, so nothing here is a statement about a specific organisation. All impact figures are industry benchmarks as working hypotheses, not commitments."
+  },
+  "thesis": {
+    "with_purpose": "Working hypothesis: the lever for “{purpose}” lies less in the core work than in the hand-offs, documents and decisions around it.",
+    "generic": "Working hypothesis: time and margin are lost less in the core work than in the hand-offs, documents and decisions around it."
+  },
+  "publisher": {
+    "unit": "AI & Automation",
+    "company": "BOREK Solutions Group",
+    "address": "Altewiekring 20 A · 38102 Braunschweig",
+    "phone": "T +49 531 283 541 61",
+    "url": "boreksolutions.de",
+    "place": "Borek Solutions Group · Braunschweig"
+  },
+  "research": {
+    "web_research_note": "No web or company research was performed: no approved research provider is configured. Company-specific content is limited to what the user provided.",
+    "always_unknown": [
+      "Industry and business model",
+      "Company size, locations and revenue",
+      "System landscape",
+      "Process volumes and cycle times",
+      "Decision makers and organisation"
+    ],
+    "notes": [
+      "Opportunities, shadow processes and workflow chains are typical patterns from the Borek opportunity library, not findings about this company.",
+      "All impact figures are industry benchmarks used as working hypotheses; they are validated in the baseline workshop."
+    ]
+  }
+}

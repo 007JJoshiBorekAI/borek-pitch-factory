@@ -1,0 +1,418 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.solutions/contracts/discovery_analysis.schema.json",
+  "title": "DiscoveryAnalysis",
+  "description": "Discovery v2: a structured AI Opportunity Analysis (research, parts 1-4, closing; parts 5-6 optional). The content is stored once; printed pages are derived from it as page_manifest, so the page count is never fixed. Version 1.0 papers (seven fixed pages) follow discovery_paper.schema.json and stay readable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "opportunity_id", "document_id", "latest_approved_version_id", "status", "generated_at", "language", "intake_context", "generation", "analysis", "presentation_brief", "page_manifest"],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "opportunity_id": {"type": "string", "format": "uuid"},
+    "document_id": {"type": ["string", "null"], "format": "uuid"},
+    "latest_approved_version_id": {"type": ["string", "null"], "format": "uuid"},
+    "status": {"type": "string", "enum": ["not_generated", "generating", "ready", "failed"]},
+    "generated_at": {"type": ["string", "null"], "format": "date-time"},
+    "language": {"type": "string", "enum": ["en", "de"], "description": "Language of the generated content. Only English content rules exist today; the field keeps the model language-ready."},
+    "intake_context": {"$ref": "#/$defs/IntakeContext"},
+    "generation": {"$ref": "#/$defs/Generation"},
+    "analysis": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Analysis"}]},
+    "presentation_brief": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/PresentationBrief"}]},
+    "page_manifest": {"type": "array", "items": {"$ref": "#/$defs/Page"}}
+  },
+  "$defs": {
+    "Text": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "Origin": {"type": "string", "enum": ["USER_INPUT", "SOURCE_FACT", "INDUSTRY_BENCHMARK", "WORKING_HYPOTHESIS", "TEMPLATE", "UNKNOWN"]},
+    "SourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "locator", "excerpt"],
+      "properties": {"source_id": {"$ref": "#/$defs/Text"}, "locator": {"$ref": "#/$defs/Text"}, "excerpt": {"$ref": "#/$defs/Text"}}
+    },
+    "IntakeContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["client_name", "contact_name", "website_url", "meeting_purpose", "meeting_purpose_source", "additional_information"],
+      "properties": {
+        "client_name": {"type": "string", "description": "Empty string when the user provided no company name."},
+        "contact_name": {"type": ["string", "null"]},
+        "website_url": {"type": ["string", "null"]},
+        "meeting_purpose": {"type": "string"},
+        "meeting_purpose_source": {"type": "string", "enum": ["sales_topic_description", "opportunity_name", "unavailable"]},
+        "additional_information": {"type": ["string", "null"]}
+      }
+    },
+    "Stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "status"],
+      "properties": {
+        "key": {"type": "string", "enum": ["research", "overview", "deep_dives", "shadow_processes", "target_picture", "optional_parts", "closing", "validation", "layout"]},
+        "label": {"$ref": "#/$defs/Text"},
+        "status": {"type": "string", "enum": ["waiting", "generating", "ready", "failed", "skipped"]}
+      }
+    },
+    "Generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "specificity", "research_mode", "optional_parts", "stages"],
+      "properties": {
+        "mode": {"type": "string", "enum": ["fixture", "live"]},
+        "specificity": {"type": "string", "enum": ["company", "context", "generic"], "description": "company: a company name is known. context: only purpose or free-text context is known. generic: nothing is known, so the analysis is an explicitly generic discussion basis."},
+        "research_mode": {"type": "string", "enum": ["user_context_only", "provider"], "description": "user_context_only means no web or company research was performed."},
+        "optional_parts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["roles_employees", "decision_map", "system_interfaces"],
+          "properties": {"roles_employees": {"type": "boolean"}, "decision_map": {"type": "boolean"}, "system_interfaces": {"type": "boolean"}}
+        },
+        "stages": {"type": "array", "items": {"$ref": "#/$defs/Stage"}}
+      }
+    },
+    "KnownFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "value", "origin", "source_refs"],
+      "properties": {
+        "label": {"$ref": "#/$defs/Text"},
+        "value": {"$ref": "#/$defs/Text"},
+        "origin": {"type": "string", "enum": ["USER_INPUT", "SOURCE_FACT"]},
+        "source_refs": {"type": "array", "items": {"$ref": "#/$defs/SourceRef"}}
+      }
+    },
+    "Research": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["company_profile", "core_thesis", "known_facts", "unknown_facts", "web_research"],
+      "properties": {
+        "company_profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "origin"],
+          "properties": {"text": {"type": ["string", "null"]}, "origin": {"type": "string", "enum": ["USER_INPUT", "SOURCE_FACT", "UNKNOWN"]}}
+        },
+        "core_thesis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "origin"],
+          "properties": {"text": {"$ref": "#/$defs/Text"}, "origin": {"const": "WORKING_HYPOTHESIS"}}
+        },
+        "known_facts": {"type": "array", "items": {"$ref": "#/$defs/KnownFact"}},
+        "unknown_facts": {"type": "array", "items": {"$ref": "#/$defs/Text"}},
+        "web_research": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["performed", "note"],
+          "properties": {"performed": {"type": "boolean"}, "note": {"$ref": "#/$defs/Text"}}
+        }
+      }
+    },
+    "ImpactRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "range", "basis"],
+      "properties": {
+        "metric": {"$ref": "#/$defs/Text"},
+        "range": {"$ref": "#/$defs/Text"},
+        "basis": {"type": "string", "enum": ["industry_benchmark", "working_hypothesis"], "description": "Impact figures are never commitments and never customer measurements."}
+      }
+    },
+    "BusinessCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_levers", "impact_ranges", "outcome", "payback_type"],
+      "properties": {
+        "value_levers": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"$ref": "#/$defs/Text"}},
+        "impact_ranges": {"type": "array", "items": {"$ref": "#/$defs/ImpactRange"}},
+        "outcome": {"$ref": "#/$defs/Text"},
+        "payback_type": {"type": "string", "enum": ["quick_win", "strategic"]}
+      }
+    },
+    "Opportunity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "solution", "ai_technology", "how_it_works", "result", "discovery_questions", "opportunity_signal"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9_]{1,64}$"},
+        "title": {"$ref": "#/$defs/Text"},
+        "solution": {"$ref": "#/$defs/Text"},
+        "ai_technology": {"$ref": "#/$defs/Text"},
+        "how_it_works": {"$ref": "#/$defs/Text"},
+        "result": {"$ref": "#/$defs/Text"},
+        "discovery_questions": {"type": "array", "minItems": 2, "maxItems": 3, "items": {"$ref": "#/$defs/Text"}},
+        "opportunity_signal": {"$ref": "#/$defs/Text"}
+      }
+    },
+    "Area": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "lead", "priority", "opportunities", "business_case"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9_]{1,64}$"},
+        "name": {"$ref": "#/$defs/Text"},
+        "lead": {"$ref": "#/$defs/Text"},
+        "priority": {"type": "boolean", "description": "True when the user-provided context points at this area."},
+        "opportunities": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Opportunity"}},
+        "business_case": {"$ref": "#/$defs/BusinessCase"}
+      }
+    },
+    "ShadowProcess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "decision", "handled_today_via", "ai_approach"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9_]{1,64}$"},
+        "decision": {"$ref": "#/$defs/Text"},
+        "handled_today_via": {"$ref": "#/$defs/Text"},
+        "ai_approach": {"$ref": "#/$defs/Text"}
+      }
+    },
+    "Card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "value", "text"],
+      "properties": {"label": {"$ref": "#/$defs/Text"}, "value": {"$ref": "#/$defs/Text"}, "text": {"$ref": "#/$defs/Text"}}
+    },
+    "Point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "text"],
+      "properties": {"title": {"$ref": "#/$defs/Text"}, "text": {"$ref": "#/$defs/Text"}}
+    },
+    "Findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cards", "points"],
+      "properties": {
+        "cards": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/Card"}},
+        "points": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/Point"}}
+      }
+    },
+    "TargetWorkflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "stages", "autonomous_flow", "human_decision_gate"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9_]{1,64}$"},
+        "name": {"$ref": "#/$defs/Text"},
+        "stages": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/Text"}},
+        "autonomous_flow": {"$ref": "#/$defs/Text"},
+        "human_decision_gate": {"$ref": "#/$defs/Text"}
+      }
+    },
+    "TargetPicture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagram_title", "diagram_lead", "dark_processing_pattern", "maturity_levels", "learning_loop", "points"],
+      "properties": {
+        "diagram_title": {"$ref": "#/$defs/Text"},
+        "diagram_lead": {"$ref": "#/$defs/Text"},
+        "dark_processing_pattern": {"$ref": "#/$defs/Card"},
+        "maturity_levels": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label", "value", "text", "levels"],
+          "properties": {
+            "label": {"$ref": "#/$defs/Text"},
+            "value": {"$ref": "#/$defs/Text"},
+            "text": {"$ref": "#/$defs/Text"},
+            "levels": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/Text"}}
+          }
+        },
+        "learning_loop": {"$ref": "#/$defs/Text"},
+        "points": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/Point"}}
+      }
+    },
+    "Chapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "headline", "paragraphs", "key_message"],
+      "properties": {
+        "name": {"$ref": "#/$defs/Text"},
+        "headline": {"$ref": "#/$defs/Text"},
+        "paragraphs": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/Text"}},
+        "key_message": {"$ref": "#/$defs/Text"}
+      }
+    },
+    "Framing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document", "chapters", "leads"],
+      "properties": {
+        "document": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["eyebrow", "title", "subtitle", "short_title", "document_type", "in_short", "scope_note"],
+          "properties": {
+            "eyebrow": {"$ref": "#/$defs/Text"},
+            "title": {"$ref": "#/$defs/Text"},
+            "subtitle": {"$ref": "#/$defs/Text"},
+            "short_title": {"$ref": "#/$defs/Text"},
+            "document_type": {"$ref": "#/$defs/Text"},
+            "in_short": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/Text"}},
+            "scope_note": {"$ref": "#/$defs/Text"}
+          }
+        },
+        "chapters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["overview", "deep_dive", "shadow", "target"],
+          "properties": {
+            "overview": {"$ref": "#/$defs/Chapter"},
+            "deep_dive": {"$ref": "#/$defs/Chapter"},
+            "shadow": {"$ref": "#/$defs/Chapter"},
+            "target": {"$ref": "#/$defs/Chapter"}
+          }
+        },
+        "leads": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["map", "business_case", "business_case_footnote", "shadow_table", "shadow_footnote", "shadow_findings", "target_table", "target_footnote", "target_findings", "closing_steps"],
+          "patternProperties": {"^[a-z_]+$": {"$ref": "#/$defs/Text"}}
+        }
+      }
+    },
+    "OptionalTable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chapter", "lead", "columns", "rows", "footnote"],
+      "properties": {
+        "chapter": {"$ref": "#/$defs/Chapter"},
+        "lead": {"$ref": "#/$defs/Text"},
+        "columns": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/Text"}},
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "subject", "description", "verdict"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^[a-z0-9_]{1,64}$"},
+              "subject": {"$ref": "#/$defs/Text"},
+              "description": {"$ref": "#/$defs/Text"},
+              "verdict": {"$ref": "#/$defs/Text"}
+            }
+          }
+        },
+        "footnote": {"$ref": "#/$defs/Text"}
+      }
+    },
+    "OptionalDeepDives": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roles_employees", "decision_map", "system_interfaces"],
+      "description": "Parts 5 and 6 of the guide. Each is null unless explicitly requested; a standard analysis leaves all three null.",
+      "properties": {
+        "roles_employees": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/OptionalTable"}]},
+        "decision_map": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/OptionalTable"}]},
+        "system_interfaces": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/OptionalTable"}]}
+      }
+    },
+    "Closing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "headline", "paragraphs", "steps"],
+      "properties": {
+        "name": {"$ref": "#/$defs/Text"},
+        "headline": {"$ref": "#/$defs/Text"},
+        "paragraphs": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/Text"}},
+        "steps": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/Point"}, "description": "The three steps of the guide, printed as numbered points: baseline workshop, pilot within weeks, scaling roadmap."}
+      }
+    },
+    "Provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content_origin", "figures_basis", "customer_facts_origin", "sources", "notes"],
+      "properties": {
+        "content_origin": {"type": "string", "enum": ["fixture_library", "live_model"]},
+        "figures_basis": {"const": "industry_benchmark_or_working_hypothesis"},
+        "customer_facts_origin": {"type": "string", "enum": ["user_input_only", "user_input_and_cited_research", "none"]},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/SourceRef"}},
+        "notes": {"type": "array", "items": {"$ref": "#/$defs/Text"}}
+      }
+    },
+    "Analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["research", "framing", "areas", "shadow_processes", "shadow_findings", "target_workflows", "target_picture", "optional_deep_dives", "closing", "provenance"],
+      "properties": {
+        "research": {"$ref": "#/$defs/Research"},
+        "framing": {"$ref": "#/$defs/Framing"},
+        "areas": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Area"}},
+        "shadow_processes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/ShadowProcess"}},
+        "shadow_findings": {"$ref": "#/$defs/Findings"},
+        "target_workflows": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/TargetWorkflow"}},
+        "target_picture": {"$ref": "#/$defs/TargetPicture"},
+        "optional_deep_dives": {"$ref": "#/$defs/OptionalDeepDives"},
+        "closing": {"$ref": "#/$defs/Closing"},
+        "provenance": {"$ref": "#/$defs/Provenance"}
+      }
+    },
+    "PresentationBrief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "client_name", "meeting_purpose", "document_title", "core_thesis", "priority_opportunities", "opportunity_signals", "target_picture_summary", "provenance"],
+      "description": "Compatibility hand-off for the existing presentation path. Derived from the analysis; never edited directly.",
+      "properties": {
+        "schema_version": {"const": "1.0"},
+        "client_name": {"type": "string"},
+        "meeting_purpose": {"type": "string"},
+        "document_title": {"$ref": "#/$defs/Text"},
+        "core_thesis": {"$ref": "#/$defs/Text"},
+        "priority_opportunities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["area", "title", "result", "payback_type"],
+            "properties": {"area": {"$ref": "#/$defs/Text"}, "title": {"$ref": "#/$defs/Text"}, "result": {"$ref": "#/$defs/Text"}, "payback_type": {"type": "string", "enum": ["quick_win", "strategic"]}}
+          }
+        },
+        "opportunity_signals": {"type": "array", "minItems": 1, "maxItems": 5, "items": {"$ref": "#/$defs/Text"}},
+        "target_picture_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["statement", "workflows", "human_gates"],
+          "properties": {
+            "statement": {"$ref": "#/$defs/Text"},
+            "workflows": {"type": "array", "items": {"$ref": "#/$defs/Text"}},
+            "human_gates": {"type": "array", "items": {"$ref": "#/$defs/Text"}}
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["figures_basis", "customer_facts_origin", "source_refs"],
+          "properties": {
+            "figures_basis": {"const": "industry_benchmark_or_working_hypothesis"},
+            "customer_facts_origin": {"type": "string", "enum": ["user_input_only", "user_input_and_cited_research", "none"]},
+            "source_refs": {"type": "array", "items": {"$ref": "#/$defs/SourceRef"}}
+          }
+        }
+      }
+    },
+    "Page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "number", "type", "dark", "chapter", "nav_label", "edit_targets", "content"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9_-]{1,96}$", "description": "Stable identity derived from the content, not from the position."},
+        "number": {"type": "integer", "minimum": 1},
+        "type": {"type": "string", "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"], "description": "Only the nine page types of the white paper master exist."},
+        "dark": {"type": "boolean"},
+        "chapter": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "object", "additionalProperties": false, "required": ["number", "name"], "properties": {"number": {"type": "integer", "minimum": 1}, "name": {"$ref": "#/$defs/Text"}}}
+          ]
+        },
+        "nav_label": {"$ref": "#/$defs/Text"},
+        "edit_targets": {"type": "array", "items": {"type": "string", "pattern": "^[a-z_]+(:[a-z0-9_]+(/[a-z0-9_]+)?)?$"}},
+        "content": {"type": "object"}
+      }
+    }
+  }
+}

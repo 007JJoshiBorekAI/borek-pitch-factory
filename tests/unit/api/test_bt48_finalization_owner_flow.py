@@ -96,12 +96,10 @@ def approve_discovery(client: TestClient, opportunity_id: str) -> dict:
 def edit_discovery(client: TestClient, opportunity_id: str, client_name: str) -> None:
     current = client.get(f"/opportunities/{opportunity_id}/discovery-paper", headers=headers())
     assert current.status_code == 200, current.text
-    cover = copy.deepcopy(current.json()["pages"][0]["content"])
-    cover["client_name"] = client_name
     edited = client.patch(
         f"/opportunities/{opportunity_id}/discovery-paper",
         headers=headers(),
-        json={"pages": [{"key": "cover", "content": cover}]},
+        json={"edits": [{"target": "framing", "value": {"document": {"title": client_name}}}]},
     )
     assert edited.status_code == 200, edited.text
 
