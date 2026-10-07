@@ -24,6 +24,8 @@ from services.presentation.ppt1_constraints import DISCOVERY_PAGE_KEYS
 
 _SKIP_KEYS = frozenset({"origin", "status", "schema_version", "source_refs", "order"})
 _NO_CONTENT = "(no approved content - do not invent any)"
+# Reference id of the structured summary of the uploaded meeting transcript (BT-36).
+TRANSCRIPT_SUMMARY_REFERENCE = "transcript_summary"
 
 
 def pre_meeting_allowed_references(approved_discovery: dict[str, Any]) -> frozenset[str]:
@@ -31,7 +33,10 @@ def pre_meeting_allowed_references(approved_discovery: dict[str, Any]) -> frozen
 
 
 def post_meeting_allowed_references(ppt2_input: dict[str, Any]) -> frozenset[str]:
-    return frozenset(ppt2_allowed_references(ppt2_input))
+    allowed = set(ppt2_allowed_references(ppt2_input))
+    if _summary_block(ppt2_input.get("transcript_summary")):
+        allowed.add(TRANSCRIPT_SUMMARY_REFERENCE)
+    return frozenset(allowed)
 
 
 def client_name(pages: list[dict[str, Any]]) -> str:
@@ -65,6 +70,11 @@ def post_meeting_materials(ppt2_input: dict[str, Any]) -> dict[str, str]:
     meeting = _meeting_block(ppt2_input.get("meeting_extraction"))
     if meeting:
         materials["Meeting extraction (reference ids: meeting.<section>) - structured evidence from the meeting"] = meeting
+    summary = _summary_block(ppt2_input.get("transcript_summary"))
+    if summary:
+        materials[
+            f"Transcript summary (reference id: {TRANSCRIPT_SUMMARY_REFERENCE}) - what was said in the meeting, summarised from the uploaded transcript"
+        ] = summary
     use_cases = _use_case_block(ppt2_input.get("selected_use_cases"))
     if use_cases:
         materials["Selected Borek use cases (reference ids: use_case.<fact_id>) - approved reusable supporting material"] = use_cases
@@ -94,6 +104,29 @@ def _meeting_block(meeting: dict[str, Any] | None) -> str:
         if items:
             blocks.append(f"[meeting.{key}]\n" + "\n".join(f"- {item}" for item in items))
     return "\n\n".join(blocks)
+
+
+def _summary_block(summary: dict[str, Any] | None) -> str:
+    """Readable form of the BT-36 transcript summary (never raw speaker turns)."""
+    if not isinstance(summary, dict):
+        return ""
+    parts: list[str] = []
+    narrative = " ".join(str(summary.get("narrative") or "").split())
+    if narrative:
+        parts.append(f"[{TRANSCRIPT_SUMMARY_REFERENCE}]\n{narrative}")
+    for label, key in (("Participants", "participants"), ("Decisions", "decisions"), ("Open questions", "open_questions")):
+        items = [str(item).strip() for item in summary.get(key) or [] if str(item).strip()]
+        if items:
+            parts.append(f"{label}:\n" + "\n".join(f"- {item}" for item in items))
+    actions = []
+    for item in summary.get("action_items") or []:
+        text = str((item or {}).get("text") or "").strip()
+        if text:
+            owner = str((item or {}).get("owner") or "").strip()
+            actions.append(f"- {text}" + (f" (owner: {owner})" if owner else ""))
+    if actions:
+        parts.append("Action items:\n" + "\n".join(actions))
+    return "\n\n".join(parts)
 
 
 def _use_case_block(selected: dict[str, Any] | None) -> str:

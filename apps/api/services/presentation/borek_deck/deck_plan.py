@@ -78,6 +78,19 @@ def borek_slide_spec(planned: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def planned_slides_from_specs(slide_specs: Any) -> list[dict[str, Any]]:
+    """Planned-slide entries rebuilt from a stored Borek deck (e.g. the PPT #1 version).
+
+    Returns ``[]`` when ``slide_specs`` is not a Borek-engine deck.
+    """
+    if not is_borek_slide_specs(slide_specs):
+        return []
+    return [
+        planned_slide(order, spec["content"], [str(item) for item in spec.get("sourceChapterIds") or []])
+        for order, spec in enumerate(slide_specs, start=1)
+    ]
+
+
 def borek_slides_from_specs(slide_specs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Generator slide dictionaries, ready for ``borek_pptx.build_deck``."""
     return [copy.deepcopy(spec["content"]) for spec in slide_specs]

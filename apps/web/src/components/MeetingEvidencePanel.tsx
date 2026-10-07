@@ -94,7 +94,7 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
       await generateAndAwaitPostMeetingPresentation(token, opportunityId, () => signal.throwIfAborted(), {
         regeneratePresentationId: prepared.workflow.documents.ppt2?.presentation_id,
       });
-      if (!signal.aborted) router.push(`${root}/post-meeting-presentation`);
+      if (!signal.aborted) router.push(`${root}/follow-up`);
     });
   }
 

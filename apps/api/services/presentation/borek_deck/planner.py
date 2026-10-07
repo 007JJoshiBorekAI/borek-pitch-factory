@@ -90,13 +90,26 @@ def plan_pre_meeting_deck(approved_discovery: dict[str, Any], *, planner: Planni
     )
 
 
-def plan_post_meeting_deck(ppt2_input: dict[str, Any], *, planner: PlanningClient) -> dict[str, Any]:
-    """PPT #2: Borek Master layouts, from the four frozen post-meeting sources (no slide cap)."""
-    return _plan(
+def plan_post_meeting_deck(
+    ppt2_input: dict[str, Any],
+    *,
+    planner: PlanningClient,
+    ppt1_slides: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """PPT #2: Borek Master layouts, from the frozen post-meeting sources (no slide cap).
+
+    ``ppt1_slides`` are the planned slides of the PPT #1 deck (``deck_plan.planned_slides_from_specs``).
+    When given, PPT #2 starts with exactly those slides and the model only plans the extension
+    (notes, transcript summary, meeting extraction, use cases) plus the closing slide.
+    """
+    rules = POST_MEETING_PROMPT_PATH.read_text(encoding="utf-8")
+    if ppt1_slides:
+        rules += _PPT1_CARRY_OVER_RULES
+    plan = _plan(
         kind=POST_MEETING,
         planner=planner,
         materials=sources.post_meeting_materials(ppt2_input),
-        rules=POST_MEETING_PROMPT_PATH.read_text(encoding="utf-8"),
+        rules=rules,
         prompt_version=POST_MEETING_PROMPT_VERSION,
         max_slides=None,
         audience="client - after the first meeting",
@@ -107,6 +120,42 @@ def plan_post_meeting_deck(ppt2_input: dict[str, Any], *, planner: PlanningClien
         fixture_deck=lambda: fixture.deterministic_post_meeting_deck(ppt2_input),
         finish=_finish_post_meeting,
     )
+    return _carry_over_ppt1(plan, ppt1_slides) if ppt1_slides else plan
+
+
+_PPT1_CARRY_OVER_RULES = """
+
+PPT #1 CARRY-OVER
+- The deck already begins with the slides of the pre-meeting presentation (PPT #1): cover, who_we_are and the Discovery baseline.
+  They are added automatically. Do NOT write slides for the Discovery baseline; plan only the extension that follows them:
+  personal notes, the transcript summary (what was said, decisions, action items, open questions), the meeting extraction,
+  the selected use cases, and the closing slide.
+- The transcript summary has the reference id "transcript_summary"; a slide that uses it must cite only that id.
+"""
+
+_BOILERPLATE_LAYOUTS = frozenset({"cover", "who_we_are", "closing"})
+
+
+def _carry_over_ppt1(plan: dict[str, Any], ppt1_slides: list[dict[str, Any]]) -> dict[str, Any]:
+    """PPT #2 = every PPT #1 slide (except its closing) + the planned extension + the closing."""
+    carried = [slide for slide in ppt1_slides if slide["layoutId"] != "closing"]
+    planned = plan["slides"]
+    extension = [
+        slide
+        for slide in planned
+        if slide["layoutId"] not in _BOILERPLATE_LAYOUTS
+        and not (
+            slide["frameworkReferences"]
+            and all(reference.startswith("discovery.") for reference in slide["frameworkReferences"])
+        )
+    ]
+    closing = [slide for slide in planned if slide["layoutId"] == "closing"][-1:]
+    merged = carried + extension + closing
+    result = copy.deepcopy(plan)
+    result["slides"] = [
+        {**copy.deepcopy(slide), "order": order} for order, slide in enumerate(merged, start=1)
+    ]
+    return result
 
 
 def _finish_pre_meeting(slides: list[dict[str, Any]]) -> list[dict[str, Any]]:

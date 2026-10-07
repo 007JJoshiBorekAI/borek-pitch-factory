@@ -349,3 +349,30 @@ def test_render_rejects_specs_that_are_not_borek_slides() -> None:
         render_deck_bundle([{"layoutId": "cover_01", "title": "x"}], deck_kind=deck_plan.PRE_MEETING)
     assert raised.value.code == "PPTX_RENDER_FAILED"
     assert raised.value.retryable is False
+
+
+def test_post_meeting_uses_transcript_summary_and_starts_with_ppt1_slides() -> None:
+    from services.presentation.borek_deck.deck_plan import planned_slide
+
+    source = _ppt2_context()
+    source["transcript_summary"] = {
+        "narrative": "The client wants invoices read automatically.",
+        "participants": ["Client"],
+        "decisions": ["Start with a pilot."],
+        "action_items": [{"text": "Send the pilot scope.", "owner": "Borek"}],
+        "open_questions": [],
+    }
+    ppt1 = [
+        planned_slide(1, {"layout": "cover", "title": "Acme\nFirst meeting"}, ["discovery.cover"]),
+        planned_slide(2, {"layout": "who_we_are"}, []),
+        planned_slide(3, {"layout": "matrix_notes", "kicker": "Opportunity", "title": "PPT1 slide"}, ["discovery.opportunity"]),
+        planned_slide(4, {"layout": "closing", "title": "Bye"}, []),
+    ]
+    plan = plan_post_meeting_deck(source, planner=_Planner(deterministic=True), ppt1_slides=ppt1)
+    layouts = [slide["layoutId"] for slide in plan["slides"]]
+    titles = [slide["borekSlide"].get("title") for slide in plan["slides"]]
+    assert titles[:3] == ["Acme\nFirst meeting", None, "PPT1 slide"]
+    assert layouts[-1] == "closing" and layouts.count("closing") == 1
+    assert layouts.count("cover") == 1 and layouts.count("who_we_are") == 1
+    assert ["transcript_summary"] in [slide["frameworkReferences"] for slide in plan["slides"]]
+    assert [slide["order"] for slide in plan["slides"]] == list(range(1, len(layouts) + 1))

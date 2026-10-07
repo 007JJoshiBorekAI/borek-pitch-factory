@@ -833,8 +833,20 @@ def enqueue_post_meeting_presentation_generate(
         )
     planner_input = planning_input_from_ppt2_context(context)
     manifest = ppt2_generation_manifest(context)
+    transcript_summary = _ppt2_transcript_summary(
+        store,
+        context=context,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+    )
+    if transcript_summary is not None:
+        planner_input["transcript_summary"] = transcript_summary
     try:
-        plan_json = plan_post_meeting_deck(planner_input, planner=get_live_planning_client())
+        plan_json = plan_post_meeting_deck(
+            planner_input,
+            planner=get_live_planning_client(),
+            ppt1_slides=_ppt1_planned_slides(store, opportunity=opportunity, user_id=user_id),
+        )
     except PresentationPlanValidationError as exc:
         raise bad_request("PPT2_PLAN_INVALID", str(exc)) from exc
     framework = _framework_for_plan_storage(
@@ -892,6 +904,56 @@ def enqueue_post_meeting_presentation_generate(
         "job_id": str(refreshed.id),
         "is_existing_job": False,
     }
+
+
+def _ppt2_transcript_summary(
+    store: DataStore,
+    *,
+    context: dict[str, Any],
+    opportunity_id: UUID,
+    user_id: UUID,
+) -> dict[str, Any] | None:
+    """BT-36 summary of the transcript the meeting extraction was built from (None when absent)."""
+    from services.transcript.summarize import summarize_speaker_sections
+
+    extraction = context["sources"]["meeting_extraction"]
+    transcript_id = extraction.get("transcript_id")
+    if extraction.get("status") != "available" or not transcript_id:
+        return None
+    source = next(
+        (
+            row
+            for row in store.list_transcript_sources(opportunity_id=opportunity_id, user_id=user_id)
+            if str(row["id"]) == str(transcript_id)
+        ),
+        None,
+    )
+    if not source or not source.get("sections"):
+        return None
+    return summarize_speaker_sections(
+        source["sections"],
+        opportunity_id=opportunity_id,
+        transcript_id=transcript_id,
+    )
+
+
+def _ppt1_planned_slides(
+    store: DataStore,
+    *,
+    opportunity: dict[str, Any],
+    user_id: UUID,
+) -> list[dict[str, Any]] | None:
+    """The slides of the latest PPT #1 version, so PPT #2 can start with them (None when there is none)."""
+    from services.presentation.borek_deck.deck_plan import planned_slides_from_specs
+
+    stage1 = _stage1_presentation_id(opportunity)
+    if stage1 is None:
+        return None
+    try:
+        version = store.get_latest_presentation_version(presentation_id=stage1, user_id=user_id)
+    except HTTPException:
+        return None
+    return planned_slides_from_specs(version.get("slides_json")) or None
 
 
 def _ppt2_presentation(

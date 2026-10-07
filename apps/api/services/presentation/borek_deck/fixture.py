@@ -197,6 +197,14 @@ def deterministic_post_meeting_deck(ppt2_input: dict[str, Any]) -> dict[str, Any
     notes = str((ppt2_input.get("personal_notes") or {}).get("text") or "").strip()
     if notes:
         slides.append(_list_slide("Our notes", "Notes from the meeting", _sentences(notes), ["notes"]))
+    summary = ppt2_input.get("transcript_summary") or {}
+    summary_lines = _sentences(str(summary.get("narrative") or "").strip()) if summary.get("narrative") else []
+    summary_lines += [f"Decision: {item}" for item in summary.get("decisions") or []]
+    summary_lines += [
+        f"Action: {(item or {}).get('text')}" for item in summary.get("action_items") or [] if (item or {}).get("text")
+    ]
+    if summary_lines:
+        slides.append(_list_slide("Meeting", "What we discussed", summary_lines[: _ROWS + 1], ["transcript_summary"]))
     extraction = (ppt2_input.get("meeting_extraction") or {}).get("extraction") or {}
     for key in MEETING_SECTION_KEYS:
         items = [str(item).strip() for item in extraction.get(key) or [] if str(item).strip()]
