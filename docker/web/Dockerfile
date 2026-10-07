@@ -16,6 +16,8 @@ COPY package.json package-lock.json ./
 COPY apps/web ./apps/web
 COPY apps/renderer/package.json apps/renderer/
 COPY packages/contracts ./packages/contracts
+# AuthShell and BrandLogo import the brand assets from the repository root.
+COPY ["static images", "./static images"]
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ARG NEXT_PUBLIC_SUPABASE_URL=
