@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { SiteHeader } from "@/components/SiteHeader";
 import { useLanguage } from "@/components/LanguageProvider";
 import { usePreviewJourney } from "@/components/PreviewJourneyProvider";
+import { useAuth } from "@/components/AuthProvider";
+import { isLocalUiPreviewAvailable } from "@/lib/uiPreview";
 import {
-  CLIENT_DIRECTORY_FIXTURE,
   clientOpportunityHref,
+  loadLiveClientDirectory,
+  type ClientDirectoryItem,
   type ClientPhase,
 } from "@/lib/clientDirectory";
 
@@ -17,12 +20,27 @@ type PhaseFilter = "all" | ClientPhase;
 
 export function ClientDirectoryPanel() {
   const searchParams = useSearchParams();
-  const { copy } = useLanguage();
-  const { directoryItems } = usePreviewJourney();
-  const items = [
-    ...directoryItems,
-    ...CLIENT_DIRECTORY_FIXTURE.filter((fixture) => !directoryItems.some((item) => item.opportunity_id === fixture.opportunity_id)),
-  ];
+  const { copy, language } = useLanguage();
+  const { accessToken, ownerId, previewMode, loading } = useAuth();
+  const { directoryItems, hydrated } = usePreviewJourney();
+  const [retry, setRetry] = useState(0);
+  const scope = `${ownerId}:${previewMode}:${language}:${retry}`;
+  const [result, setResult] = useState<{ scope: string; items: ClientDirectoryItem[]; failed: boolean } | null>(null);
+  const localPreview = previewMode && isLocalUiPreviewAvailable();
+  useEffect(() => {
+    if (loading || previewMode || !accessToken || !ownerId) return;
+    const controller = new AbortController();
+    void loadLiveClientDirectory(accessToken, language, controller.signal).then((items) => {
+      if (!controller.signal.aborted) setResult({ scope, items, failed: false });
+    }).catch(() => {
+      if (!controller.signal.aborted) setResult({ scope, items: [], failed: true });
+    });
+    return () => controller.abort();
+  }, [loading, previewMode, accessToken, ownerId, language, scope]);
+  const pending = loading || (localPreview ? !hydrated : Boolean(accessToken && ownerId) && result?.scope !== scope);
+  const failed = !pending && !localPreview && (!accessToken || !ownerId || result?.scope !== scope || result.failed);
+  const items = localPreview ? directoryItems
+    : !pending && !failed && result?.scope === scope ? result.items : [];
   const [query, setQuery] = useState("");
   const requestedPhase = searchParams.get("phase");
   const phase: PhaseFilter = requestedPhase === "pre_meeting" || requestedPhase === "post_meeting"
@@ -46,7 +64,7 @@ export function ClientDirectoryPanel() {
           <div>
             <p>{copy.clients.kicker}</p>
             <h2>{copy.clients.title}</h2>
-            <span>{items.length} {copy.clients.title.toLowerCase()} · {items.filter((item) => item.workflow_status !== "finalized").length} {copy.clients.activePitches}</span>
+            {!pending && !failed && <span>{items.length} {copy.clients.title.toLowerCase()} · {items.filter((item) => item.workflow_status !== "finalized").length} {copy.clients.activePitches}</span>}
           </div>
           <Link href="/opportunities/new/client-information" className="btn btn-primary">{copy.clients.add}</Link>
         </header>
@@ -67,7 +85,16 @@ export function ClientDirectoryPanel() {
           </div>
         </div>
 
-        {filtered.length > 0 ? (
+        {pending ? (
+          <section className="clients-empty" role="status">{language === "de" ? "Kunden werden geladen..." : "Loading clients..."}</section>
+        ) : failed ? (
+          <section className="clients-empty" role="alert">
+            <p>{language === "de" ? "Kunden konnten nicht geladen werden." : "Clients could not be loaded."}</p>
+            <button type="button" className="btn btn-secondary" onClick={() => setRetry((value) => value + 1)}>{language === "de" ? "Erneut versuchen" : "Retry loading"}</button>
+          </section>
+        ) : items.length === 0 ? (
+          <section className="clients-empty"><h3>{language === "de" ? "Noch keine Kunden" : "No clients yet"}</h3><p>{language === "de" ? "Erstellen Sie einen neuen Kunden, um zu beginnen." : "Add a new client to get started."}</p></section>
+        ) : filtered.length > 0 ? (
           <div className="clients-table-wrap">
             <table className="clients-table">
               <thead><tr><th>{copy.clients.client}</th><th>{copy.clients.contact}</th><th>{copy.clients.workflow}</th><th>{copy.clients.activity}</th><th><span className="sr-only">Action</span></th></tr></thead>
@@ -78,9 +105,7 @@ export function ClientDirectoryPanel() {
                     <td data-label={copy.clients.contact}><strong>{item.contact_person}</strong><span>{item.contact_role}</span></td>
                     <td data-label={copy.clients.workflow}><span className={`clients-status is-${item.phase}`}><i aria-hidden="true" />{copy.workflow.statuses[item.workflow_status]}</span></td>
                     <td data-label={copy.clients.activity}><span>{item.last_activity === "Today" ? copy.clients.today : item.last_activity === "Yesterday" ? copy.clients.yesterday : item.last_activity}</span></td>
-                    <td>{item.preview_fixture
-                      ? <span className="clients-open" aria-label={`${item.company_name} preview fixture`}>Preview fixture</span>
-                      : <Link href={clientOpportunityHref(item)} className="clients-open">{copy.clients.open}</Link>}</td>
+                    <td><Link href={clientOpportunityHref(item)} className="clients-open">{copy.clients.open}</Link></td>
                   </tr>
                 ))}
               </tbody>
@@ -89,7 +114,7 @@ export function ClientDirectoryPanel() {
         ) : (
           <section className="clients-empty"><h3>{copy.clients.noMatch}</h3><p>{copy.clients.noMatchHelp}</p></section>
         )}
-        <p className="clients-count">{copy.clients.showing} {filtered.length} {copy.clients.of} {items.length} {copy.clients.title.toLowerCase()}</p>
+        {!pending && !failed && <p className="clients-count">{copy.clients.showing} {filtered.length} {copy.clients.of} {items.length} {copy.clients.title.toLowerCase()}</p>}
       </main>
     </div>
   );

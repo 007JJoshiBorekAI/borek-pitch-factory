@@ -1,4 +1,6 @@
-import type { WorkflowStatus } from "./discoveryFirst";
+import { ApiRequestError, apiFetch } from "./api";
+import { BACKEND_UUID } from "./backendOpportunityMap";
+import { WORKFLOW_STATUS_CATALOG, type WorkflowStatus } from "./discoveryFirst";
 
 export type ClientPhase = "pre_meeting" | "post_meeting";
 
@@ -99,12 +101,50 @@ export function clientOpportunityHref(item: ClientDirectoryItem): string {
     ? "client-information"
     : item.workflow_status === "discovery_prepared"
       ? "discovery"
-      : item.workflow_status === "ppt_1_ready" || item.workflow_status === "ppt_2_generated"
+      : item.workflow_status === "ppt_1_ready" || (item.workflow_status === "first_meeting_completed" && item.phase === "pre_meeting")
         ? "presentations"
-        : item.workflow_status === "first_meeting_completed" || item.workflow_status === "transcript_added"
-          ? "meeting"
-          : item.workflow_status === "owner_review"
-            ? "review"
-            : "follow-up";
+        : item.workflow_status === "ppt_2_generated"
+          ? "post-meeting-presentation"
+          : item.workflow_status === "first_meeting_completed" || item.workflow_status === "transcript_added"
+            ? "meeting"
+            : item.workflow_status === "owner_review"
+              ? "review"
+              : "follow-up";
   return `/opportunities/${encodeURIComponent(item.opportunity_id)}/${section}`;
+}
+
+export async function loadLiveClientDirectory(token: string, locale: string, signal?: AbortSignal): Promise<ClientDirectoryItem[]> {
+  const rows = await apiFetch<Array<{
+    id: string; client_name: string; opportunity_name: string; updated_at: string;
+    stage1_intake?: { poc_name?: string; poc_position?: string; sales_topic_description?: string } | null;
+  }>>("/opportunities", token, { signal, cache: "no-store" });
+  if (!Array.isArray(rows)) throw new ApiRequestError("The client list response is incomplete.", 502);
+  return Promise.all(rows.map(async (row) => {
+    if (!row || !BACKEND_UUID.test(row.id) || typeof row.client_name !== "string") {
+      throw new ApiRequestError("The client list contains an invalid opportunity.", 502);
+    }
+    const workflow = await apiFetch<{
+      opportunity_id: string; current_status: string; steps: Array<{ key: string; state: string }>;
+    }>(`/opportunities/${row.id}/workflow-status`, token, { signal, cache: "no-store" });
+    const status = workflow.current_status === "ppt1_ready" ? "ppt_1_ready"
+      : workflow.current_status === "ppt2_generated" ? "ppt_2_generated" : workflow.current_status;
+    const current = WORKFLOW_STATUS_CATALOG.find((entry) => entry.id === status);
+    if (workflow.opportunity_id !== row.id || !current || !Array.isArray(workflow.steps)) {
+      throw new ApiRequestError("The client workflow response is incomplete or mismatched.", 502);
+    }
+    const updated = new Date(row.updated_at);
+    return {
+      opportunity_id: row.id,
+      company_name: row.client_name,
+      engagement_name: row.stage1_intake?.sales_topic_description || row.opportunity_name || "",
+      contact_person: row.stage1_intake?.poc_name || "-",
+      contact_role: row.stage1_intake?.poc_position || "",
+      workflow_status: current.id,
+      // The backend's current status is the next incomplete step, not proof of meeting completion.
+      phase: workflow.steps.some((step) => step.key === "first_meeting_completed" && step.state === "completed")
+        ? "post_meeting" : "pre_meeting",
+      last_activity: Number.isNaN(updated.getTime()) ? "-"
+        : updated.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }),
+    };
+  }));
 }
