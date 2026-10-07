@@ -75,6 +75,36 @@ export function sanitizeNextPath(value: string | null | undefined): string | nul
   return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
 
+export interface AuthCallbackError {
+  code: string;
+  description: string;
+}
+
+const CALLBACK_ERROR_PARAMS = ["error", "error_code", "error_description"] as const;
+
+function printable(value: string | null): string {
+  return (value ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, 300);
+}
+
+/** Supabase and Microsoft report a failed sign-in as error parameters on the return URL, in the query or the hash. */
+export function readAuthCallbackError(search: string, hash: string): AuthCallbackError | null {
+  for (const source of [hash.replace(/^#/, ""), search.replace(/^\?/, "")]) {
+    const params = new URLSearchParams(source);
+    const code = printable(params.get("error_code") ?? params.get("error"));
+    const description = printable(params.get("error_description"));
+    if (code || description) return { code, description };
+  }
+  return null;
+}
+
+/** The same URL without the sign-in error parameters, so a reload does not repeat a stale error. */
+export function withoutAuthCallbackError(pathname: string, search: string): string {
+  const params = new URLSearchParams(search);
+  for (const name of CALLBACK_ERROR_PARAMS) params.delete(name);
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
 function storage(): Storage | null {
   try {
     return globalThis.sessionStorage ?? null;

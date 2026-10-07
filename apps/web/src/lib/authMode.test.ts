@@ -4,10 +4,12 @@ import { fileURLToPath } from "node:url";
 
 import {
   clearPostAuthPath,
+  readAuthCallbackError,
   rememberPostAuthPath,
   resolveAuthMode,
   resolvePostAuthPath,
   sanitizeNextPath,
+  withoutAuthCallbackError,
   type AuthModeInput,
 } from "./authMode.js";
 import { beginAuthSession, clearAuthSession, isAuthSessionEnded, isDevAuthSessionActive, isPreviewSessionActive } from "./authSession.js";
@@ -97,6 +99,25 @@ globalThis.sessionStorage.setItem("borek.authNext", "//evil.example");
 assert.equal(resolvePostAuthPath(""), "/clients", "a tampered remembered path is rejected");
 clearPostAuthPath();
 
+// A failed provider round trip is reported instead of silently showing the login page again.
+assert.equal(readAuthCallbackError("", ""), null);
+assert.equal(readAuthCallbackError("?next=%2Fclients", "#"), null);
+assert.deepEqual(
+  readAuthCallbackError("", "#error=server_error&error_code=unexpected_failure&error_description=Error+getting+user+email+from+external+provider"),
+  { code: "unexpected_failure", description: "Error getting user email from external provider" },
+);
+assert.deepEqual(
+  readAuthCallbackError("?error=access_denied&error_description=AADSTS50105%3A+user+not+assigned", ""),
+  { code: "access_denied", description: "AADSTS50105: user not assigned" },
+);
+assert.deepEqual(readAuthCallbackError("?error=access_denied", ""), { code: "access_denied", description: "" });
+assert.equal(readAuthCallbackError("", `#error_description=${"x".repeat(900)}`)?.description.length, 300);
+assert.equal(readAuthCallbackError("", "#error_description=line%0Abreak%00")?.description, "line break");
+assert.equal(readAuthCallbackError("", "#access_token=abc&token_type=bearer"), null, "a successful return is not an error");
+assert.equal(withoutAuthCallbackError("/login", "?error=access_denied&error_description=x&next=%2Fclients"), "/login?next=%2Fclients");
+assert.equal(withoutAuthCallbackError("/login", "?error=access_denied&error_code=x"), "/login");
+assert.equal(withoutAuthCallbackError("/login", ""), "/login");
+
 // Development and preview sessions are separate flags, and sign-out clears both.
 beginAuthSession(false, true);
 assert.equal(isDevAuthSessionActive(), true);
@@ -118,6 +139,8 @@ assert.match(card, /disabled=\{busy \|\| authMode !== "supabase"\}/);
 assert.doesNotMatch(card.slice(card.indexOf("async function handleMicrosoftSignIn"), card.indexOf("async function handleDevSignIn")),
   /startPreviewSession|startDevSession/);
 assert.match(card, /rememberPostAuthPath\(/);
+assert.match(card, /readAuthCallbackError\(window\.location\.search, window\.location\.hash\)/);
+assert.match(card, /authCopy\.signInFailed/);
 assert.match(card, /redirectTo: `\$\{window\.location\.origin\}\/login`/);
 const provider = source("../components/AuthProvider.tsx");
 assert.doesNotMatch(provider, /process\.env\.NEXT_PUBLIC_(BYPASS_LOGIN|DEV_ACCESS_TOKEN)/, "bypass env is read only through authMode");

@@ -6,7 +6,9 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/components/AuthProvider";
 import { ApiRequestError } from "@/lib/api";
-import { clearPostAuthPath, rememberPostAuthPath, resolvePostAuthPath } from "@/lib/authMode";
+import {
+  clearPostAuthPath, readAuthCallbackError, rememberPostAuthPath, resolvePostAuthPath, withoutAuthCallbackError,
+} from "@/lib/authMode";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 export function AuthCard() {
@@ -15,7 +17,16 @@ export function AuthCard() {
   const { session, isAuthenticated, authMode, bypassIgnoredReason, startPreviewSession, startDevSession } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [callbackError, setCallbackError] = useState<string | null>(null);
   const authCopy = copy.auth;
+
+  useEffect(() => {
+    // A failed Microsoft or Supabase sign-in returns here with error parameters and no session.
+    const failure = readAuthCallbackError(window.location.search, window.location.hash);
+    if (!failure) return;
+    setCallbackError(failure.description || failure.code);
+    window.history.replaceState(window.history.state, "", withoutAuthCallbackError(window.location.pathname, window.location.search));
+  }, []);
 
   useEffect(() => {
     if (!session && !isAuthenticated) return;
@@ -29,6 +40,7 @@ export function AuthCard() {
     if (!client) return;
     setBusy(true);
     setError(null);
+    setCallbackError(null);
     // Supabase returns to /login only, so the requested page is kept in this tab until then.
     rememberPostAuthPath(new URLSearchParams(window.location.search).get("next"));
     const { error: oauthError } = await client.auth.signInWithOAuth({
@@ -58,6 +70,9 @@ export function AuthCard() {
   return (
     <div className="auth-card">
       {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
+      {callbackError && !error ? (
+        <div className="alert alert-error" role="alert">{authCopy.signInFailed} {callbackError}</div>
+      ) : null}
       {authMode === "dev" ? (
         <button
           type="button"
