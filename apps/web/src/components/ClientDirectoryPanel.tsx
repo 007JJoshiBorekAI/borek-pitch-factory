@@ -9,6 +9,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { usePreviewJourney } from "@/components/PreviewJourneyProvider";
 import { useAuth } from "@/components/AuthProvider";
 import { isLocalUiPreviewAvailable } from "@/lib/uiPreview";
+import { displayClientName } from "@/lib/clientInformation";
 import {
   clientOpportunityHref,
   loadLiveClientDirectory,
@@ -101,7 +102,7 @@ export function ClientDirectoryPanel() {
               <tbody>
                 {filtered.map((item) => (
                   <tr key={item.opportunity_id}>
-                    <td data-label={copy.clients.client}><strong>{item.company_name}</strong><span>{item.engagement_name}</span></td>
+                    <td data-label={copy.clients.client}><strong>{displayClientName(item.company_name, copy.clients.unnamed)}</strong><span>{item.engagement_name}</span></td>
                     <td data-label={copy.clients.contact}><strong>{item.contact_person}</strong><span>{item.contact_role}</span></td>
                     <td data-label={copy.clients.workflow}><span className={`clients-status is-${item.phase}`}><i aria-hidden="true" />{copy.workflow.statuses[item.workflow_status]}</span></td>
                     <td data-label={copy.clients.activity}><span>{item.last_activity === "Today" ? copy.clients.today : item.last_activity === "Yesterday" ? copy.clients.yesterday : item.last_activity}</span></td>

@@ -257,7 +257,8 @@ export async function ensureBackendOpportunityId(
   if (!owner) throw new ApiRequestError("Sign in before synchronizing this opportunity.", 401, "AUTH_OWNER_REQUIRED");
   const map = readBackendOpportunityMap();
   if (map[opportunityId]) return map[opportunityId];
-  if (!seed?.company_name) {
+  // The company name is optional; only a missing record (nothing to send at all) blocks the sync.
+  if (!seed) {
     throw new ApiRequestError(
       "This opportunity exists only in the local preview and has no client information to send to the API.",
       422,

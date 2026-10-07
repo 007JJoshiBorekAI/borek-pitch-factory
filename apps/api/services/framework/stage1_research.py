@@ -139,15 +139,16 @@ def generate_stage1_research(
     complete: Callable[[str, str, dict[str, Any]], dict[str, Any]] | None = None,
     client_document_sources: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    intake = intake_for_generation(opportunity) or {
-        "client_name": opportunity["client_name"]
-    }
+    # Every user-entered field is optional. Missing values are left out, never replaced.
+    client_name = str(opportunity.get("client_name") or "").strip()
+    intake = intake_for_generation(opportunity)
     evidence = (
         provider.research(
-            client_name=opportunity["client_name"],
+            client_name=client_name,
             client_web_page=intake.get("client_web_page"),
         )
-        if provider is not None
+        # Company research is keyed on the company name; without one nothing is looked up.
+        if provider is not None and client_name
         else []
     )
     facts = _company_facts(evidence)
@@ -168,7 +169,7 @@ def generate_stage1_research(
     result = {
         "schema_version": "1.0",
         "opportunity_id": str(opportunity["id"]),
-        "client_name": opportunity["client_name"],
+        "client_name": client_name,
         "company_facts": facts,
         "user_statements": user_statements,
         "borek_offering": offering,

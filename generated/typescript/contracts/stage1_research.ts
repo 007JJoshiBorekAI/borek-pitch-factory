@@ -24,6 +24,9 @@ export type Hypothesis = {
 export interface Stage1Research {
   schema_version: "1.0";
   opportunity_id: string;
+  /**
+   * Company name as entered by the user; an empty string means it was not provided.
+   */
   client_name: string;
   company_facts: {
     description: Fact;

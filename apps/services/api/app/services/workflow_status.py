@@ -17,7 +17,6 @@ from app.services.api_errors import bad_request
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.discovery_paper import get_latest_approved_discovery_paper
 from app.services.meeting_extraction import personal_notes_view
-from services.framework.stage1_intake import intake_from_opportunity
 
 CONTRACTS = Path(__file__).resolve().parents[5] / "packages" / "contracts"
 STEP_KEYS = (
@@ -341,7 +340,8 @@ def _facts(
             journey_stage="post_meeting",
         )
     return {
-        "client_information": intake_from_opportunity(opportunity) is not None,
+        # Client information is optional input: the step is done once the opportunity exists.
+        "client_information": True,
         "discovery_prepared": approved is not None,
         "ppt1_ready": ppt1 is not None and ppt1["latest_ready_version_id"] is not None,
         "first_meeting_completed": _iso(opportunity.get("first_meeting_completed_at")) is not None,

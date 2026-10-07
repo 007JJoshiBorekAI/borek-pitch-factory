@@ -152,14 +152,16 @@ def point_stage1(opportunity_id: str, presentation_id: UUID, *, presentation_sta
     }
 
 
-def test_new_opportunity_starts_at_client_information_until_intake_is_saved() -> None:
+def test_new_opportunity_without_intake_is_not_held_at_client_information() -> None:
+    # Client information is optional input, so its step is done once the opportunity exists.
     reset_memory_store()
     client = TestClient(create_app())
     opportunity_id = create_opportunity(client)
     body = status_of(client, opportunity_id)
-    assert body["current_status"] == "client_information"
-    assert step(body, "client_information")["state"] == "current"
-    assert step(body, "discovery_prepared")["state"] == "pending"
+    assert body["current_status"] == "discovery_prepared"
+    assert step(body, "client_information")["state"] == "completed"
+    assert step(body, "client_information")["evidence"] == {"opportunity_id": opportunity_id}
+    assert step(body, "discovery_prepared")["state"] == "current"
     assert body["documents"]["discovery_draft"] is None
     assert body["documents"]["ppt1"] is None
     assert body["documents"]["ppt2"] is None

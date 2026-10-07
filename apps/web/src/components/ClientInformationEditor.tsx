@@ -33,13 +33,12 @@ const FIELDS: Array<{
   key: ClientInformationField;
   type?: "url";
   multiline?: boolean;
-  required?: boolean;
 }> = [
-  { key: "company_name", required: true },
-  { key: "contact_person", required: true },
-  { key: "website_url", type: "url", required: true },
-  { key: "meeting_purpose", multiline: true, required: true },
-  { key: "additional_information", multiline: true, required: true },
+  { key: "company_name" },
+  { key: "contact_person" },
+  { key: "website_url", type: "url" },
+  { key: "meeting_purpose", multiline: true },
+  { key: "additional_information", multiline: true },
 ];
 
 const INDUSTRIES = [
@@ -206,8 +205,7 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
     event.preventDefault();
     if (authLoading || !ownerId || draftOwner !== ownerId || !canEdit || busy) return;
     if (createMode && createStep === 1) {
-      const stepErrors = validateClientInformation({ ...draft, meeting_purpose: "Pending pitch information" });
-      delete stepErrors.meeting_purpose;
+      const stepErrors = validateClientInformation(draft);
       const stepExtraErrors = validateClientInformationExtras(extras);
       if (Object.keys(stepErrors).length > 0 || Object.keys(stepExtraErrors).length > 0) {
         setFieldErrors(stepErrors);
@@ -308,7 +306,6 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
       name: key,
       value: draft[key],
       disabled: busy || locked,
-      required: field.required,
       "aria-invalid": Boolean(fieldErrors[key]),
       "aria-describedby": fieldErrors[key] ? errorId : undefined,
       onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -316,7 +313,7 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
     };
     return (
       <div key={key} className={field.multiline ? "is-wide" : undefined}>
-        <label htmlFor={key}>{label}{field.required ? <span aria-hidden="true"> *</span> : null}</label>
+        <label htmlFor={key}>{label}</label>
         {field.multiline ? (
           <textarea {...controlProps} rows={key === "additional_information" ? 5 : 3} />
         ) : (
@@ -337,17 +334,17 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
       pitch_file_names: copy.clientForm.pitchFiles,
       additional_opportunity_information: copy.clientForm.additionalOpportunity,
     };
-    const required = ["business_industry", "contact_phone", "contact_position"].includes(key);
+    // Everything is optional; the tag stays on the fields the design already labels that way.
+    const optionalTag = !["business_industry", "contact_phone", "contact_position"].includes(key);
     const props = {
       id: key,
       disabled: busy || locked || liveRecord,
-      required,
       "aria-invalid": Boolean(extraErrors[key]),
       "aria-describedby": extraErrors[key] ? `${key}-error` : undefined,
     };
     return (
       <div key={key} className={key === "additional_opportunity_information" ? "is-wide" : undefined}>
-        <label htmlFor={key}>{labels[key]} {required ? <span aria-hidden="true">*</span> : <small>{copy.clientForm.optional}</small>}</label>
+        <label htmlFor={key}>{labels[key]}{optionalTag ? <> <small>{copy.clientForm.optional}</small></> : null}</label>
         {key === "company_logo_name" || key === "pitch_file_names" ? <>
           <label className={`${key === "company_logo_name" ? "client-logo-upload" : "client-pitch-upload"}${locked ? " is-disabled" : ""}`} htmlFor={key}>
             <span aria-hidden="true">+</span>
@@ -445,7 +442,7 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
               </section>
             ) : null}
             <div className="client-information-form-actions">
-              <span className="client-required-note">* {copy.clientForm.required}</span>
+              <span className="client-required-note">{copy.clientForm.allOptional}</span>
               <button className="btn btn-secondary" type="button" onClick={() => createStep === 1 ? cancel() : setCreateStep((createStep - 1) as 1 | 2)}>
                 {createStep === 1 ? copy.clientForm.cancel : copy.clientForm.backStep}
               </button>
@@ -507,7 +504,7 @@ export function ClientInformationEditor({ initialRecord }: ClientInformationEdit
             <div className="client-form-section-grid">{renderExtra("pitch_notes")}{renderExtra("pitch_file_names")}{renderExtra("additional_opportunity_information")}</div>
           </fieldset>
           <div className="client-information-form-actions">
-            {createMode ? <span className="client-required-note">* {copy.clientForm.required}</span> : null}
+            {createMode ? <span className="client-required-note">{copy.clientForm.allOptional}</span> : null}
             <button className="btn btn-secondary" type="button" disabled={busy} onClick={cancel}>{copy.clientForm.cancel}</button>
             {!createMode ? <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? copy.clientForm.saving : copy.clientForm.save}</button> : null}
           </div>
