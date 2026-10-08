@@ -96,8 +96,25 @@ class DeckSourceResponse(BaseModel):
     discovery_schema_version: str
 
 
+class PresentationVersionSummaryResponse(BaseModel):
+    """One ready version of a presentation and where to read it. Identifiers only, never paths."""
+
+    presentation_version_id: UUID
+    version_number: int
+    status: str
+    journey_stage: str | None = None
+    created_at: datetime | None = None
+    is_latest: bool
+    source: DeckSourceResponse | None = None
+    deck_url: str
+    pptx_download_url: str
+    pdf_download_url: str
+
+
 class DeckCenterResponse(BaseModel):
     presentation_id: UUID
+    # Set only when one specific version was requested; the latest-deck payload is unchanged.
+    presentation_version_id: UUID | None = None
     presentation_name: str
     version_number: int
     status: str

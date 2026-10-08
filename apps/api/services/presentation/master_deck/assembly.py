@@ -3,8 +3,11 @@
 The canonical package is opened and the appendix slides are added to it as new slide parts.
 Nothing of the original slides is regenerated: their XML, relationships and media stay as
 they are, and only the package-level lists (slide ids, relationships, content types) grow.
-``verify_canonical_preserved`` proves that after every build by comparing each original slide
-and every resource it references with the registered master, independent of zip-level details.
+``verify_canonical_preserved`` proves that after every build. A slide looks the way it does
+because of more than its own XML, so each original slide is compared together with everything
+it depends on - layout, slide master, theme, notes, media, embedded objects - and the
+presentation-level settings (slide size, default text styles, embedded fonts, table styles,
+view and presentation properties) are compared as well, independent of zip-level details.
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ from services.presentation.master_deck.registry import MasterDeck, MasterDeckErr
 _REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 _P_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
 _R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_CT_NS = "http://schemas.openxmlformats.org/package/2006/content-types"
 # Canonical slides the brand images of the appendix are taken from (same files, same look).
 _LIGHT_SLIDE, _DIVIDER_SLIDE = 3, 8
 
@@ -122,41 +126,158 @@ def _canonical_xml(data: bytes) -> bytes:
     return etree.tostring(etree.fromstring(data), method="c14n")
 
 
-def slide_fingerprint(package: zipfile.ZipFile, part: str) -> str:
-    """Checksum of a slide's content and of every resource it references (media by content).
+def _rels_part(part: str) -> str:
+    return posixpath.join(posixpath.dirname(part), "_rels", posixpath.basename(part) + ".rels")
 
-    Independent of part names, relationship ids' targets' file names and zip compression, so the
-    same slide has the same fingerprint in the canonical and in the assembled package.
-    """
-    digest = hashlib.sha256(_canonical_xml(package.read(part)))
-    rels_part = posixpath.join(posixpath.dirname(part), "_rels", posixpath.basename(part) + ".rels")
-    if rels_part in package.namelist():
-        rels = etree.fromstring(package.read(rels_part))
-        for rel in sorted(rels.findall(f"{{{_REL_NS}}}Relationship"), key=lambda item: item.get("Id")):
-            kind = rel.get("Type").rsplit("/", 1)[-1]
-            digest.update(f"|{rel.get('Id')}|{kind}|".encode())
-            if rel.get("TargetMode") == "External":
-                digest.update(rel.get("Target").encode())
-            elif kind in {"image", "media", "video", "audio"}:
-                target = posixpath.normpath(posixpath.join(posixpath.dirname(part), rel.get("Target")))
-                digest.update(hashlib.sha256(package.read(target)).digest())
-    return digest.hexdigest()
+
+class _Package:
+    """Read access to a PowerPoint package for fingerprinting, with per-part caches."""
+
+    def __init__(self, package: zipfile.ZipFile) -> None:
+        self.zip = package
+        self.names = set(package.namelist())
+        types = etree.fromstring(package.read("[Content_Types].xml"))
+        self._defaults = {item.get("Extension").lower(): item.get("ContentType") for item in types.findall(f"{{{_CT_NS}}}Default")}
+        self._overrides = {item.get("PartName").lstrip("/"): item.get("ContentType") for item in types.findall(f"{{{_CT_NS}}}Override")}
+        self._hashes: dict[str, bytes] = {}
+        self._rels: dict[str, list[tuple[str, str, bool, str]]] = {}
+
+    def content_type(self, part: str) -> str:
+        return self._overrides.get(part) or self._defaults.get(part.rsplit(".", 1)[-1].lower(), "")
+
+    def content_hash(self, part: str) -> bytes:
+        """Checksum of a part's content type and content; XML is compared in canonical form."""
+        if part not in self._hashes:
+            data = self.zip.read(part)
+            # PowerPoint parts are re-serialised when a deck is saved; everything else
+            # (custom XML, media, embedded files) is copied and compared byte for byte.
+            if part.startswith("ppt/") and part.endswith(".xml"):
+                data = _canonical_xml(data)
+            self._hashes[part] = hashlib.sha256(self.content_type(part).encode() + b"\0" + data).digest()
+        return self._hashes[part]
+
+    def relationships(self, part: str) -> list[tuple[str, str, bool, str]]:
+        """(id, kind, external, target) of a part's relationships, ordered by id."""
+        if part not in self._rels:
+            found = []
+            if _rels_part(part) in self.names:
+                for rel in etree.fromstring(self.zip.read(_rels_part(part))).findall(f"{{{_REL_NS}}}Relationship"):
+                    external = rel.get("TargetMode") == "External"
+                    target = rel.get("Target")
+                    if not external:
+                        target = posixpath.normpath(posixpath.join(posixpath.dirname(part), target)).lstrip("/")
+                    found.append((rel.get("Id"), rel.get("Type").rsplit("/", 1)[-1], external, target))
+            self._rels[part] = sorted(found)
+        return self._rels[part]
+
+    def closure(self, part: str) -> list[tuple[str, str]]:
+        """A part and everything it depends on, as (kind, checksum) in a deterministic order.
+
+        Follows every internal relationship transitively (slide -> layout -> master -> theme,
+        notes, media, charts, embedded objects ...). Parts are identified by the order they are
+        reached in, never by name, so the result is the same when a package is re-saved with
+        other part names - and different as soon as any dependency's content, content type or
+        relationship changes.
+        """
+        order: dict[str, int] = {part: 0}
+        kinds = {part: "slide"}
+        queue = [part]
+        entries: list[tuple[str, str]] = []
+        while queue:
+            current = queue.pop(0)
+            if current not in self.names:
+                raise AssemblyError(f"The deck references a part that is missing from the package ({kinds[current]})")
+            digest = hashlib.sha256(self.content_hash(current))
+            for rel_id, kind, external, target in self.relationships(current):
+                if external:
+                    digest.update(f"|{rel_id}|{kind}|external|{target}".encode())
+                    continue
+                if target not in order:
+                    order[target] = len(order)
+                    kinds[target] = kind
+                    queue.append(target)
+                digest.update(f"|{rel_id}|{kind}|{order[target]}".encode())
+            entries.append((kinds[current], digest.hexdigest()))
+        return entries
+
+
+def slide_fingerprint(package: zipfile.ZipFile, part: str) -> str:
+    """Checksum of a slide and of its complete dependency chain (see ``_Package.closure``)."""
+    return _fingerprint(_Package(package).closure(part))
+
+
+def _fingerprint(entries: list[tuple[str, str]]) -> str:
+    return hashlib.sha256("\n".join(f"{kind}:{value}" for kind, value in entries).encode()).hexdigest()
+
+
+def _slide_closures(path: Path) -> list[list[tuple[str, str]]]:
+    with zipfile.ZipFile(path) as archive:
+        package = _Package(archive)
+        return [package.closure(part) for part in _slide_parts(archive)]
 
 
 def canonical_fingerprints(path: Path) -> list[str]:
-    with zipfile.ZipFile(path) as package:
-        return [slide_fingerprint(package, part) for part in _slide_parts(package)]
+    return [_fingerprint(entries) for entries in _slide_closures(path)]
+
+
+def presentation_settings(path: Path, *, slide_count: int) -> dict[str, str]:
+    """Everything at presentation level that shapes how the first ``slide_count`` slides look.
+
+    ``presentation.xml`` (slide size, default text styles, embedded fonts, master lists, and the
+    ids of those slides - slides appended after them are ignored) and every non-slide part the
+    presentation references: slide masters, notes master, theme, table styles, presentation and
+    view properties, fonts, each with its own dependency chain.
+    """
+    with zipfile.ZipFile(path) as archive:
+        package = _Package(archive)
+        root = etree.fromstring(archive.read("ppt/presentation.xml"))
+        ids = root.find(f"{{{_P_NS}}}sldIdLst")
+        kept = {item.get(f"{{{_R_NS}}}id") for item in list(ids)[:slide_count]}
+        for item in list(ids)[slide_count:]:
+            ids.remove(item)
+        settings = {"presentation.xml": hashlib.sha256(etree.tostring(root, method="c14n")).hexdigest()}
+        for rel_id, kind, external, target in package.relationships("ppt/presentation.xml"):
+            if kind == "slide":
+                if rel_id in kept:  # slides appended after the canonical ones are not settings
+                    settings[f"{kind} {rel_id}"] = "listed"
+            elif external:
+                settings[f"{kind} {rel_id}"] = f"external {target}"
+            else:
+                settings[f"{kind} {rel_id}"] = _fingerprint(package.closure(target))
+        return settings
+
+
+def _changed_dependency(before: list[tuple[str, str]], after: list[tuple[str, str]]) -> str:
+    for (kind, old), (_kind, new) in zip(before, after, strict=False):
+        if old != new:
+            return kind
+    return "dependencies"
 
 
 def verify_canonical_preserved(master: MasterDeck, final_path: Path, *, expected_total: int) -> None:
-    """The first slides of the final deck are the canonical slides, in order and unchanged."""
-    expected = canonical_fingerprints(master.pptx_path)
-    actual = canonical_fingerprints(final_path)
+    """The first slides of the final deck are the canonical slides, in order and unchanged.
+
+    Unchanged includes everything they are rendered with: layouts, slide masters, themes, notes,
+    media and the presentation-level settings.
+    """
+    expected = _slide_closures(master.pptx_path)
+    actual = _slide_closures(final_path)
     if len(actual) != expected_total:
         raise AssemblyError(f"The assembled deck has {len(actual)} slides, expected {expected_total}")
     for number, (before, after) in enumerate(zip(expected, actual[: len(expected)], strict=True), start=1):
         if before != after:
-            raise AssemblyError(f"Canonical slide {number} was changed during assembly")
+            what = _changed_dependency(before, after)
+            detail = "" if what == "slide" else f" (its {what})"
+            raise AssemblyError(f"Canonical slide {number} was changed during assembly{detail}")
+    before_settings = presentation_settings(master.pptx_path, slide_count=len(expected))
+    after_settings = presentation_settings(final_path, slide_count=len(expected))
+    if before_settings != after_settings:
+        changed = sorted(
+            key.split(" ")[0]
+            for key in before_settings.keys() | after_settings.keys()
+            if before_settings.get(key) != after_settings.get(key)
+        )
+        raise AssemblyError(f"The presentation settings of the canonical deck were changed during assembly ({', '.join(changed)})")
     try:
         reopened = Presentation(str(final_path))
     except Exception as exc:  # a package PowerPoint could not open is not a deck

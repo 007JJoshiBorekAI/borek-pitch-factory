@@ -11,9 +11,9 @@ import { canDownloadDiscoveryPdf } from "@/lib/discoveryWorkspace";
 import { generateAndAwaitFirstPitch } from "@/lib/ppt1Generation";
 import { presentationPreview } from "@/lib/presentationPreview";
 import {
-  downloadLivePresentation, livePresentationError, loadExistingFirstPitch,
+  downloadLivePresentation, downloadPresentationVersion, livePresentationError, loadEarlierVersions, loadExistingFirstPitch,
   loadLivePresentation, requestLiveSlidePreview,
-  type LivePresentation, type LivePreviewState,
+  type EarlierVersion, type LivePresentation, type LivePreviewState,
 } from "@/lib/presentationLive";
 import type { PreviewPresentation } from "@/lib/previewJourney";
 
@@ -61,6 +61,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
   const [preview, setPreview] = useState<{ key: string; value: LivePreviewState } | null>(null);
   const [previewStates, setPreviewStates] = useState<Record<string, "ready" | "generating" | "failed">>({});
   const operation = useRef<AbortController | null>(null);
+  const [earlier, setEarlier] = useState<{ key: string; versions: EarlierVersion[] }>({ key: "", versions: [] });
   const [error, setError] = useState<string | null>(null);
   const approved = live ? Boolean(approvedSourceId) : fixtureApproved;
   const staleSource = !live && Boolean(presentation.source_discovery_version_id &&
@@ -176,6 +177,34 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
     }
   }
 
+  useEffect(() => {
+    if (!live || !accessToken || !liveDeck) return;
+    const controller = new AbortController();
+    const key = `${liveDeck.presentationId}:${liveDeck.presentationVersionId}`;
+    // The list is an addition to the deck: if it cannot be read, the latest deck stays usable.
+    void loadEarlierVersions(accessToken, liveDeck.presentationId, controller.signal)
+      .then((versions) => setEarlier({ key, versions }))
+      .catch(() => { if (!controller.signal.aborted) setEarlier({ key, versions: [] }); });
+    return () => controller.abort();
+  }, [accessToken, live, liveDeck]);
+
+  async function downloadEarlier(version: EarlierVersion, format: "pptx" | "pdf") {
+    if (!accessToken || !liveDeck) return;
+    setError(null);
+    try {
+      const blob = await downloadPresentationVersion(accessToken, liveDeck.presentationId, version.versionId, format);
+      const url = URL.createObjectURL(blob);
+      try {
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `ppt-1-${opportunityId}-revision-${version.versionNumber}.${format}`;
+        anchor.click();
+      } finally { URL.revokeObjectURL(url); }
+    } catch (downloadError) {
+      setError(livePresentationError(downloadError));
+    }
+  }
+
   async function downloadLive(format: "pptx" | "pdf") {
     if (live) {
       if (!accessToken || !liveDeck || !liveReady) return;
@@ -262,7 +291,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
                   <p>{!approved ? "Approve the Discovery analysis before generating PPT #1." : "Completed slides remain available in the slide list."}</p>
                 </div>
               )}
-              <p className="discovery-preview-caption">{live ? "Live rendered previews. The API serves only the latest deck, previews and downloads; it cannot pin historical versions. Version changes detected during requests are rejected." : "Local content preview from approved Discovery, not a rendered presentation artifact."}</p>
+              <p className="discovery-preview-caption">{live ? "Live rendered previews of the latest version. Version changes detected during requests are rejected; earlier ready versions stay available for download below." : "Local content preview from approved Discovery, not a rendered presentation artifact."}</p>
               {live && liveReady && liveDeck?.source ? (
                 <p className="discovery-preview-caption" data-testid="master-presentation-summary">
                   Master Presentation {liveDeck.source.product_version} ({liveDeck.source.product_stage === "pre_meeting" ? "pre-meeting" : liveDeck.source.product_stage}) · revision {liveDeck.source.revision} · slides 1–{liveDeck.source.canonical_slide_count}: the canonical Borek deck, unchanged · slides {liveDeck.source.canonical_slide_count + 1}–{totalSlides}: client appendix from the approved Discovery analysis.
@@ -299,6 +328,17 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
                   Version: {live ? liveDeck?.presentationVersionId ?? "Not loaded" : presentation.version_id ?? "Not generated"} · Source: {live ? liveDeck?.source ? `approved Discovery ${liveDeck.source.approved_discovery_version_id} · master ${liveDeck.source.master_id}` : "Not exposed by the deck API" : presentation.source_discovery_version_id ?? "Awaiting generation"}
                   {live ? ` · Latest approved Discovery: ${approvedSourceId ?? "Not available"}` : null}
                 </small>
+                {live && liveReady && earlier.key === deckKey && earlier.versions.length ? (
+                  <ul className="discovery-version-label" data-testid="earlier-presentation-versions">
+                    {earlier.versions.map((version) => (
+                      <li key={version.versionId}>
+                        Earlier version · revision {version.versionNumber}{" "}
+                        <button className="btn btn-secondary" type="button" onClick={() => void downloadEarlier(version, "pptx")}>PPTX</button>{" "}
+                        <button className="btn btn-secondary" type="button" onClick={() => void downloadEarlier(version, "pdf")}>PDF</button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </footer>
               <FirstMeetingHandoff opportunityId={opportunityId} ppt1Ready={liveReady} />
             </div>

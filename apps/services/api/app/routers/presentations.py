@@ -20,6 +20,7 @@ from app.schemas.presentations import (
     PresentationPlanGenerateResponse,
     PresentationPlanResponse,
     PresentationResponse,
+    PresentationVersionSummaryResponse,
     SlideResponse,
 )
 from app.schemas.jobs import JobEnqueueResponse
@@ -326,6 +327,103 @@ def download_presentation_pdf(
         kind="pdf",
     )
     return FileResponse(path, media_type="application/pdf", filename=f"{presentation_id}.pdf")
+
+
+# Version-specific access. A ready version is immutable, so these keep returning the same deck
+# after a newer revision exists. Ownership is checked exactly as for the latest-version routes,
+# and a version id that belongs to another presentation is reported as not found.
+@router.get(
+    "/{presentation_id}/versions",
+    response_model=list[PresentationVersionSummaryResponse],
+    response_model_exclude_unset=True,
+)
+def list_presentation_versions(
+    presentation_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> list[PresentationVersionSummaryResponse]:
+    rows = deck_center.list_ready_versions(store, presentation_id=presentation_id, user_id=user.id)
+    return [PresentationVersionSummaryResponse.model_validate(row) for row in rows]
+
+
+@router.get(
+    "/{presentation_id}/versions/{presentation_version_id}/deck",
+    response_model=DeckCenterResponse,
+    response_model_exclude_unset=True,
+)
+def get_version_deck_center(
+    presentation_id: UUID,
+    presentation_version_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> DeckCenterResponse:
+    payload = deck_center.build_deck_center_payload(
+        store,
+        presentation_id=presentation_id,
+        user_id=user.id,
+        presentation_version_id=presentation_version_id,
+    )
+    return DeckCenterResponse.model_validate(payload)
+
+
+@router.get("/{presentation_id}/versions/{presentation_version_id}/preview/slides/{slide_index}.png")
+def get_version_slide_preview_image(
+    presentation_id: UUID,
+    presentation_version_id: UUID,
+    slide_index: int,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> FileResponse:
+    path = deck_center.resolve_deck_preview_image_path(
+        store,
+        presentation_id=presentation_id,
+        user_id=user.id,
+        slide_index=slide_index,
+        presentation_version_id=presentation_version_id,
+    )
+    return FileResponse(path, media_type="image/png", filename=path.name)
+
+
+@router.get("/{presentation_id}/versions/{presentation_version_id}/download/pptx")
+def download_presentation_version_pptx(
+    presentation_id: UUID,
+    presentation_version_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> FileResponse:
+    path = deck_center.resolve_deck_file_path(
+        store,
+        presentation_id=presentation_id,
+        user_id=user.id,
+        kind="pptx",
+        presentation_version_id=presentation_version_id,
+    )
+    return FileResponse(
+        path,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        filename=f"{presentation_id}-{presentation_version_id}.pptx",
+    )
+
+
+@router.get("/{presentation_id}/versions/{presentation_version_id}/download/pdf")
+def download_presentation_version_pdf(
+    presentation_id: UUID,
+    presentation_version_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> FileResponse:
+    path = deck_center.resolve_deck_file_path(
+        store,
+        presentation_id=presentation_id,
+        user_id=user.id,
+        kind="pdf",
+        presentation_version_id=presentation_version_id,
+    )
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=f"{presentation_id}-{presentation_version_id}.pdf",
+    )
 
 
 @router.get("/{presentation_id}/slides", response_model=list[SlideResponse])

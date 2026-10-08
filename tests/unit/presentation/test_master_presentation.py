@@ -403,6 +403,131 @@ def test_assembly_appends_the_appendix_and_leaves_the_canonical_slides_untouched
         assembly.verify_canonical_preserved(master, final, expected_total=40)
 
 
+def _rewrite(source: Path, target: Path, part: str, change) -> None:
+    """Copy a package, changing exactly one part; fails if the change did not apply."""
+    with zipfile.ZipFile(source) as package, zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as out:
+        assert part in package.namelist(), part
+        for item in package.infolist():
+            data = package.read(item.filename)
+            if item.filename == part:
+                changed = change(data)
+                assert changed != data, f"the change did not apply to {part}"
+                data = changed
+            out.writestr(item, data)
+
+
+def _sub(pattern: bytes, replacement: bytes):
+    return lambda data: re.sub(pattern, replacement, data, count=1)
+
+
+_MARK = _sub(rb"<p:cSld", b'<p:cSld xmlns:x="urn:changed" x:changed="1"')
+
+
+def _dependency(deck: Path, start: str, kind: str) -> str:
+    """Name of the part of the given kind that ``start`` references."""
+    with zipfile.ZipFile(deck) as archive:
+        targets = {target for _id, rel_kind, _external, target in assembly._Package(archive).relationships(start) if rel_kind == kind}
+    return sorted(targets)[0]
+
+
+@pytest.fixture(scope="module")
+def assembled(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, int]:
+    master = registry.get_master()
+    contents = [slide["content"] for slide in appendix.plan_appendix(paper_for(MEDIUM), first_order=27)]
+    final = tmp_path_factory.mktemp("assembled") / "final.pptx"
+    assembly.assemble(master, contents, final)
+    return final, 26 + len(contents)
+
+
+def test_canonical_fingerprint_covers_the_whole_dependency_chain(assembled: tuple[Path, int]) -> None:
+    final, total = assembled
+    master = registry.get_master()
+    with zipfile.ZipFile(master.pptx_path) as archive:
+        package = assembly._Package(archive)
+        closures = [{kind for kind, _checksum in package.closure(part)} for part in assembly._slide_parts(archive)]
+    for kinds in closures:
+        assert {"slide", "slideLayout", "slideMaster", "theme"} <= kinds
+    assert {"notesSlide", "notesMaster"} <= closures[0]
+    assert "image" in set().union(*closures)
+    settings = assembly.presentation_settings(master.pptx_path, slide_count=26)
+    assert {"presentation.xml", "slideMaster", "theme", "notesMaster", "presProps", "viewProps", "tableStyles"} <= {
+        key.split(" ")[0] for key in settings
+    }
+    assert sum(key.startswith("slide ") for key in settings) == 26
+    # Appending slides changes neither the canonical slides nor the presentation settings.
+    assert assembly.presentation_settings(final, slide_count=26) == settings
+    assert assembly.canonical_fingerprints(final)[:26] == assembly.canonical_fingerprints(master.pptx_path)
+    assembly.verify_canonical_preserved(master, final, expected_total=total)
+
+
+@pytest.mark.parametrize(
+    ("case", "message"),
+    [
+        ("theme", r"Canonical slide 1 was changed during assembly \(its theme\)"),
+        ("theme_content_type", r"Canonical slide 1 was changed during assembly \(its theme\)"),
+        ("layout", r"Canonical slide 1 was changed during assembly \(its slideLayout\)"),
+        ("layout_relationships", r"Canonical slide 1 was changed during assembly \(its slideLayout\)"),
+        ("master", r"Canonical slide 1 was changed during assembly \(its slideMaster\)"),
+        ("notes", r"Canonical slide 1 was changed during assembly \(its notesSlide\)"),
+        ("media", r"Canonical slide \d+ was changed during assembly \(its image\)"),
+        ("slide_size", r"presentation settings of the canonical deck were changed during assembly \(presentation.xml\)"),
+        ("table_styles", r"presentation settings of the canonical deck were changed during assembly \(tableStyles\)"),
+        ("slide_order", r"Canonical slide 1 was changed during assembly"),
+    ],
+)
+def test_a_change_to_anything_a_canonical_slide_depends_on_is_detected(
+    assembled: tuple[Path, int], tmp_path: Path, case: str, message: str
+) -> None:
+    final, total = assembled
+    master = registry.get_master()
+    with zipfile.ZipFile(final) as archive:
+        slides = assembly._slide_parts(archive)
+    layout = _dependency(final, slides[0], "slideLayout")
+    slide_master = _dependency(final, layout, "slideMaster")
+    external = b'<Relationship Id="rId99" Type="http://x/hyperlink" Target="http://x" TargetMode="External"/></Relationships>'
+    cases = {
+        "theme": (_dependency(final, slide_master, "theme"), _sub(rb'(<a:srgbClr val=")[0-9A-Fa-f]{6}', rb"\g<1>123456")),
+        "theme_content_type": (
+            "[Content_Types].xml",
+            _sub(rb"application/vnd\.openxmlformats-officedocument\.theme\+xml", b"application/xml"),
+        ),
+        "layout": (layout, _MARK),
+        "layout_relationships": (assembly._rels_part(layout), _sub(rb"</Relationships>", external)),
+        "master": (slide_master, _MARK),
+        "notes": (_dependency(final, slides[0], "notesSlide"), _MARK),
+        "media": (_dependency(final, slides[2], "image"), lambda data: data + b"\0"),
+        "slide_size": ("ppt/presentation.xml", _sub(rb'(<p:sldSz cx=")\d+', rb"\g<1>9144000")),
+        "table_styles": (
+            _dependency(final, "ppt/presentation.xml", "tableStyles"),
+            _sub(rb"<a:tblStyleLst", b'<a:tblStyleLst xmlns:x="urn:changed" x:changed="1"'),
+        ),
+        "slide_order": ("ppt/presentation.xml", _sub(rb"(<p:sldId [^>]*/>)(<p:sldId [^>]*/>)", rb"\g<2>\g<1>")),
+    }
+    part, change = cases[case]
+    tampered = tmp_path / "tampered.pptx"
+    _rewrite(final, tampered, part, change)
+    with pytest.raises(assembly.AssemblyError, match=message):
+        assembly.verify_canonical_preserved(master, tampered, expected_total=total)
+
+
+def test_assembly_refuses_to_write_a_deck_whose_slide_master_was_changed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A build that restyles the shared slide master changes all 26 slides: it must fail."""
+    master = registry.get_master()
+    contents = [slide["content"] for slide in appendix.plan_appendix(paper_for(MINIMAL), first_order=27)]
+    original = assembly._draw_all
+
+    def draw_and_restyle_master(deck: Any, layout: Any, *args: Any, **kwargs: Any) -> list[str]:
+        problems = original(deck, layout, *args, **kwargs)
+        deck.slide_masters[0].background.fill.solid()
+        deck.slide_masters[0].background.fill.fore_color.rgb = assembly.RGBColor(0xFF, 0x00, 0x00)
+        return problems
+
+    monkeypatch.setattr(assembly, "_draw_all", draw_and_restyle_master)
+    with pytest.raises(assembly.AssemblyError, match=r"Canonical slide 1 was changed during assembly \(its slideMaster\)"):
+        assembly.assemble(master, contents, tmp_path / "final.pptx")
+    assert registry.file_sha256(master.pptx_path) == master.sha256
+
+
 # --- rendering ----------------------------------------------------------------------------
 
 

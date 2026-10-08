@@ -322,3 +322,96 @@ def test_a_future_v2_is_a_second_version_of_the_same_presentation(client: TestCl
     assert v2["prior_stage_presentation_version_id"] == v1["id"]
     assert len(store.presentations) == 1
     assert v1["status"] == "ready" and v1["slides_json"] == first["slides_json"]
+
+
+def test_earlier_ready_versions_stay_readable_after_a_new_revision(client: TestClient) -> None:
+    opportunity_id = create(client)
+    approve(client, opportunity_id)
+    presentation_id = generate_deck(client, opportunity_id)["presentation_id"]
+    base = f"/presentations/{presentation_id}"
+    get = lambda path, user=OWNER: client.get(base + path, headers=headers(user))  # noqa: E731
+    latest_before = get("/deck").json()
+    first_files = {kind: get(f"/download/{kind}").content for kind in ("pptx", "pdf")}
+    first_preview = get("/preview/slides/26.png").content
+
+    edit_thesis(client, opportunity_id, "the second approved thesis")
+    approve(client, opportunity_id, generate=False)
+    assert generate_deck(client, opportunity_id, regenerate=True)["presentation_id"] == presentation_id
+    old, new = versions_of(presentation_id)
+    snapshot = copy.deepcopy(old)
+
+    listed = get("/versions")
+    assert listed.status_code == 200, listed.text
+    newest, oldest = listed.json()
+    assert [(item["presentation_version_id"], item["version_number"], item["is_latest"]) for item in (newest, oldest)] == [
+        (str(new["id"]), 2, True),
+        (str(old["id"]), 1, False),
+    ]
+    assert (oldest["source"]["product_version"], oldest["source"]["revision"]) == ("V1", 1)
+    assert oldest["source"]["approved_discovery_version_id"] != newest["source"]["approved_discovery_version_id"]
+    assert "storage_path" not in listed.text and "slides_json" not in listed.text
+
+    # The first version is read through its own URLs and is exactly what it was.
+    prefix = f"/versions/{old['id']}"
+    assert oldest["deck_url"] == f"{base}{prefix}/deck"
+    first = get(f"{prefix}/deck")
+    assert first.status_code == 200, first.text
+    deck = first.json()
+    assert (deck["presentation_id"], deck["presentation_version_id"], deck["version_number"]) == (presentation_id, str(old["id"]), 1)
+    assert deck["source"]["revision"] == 1
+    assert [slide["slide_id"] for slide in deck["slides"]] == [slide["slide_id"] for slide in latest_before["slides"]]
+    assert all(slide["preview_url"] == f"{base}{prefix}/preview/slides/{slide['slide_index']}.png" for slide in deck["slides"])
+    assert (deck["pptx_download_url"], deck["pdf_download_url"]) == (oldest["pptx_download_url"], oldest["pdf_download_url"])
+    for kind in ("pptx", "pdf"):
+        response = client.get(deck[f"{kind}_download_url"], headers=headers())
+        assert response.status_code == 200 and response.content == first_files[kind]
+        assert str(old["id"]) in response.headers["content-disposition"]
+    assert client.get(deck["slides"][26]["preview_url"], headers=headers()).content == first_preview
+
+    # The existing endpoints still serve the latest version, with their payload unchanged.
+    latest = get("/deck").json()
+    assert latest["version_number"] == 2 and set(latest) == set(latest_before)
+    assert all("/versions/" not in slide["preview_url"] for slide in latest["slides"])
+    second_pptx = get("/download/pptx").content
+    assert second_pptx != first_files["pptx"]
+    assert get(f"/versions/{new['id']}/download/pptx").content == second_pptx
+    assert versions_of(presentation_id)[0] == snapshot, "reading a version never changes it"
+    assert len(get_memory_store().presentations) == 1
+
+
+def test_version_access_enforces_authentication_ownership_and_identity(client: TestClient) -> None:
+    opportunity_id = create(client)
+    approve(client, opportunity_id)
+    presentation_id = generate_deck(client, opportunity_id)["presentation_id"]
+    (version,) = versions_of(presentation_id)
+    other_opportunity = create(client, {**CLIENT, "client_name": "Südhafen Logistik"})
+    approve(client, other_opportunity)
+    other_presentation = generate_deck(client, other_opportunity)["presentation_id"]
+    (other_version,) = versions_of(other_presentation)
+    assert other_presentation != presentation_id
+
+    paths = ["/versions"] + [
+        f"/versions/{version['id']}/{tail}" for tail in ("deck", "preview/slides/0.png", "download/pptx", "download/pdf")
+    ]
+    for path in paths:
+        url = f"/presentations/{presentation_id}{path}"
+        assert client.get(url, headers=headers()).status_code == 200, path
+        assert client.get(url).status_code == 401, path
+        # Another user gets exactly what the latest-version routes give them: nothing.
+        foreign = client.get(url, headers=headers(OTHER))
+        assert foreign.status_code == client.get(f"/presentations/{presentation_id}/deck", headers=headers(OTHER)).status_code
+        assert foreign.status_code in (403, 404), path
+
+    # A version is only reachable through the presentation it belongs to.
+    for wrong in (other_version["id"], "cccccccc-cccc-4ccc-8ccc-cccccccccccc"):
+        for tail in ("deck", "preview/slides/0.png", "download/pptx", "download/pdf"):
+            response = client.get(f"/presentations/{presentation_id}/versions/{wrong}/{tail}", headers=headers())
+            assert response.status_code == 404 and "PRESENTATION_VERSION_NOT_FOUND" in response.text, response.text
+    assert client.get(f"/presentations/{presentation_id}/versions/not-a-uuid/deck", headers=headers()).status_code == 422
+
+    # Only ready versions are listed or served.
+    get_memory_store().presentation_versions[version["id"]]["status"] = "failed"
+    assert client.get(f"/presentations/{presentation_id}/versions", headers=headers()).json() == []
+    for tail in ("deck", "download/pptx"):
+        response = client.get(f"/presentations/{presentation_id}/versions/{version['id']}/{tail}", headers=headers())
+        assert response.status_code in (400, 409) and "PRESENTATION_NOT_READY" in response.text

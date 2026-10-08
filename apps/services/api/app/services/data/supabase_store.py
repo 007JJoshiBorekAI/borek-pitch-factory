@@ -2540,9 +2540,11 @@ class SupabaseDataStore:
         *,
         presentation_id: UUID,
         user_id: UUID,
+        presentation_version_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
-        version = self.get_latest_presentation_version(
+        version = self._presentation_version(
             presentation_id=presentation_id,
+            presentation_version_id=presentation_version_id,
             user_id=user_id,
         )
         response = self._request(
@@ -2679,14 +2681,41 @@ class SupabaseDataStore:
             )
         return versions
 
+    def _presentation_version(
+        self,
+        *,
+        presentation_id: UUID,
+        presentation_version_id: UUID | None,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        """The latest version, or the given one if it belongs to this presentation."""
+        if presentation_version_id is None:
+            return self.get_latest_presentation_version(
+                presentation_id=presentation_id,
+                user_id=user_id,
+            )
+        self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        version = self.get_presentation_version(
+            presentation_version_id=presentation_version_id,
+            user_id=user_id,
+        )
+        if str(version["presentation_id"]) != str(presentation_id):
+            raise not_found(
+                "PRESENTATION_VERSION_NOT_FOUND",
+                f"Presentation version {presentation_version_id} was not found",
+            )
+        return version
+
     def get_presentation_version_assets(
         self,
         *,
         presentation_id: UUID,
         user_id: UUID,
+        presentation_version_id: UUID | None = None,
     ) -> dict[str, Any]:
-        version = self.get_latest_presentation_version(
+        version = self._presentation_version(
             presentation_id=presentation_id,
+            presentation_version_id=presentation_version_id,
             user_id=user_id,
         )
         if version.get("status") != "ready":
