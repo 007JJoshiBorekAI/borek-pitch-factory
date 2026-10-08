@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://borek.ai/contracts/meeting_extraction.schema.json",
   "title": "MeetingExtraction",
-  "description": "BT-44 structured extraction from one selected transcript plus the opportunity's saved personal notes. Notes text is not stored here; personal_notes_updated_at identifies the note revision that informed the extraction.",
+  "description": "BT-44 structured extraction from one selected transcript plus the opportunity's saved personal notes. Notes text is not stored here; personal_notes_updated_at identifies the note revision that informed the extraction. Optional since the Post Meeting review: transcript_revision identifies the transcript content that was analysed, execution_mode says whether a model or the deterministic fixture extractor produced the items, and item_sources names the source of each item, aligned with the seven arrays.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -66,6 +66,27 @@
     "follow_ups": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
+    },
+    "transcript_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "execution_mode": {
+      "enum": ["fixture", "live"]
+    },
+    "item_sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirements", "challenges", "priorities", "opportunities", "discussed_solutions", "decisions", "follow_ups"],
+      "properties": {
+        "requirements": { "type": "array", "items": { "enum": ["transcript", "personal_notes", "both"] } },
+        "challenges": { "type": "array", "items": { "enum": ["transcript", "personal_notes", "both"] } },
+        "priorities": { "type": "array", "items": { "enum": ["transcript", "personal_notes", "both"] } },
+        "opportunities": { "type": "array", "items": { "enum": ["transcript", "personal_notes", "both"] } },
+        "discussed_solutions": { "type": "array", "items": { "enum": ["transcript", "personal_notes", "both"] } },
+        "decisions": { "type": "array", "items": { "enum": ["transcript", "personal_notes", "both"] } },
+        "follow_ups": { "type": "array", "items": { "enum": ["transcript", "personal_notes", "both"] } }
+      }
     }
   }
 }

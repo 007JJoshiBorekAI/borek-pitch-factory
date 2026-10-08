@@ -43,6 +43,7 @@ from app.services.meeting_extraction import (
     get_meeting_extraction,
     personal_notes_view,
 )
+from app.services.post_meeting_review import build_post_meeting_review, confirm_meeting_review
 from app.services.ppt2_context import build_ppt2_context
 from app.services.workflow_status import (
     build_workflow_status,
@@ -75,6 +76,18 @@ class MeetingExtractionGenerateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     transcript_id: UUID
+
+
+class MeetingReviewConfirmRequest(BaseModel):
+    """The source revisions the owner reviewed, and the findings they exclude."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    transcript_id: UUID
+    extraction_generated_at: str
+    # The fingerprint the review was loaded with; anything that changed since is refused (409).
+    review_fingerprint: str = Field(pattern="^[0-9a-f]{64}$")
+    excluded: dict[str, list[str]] = {}
 
 
 class SelectedUseCasesUpdate(BaseModel):
@@ -457,6 +470,46 @@ def post_meeting_extraction(
         document_id=str(body.transcript_id),
     )
     return stored
+
+
+@router.get("/{opportunity_id}/post-meeting-review")
+def read_post_meeting_review(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return build_post_meeting_review(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.post("/{opportunity_id}/post-meeting-review/confirm")
+def post_meeting_review_confirm(
+    opportunity_id: UUID,
+    body: MeetingReviewConfirmRequest,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    review = confirm_meeting_review(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        transcript_id=body.transcript_id,
+        extraction_generated_at=body.extraction_generated_at,
+        review_fingerprint=body.review_fingerprint,
+        excluded=body.excluded,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.MEETING_REVIEW_CONFIRM,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+        document_id=str(body.transcript_id),
+    )
+    return review
 
 
 @router.get("/{opportunity_id}/available-use-cases")

@@ -1,0 +1,1334 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/post_meeting_review.schema.json",
+  "title": "PostMeetingReview",
+  "description": "Read-only review of the Post Meeting stage: the transcripts, the owner's personal notes, the structured meeting extraction, the selected Borek use cases and the approved Discovery, each with its identity, revision and freshness, plus the owner's confirmation and the readiness for Master Presentation V2. Sources stay separate. An extracted item is an interpretation until the owner confirms it. v2_sources is set only when everything is ready and lists identifiers and revisions, never content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "assembled_at",
+    "review_fingerprint",
+    "execution_mode",
+    "first_meeting_completed",
+    "finalized",
+    "transcripts",
+    "personal_notes",
+    "extraction",
+    "selected_use_cases",
+    "approved_discovery",
+    "master_presentation",
+    "confirmation",
+    "readiness",
+    "v2_sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "assembled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "review_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Identity of every source shown in this review. A confirmation must send it back; it is refused when any source changed in the meantime."
+    },
+    "execution_mode": {
+      "enum": [
+        "fixture",
+        "live"
+      ],
+      "description": "How this API would run an extraction now."
+    },
+    "first_meeting_completed": {
+      "type": "boolean"
+    },
+    "finalized": {
+      "type": "boolean"
+    },
+    "transcripts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Transcript"
+      }
+    },
+    "personal_notes": {
+      "$ref": "#/$defs/PersonalNotes"
+    },
+    "extraction": {
+      "$ref": "#/$defs/Extraction"
+    },
+    "selected_use_cases": {
+      "$ref": "#/$defs/SelectedUseCases"
+    },
+    "approved_discovery": {
+      "$ref": "#/$defs/ApprovedDiscovery"
+    },
+    "master_presentation": {
+      "$ref": "#/$defs/MasterPresentation"
+    },
+    "confirmation": {
+      "$ref": "#/$defs/Confirmation"
+    },
+    "readiness": {
+      "$ref": "#/$defs/Readiness"
+    },
+    "v2_sources": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/V2Sources"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "Transcript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "file_name",
+        "processing_status",
+        "created_at",
+        "revision",
+        "turn_count",
+        "analysed"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "processing_status": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "turn_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "analysed": {
+          "type": "boolean",
+          "description": "True for the transcript the stored extraction was made from."
+        }
+      }
+    },
+    "PersonalNotes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "text",
+        "updated_at"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "missing"
+          ]
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "Extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "stale_reasons",
+        "transcript_id",
+        "transcript_file_name",
+        "transcript_revision",
+        "generated_at",
+        "personal_notes_updated_at",
+        "execution_mode",
+        "categories",
+        "item_count"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "missing",
+            "current",
+            "stale"
+          ]
+        },
+        "stale_reasons": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "TRANSCRIPT_REMOVED",
+              "TRANSCRIPT_CHANGED",
+              "TRANSCRIPT_REVISION_NOT_RECORDED",
+              "NOTES_CHANGED"
+            ]
+          }
+        },
+        "transcript_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "transcript_file_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transcript_revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "generated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "personal_notes_updated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "execution_mode": {
+          "enum": [
+            "fixture",
+            "live",
+            null
+          ]
+        },
+        "categories": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requirements",
+            "challenges",
+            "priorities",
+            "opportunities",
+            "discussed_solutions",
+            "decisions",
+            "follow_ups"
+          ],
+          "properties": {
+            "requirements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  }
+                }
+              }
+            },
+            "challenges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  }
+                }
+              }
+            },
+            "priorities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  }
+                }
+              }
+            },
+            "opportunities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  }
+                }
+              }
+            },
+            "discussed_solutions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  }
+                }
+              }
+            },
+            "decisions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  }
+                }
+              }
+            },
+            "follow_ups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "item_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "SelectedUseCases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "use_case_ids",
+        "use_cases"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "partial",
+            "empty"
+          ]
+        },
+        "use_case_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "use_cases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fact_id",
+              "status",
+              "service_key",
+              "statement"
+            ],
+            "properties": {
+              "fact_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "service_key": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "statement": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "ApprovedDiscovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "version_id",
+        "version_number",
+        "document_id",
+        "approved_at",
+        "discovery_schema_version"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "missing"
+          ]
+        },
+        "version_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "version_number": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "document_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "approved_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "discovery_schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "MasterPresentation": {
+      "description": "The Master Presentation V1 whose presentation_id V2 will reuse.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "presentation_id",
+        "version_id",
+        "product_version"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "missing",
+            "legacy"
+          ]
+        },
+        "presentation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "version_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "product_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "Confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "stale_reasons",
+        "confirmed_at",
+        "confirmed_by",
+        "sources",
+        "items",
+        "confirmed_count",
+        "excluded_count"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "none",
+            "current",
+            "stale"
+          ]
+        },
+        "stale_reasons": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "EXTRACTION_REPLACED",
+              "TRANSCRIPT_REMOVED",
+              "TRANSCRIPT_CHANGED",
+              "TRANSCRIPT_REVISION_NOT_RECORDED",
+              "NOTES_CHANGED",
+              "APPROVED_DISCOVERY_CHANGED",
+              "USE_CASES_CHANGED"
+            ]
+          }
+        },
+        "confirmed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "confirmed_by": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "sources": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ConfirmedSources"
+            }
+          ]
+        },
+        "items": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "requirements",
+                "challenges",
+                "priorities",
+                "opportunities",
+                "discussed_solutions",
+                "decisions",
+                "follow_ups"
+              ],
+              "properties": {
+                "requirements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "text",
+                      "source",
+                      "status"
+                    ],
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "enum": [
+                          "transcript",
+                          "personal_notes",
+                          "both",
+                          "unverified"
+                        ]
+                      },
+                      "status": {
+                        "enum": [
+                          "confirmed",
+                          "excluded"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "challenges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "text",
+                      "source",
+                      "status"
+                    ],
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "enum": [
+                          "transcript",
+                          "personal_notes",
+                          "both",
+                          "unverified"
+                        ]
+                      },
+                      "status": {
+                        "enum": [
+                          "confirmed",
+                          "excluded"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "priorities": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "text",
+                      "source",
+                      "status"
+                    ],
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "enum": [
+                          "transcript",
+                          "personal_notes",
+                          "both",
+                          "unverified"
+                        ]
+                      },
+                      "status": {
+                        "enum": [
+                          "confirmed",
+                          "excluded"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "opportunities": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "text",
+                      "source",
+                      "status"
+                    ],
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "enum": [
+                          "transcript",
+                          "personal_notes",
+                          "both",
+                          "unverified"
+                        ]
+                      },
+                      "status": {
+                        "enum": [
+                          "confirmed",
+                          "excluded"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "discussed_solutions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "text",
+                      "source",
+                      "status"
+                    ],
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "enum": [
+                          "transcript",
+                          "personal_notes",
+                          "both",
+                          "unverified"
+                        ]
+                      },
+                      "status": {
+                        "enum": [
+                          "confirmed",
+                          "excluded"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "decisions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "text",
+                      "source",
+                      "status"
+                    ],
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "enum": [
+                          "transcript",
+                          "personal_notes",
+                          "both",
+                          "unverified"
+                        ]
+                      },
+                      "status": {
+                        "enum": [
+                          "confirmed",
+                          "excluded"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "follow_ups": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "text",
+                      "source",
+                      "status"
+                    ],
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "enum": [
+                          "transcript",
+                          "personal_notes",
+                          "both",
+                          "unverified"
+                        ]
+                      },
+                      "status": {
+                        "enum": [
+                          "confirmed",
+                          "excluded"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "confirmed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "excluded_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "ConfirmedSources": {
+      "description": "The source revisions the owner had in front of them when confirming.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approved_discovery_version_id",
+        "transcript_id",
+        "transcript_revision",
+        "extraction_generated_at",
+        "personal_notes_updated_at",
+        "selected_use_case_ids"
+      ],
+      "properties": {
+        "approved_discovery_version_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "transcript_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "transcript_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "extraction_generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "personal_notes_updated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "selected_use_case_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ready_for_v2",
+        "blockers"
+      ],
+      "properties": {
+        "ready_for_v2": {
+          "type": "boolean"
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "DISCOVERY_NOT_APPROVED",
+              "MASTER_PRESENTATION_V1_NOT_READY",
+              "FIRST_MEETING_NOT_COMPLETED",
+              "TRANSCRIPT_MISSING",
+              "MEETING_EXTRACTION_MISSING",
+              "MEETING_EXTRACTION_STALE",
+              "MEETING_REVIEW_NOT_CONFIRMED",
+              "MEETING_REVIEW_STALE"
+            ]
+          }
+        }
+      }
+    },
+    "V2Sources": {
+      "description": "What a V2 generation would freeze: identifiers and revisions of every source, and a hash over them and the confirmed findings.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "presentation_id",
+        "base_presentation_version_id",
+        "approved_discovery_version_id",
+        "approved_discovery_document_id",
+        "discovery_schema_version",
+        "transcript_id",
+        "transcript_revision",
+        "extraction_generated_at",
+        "extraction_execution_mode",
+        "personal_notes_updated_at",
+        "selected_use_case_ids",
+        "meeting_review_confirmed_at",
+        "source_hash"
+      ],
+      "properties": {
+        "presentation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "base_presentation_version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "approved_discovery_version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "approved_discovery_document_id": {
+          "type": "string"
+        },
+        "discovery_schema_version": {
+          "type": "string"
+        },
+        "transcript_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "transcript_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "extraction_generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "extraction_execution_mode": {
+          "enum": [
+            "fixture",
+            "live"
+          ]
+        },
+        "personal_notes_updated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "selected_use_case_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "meeting_review_confirmed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "MeetingReviewRecord": {
+      "description": "The stored confirmation (opportunities.meeting_review).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "opportunity_id",
+        "confirmed_at",
+        "confirmed_by",
+        "sources",
+        "items"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "opportunity_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "confirmed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "confirmed_by": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sources": {
+          "$ref": "#/$defs/ConfirmedSources"
+        },
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requirements",
+            "challenges",
+            "priorities",
+            "opportunities",
+            "discussed_solutions",
+            "decisions",
+            "follow_ups"
+          ],
+          "properties": {
+            "requirements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source",
+                  "status"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "confirmed",
+                      "excluded"
+                    ]
+                  }
+                }
+              }
+            },
+            "challenges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source",
+                  "status"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "confirmed",
+                      "excluded"
+                    ]
+                  }
+                }
+              }
+            },
+            "priorities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source",
+                  "status"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "confirmed",
+                      "excluded"
+                    ]
+                  }
+                }
+              }
+            },
+            "opportunities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source",
+                  "status"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "confirmed",
+                      "excluded"
+                    ]
+                  }
+                }
+              }
+            },
+            "discussed_solutions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source",
+                  "status"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "confirmed",
+                      "excluded"
+                    ]
+                  }
+                }
+              }
+            },
+            "decisions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source",
+                  "status"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "confirmed",
+                      "excluded"
+                    ]
+                  }
+                }
+              }
+            },
+            "follow_ups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "source",
+                  "status"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "enum": [
+                      "transcript",
+                      "personal_notes",
+                      "both",
+                      "unverified"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "confirmed",
+                      "excluded"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

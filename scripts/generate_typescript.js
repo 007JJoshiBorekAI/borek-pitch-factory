@@ -53,6 +53,7 @@ const SCHEMAS = [
   ["ppt2_context.schema.json", "ppt2_context.ts"],
   ["workflow_status.schema.json", "workflow_status.ts"],
   ["finalization_snapshot.schema.json", "finalization_snapshot.ts"],
+  ["post_meeting_review.schema.json", "post_meeting_review.ts"],
 ];
 
 function loadChapterRegistry() {
@@ -177,6 +178,7 @@ export type { MeetingExtraction } from "./meeting_extraction";
 export type { Ppt2Context } from "./ppt2_context";
 export type { WorkflowStatus } from "./workflow_status";
 export type { FinalizationSnapshot } from "./finalization_snapshot";
+export type { PostMeetingReview } from "./post_meeting_review";
 `;
   fs.writeFileSync(path.join(OUT_DIR, "index.ts"), `${indexContent}\n`, "utf8");
 }

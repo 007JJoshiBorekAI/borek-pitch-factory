@@ -172,6 +172,41 @@ def _is_grounded(item: str, transcript_text: str, personal_notes: str | None) ->
     return bool(notes) and needle in notes
 
 
+ITEM_SOURCES = ("transcript", "personal_notes", "both")
+
+
+def classify_item_sources(
+    categories: dict[str, list[str]],
+    *,
+    sections: list[dict[str, Any]],
+    personal_notes: str | None,
+) -> dict[str, list[str]]:
+    """Where each extracted item is found: the transcript, the owner's notes, or both.
+
+    Aligned with ``categories`` item by item. Both extraction modes only keep items that occur
+    verbatim in one of the two sources, so every item resolves to at least one of them.
+    """
+    transcript = transcript_text_from_sections(sections).casefold()
+    notes = (personal_notes or "").casefold()
+    sources: dict[str, list[str]] = {}
+    for category in CATEGORIES:
+        labels: list[str] = []
+        for item in categories.get(category, []):
+            needle = item.casefold()
+            in_transcript = needle in transcript
+            in_notes = bool(notes) and needle in notes
+            if in_transcript and in_notes:
+                labels.append("both")
+            elif in_notes:
+                labels.append("personal_notes")
+            elif in_transcript:
+                labels.append("transcript")
+            else:
+                raise MeetingExtractionError("An extracted item is not supported by the transcript or the notes.")
+        sources[category] = labels
+    return sources
+
+
 def _extract_live(
     *,
     transcript_text: str,

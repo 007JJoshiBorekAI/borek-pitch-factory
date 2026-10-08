@@ -15,6 +15,7 @@ JOURNEY_OUTPUT_DB_COLUMNS = (
     "personal_notes",
     "personal_notes_updated_at",
     "meeting_extraction",
+    "meeting_review",
     "selected_use_case_ids",
     "first_meeting_completed_at",
     "owner_reviewed_at",
