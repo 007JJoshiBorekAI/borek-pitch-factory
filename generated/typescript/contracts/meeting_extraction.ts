@@ -6,7 +6,7 @@
  */
 
 /**
- * BT-44 structured extraction from one selected transcript plus the opportunity's saved personal notes. Notes text is not stored here; personal_notes_updated_at identifies the note revision that informed the extraction.
+ * BT-44 structured extraction from one selected transcript plus the opportunity's saved personal notes. Notes text is not stored here; personal_notes_updated_at identifies the note revision that informed the extraction. Optional since the Post Meeting review: transcript_revision identifies the transcript content that was analysed, execution_mode says whether a model or the deterministic fixture extractor produced the items, and item_sources names the source of each item, aligned with the seven arrays.
  */
 export interface MeetingExtraction {
   schema_version: "1.0";
@@ -21,4 +21,15 @@ export interface MeetingExtraction {
   discussed_solutions: string[];
   decisions: string[];
   follow_ups: string[];
+  transcript_revision?: string;
+  execution_mode?: "fixture" | "live";
+  item_sources?: {
+    requirements: ("transcript" | "personal_notes" | "both")[];
+    challenges: ("transcript" | "personal_notes" | "both")[];
+    priorities: ("transcript" | "personal_notes" | "both")[];
+    opportunities: ("transcript" | "personal_notes" | "both")[];
+    discussed_solutions: ("transcript" | "personal_notes" | "both")[];
+    decisions: ("transcript" | "personal_notes" | "both")[];
+    follow_ups: ("transcript" | "personal_notes" | "both")[];
+  };
 }

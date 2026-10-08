@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Literal
 from uuid import UUID
 
@@ -37,6 +38,66 @@ class FollowUp(RootModel[str]):
     root: str = Field(..., min_length=1)
 
 
+class ExecutionMode(Enum):
+    fixture = 'fixture'
+    live = 'live'
+
+
+class Requirement1(Enum):
+    transcript = 'transcript'
+    personal_notes = 'personal_notes'
+    both = 'both'
+
+
+class Challenge1(Enum):
+    transcript = 'transcript'
+    personal_notes = 'personal_notes'
+    both = 'both'
+
+
+class Priority1(Enum):
+    transcript = 'transcript'
+    personal_notes = 'personal_notes'
+    both = 'both'
+
+
+class Opportunity1(Enum):
+    transcript = 'transcript'
+    personal_notes = 'personal_notes'
+    both = 'both'
+
+
+class DiscussedSolution1(Enum):
+    transcript = 'transcript'
+    personal_notes = 'personal_notes'
+    both = 'both'
+
+
+class Decision1(Enum):
+    transcript = 'transcript'
+    personal_notes = 'personal_notes'
+    both = 'both'
+
+
+class FollowUp1(Enum):
+    transcript = 'transcript'
+    personal_notes = 'personal_notes'
+    both = 'both'
+
+
+class ItemSources(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    requirements: list[Requirement1]
+    challenges: list[Challenge1]
+    priorities: list[Priority1]
+    opportunities: list[Opportunity1]
+    discussed_solutions: list[DiscussedSolution1]
+    decisions: list[Decision1]
+    follow_ups: list[FollowUp1]
+
+
 class MeetingExtraction(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -53,3 +114,6 @@ class MeetingExtraction(BaseModel):
     discussed_solutions: list[DiscussedSolution]
     decisions: list[Decision]
     follow_ups: list[FollowUp]
+    transcript_revision: str | None = Field(None, pattern='^[0-9a-f]{64}$')
+    execution_mode: ExecutionMode | None = None
+    item_sources: ItemSources | None = None

@@ -122,3 +122,157 @@ export function validateTranscript(file: { name: string; size: number }): string
 export function postMeetingError(error: unknown) {
   return error instanceof Error ? error.message : "The request failed. Your unsaved input is retained; please retry.";
 }
+
+// ---------------------------------------------------------------------------------------------
+// Post Meeting review: sources, findings, confirmation and readiness as the API reports them.
+
+export type FindingSource = "transcript" | "personal_notes" | "both" | "unverified";
+export type ExtractionCategory = (typeof EXTRACTION_FIELDS)[number][0];
+export interface ReviewFinding { text: string; source: FindingSource }
+export interface ReviewedFinding extends ReviewFinding { status: "confirmed" | "excluded" }
+export interface ReviewTranscript {
+  id: string; file_name: string; processing_status: string; created_at: string | null;
+  turn_count: number; analysed: boolean;
+}
+export interface PostMeetingReview {
+  opportunity_id: string;
+  /** How the API runs an analysis: a configured model ("live") or the deterministic test extractor. */
+  execution_mode: "fixture" | "live";
+  first_meeting_completed: boolean;
+  finalized: boolean;
+  transcripts: ReviewTranscript[];
+  personal_notes: { status: "available" | "missing"; text: string | null; updated_at: string | null };
+  extraction: {
+    status: "missing" | "current" | "stale"; stale_reasons: string[];
+    transcript_id: string | null; transcript_file_name: string | null; generated_at: string | null;
+    execution_mode: "fixture" | "live" | null;
+    categories: Record<ExtractionCategory, ReviewFinding[]>; item_count: number;
+  };
+  selected_use_cases: {
+    status: "available" | "partial" | "empty"; use_case_ids: string[];
+    use_cases: { fact_id: string; status: string; statement: string | null }[];
+  };
+  approved_discovery: { status: "available" | "missing"; version_id: string | null; version_number: number | null };
+  master_presentation: { status: "ready" | "missing" | "legacy"; presentation_id: string | null; version_id: string | null; product_version: string | null };
+  confirmation: {
+    status: "none" | "current" | "stale"; stale_reasons: string[]; confirmed_at: string | null;
+    items: Record<ExtractionCategory, ReviewedFinding[]> | null; confirmed_count: number; excluded_count: number;
+  };
+  readiness: { ready_for_v2: boolean; blockers: string[] };
+  v2_sources: { presentation_id: string; source_hash: string } | null;
+}
+
+export const FINDING_SOURCE_LABEL: Record<FindingSource, string> = {
+  transcript: "Transcript", personal_notes: "Personal notes", both: "Transcript and notes", unverified: "Source not verified",
+};
+
+const STALE_REASON_TEXT: Record<string, string> = {
+  TRANSCRIPT_REMOVED: "The analysed transcript was removed.",
+  TRANSCRIPT_CHANGED: "The transcript changed after the analysis.",
+  TRANSCRIPT_REVISION_NOT_RECORDED: "This analysis was made before transcript revisions were recorded.",
+  NOTES_CHANGED: "The personal notes changed after the analysis.",
+  EXTRACTION_REPLACED: "The meeting was analysed again after the confirmation.",
+  APPROVED_DISCOVERY_CHANGED: "A different Discovery version was approved after the confirmation.",
+  USE_CASES_CHANGED: "The selected Borek use cases changed after the confirmation.",
+};
+
+const BLOCKER_TEXT: Record<string, string> = {
+  DISCOVERY_NOT_APPROVED: "Approve the Discovery document.",
+  MASTER_PRESENTATION_V1_NOT_READY: "Generate Master Presentation V1.",
+  FIRST_MEETING_NOT_COMPLETED: "Mark the first meeting as completed.",
+  TRANSCRIPT_MISSING: "Upload the meeting transcript.",
+  MEETING_EXTRACTION_MISSING: "Analyse the meeting.",
+  MEETING_EXTRACTION_STALE: "Analyse the meeting again: a source changed.",
+  MEETING_REVIEW_NOT_CONFIRMED: "Review the findings and confirm them.",
+  MEETING_REVIEW_STALE: "Confirm the findings again: a source changed.",
+};
+
+export const staleReasonText = (code: string) => STALE_REASON_TEXT[code] ?? "A source changed.";
+export const blockerText = (code: string) => BLOCKER_TEXT[code] ?? "A required input is missing.";
+
+export function parsePostMeetingReview(value: unknown, opportunityId: string): PostMeetingReview {
+  const record = value as Partial<PostMeetingReview> | null;
+  const categories = record?.extraction?.categories as Record<string, unknown> | undefined;
+  if (!record || typeof record !== "object" || record.opportunity_id !== resolveBackendOpportunityId(opportunityId) ||
+    !Array.isArray(record.transcripts) || !record.personal_notes || !record.extraction || !record.confirmation ||
+    !record.readiness || !Array.isArray(record.readiness.blockers) || !record.selected_use_cases ||
+    !record.approved_discovery || !record.master_presentation || !categories ||
+    EXTRACTION_FIELDS.some(([key]) => !Array.isArray(categories[key]) ||
+      !(categories[key] as ReviewFinding[]).every((item) => typeof item?.text === "string" && typeof item?.source === "string"))) {
+    throw new Error("The meeting review response is incomplete or belongs to another opportunity. Reload to retry.");
+  }
+  return record as PostMeetingReview;
+}
+
+export async function loadPostMeetingReview(token: string, opportunityId: string, signal?: AbortSignal) {
+  const value = await apiFetch<unknown>(postMeetingPath(opportunityId, "post-meeting-review"), token, { signal, cache: "no-store" });
+  return parsePostMeetingReview(value, opportunityId);
+}
+
+/** Saves the notes unless another session changed them since `expected` was loaded. */
+export async function savePersonalNotesChecked(
+  token: string, opportunityId: string, text: string, expected: PersonalNotes, signal?: AbortSignal,
+): Promise<PersonalNotes> {
+  if (text.length > 20000) throw new Error("Personal notes must be 20,000 characters or fewer.");
+  const path = postMeetingPath(opportunityId, "personal-notes");
+  const current = await apiFetch<PersonalNotes>(path, token, { signal, cache: "no-store" });
+  signal?.throwIfAborted();
+  if (current.updated_at !== expected.updated_at || (current.text ?? null) !== (expected.text ?? null)) throw new MeetingNotesConflict(current);
+  await savePersonalNotes(token, opportunityId, text);
+  signal?.throwIfAborted();
+  const saved = await apiFetch<PersonalNotes>(path, token, { signal, cache: "no-store" });
+  if ((saved.text ?? "") !== text.trim()) throw new MeetingNotesConflict(saved);
+  return saved;
+}
+
+/** Confirms exactly the analysis the owner is looking at; the API refuses anything stale. */
+export async function confirmMeetingReview(
+  token: string, opportunityId: string, review: PostMeetingReview, excluded: Partial<Record<ExtractionCategory, string[]>>,
+  signal?: AbortSignal,
+) {
+  if (review.extraction.status !== "current" || !review.extraction.transcript_id || !review.extraction.generated_at) {
+    throw new Error("Analyse the meeting again before confirming: a source changed.");
+  }
+  const value = await apiFetch<unknown>(postMeetingPath(opportunityId, "post-meeting-review/confirm"), token, {
+    method: "POST", signal,
+    body: JSON.stringify({
+      transcript_id: review.extraction.transcript_id, extraction_generated_at: review.extraction.generated_at,
+      excluded: Object.fromEntries(Object.entries(excluded).filter(([, items]) => items && items.length)),
+    }),
+  });
+  return parsePostMeetingReview(value, opportunityId);
+}
+
+export type FindingsState = "no-transcript" | "not-analysed" | "other-transcript" | "notes-unsaved" | "stale" | "current";
+
+/** What the findings on screen represent, given the owner's current selection and unsaved edits. */
+export function findingsState(review: PostMeetingReview, selectedTranscriptId: string, notesDirty: boolean): FindingsState {
+  if (!review.transcripts.length || !selectedTranscriptId) return "no-transcript";
+  if (review.extraction.status === "missing") return "not-analysed";
+  if (review.extraction.transcript_id !== selectedTranscriptId) return "other-transcript";
+  if (notesDirty) return "notes-unsaved";
+  return review.extraction.status === "current" ? "current" : "stale";
+}
+
+/**
+ * Findings the owner excluded in the stored confirmation that the current analysis still contains.
+ * Also used when the confirmation is out of date, so an earlier exclusion is offered again instead
+ * of being dropped; it only counts once the owner confirms again.
+ */
+export function excludedFromConfirmation(review: PostMeetingReview): Partial<Record<ExtractionCategory, string[]>> {
+  const items = review.confirmation.items;
+  if (!items) return {};
+  return Object.fromEntries(EXTRACTION_FIELDS.map(([key]) => {
+    const current = review.extraction.categories[key].map((item) => item.text);
+    return [key, items[key].filter((item) => item.status === "excluded" && current.includes(item.text)).map((item) => item.text)];
+  }));
+}
+
+export function reviewHeadline(review: PostMeetingReview): string {
+  if (review.finalized) return "Package finalized";
+  if (review.readiness.ready_for_v2) return "Ready for Master Presentation V2";
+  if (review.confirmation.status === "stale") return "Confirmation is out of date";
+  if (review.extraction.status === "stale") return "Analysis is out of date";
+  if (review.extraction.status === "current") return "Review the findings";
+  return review.transcripts.length ? "Analyse the meeting" : "Add your transcript";
+}

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
-import { extractionIsCurrent, loadMeetingInputs, loadPostMeetingWorkflow, MeetingNotesConflict, parseMeetingExtraction, prepareMeetingEvidence, validateTranscript, workflowCompleted, type MeetingExtraction, type PersonalNotes } from "./postMeeting";
+import {
+  blockerText, confirmMeetingReview, excludedFromConfirmation, extractionIsCurrent, FINDING_SOURCE_LABEL, findingsState,
+  loadMeetingInputs, loadPostMeetingReview, loadPostMeetingWorkflow, MeetingNotesConflict, parseMeetingExtraction,
+  parsePostMeetingReview, prepareMeetingEvidence, reviewHeadline, savePersonalNotesChecked, staleReasonText,
+  validateTranscript, workflowCompleted, type MeetingExtraction, type PersonalNotes, type PostMeetingReview,
+} from "./postMeeting";
 
 const opportunityId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const extraction: MeetingExtraction = {
@@ -77,7 +82,8 @@ test("post-meeting scope retains staged edits during token rotation and leaves t
   const boundary = readFileSync(new URL("../components/OpportunityWorkflowShell.tsx", import.meta.url), "utf8");
   assert.match(shell, /key=\{`\$\{opportunityId\}:\$\{previewMode\}:\$\{ownerId\}`\}/);
   assert.match(meeting, /!accessToken \|\| loaded.current/);
-  assert.match(meeting, /prepareMeetingEvidence\(token, opportunityId, transcriptId, notes, inputs.notes/);
+  assert.match(meeting, /prepareMeetingEvidence\(token, opportunityId, transcriptId, notes, baseline/);
+  assert.match(meeting, /if \(initial\) setNotes\(value.personal_notes.text \?\? ""\)/, "a refresh never overwrites typed notes");
   assert.match(boundary, /meeting\|review\|follow-up\|post-meeting-presentation/);
   assert.match(shell, /step.id === "ppt_2_generated" \? "post-meeting-presentation"/);
 });
@@ -185,16 +191,179 @@ test("missing transcript, ineligible workflow and conflicting notes stop prepara
   } finally { globalThis.fetch = original; }
 });
 
-test("meeting input matches the two-card reference without extraction, use-case or confirmation fields", () => {
+test("meeting screen shows the sources separately, the findings with their source, and an explicit confirmation", () => {
   const source = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
-  assert.match(source, /Upload transcript/);
-  assert.match(source, /Type notes/);
-  assert.match(source, /Additional notes <span>\(optional\)<\/span>/);
-  assert.match(source, /Leave blank if the transcript covers everything/);
-  assert.match(source, /Generate documents/);
-  assert.match(source, /styles.meetingCard/);
-  assert.match(source, /styles.meetingSummary/);
-  assert.doesNotMatch(source, /<select|type="checkbox"|EXTRACTION_FIELDS|saveSelectedUseCases|Save personal notes|Review the extraction|Selected use case|Promised attachments/);
+  // Three labelled sources and one analysis card; notes are optional and never required.
+  assert.match(source, /Source 1 · Transcript/);
+  assert.match(source, /Source 2 · Personal notes/);
+  assert.match(source, /Source 3 · Borek use cases/);
+  assert.match(source, /Analysis · Interpretation of the sources/);
+  assert.match(source, /never treated as something the client said/);
   assert.doesNotMatch(source, /<textarea[^>]*\brequired\b/);
+  // Transcript choice, notes save state, seven categories with per-finding source and include box.
+  assert.match(source, /type="radio" name="transcript"/);
+  assert.match(source, /notesDirty \? "Unsaved changes"/);
+  assert.match(source, /addEventListener\("beforeunload"/);
+  assert.match(source, /EXTRACTION_FIELDS.map/);
+  assert.match(source, /FINDING_SOURCE_LABEL\[item.source\]/);
+  assert.match(source, /Nothing captured/);
+  // Loading, failure and retry, stale and ready states are all visible.
+  assert.match(source, /Loading meeting inputs/);
+  assert.match(source, /Retry loading/);
+  assert.match(source, /role="alert"/);
+  assert.match(source, /data-testid="findings-status"/);
+  assert.match(source, /review.extraction.stale_reasons.map\(staleReasonText\)/);
+  assert.match(source, /data-testid="v2-ready"/);
+  assert.match(source, /data-testid="v2-blockers"/);
+  // Analysing and confirming need saved notes and a current analysis; nothing is confirmed implicitly.
+  assert.match(source, /disabled=\{editingDisabled \|\| !transcript \|\| notesDirty\} onClick=\{\(\) => void analyse\(\)\}/);
+  assert.match(source, /disabled=\{editingDisabled \|\| state !== "current" \|\| confirmedCurrent\} onClick=\{\(\) => void confirm\(\)\}/);
+  // The test extractor is named as such, and preview mode never shows findings.
+  assert.match(source, /review\?.execution_mode === "fixture"/);
+  assert.match(source, /No AI model is called/);
+  assert.match(source, /\{live && review \? <article className=\{styles.card\} aria-labelledby="findings-title"/);
   assert.match(source, /if \(previewMode\) \{ setPreviewFile\(file\)/);
+  // Confirming findings and the owner review of the presentation are two different, separately shown steps.
+  assert.match(source, /data-testid="findings-confirmation"><span>Meeting findings confirmed<\/span>/);
+  assert.match(source, /data-testid="presentation-owner-review"><span>Presentation owner review<\/span><strong>\{workflowCompleted\(workflow, "owner_review"\) \? "Completed" : "Pending · after V2"\}/);
+  assert.match(source, /is not the owner review of the presentation/);
+  assert.doesNotMatch(source, /markOwnerReviewed|workflow\/owner-reviewed|workflow\/finalize/);
+  // The old PPT #2 generator is reachable only from the labelled previous flow.
+  assert.equal(source.match(/generateAndAwaitPostMeetingPresentation\(/g)?.length, 1);
+  assert.equal(source.match(/generateDocuments\(\)/g)?.length, 2, "one definition, one button");
+  assert.ok(source.indexOf("Previous document flow</small></summary>") < source.indexOf("onClick={() => void generateDocuments()}"));
+  const END_OF_FUNCTION = String.fromCharCode(10) + "  }" + String.fromCharCode(10);
+  for (const action of ["onTranscript", "saveNotes", "analyse", "confirm", "saveUseCases"]) {
+    const body = source.slice(source.indexOf(`async function ${action}(`), source.indexOf(END_OF_FUNCTION, source.indexOf(`async function ${action}(`)));
+    assert.ok(body.length > 0 && !/generateAndAwaitPostMeetingPresentation|prepareMeetingEvidence|ppt2/i.test(body), action);
+  }
+  // V2 is announced, not generated; the earlier PPT #2 flow is kept apart from it.
+  assert.match(source, /Generating V2 is not available yet/);
+  assert.match(source, /Previous document flow/);
+});
+
+const review = (overrides: Partial<PostMeetingReview> = {}): PostMeetingReview => ({
+  opportunity_id: opportunityId, execution_mode: "fixture", first_meeting_completed: true, finalized: false,
+  transcripts: [{ id: "transcript-1", file_name: "call.txt", processing_status: "pending", created_at: "2026-10-08T09:00:00Z", turn_count: 4, analysed: true }],
+  personal_notes: { status: "available", text: "Owner observation", updated_at: "2026-10-08T09:05:00Z" },
+  extraction: {
+    status: "current", stale_reasons: [], transcript_id: "transcript-1", transcript_file_name: "call.txt",
+    generated_at: "2026-10-08T09:10:00Z", execution_mode: "fixture", item_count: 2,
+    categories: {
+      requirements: [{ text: "Quotes within one day", source: "transcript" }], challenges: [], priorities: [],
+      opportunities: [], discussed_solutions: [], decisions: [{ text: "Run a pilot", source: "personal_notes" }], follow_ups: [],
+    },
+  },
+  selected_use_cases: { status: "empty", use_case_ids: [], use_cases: [] },
+  approved_discovery: { status: "available", version_id: "discovery-1", version_number: 1 },
+  master_presentation: { status: "ready", presentation_id: "deck-1", version_id: "version-1", product_version: "V1" },
+  confirmation: { status: "none", stale_reasons: [], confirmed_at: null, items: null, confirmed_count: 0, excluded_count: 0 },
+  readiness: { ready_for_v2: false, blockers: ["MEETING_REVIEW_NOT_CONFIRMED"] },
+  v2_sources: null,
+  ...overrides,
+});
+
+test("review responses are validated and never accepted for another opportunity", () => {
+  assert.equal(parsePostMeetingReview(review(), opportunityId).extraction.item_count, 2);
+  assert.throws(() => parsePostMeetingReview({ ...review(), opportunity_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" }, opportunityId), /another opportunity/);
+  assert.throws(() => parsePostMeetingReview({ ...review(), readiness: undefined }, opportunityId), /incomplete/);
+  const broken = review();
+  (broken.extraction.categories as Record<string, unknown>).decisions = [{ text: 5, source: "transcript" }];
+  assert.throws(() => parsePostMeetingReview(broken, opportunityId), /incomplete/);
+  assert.throws(() => parsePostMeetingReview(null, opportunityId), /incomplete/);
+});
+
+test("findings are only called current for the selected transcript and saved notes", () => {
+  assert.equal(findingsState(review(), "transcript-1", false), "current");
+  assert.equal(findingsState(review(), "transcript-1", true), "notes-unsaved");
+  assert.equal(findingsState(review(), "transcript-2", false), "other-transcript");
+  assert.equal(findingsState(review(), "", false), "no-transcript");
+  assert.equal(findingsState(review({ transcripts: [] }), "transcript-1", false), "no-transcript");
+  const stale = review();
+  stale.extraction = { ...stale.extraction, status: "stale", stale_reasons: ["NOTES_CHANGED"] };
+  assert.equal(findingsState(stale, "transcript-1", false), "stale");
+  const missing = review();
+  missing.extraction = { ...missing.extraction, status: "missing", transcript_id: null };
+  assert.equal(findingsState(missing, "transcript-1", false), "not-analysed");
+  assert.match(staleReasonText("NOTES_CHANGED"), /notes changed/);
+  assert.match(staleReasonText("TRANSCRIPT_REMOVED"), /removed/);
+  assert.equal(staleReasonText("SOMETHING_NEW"), "A source changed.");
+  assert.match(blockerText("MEETING_EXTRACTION_STALE"), /again/);
+  assert.equal(blockerText("SOMETHING_NEW"), "A required input is missing.");
+});
+
+test("headline and exclusions follow the stored confirmation, not the extraction alone", () => {
+  assert.equal(reviewHeadline(review()), "Review the findings");
+  assert.equal(reviewHeadline(review({ transcripts: [], extraction: { ...review().extraction, status: "missing" } })), "Add your transcript");
+  assert.equal(reviewHeadline(review({ extraction: { ...review().extraction, status: "stale" } })), "Analysis is out of date");
+  assert.deepEqual(excludedFromConfirmation(review()), {});
+  const confirmed = review({
+    confirmation: {
+      status: "current", stale_reasons: [], confirmed_at: "2026-10-08T09:20:00Z", confirmed_count: 1, excluded_count: 1,
+      items: {
+        requirements: [{ text: "Quotes within one day", source: "transcript", status: "confirmed" }], challenges: [], priorities: [],
+        opportunities: [], discussed_solutions: [], decisions: [{ text: "Run a pilot", source: "personal_notes", status: "excluded" }], follow_ups: [],
+      },
+    },
+    readiness: { ready_for_v2: true, blockers: [] },
+  });
+  assert.deepEqual(excludedFromConfirmation(confirmed).decisions, ["Run a pilot"]);
+  assert.deepEqual(excludedFromConfirmation(confirmed).requirements, []);
+  assert.equal(reviewHeadline(confirmed), "Ready for Master Presentation V2");
+  // An out-of-date confirmation still offers its exclusions, but only for findings that still exist.
+  const outdated = { ...confirmed, confirmation: { ...confirmed.confirmation, status: "stale" as const, stale_reasons: ["USE_CASES_CHANGED"] } };
+  assert.deepEqual(excludedFromConfirmation(outdated).decisions, ["Run a pilot"]);
+  const reanalysed = { ...outdated, extraction: { ...outdated.extraction, categories: { ...outdated.extraction.categories, decisions: [] } } };
+  assert.deepEqual(excludedFromConfirmation(reanalysed).decisions, []);
+  assert.equal(reviewHeadline({ ...confirmed, confirmation: { ...confirmed.confirmation, status: "stale" }, readiness: { ready_for_v2: false, blockers: ["MEETING_REVIEW_STALE"] } }), "Confirmation is out of date");
+  assert.equal(FINDING_SOURCE_LABEL.personal_notes, "Personal notes");
+});
+
+test("confirmation sends the reviewed analysis identity and refuses a stale one before any request", async () => {
+  const original = globalThis.fetch;
+  const requests: { url: string; method: string; body: unknown }[] = [];
+  globalThis.fetch = async (input, init) => {
+    requests.push({ url: String(input), method: init?.method ?? "GET", body: init?.body ? JSON.parse(String(init.body)) : null });
+    return Response.json(review({ readiness: { ready_for_v2: true, blockers: [] } }));
+  };
+  try {
+    const stale = review();
+    stale.extraction = { ...stale.extraction, status: "stale", stale_reasons: ["NOTES_CHANGED"] };
+    await assert.rejects(confirmMeetingReview("token", opportunityId, stale, {}), /Analyse the meeting again/);
+    assert.equal(requests.length, 0);
+    const result = await confirmMeetingReview("token", opportunityId, review(), { decisions: ["Run a pilot"], requirements: [] });
+    assert.equal(result.readiness.ready_for_v2, true);
+    assert.equal(requests.length, 1);
+    assert.match(requests[0].url, new RegExp(`/opportunities/${opportunityId}/post-meeting-review/confirm$`));
+    assert.equal(requests[0].method, "POST");
+    assert.deepEqual(requests[0].body, {
+      transcript_id: "transcript-1", extraction_generated_at: "2026-10-08T09:10:00Z", excluded: { decisions: ["Run a pilot"] },
+    });
+  } finally { globalThis.fetch = original; }
+});
+
+test("notes are saved only when nobody else changed them, and a failed load is an error, not an empty review", async () => {
+  const original = globalThis.fetch;
+  let stored: PersonalNotes = { text: "Owner observation", updated_at: "2026-10-08T09:05:00Z" };
+  const writes: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    if ((init?.method ?? "GET") === "PUT") {
+      const text = (JSON.parse(String(init!.body)) as { text: string }).text.trim();
+      writes.push(text);
+      stored = { text: text || null, updated_at: "2026-10-08T09:30:00Z" };
+    }
+    return Response.json(stored);
+  };
+  try {
+    const baseline = { ...stored };
+    const saved = await savePersonalNotesChecked("token", opportunityId, "  Updated observation  ", baseline);
+    assert.deepEqual(saved, { text: "Updated observation", updated_at: "2026-10-08T09:30:00Z" });
+    assert.deepEqual(writes, ["Updated observation"]);
+    // The baseline is now out of date: another session (here: the save above) changed the notes.
+    await assert.rejects(savePersonalNotesChecked("token", opportunityId, "My other text", baseline), MeetingNotesConflict);
+    assert.deepEqual(writes, ["Updated observation"], "a conflicting save writes nothing");
+    await assert.rejects(savePersonalNotesChecked("token", opportunityId, "x".repeat(20001), saved), /20,000/);
+    globalThis.fetch = async () => new Response(JSON.stringify({ error: { code: "INTERNAL", message: "Database unavailable" } }), { status: 500 });
+    await assert.rejects(loadPostMeetingReview("token", opportunityId), /Database unavailable|failed|500/i);
+  } finally { globalThis.fetch = original; }
 });

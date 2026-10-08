@@ -68,6 +68,17 @@
 .root .notesField { display: block; margin-bottom: 8px; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
 .notesField > span { font-weight: var(--pitch-weight-regular); color: var(--pitch-gray-500); }
 .root .notesField textarea { display: block; margin-top: 12px; min-height: 96px; }
+.transcriptList, .findings { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 4px; }
+.transcriptList li { padding: 4px 12px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); }
+/* The shared text-input rule (full width, padding, border) must not apply to the transcript radio. */
+.root .check input[type="radio"] { width: auto; padding: 0; border: 0; }
+.transcriptList strong { display: block; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
+.root .extraction .findings { padding-left: 0; }
+.findings .check { margin: 6px 0; }
+.findingExcluded span { color: var(--pitch-gray-500); text-decoration: line-through; }
+.findingExcluded small { text-decoration: none; }
+.meetingSummary ul ul { margin: 8px 0 16px; }
+.meetingSummary details { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--pitch-gray-200); }
 .followUpColumns { grid-template-columns: minmax(0, 2.2fr) minmax(240px, 1fr); align-items: stretch; }
 .packageSidebar { display: flex; flex-direction: column; padding: 20px; }
 .root .packageLabel { display: block; margin: 0 0 12px; color: var(--pitch-gray-500); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-medium); line-height: 1.5; text-transform: uppercase; }

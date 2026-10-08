@@ -17,14 +17,18 @@ test("discovery approval and generation call the discovery-paper endpoints", () 
   assert.doesNotMatch(discovery, /concretisation/);
 });
 
-test("meeting input reaches transcript, optional notes and automatic extraction before PPT #2", () => {
+test("meeting input reaches transcript, notes, analysis, review and confirmation; PPT #2 stays a separate previous flow", () => {
   const meeting = source("../components/MeetingEvidencePanel.tsx");
   assert.match(source("./firstMeetingHandoff.ts"), /workflow\/first-meeting-completed/);
   assert.match(meeting, /uploadTranscript/);
   assert.match(meeting, /prepareMeetingEvidence/);
   assert.match(source("./postMeeting.ts"), /savePersonalNotes/);
   assert.match(source("./postMeeting.ts"), /generateMeetingExtraction/);
-  assert.doesNotMatch(meeting, /saveSelectedUseCases/);
+  assert.match(meeting, /savePersonalNotesChecked/);
+  assert.match(meeting, /generateMeetingExtraction\(token, opportunityId, transcriptId\)/);
+  assert.match(meeting, /confirmMeetingReview\(token, opportunityId, review, excluded, signal\)/);
+  assert.match(meeting, /saveSelectedUseCases/);
+  assert.match(meeting, /Previous document flow/);
   assert.match(meeting, /generateAndAwaitPostMeetingPresentation/);
   assert.match(meeting, /regeneratePresentationId/);
   assert.match(source("./ppt2Generation.ts"), /regeneratePpt2/);

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -11,6 +13,7 @@ from app.config import settings
 from app.services.api_errors import bad_request
 from services.meeting.extraction import (
     MeetingExtractionError,
+    classify_item_sources,
     extract_meeting_categories,
     validate_meeting_extraction,
 )
@@ -38,6 +41,28 @@ def _iso(value: Any) -> str | None:
 
 def _now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def transcript_revision(sections: list[dict[str, Any]]) -> str:
+    """Checksum of the speaker turns an extraction reads; changes when the content changes."""
+    turns = [
+        [str(section.get("speaker_role") or ""), str(section.get("content") or "")]
+        for section in sorted(sections, key=lambda item: int(item.get("section_index") or 0))
+    ]
+    return hashlib.sha256(json.dumps(turns, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def execution_mode() -> str:
+    """"live" calls the configured model; "fixture" is the deterministic marker-line extractor."""
+    return "live" if settings.AI_EXECUTION_MODE == "live" else "fixture"
+
+
+def transcript_sections(store: Any, *, opportunity_id: UUID, user_id: UUID, transcript_id: Any) -> list[dict[str, Any]] | None:
+    """Stored speaker turns of one transcript of this opportunity; None when it does not exist."""
+    for row in store.list_transcript_sources(opportunity_id=opportunity_id, user_id=user_id):
+        if str(row["id"]) == str(transcript_id):
+            return list(row.get("sections") or [])
+    return None
 
 
 def personal_notes_view(opportunity: dict[str, Any]) -> dict[str, Any]:
@@ -87,27 +112,27 @@ def generate_meeting_extraction(
         transcript_id=transcript_id,
         user_id=user_id,
     )
-    source = next(
-        (
-            row
-            for row in store.list_transcript_sources(
-                opportunity_id=opportunity_id,
-                user_id=user_id,
-            )
-            if str(row["id"]) == str(transcript_id)
-        ),
-        None,
-    )
-    sections = list(source.get("sections") or []) if source else []
+    sections = transcript_sections(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        transcript_id=transcript_id,
+    ) or []
+    if not any(str(section.get("content") or "").strip() for section in sections):
+        raise bad_request(
+            "TRANSCRIPT_EMPTY",
+            "The selected transcript has no readable text. Upload the transcript again.",
+        )
     notes_view = personal_notes_view(opportunity)
     notes = notes_view["text"]
     try:
         categories = extract_meeting_categories(
             sections=sections,
             personal_notes=notes,
-            live=settings.AI_EXECUTION_MODE == "live",
+            live=execution_mode() == "live",
             opportunity_id=str(opportunity_id),
         )
+        item_sources = classify_item_sources(categories, sections=sections, personal_notes=notes)
     except MeetingExtractionError as exc:
         raise bad_request("MEETING_EXTRACTION_FAILED", exc.user_message) from exc
     payload = {
@@ -117,6 +142,9 @@ def generate_meeting_extraction(
         "generated_at": _now(),
         "personal_notes_updated_at": notes_view["updated_at"] if notes else None,
         **{category: list(categories[category]) for category in CATEGORIES},
+        "transcript_revision": transcript_revision(sections),
+        "execution_mode": execution_mode(),
+        "item_sources": item_sources,
     }
     stored = copy.deepcopy(validate_meeting_extraction(payload))
     store.update_opportunity(
