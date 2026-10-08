@@ -97,6 +97,27 @@ export interface WorkflowSnapshotViewModel {
   completed_statuses: WorkflowStatus[];
   blocked_reason: string | null;
   available_actions: string[];
+  /** True when the pitch uses the Master Presentation (V1 before, V2 after the first meeting). */
+  master_journey?: boolean;
+}
+
+/**
+ * The Master Presentation journey: one presentation whose V1 is the pre-meeting and whose V2 is
+ * the post-meeting version. Decided from what the API reports, never assumed; earlier pitches
+ * with a separate PPT #1 / PPT #2 keep their own wording.
+ */
+export function isMasterJourney(documents: { ppt1?: { product_version?: string } | null; ppt2?: { product_version?: string } | null } | null | undefined) {
+  return documents?.ppt1?.product_version === "V1" || documents?.ppt2?.product_version === "V2";
+}
+
+/** Step names of the Master Presentation journey; the other steps keep their usual names. */
+export const MASTER_JOURNEY_STEP_LABELS: Partial<Record<WorkflowStatus, string>> = {
+  ppt_1_ready: "Master Presentation V1 Ready",
+  ppt_2_generated: "Master Presentation V2 Ready",
+};
+
+export function workflowStepLabel(id: WorkflowStatus, label: string, masterJourney: boolean | undefined, labels = MASTER_JOURNEY_STEP_LABELS) {
+  return (masterJourney && labels[id]) || label;
 }
 
 export interface DiscoveryFirstWorkspaceFixture {

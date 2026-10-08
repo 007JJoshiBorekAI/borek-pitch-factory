@@ -366,6 +366,25 @@ def get_version_deck_center(
     return DeckCenterResponse.model_validate(payload)
 
 
+@router.get(
+    "/{presentation_id}/versions/{presentation_version_id}/slides",
+    response_model=list[SlideResponse],
+)
+def list_version_slides(
+    presentation_id: UUID,
+    presentation_version_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> list[SlideResponse]:
+    rows = deck_center.list_version_slides(
+        store,
+        presentation_id=presentation_id,
+        user_id=user.id,
+        presentation_version_id=presentation_version_id,
+    )
+    return [_slide_response(row) for row in rows]
+
+
 @router.get("/{presentation_id}/versions/{presentation_version_id}/preview/slides/{slide_index}.png")
 def get_version_slide_preview_image(
     presentation_id: UUID,

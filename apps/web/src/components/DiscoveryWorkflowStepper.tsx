@@ -6,6 +6,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 
 import {
   WORKFLOW_STATUS_CATALOG,
+  workflowStepLabel,
   type WorkflowSnapshotViewModel,
 } from "@/lib/discoveryFirst";
 
@@ -34,7 +35,7 @@ export function DiscoveryWorkflowStepper({
                 {index + 1}
               </span>
               <span className="discovery-step-copy">
-                <span>{copy.workflow.statuses[step.id]}</span>
+                <span>{workflowStepLabel(step.id, copy.workflow.statuses[step.id], workflow.master_journey, copy.workflow.masterStatuses)}</span>
                 <small>{stateLabel}</small>
               </span>
             </>

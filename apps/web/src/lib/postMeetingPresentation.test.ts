@@ -10,7 +10,7 @@ import type { DeckResponse, SlideResponse } from "./presentationLive.js";
 const token = "ppt2-test-token";
 const opportunityId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const identity = { presentationId: "deck-2", presentationVersionId: "ppt2-version-1" };
-const prefix = "/presentations/deck-2";
+const prefix = "/presentations/deck-2/versions/ppt2-version-1";
 const metadata: SlideResponse[] = [5, 0, 2].map((index) => ({
   id: `ppt2-slide-${index}`, presentation_version_id: identity.presentationVersionId,
   slide_index: index, layout_id: `LAYOUT_${index}`, slide_spec: { title: index === 5 ? "" : `Meeting title ${index}` },
@@ -300,7 +300,7 @@ test("unmount cancellation reaches workflow requests and stops load/download wor
 test("separate route copies workspace structure, handles image decode errors and has no unsafe generation or fixture content", () => {
   const source = readFileSync(new URL("../components/PostMeetingPresentationWorkspace.tsx", import.meta.url), "utf8");
   const route = readFileSync(new URL("../app/opportunities/[opportunityId]/post-meeting-presentation/page.tsx", import.meta.url), "utf8");
-  for (const text of ["Updating your pitch", "artifact-preview-workspace presentation-document-workspace", "workflow-page-list", "discovery-page-toolbar", "presentation-slide-canvas", "discovery-generation-card", "discovery-download-card", "onLoad=", "onError=", "Retry preview", "Reload deck", "No generated PPT #2", "cannot atomically pin historical versions", "downloadOperation.current", "previewOperation.current?.cancel()", "<progress"]) assert.ok(source.includes(text), text);
+  for (const text of ["Updating your pitch", "artifact-preview-workspace presentation-document-workspace", "workflow-page-list", "discovery-page-toolbar", "presentation-slide-canvas", "discovery-generation-card", "discovery-download-card", "onLoad=", "onError=", "Retry preview", "Reload deck", "No generated ${product}", "those of this exact version", "downloadOperation.current", "previewOperation.current?.cancel()", "<progress"]) assert.ok(source.includes(text), text);
   assert.equal((source.match(/onClick=\{\(\) => void download\(/g) ?? []).length, 2, "one action per download format");
   assert.doesNotMatch(source, /DISCOVERY_PAGE_CATALOG|presentationPreview|usePreviewJourney|generateAndAwait|WorkflowArtifactTabs|href=\{[^}]*\/discovery/);
   assert.match(route, /return <PostMeetingPresentationWorkspace opportunityId=\{opportunityId\}/);

@@ -191,6 +191,8 @@ export interface WorkflowDeckLine {
   latest_ready_version_id: string | null;
   journey_stage: string;
   status: string;
+  /** Set for a Master Presentation: "V1" (pre-meeting) or "V2" (post-meeting), versions of one presentation. */
+  product_version?: "V1" | "V2";
 }
 
 export interface WorkflowStatusResponse {

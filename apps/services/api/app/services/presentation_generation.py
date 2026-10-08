@@ -666,6 +666,28 @@ def _master_presentation_id(store: DataStore, opportunity: dict[str, Any], oppor
     return None
 
 
+def _latest_master_v1_version(
+    store: DataStore,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    presentation_id: UUID,
+) -> dict[str, Any] | None:
+    """The newest V1 version of the Master Presentation.
+
+    The presentation also holds its V2 versions, so "the latest version" is not necessarily a
+    V1; a pre-meeting request must compare with the newest V1, whatever was generated after it.
+    """
+    rows = [
+        row
+        for row in store.list_presentation_versions_for_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        if str(row.get("presentation_id")) == str(presentation_id)
+        and isinstance(row.get("generation_source_manifest"), dict)
+        and row["generation_source_manifest"].get("kind") == "master_presentation_v1"
+    ]
+    return max(rows, key=lambda row: int(row.get("version_number") or 0)) if rows else None
+
+
 def _enqueue_master_presentation_v1(
     store: DataStore,
     *,
@@ -704,10 +726,12 @@ def _enqueue_master_presentation_v1(
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     presentation_id = _master_presentation_id(store, opportunity, opportunity_id)
     if presentation_id is not None:
-        try:
-            latest = store.get_latest_presentation_version(presentation_id=presentation_id, user_id=user_id)
-        except HTTPException:
-            latest = None
+        latest = _latest_master_v1_version(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            presentation_id=presentation_id,
+        )
         if (
             latest is not None
             and _status_text(latest.get("status")) == "ready"
@@ -1073,7 +1097,7 @@ def _ppt1_planned_slides(
         return None
     if isinstance(version.get("generation_source_manifest"), dict) and version[
         "generation_source_manifest"
-    ].get("kind") == "master_presentation_v1":
+    ].get("kind") in ("master_presentation_v1", "master_presentation_v2"):
         # A Master Presentation is not a PPT #1 deck; the legacy post-meeting deck does not
         # extend it (the Master Presentation gets its own second version later).
         return None
@@ -1193,6 +1217,15 @@ def execute_presentation_generation(
         )
     if settings.RENDERER_EXECUTION_MODE == "live":
         _raise_if_plan_not_generatable(plan["plan_json"], as_http=False)
+    if (
+        isinstance(generation_source_manifest, dict)
+        and generation_source_manifest.get("kind") == "master_presentation_v2"
+        and (plan["plan_json"].get("appendix") or {}).get("source_hash") != generation_source_manifest.get("snapshot_hash")
+    ):
+        # The version must be built from the plan that was frozen with this job, never from a later one.
+        raise RuntimeError(
+            "MASTER_V2_SNAPSHOT_INVALID: the stored plan does not belong to the frozen sources of this generation"
+        )
     version = store.create_presentation_version_with_slides(
         presentation_id=presentation_id,
         user_id=user_id,

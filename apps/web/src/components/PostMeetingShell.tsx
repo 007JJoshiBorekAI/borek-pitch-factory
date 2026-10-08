@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useAuth } from "@/components/AuthProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import { usePreviewMeeting } from "@/components/usePreviewMeeting";
-import { WORKFLOW_STATUS_CATALOG } from "@/lib/discoveryFirst";
+import { WORKFLOW_STATUS_CATALOG, isMasterJourney, workflowStepLabel } from "@/lib/discoveryFirst";
 import { loadPostMeetingWorkflow, postMeetingError, workflowCompleted, type PostMeetingWorkflow } from "@/lib/postMeeting";
 import styles from "./post-meeting.module.css";
 
@@ -17,10 +17,16 @@ const PostMeetingContext = createContext<{
 export const usePostMeeting = () => useContext(PostMeetingContext);
 
 export function PostMeetingPhaseNav({ opportunityId, active }: { opportunityId: string; active: "meeting" | "review" }) {
+  const { workflow } = usePostMeeting();
   const root = `/opportunities/${encodeURIComponent(opportunityId)}`;
+  // Master journey: the second step is the presentation itself (V2) with its owner review.
+  // Earlier pitches keep the document and follow-up step they were built with.
+  const master = isMasterJourney(workflow?.documents);
   return <nav className={styles.phaseNav} aria-label="Post-meeting workspace">
-    <Link href={`${root}/meeting`} aria-current={active === "meeting" ? "page" : undefined}><span>1</span><div><small>Meeting input</small><strong>Capture what changed</strong></div></Link>
-    <Link href={`${root}/follow-up`} aria-current={active === "review" ? "page" : undefined}><span>2</span><div><small>Generate</small><strong>Documents &amp; review</strong></div></Link>
+    <Link href={`${root}/meeting`} aria-current={active === "meeting" ? "page" : undefined}><span>1</span><div><small>Meeting input</small><strong>{master ? "Confirm the meeting findings" : "Capture what changed"}</strong></div></Link>
+    {master
+      ? <Link href={`${root}/post-meeting-presentation`}><span>2</span><div><small>Master Presentation V2</small><strong>Presentation &amp; owner review</strong></div></Link>
+      : <Link href={`${root}/follow-up`} aria-current={active === "review" ? "page" : undefined}><span>2</span><div><small>Generate</small><strong>Documents &amp; review</strong></div></Link>}
   </nav>;
 }
 
@@ -81,7 +87,7 @@ function PostMeetingSession({ opportunityId, companyName, contactPerson, childre
             const key = step.id.replace("ppt_1", "ppt1").replace("ppt_2", "ppt2");
             const status = workflow?.steps.find((entry) => entry.key === key)?.state;
             const route = step.id === "ppt_2_generated" ? "post-meeting-presentation" : step.route;
-            return <li key={step.id}><span>{step.label}</span><small>{status ?? "Not loaded"}</small>{status === "completed" || status === "current" ? <Link href={`${root}/${route}`}>Open</Link> : null}</li>;
+            return <li key={step.id}><span>{workflowStepLabel(step.id, step.label, isMasterJourney(workflow?.documents))}</span><small>{status ?? "Not loaded"}</small>{status === "completed" || status === "current" ? <Link href={`${root}/${route}`}>Open</Link> : null}</li>;
           })}</ol>
         </details> : null}
       </main>

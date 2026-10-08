@@ -38,6 +38,21 @@ class Ppt2GenerationSourceManifest(BaseModel):
     selected_use_case_ids: list[SelectedUseCaseId]
 
 
+class MasterPresentationV2SourceManifest(BaseModel):
+    schema_version: Literal['1.0']
+    kind: Literal['master_presentation_v2']
+    product_version: Literal['V2']
+    master_id: str = Field(..., min_length=1)
+    master_sha256: str = Field(..., pattern='^[0-9a-f]{64}$')
+    presentation_id: UUID
+    base_presentation_version_id: UUID
+    approved_discovery_version_id: UUID
+    transcript_id: UUID
+    transcript_revision: str = Field(..., pattern='^[0-9a-f]{64}$')
+    source_hash: str = Field(..., pattern='^[0-9a-f]{64}$')
+    snapshot_hash: str = Field(..., pattern='^[0-9a-f]{64}$')
+
+
 class FinalizationSnapshot(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -51,7 +66,5 @@ class FinalizationSnapshot(BaseModel):
     ppt2_version_id: UUID
     observed_sources: ObservedSources
     ppt2_generation_source_manifest: (
-        Ppt2GenerationSourceManifest | None
-    ) = (
-        Field(..., description='Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.')
-    )
+        Ppt2GenerationSourceManifest | MasterPresentationV2SourceManifest | None
+    ) = Field(..., description='Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.')

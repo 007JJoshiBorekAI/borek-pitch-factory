@@ -137,12 +137,14 @@ def _load(job_id: uuid.UUID, repository: Any | None) -> Job | None:
     return _job_from_row(row) if row is not None else None
 
 
-def _save(job: Job, repository: Any | None, *, create: bool = False) -> Job:
+def _save(job: Job, repository: Any | None, *, create: bool = False, lock: dict[str, Any] | None = None) -> Job:
     if repository is None:
         return job_store.save(job)
     payload = _job_payload(job)
     if create:
         payload["auto_continue"] = job.auto_continue
+        if lock:
+            payload.update(lock)
     row = (
         repository.create_generation_job(payload)
         if create
@@ -256,6 +258,22 @@ def enqueue_status_for_job(job: Job, *, existing: bool) -> str:
     return "queued"
 
 
+class GenerationLockConflict(RuntimeError):
+    """Another active job already holds the generation lock of this opportunity."""
+
+
+def active_locked_job(repository: Any, opportunity_id: uuid.UUID, lock_key: str) -> dict[str, Any] | None:
+    """The queued or running job that holds ``lock_key`` for the opportunity, if any."""
+    lister = getattr(repository, "list_generation_jobs_for_opportunity", None)
+    rows = [row for row in (lister(opportunity_id) if lister else []) if isinstance(row, dict)]
+    held = [
+        row
+        for row in rows
+        if row.get("generation_lock_key") == lock_key and _job_status_value(row) not in _TERMINAL_JOB_STATUSES
+    ]
+    return max(held, key=lambda row: str(row.get("created_at") or "")) if held else None
+
+
 def create_job(
     opportunity_id: uuid.UUID,
     job_type: str,
@@ -264,7 +282,15 @@ def create_job(
     auto_continue: bool = False,
     enqueue: dict[str, Any] | None = None,
     repository: Any | None = None,
+    generation_lock_key: str | None = None,
+    generation_fingerprint: str | None = None,
 ) -> Job:
+    """Create a queued job.
+
+    With ``generation_lock_key`` the job takes the opportunity's generation lock: the store
+    admits one active job per opportunity and key and raises ``GenerationLockConflict`` for
+    any other, whichever API process asks. The lock is released when the job ends.
+    """
     job = Job(
         id=uuid.uuid4(),
         opportunity_id=opportunity_id,
@@ -275,7 +301,12 @@ def create_job(
         auto_continue=auto_continue,
         result_json={"_enqueue": dict(enqueue)} if enqueue else {},
     )
-    return _save(job, repository, create=True)
+    lock = (
+        {"generation_lock_key": generation_lock_key, "generation_fingerprint": generation_fingerprint}
+        if generation_lock_key
+        else None
+    )
+    return _save(job, repository, create=True, lock=lock)
 
 
 def advance_stage(
@@ -510,6 +541,8 @@ def job_to_response(job: Job) -> JobResponse:
     enqueue = dict(result.get("_enqueue") or {})
     # Frozen PPT #2 source bodies stay on the stored job for same-job retry.
     enqueue.pop("ppt2_generation_input", None)
+    # The frozen Master Presentation V2 sources (Discovery content, notes, findings) stay server-side too.
+    enqueue.pop("master_v2_snapshot", None)
     enqueue["auto_continue"] = job.auto_continue
     result["_enqueue"] = enqueue
 

@@ -73,6 +73,7 @@ EXPECTED_COLUMNS = {
         "selected_use_case_ids",
         "first_meeting_completed_at",
         "owner_reviewed_at",
+        "owner_reviewed_presentation_version_id",
         "finalized_at",
         "finalization_snapshot",
         "demo_marker",
@@ -108,6 +109,8 @@ EXPECTED_COLUMNS = {
         "number_of_ai_calls",
         "ai_input_tokens",
         "ai_output_tokens",
+        "generation_lock_key",
+        "generation_fingerprint",
     ),
     "llm_calls": (
         "request_id",

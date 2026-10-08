@@ -43,7 +43,7 @@ def render_deck_bundle(
     pdf_engine: str = "preview",
 ) -> bytes:
     """Build deck.pptx, deck.pdf and previews for persisted slide specs; return the zipped bundle."""
-    if deck_kind == "master_v1":
+    if deck_kind in ("master_v1", "master_v2"):
         # Master Presentation: the canonical deck is assembled, never drawn by the layout engine.
         from services.presentation.master_deck.render import MasterRenderError, render_master_bundle
 

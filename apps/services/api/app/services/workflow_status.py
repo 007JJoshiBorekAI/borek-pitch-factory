@@ -1,4 +1,10 @@
-"""BT-47 workflow status, with BT-48 frozen final-package identities. No deck generation."""
+"""BT-47 workflow status, with BT-48 frozen final-package identities. No deck generation.
+
+The post-meeting deck of an opportunity is either Master Presentation V2 - a later version of
+the same presentation as V1 - or, for earlier opportunities, the standalone PPT #2. Both fill
+the ``ppt2`` slot of the contract; ``product_version`` tells them apart. The owner review names
+the version that was reviewed, and finalization pins exactly that version.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +25,8 @@ from app.services.discovery_paper import get_latest_approved_discovery_paper
 from app.services.meeting_extraction import personal_notes_view
 
 CONTRACTS = Path(__file__).resolve().parents[5] / "packages" / "contracts"
+MASTER_V1_KIND = "master_presentation_v1"
+MASTER_V2_KIND = "master_presentation_v2"
 STEP_KEYS = (
     "client_information",
     "discovery_prepared",
@@ -77,16 +85,28 @@ def mark_owner_reviewed(
     opportunity_id: UUID,
     user_id: UUID,
 ) -> dict[str, Any]:
+    """Record that the owner reviewed the ready post-meeting presentation version.
+
+    The review belongs to one version. Reviewing again after a newer version became ready
+    records the review for that version; repeating it for the same version changes nothing.
+    """
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
-    if _iso(opportunity.get("owner_reviewed_at")):
-        return build_workflow_status(store, opportunity_id=opportunity_id, user_id=user_id)
     facts = _facts(store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id)
+    if facts["finalized"] or facts["owner_review"]:
+        return build_workflow_status(store, opportunity_id=opportunity_id, user_id=user_id)
     if not facts["ppt2_generated"]:
         raise bad_request(
             "PPT2_NOT_GENERATED",
-            "PPT #2 must be generated before owner review can be recorded.",
+            "The post-meeting presentation (Master Presentation V2) must be generated before owner review can be recorded.",
         )
-    _stamp(store, opportunity_id=opportunity_id, user_id=user_id, column="owner_reviewed_at")
+    store.update_opportunity(
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        updates={
+            "owner_reviewed_at": _now(),
+            "owner_reviewed_presentation_version_id": facts["live_ppt2"]["latest_ready_version_id"],
+        },
+    )
     record_audit_event(
         store,
         actor_id=user_id,
@@ -113,6 +133,12 @@ def mark_finalized(
             "Owner review must be recorded before the workflow can be finalized.",
         )
     facts = _facts(store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id)
+    if not facts["owner_review"]:
+        # A newer presentation version became ready after the review: it has not been reviewed.
+        raise bad_request(
+            "OWNER_REVIEW_OUTDATED",
+            "A newer presentation version is ready. Review it before the workflow can be finalized.",
+        )
     if facts["live_approved"] is None:
         raise bad_request(
             "DISCOVERY_PAPER_APPROVAL_REQUIRED",
@@ -171,6 +197,11 @@ def _capture_snapshot(
     if ppt1 is not None and ppt1.get("latest_ready_version_id"):
         ppt1_presentation_id = ppt1["presentation_id"]
         ppt1_version_id = ppt1["latest_ready_version_id"]
+    manifest = _ppt2_version_manifest(store, user_id=user_id, version_id=ppt2["latest_ready_version_id"])
+    if manifest.get("kind") == MASTER_V2_KIND:
+        # Master Presentation: pin the V1 version this V2 was built on, not whichever V1 is newest now.
+        ppt1_presentation_id = manifest["presentation_id"]
+        ppt1_version_id = manifest["base_presentation_version_id"]
     extraction = opportunity.get("meeting_extraction")
     if isinstance(extraction, dict) and extraction.get("generated_at"):
         raw_transcript = extraction.get("transcript_id")
@@ -198,11 +229,7 @@ def _capture_snapshot(
             "personal_notes_updated_at": notes["updated_at"],
             "selected_use_case_ids": [str(item) for item in selected],
         },
-        "ppt2_generation_source_manifest": _ppt2_version_manifest(
-            store,
-            user_id=user_id,
-            version_id=ppt2["latest_ready_version_id"],
-        ),
+        "ppt2_generation_source_manifest": manifest,
     }
     return _validate_snapshot(snapshot)
 
@@ -222,12 +249,12 @@ def _ppt2_version_manifest(
     if (
         not isinstance(manifest, dict)
         or manifest.get("schema_version") != "1.0"
-        or manifest.get("kind") != "ppt2"
+        or manifest.get("kind") not in ("ppt2", MASTER_V2_KIND)
         or not manifest.get("approved_discovery_version_id")
     ):
         raise bad_request(
             "PPT2_GENERATION_MANIFEST_REQUIRED",
-            "The ready PPT #2 version has no PPT #2 generation source manifest.",
+            "The ready post-meeting presentation version has no generation source manifest.",
         )
     return copy.deepcopy(manifest)
 
@@ -289,6 +316,7 @@ def _deck_from_snapshot(
         "journey_stage": journey_stage,
         "status": "ready" if match is None else str(match.get("status") or "ready"),
         "ready_at": None if match is None else _iso(match.get("created_at")),
+        "product_version": _product_version(match),
     }
 
 
@@ -311,11 +339,26 @@ def _facts(
     draft = _discovery_draft(store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id, approved=approved)
     ppt1 = _ppt1(store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id)
     transcripts = store.list_transcripts(opportunity_id=opportunity_id, user_id=user_id)
-    ppt2 = _ppt2(
+    # Master Presentation V2 is the post-meeting deck of the Master journey; the standalone
+    # PPT #2 of earlier opportunities is used only where no V2 exists.
+    ppt2 = _master_v2(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        presentation_id=None if ppt1 is None else ppt1["presentation_id"],
+    ) or _ppt2(
         store,
         opportunity_id=opportunity_id,
         user_id=user_id,
         ppt1_presentation_id=None if ppt1 is None else ppt1["presentation_id"],
+    )
+    reviewed_version = opportunity.get("owner_reviewed_presentation_version_id")
+    current_ready = None if ppt2 is None else ppt2["latest_ready_version_id"]
+    owner_review = _iso(opportunity.get("owner_reviewed_at")) is not None and (
+        # Reviews recorded before versions were named keep counting; a named review counts for its version.
+        reviewed_version in (None, "")
+        or _iso(opportunity.get("finalized_at")) is not None
+        or str(reviewed_version) == str(current_ready or "")
     )
     snapshot = _stored_snapshot(opportunity)
     package_approved = approved
@@ -347,7 +390,7 @@ def _facts(
         "first_meeting_completed": _iso(opportunity.get("first_meeting_completed_at")) is not None,
         "transcript_added": bool(transcripts),
         "ppt2_generated": ppt2 is not None and ppt2["latest_ready_version_id"] is not None,
-        "owner_review": _iso(opportunity.get("owner_reviewed_at")) is not None,
+        "owner_review": owner_review,
         "finalized": _iso(opportunity.get("finalized_at")) is not None,
         "live_approved": approved,
         "live_ppt1": ppt1,
@@ -472,12 +515,15 @@ def _evidence(key: str, facts: dict[str, Any]) -> dict[str, Any]:
 def _public_deck(deck: dict[str, Any] | None) -> dict[str, Any] | None:
     if deck is None:
         return None
-    return {
+    public = {
         "presentation_id": deck["presentation_id"],
         "latest_ready_version_id": deck["latest_ready_version_id"],
         "journey_stage": deck["journey_stage"],
         "status": deck["status"],
     }
+    if deck.get("product_version"):
+        public["product_version"] = deck["product_version"]
+    return public
 
 
 def _approved_discovery(store: Any, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any] | None:
@@ -562,6 +608,45 @@ def _ppt1(
         "journey_stage": "first_contact",
         "status": status,
         "ready_at": None if latest is None else _iso(latest.get("created_at")),
+        "product_version": _product_version(latest),
+    }
+
+
+def _product_version(version: dict[str, Any] | None) -> str | None:
+    """"V1" / "V2" for a Master Presentation version; None for the earlier decks."""
+    manifest = (version or {}).get("generation_source_manifest")
+    kind = manifest.get("kind") if isinstance(manifest, dict) else None
+    return {MASTER_V1_KIND: "V1", MASTER_V2_KIND: "V2"}.get(str(kind))
+
+
+def _master_v2(
+    store: Any,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    presentation_id: str | None,
+) -> dict[str, Any] | None:
+    """Master Presentation V2: the post-meeting versions of the SAME presentation as V1."""
+    if presentation_id is None:
+        return None
+    versions = [
+        row
+        for row in _versions_for(store, opportunity_id=opportunity_id, user_id=user_id, presentation_id=presentation_id)
+        if _product_version(row) == "V2"
+    ]
+    if not versions:
+        return None
+    ready = [row for row in versions if row.get("status") == "ready"]
+    latest_ready = _latest(ready)
+    newest = _latest(versions)
+    assert newest is not None
+    return {
+        "presentation_id": presentation_id,
+        "latest_ready_version_id": None if latest_ready is None else str(latest_ready["id"]),
+        "journey_stage": "post_meeting",
+        "status": "ready" if latest_ready is not None else str(newest.get("status") or "missing"),
+        "ready_at": None if latest_ready is None else _iso(latest_ready.get("created_at")),
+        "product_version": "V2",
     }
 
 

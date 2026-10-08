@@ -225,7 +225,7 @@ test("meeting screen shows the sources separately, the findings with their sourc
   assert.match(source, /if \(previewMode\) \{ setPreviewFile\(file\)/);
   // Confirming findings and the owner review of the presentation are two different, separately shown steps.
   assert.match(source, /data-testid="findings-confirmation"><span>Meeting findings confirmed<\/span>/);
-  assert.match(source, /data-testid="presentation-owner-review"><span>Presentation owner review<\/span><strong>\{workflowCompleted\(workflow, "owner_review"\) \? "Completed" : "Pending · after V2"\}/);
+  assert.match(source, /data-testid="presentation-owner-review"><span>Presentation owner review<\/span><strong>\{workflowCompleted\(workflow, "owner_review"\) \? "Completed" : v2\?.state === "ready" \? "Pending · review V2" : "Pending · after V2"\}/);
   assert.match(source, /is not the owner review of the presentation/);
   assert.doesNotMatch(source, /markOwnerReviewed|workflow\/owner-reviewed|workflow\/finalize/);
   // The old PPT #2 generator is reachable only from the labelled previous flow.
@@ -237,8 +237,8 @@ test("meeting screen shows the sources separately, the findings with their sourc
     const body = source.slice(source.indexOf(`async function ${action}(`), source.indexOf(END_OF_FUNCTION, source.indexOf(`async function ${action}(`)));
     assert.ok(body.length > 0 && !/generateAndAwaitPostMeetingPresentation|prepareMeetingEvidence|ppt2/i.test(body), action);
   }
-  // V2 is announced, not generated; the earlier PPT #2 flow is kept apart from it.
-  assert.match(source, /Generating V2 is not available yet/);
+  // V2 has its own action; the earlier PPT #2 flow is kept apart from it.
+  assert.match(source, /Generate Master Presentation V2/);
   assert.match(source, /Previous document flow/);
 });
 

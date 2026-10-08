@@ -43,6 +43,7 @@ from app.services.meeting_extraction import (
     get_meeting_extraction,
     personal_notes_view,
 )
+from app.services.master_presentation_v2 import build_master_v2_status, enqueue_master_presentation_v2
 from app.services.post_meeting_review import build_post_meeting_review, confirm_meeting_review
 from app.services.ppt2_context import build_ppt2_context
 from app.services.workflow_status import (
@@ -510,6 +511,45 @@ def post_meeting_review_confirm(
         document_id=str(body.transcript_id),
     )
     return review
+
+
+@router.get("/{opportunity_id}/master-presentation/v2")
+def read_master_presentation_v2(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return build_master_v2_status(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+
+
+@router.post("/{opportunity_id}/master-presentation/v2/generate")
+def post_master_presentation_v2_generate(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    """Master Presentation V2: a new version of the opportunity's Master Presentation.
+
+    Readiness is decided here from the stored Post Meeting review, never by the caller.
+    """
+    started = enqueue_master_presentation_v2(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.MASTER_PRESENTATION_V2_GENERATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+        document_id=started["presentation_id"],
+    )
+    return started
 
 
 @router.get("/{opportunity_id}/available-use-cases")

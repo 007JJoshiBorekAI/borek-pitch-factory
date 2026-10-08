@@ -30,8 +30,21 @@ CANONICAL_LAYOUT = "CANONICAL"
 PLAN_VERSION = "master-presentation:v1"
 
 
+# Master Presentation V2 (post-meeting) is a later version of the same presentation: the same
+# canonical deck with a new appendix. Its plan and manifest are built in ``master_deck/v2.py``.
+MASTER_V2 = "master_v2"
+MASTER_DECK_KINDS = frozenset({MASTER_V1, MASTER_V2})
+MANIFEST_KIND_V2 = "master_presentation_v2"
+MASTER_MANIFEST_KINDS = frozenset({MANIFEST_KIND, MANIFEST_KIND_V2})
+
+
 def is_master_plan(plan_json: Any) -> bool:
-    return isinstance(plan_json, dict) and plan_json.get("deck_kind") == MASTER_V1
+    """A Master Presentation of either product version: canonical deck plus an appendix."""
+    return isinstance(plan_json, dict) and plan_json.get("deck_kind") in MASTER_DECK_KINDS
+
+
+def is_master_manifest(manifest: Any) -> bool:
+    return isinstance(manifest, dict) and manifest.get("kind") in MASTER_MANIFEST_KINDS
 
 
 def generation_manifest(version_row: dict[str, Any], master: MasterDeck | None = None) -> dict[str, Any]:

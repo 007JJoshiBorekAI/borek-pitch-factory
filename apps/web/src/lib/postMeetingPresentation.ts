@@ -1,5 +1,5 @@
 import { ApiRequestError, apiFetch, apiFetchBlob, resolveBackendOpportunityId, type WorkflowStatusResponse } from "./api";
-import type { DeckResponse, SlideResponse, LiveSlide, LivePreviewState } from "./presentationLive";
+import type { DeckResponse, DeckSource, SlideResponse, LiveSlide, LivePreviewState } from "./presentationLive";
 
 export type { LivePreviewState } from "./presentationLive";
 
@@ -10,6 +10,8 @@ export interface PostMeetingPresentation {
   versionNumber: number;
   slides: LiveSlide[];
   downloads: Record<"pptx" | "pdf", string | null>;
+  /** Master Presentation V2 only: master, approved Discovery and the V1 version it follows. */
+  source: DeckSource | null;
 }
 
 type Identity = Pick<PostMeetingPresentation, "presentationId" | "presentationVersionId">;
@@ -22,9 +24,11 @@ function identityMismatch(): never {
   );
 }
 
+// Pinned to one version: Master Presentation V2 shares its presentation id with V1, so the
+// unversioned "latest" routes could serve a different version than the one under review.
 function presentationPath(identity: Identity) {
-  if (!/^[a-zA-Z0-9_-]+$/.test(identity.presentationId) || !identity.presentationVersionId) identityMismatch();
-  return `/presentations/${identity.presentationId}`;
+  if (!/^[a-zA-Z0-9_-]+$/.test(identity.presentationId) || !/^[a-zA-Z0-9_-]+$/.test(identity.presentationVersionId ?? "")) identityMismatch();
+  return `/presentations/${identity.presentationId}/versions/${identity.presentationVersionId}`;
 }
 
 async function readWorkflow(token: string, opportunityId: string, signal?: AbortSignal) {
@@ -78,10 +82,11 @@ export function adaptPostMeetingPresentation(identity: Identity, deck: DeckRespo
       id: slide.id, index: slide.slide_index,
       label: typeof title === "string" && title.trim() ? title.trim() : `Slide ${slide.slide_index + 1} - ${slide.layout_id}`,
       previewPath: preview?.preview_url === expected ? expected : null,
+      appendix: Boolean(deck.source) && slide.slide_index >= deck.source!.canonical_slide_count,
     };
   });
   return {
-    ...identity, name: deck.presentation_name, versionNumber: deck.version_number, slides,
+    ...identity, name: deck.presentation_name, versionNumber: deck.version_number, slides, source: deck.source ?? null,
     downloads: {
       pptx: deck.pptx_download_url === `${prefix}/download/pptx` ? deck.pptx_download_url : null,
       pdf: deck.pdf_download_url === `${prefix}/download/pdf` ? deck.pdf_download_url : null,

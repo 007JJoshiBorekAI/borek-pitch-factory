@@ -19,6 +19,7 @@ JOURNEY_OUTPUT_DB_COLUMNS = (
     "selected_use_case_ids",
     "first_meeting_completed_at",
     "owner_reviewed_at",
+    "owner_reviewed_presentation_version_id",
     "finalized_at",
     "finalization_snapshot",
 )

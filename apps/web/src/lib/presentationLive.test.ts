@@ -9,7 +9,7 @@ import {
 const token = "presentation-test-token";
 const opportunityId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const identity = { presentationId: "deck-1", presentationVersionId: "version-1", jobId: null };
-const prefix = "/presentations/deck-1";
+const prefix = "/presentations/deck-1/versions/version-1";
 const metadata: SlideResponse[] = [5, 0, 2].map((index) => ({
   id: `slide-${index}`, presentation_version_id: "version-1", slide_index: index,
   layout_id: `LAYOUT_${index}`, slide_spec: { title: index === 5 ? "" : `Actual title ${index}` },
@@ -193,8 +193,12 @@ test("presentation/version mismatches are rejected rather than relabeled", async
   assert.throws(() => adaptLivePresentation(identity, { ...deck, presentation_id: "another-deck" }, metadata), /does not match/);
   assert.throws(() => adaptLivePresentation(identity, deck, metadata.map((slide) => ({ ...slide, presentation_version_id: "version-2" }))), /does not match/);
   assert.throws(() => adaptLivePresentation(identity, { ...deck, slides: [{ ...deck.slides[0], slide_id: "other-version-slide" }] }, metadata), /does not match/);
-  mockFetch((path) => path.endsWith("/workflow-status") ? json(workflow("version-2")) : undefined);
+  // Reads are pinned to the version the workflow names; a server answering with another version's slides is rejected.
+  const calls = mockFetch((path) => path.endsWith("/workflow-status") ? json(workflow("version-2"))
+    : path === "/presentations/deck-1/versions/version-2/deck" ? json(deck)
+    : path === "/presentations/deck-1/versions/version-2/slides" ? json(metadata) : undefined);
   const mismatched = await loadExistingFirstPitch(token, opportunityId);
+  assert.ok(calls.every((path) => !path.startsWith("/presentations/") || path.startsWith("/presentations/deck-1/versions/version-2/")), "no unversioned deck request");
   assert.equal(mismatched.deck, null);
   assert.match(mismatched.loadError!, /does not match/);
   assert.equal(mismatched.approvedSourceId, "approved-1", "retain authoritative approval so recovery stays available");

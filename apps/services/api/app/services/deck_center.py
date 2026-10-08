@@ -125,6 +125,22 @@ def list_ready_versions(
     return items
 
 
+def list_version_slides(
+    store: DataStore,
+    *,
+    presentation_id: UUID,
+    user_id: UUID,
+    presentation_version_id: UUID,
+) -> list[dict]:
+    """Slide rows of one specific version; the latest-version route keeps its own behaviour."""
+    return _version_slides(
+        store,
+        presentation_id=presentation_id,
+        user_id=user_id,
+        presentation_version_id=presentation_version_id,
+    )
+
+
 def _url_prefix(presentation_id: UUID, presentation_version_id: object | None) -> str:
     if presentation_version_id is None:
         return str(presentation_id)
@@ -165,12 +181,19 @@ def _version_slides(
 
 
 def _deck_source(version: dict[str, object], *, slide_count: int) -> dict[str, object] | None:
-    """Master and approved Discovery version of a Master Presentation; None for other decks."""
+    """Master and approved Discovery version of a Master Presentation (V1 or V2); None for other decks."""
     manifest = version.get("generation_source_manifest")
-    if not isinstance(manifest, dict) or manifest.get("kind") != "master_presentation_v1":
+    if not isinstance(manifest, dict) or manifest.get("kind") not in ("master_presentation_v1", "master_presentation_v2"):
         return None
     canonical = int(manifest.get("master_slide_count") or 0)
+    lineage = (
+        # V2 names the V1 version it follows; the product version is never derived from the revision number.
+        {"base_presentation_version_id": manifest["base_presentation_version_id"]}
+        if manifest["kind"] == "master_presentation_v2"
+        else {}
+    )
     return {
+        **lineage,
         "kind": manifest["kind"],
         "product_version": str(manifest.get("product_version") or "V1"),
         "product_stage": str(manifest.get("product_stage") or "pre_meeting"),
