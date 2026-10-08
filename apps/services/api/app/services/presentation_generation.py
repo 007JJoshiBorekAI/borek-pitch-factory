@@ -28,6 +28,7 @@ from app.services.stage_b_orchestration import plan_json_from_confirmed_framewor
 from app.services.stage_b_providers import install_runtime_stage_b_providers
 from services.framework.stage1_intake import resolve_meeting_purpose
 from services.presentation.borek_deck.deck_plan import PRE_MEETING, is_borek_plan
+from services.presentation.master_deck.plan import is_master_plan
 from services.presentation.generatable_layouts import filter_generatable_planned_slides
 
 
@@ -573,6 +574,7 @@ def enqueue_first_contact_presentation_generate(
         planning_input_from_approved_paper,
         ppt1_generation_manifest,
     )
+    from services.presentation.discovery_brief_adapter import is_opportunity_analysis
     from services.presentation.planner import PresentationPlanValidationError
 
     _require_approved_discovery_paper(
@@ -585,6 +587,15 @@ def enqueue_first_contact_presentation_generate(
         opportunity_id=opportunity_id,
         user_id=user_id,
     )
+    if is_opportunity_analysis(approved.get("paper_json")):
+        # Discovery v2 leads to the Master Presentation. It never falls back to the PPT #1 deck.
+        return _enqueue_master_presentation_v1(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            approved=approved,
+            on_enqueued=on_enqueued,
+        )
     manifest = ppt1_generation_manifest(str(approved["id"]))
     existing = job_service.reuse_active_generation_job(
         store,
@@ -636,6 +647,113 @@ def enqueue_first_contact_presentation_generate(
         },
         on_enqueued=on_enqueued,
         existing_presentation_id=_stage1_presentation_id(opportunity),
+    )
+
+
+def _master_presentation_id(store: DataStore, opportunity: dict[str, Any], opportunity_id: UUID) -> UUID | None:
+    """The one Master Presentation of this opportunity, if a generation ever created it.
+
+    The Stage 1 reference is the usual pointer; earlier generation jobs are the fallback, so a
+    retry after a failure keeps the identity instead of creating a second presentation.
+    """
+    current = _stage1_presentation_id(opportunity)
+    if current is not None:
+        return current
+    for row in _generation_jobs_for_opportunity(store, opportunity_id):
+        manifest = _job_enqueue(row).get("generation_source_manifest") or {}
+        if manifest.get("kind") == "master_presentation_v1" and row.get("presentation_id"):
+            return UUID(str(row["presentation_id"]))
+    return None
+
+
+def _enqueue_master_presentation_v1(
+    store: DataStore,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    approved: dict[str, Any],
+    on_enqueued: Callable[[dict[str, Any], job_service.Job], None] | None,
+):
+    """Master Presentation V1: the canonical Borek deck plus an appendix from the approved analysis.
+
+    Same opportunity, same master and same approved Discovery version always mean the same deck:
+    a queued or running job is reused, a ready version is returned as it is, and only a missing
+    or failed one is generated. Every generation appends a version to the one presentation.
+    """
+    from services.presentation.master_deck.appendix import AppendixPlanError
+    from services.presentation.master_deck.plan import build_master_plan, generation_manifest, same_source
+    from services.presentation.master_deck.registry import MasterDeckError
+
+    if str(approved.get("opportunity_id")) != str(opportunity_id):
+        raise bad_request(
+            "DISCOVERY_PAPER_APPROVAL_REQUIRED",
+            "The approved Discovery version does not belong to this opportunity.",
+        )
+    try:
+        manifest = generation_manifest(approved)
+    except (AppendixPlanError, MasterDeckError) as exc:
+        raise bad_request(exc.code, str(exc)) from exc
+
+    existing = job_service.reuse_active_generation_job(store, opportunity_id, stage_group="presentation")
+    if existing is not None:
+        existing_enqueue = dict((existing.result_json or {}).get("_enqueue") or {})
+        if same_source(existing_enqueue.get("generation_source_manifest"), manifest):
+            presentation, plan = _existing_presentation_payload(store, user_id=user_id, job=existing)
+            return presentation, plan, existing, True
+
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    presentation_id = _master_presentation_id(store, opportunity, opportunity_id)
+    if presentation_id is not None:
+        try:
+            latest = store.get_latest_presentation_version(presentation_id=presentation_id, user_id=user_id)
+        except HTTPException:
+            latest = None
+        if (
+            latest is not None
+            and _status_text(latest.get("status")) == "ready"
+            and same_source(latest.get("generation_source_manifest"), manifest)
+        ):
+            presentation = store.get_presentation(presentation_id=presentation_id, user_id=user_id)
+            plan = store.get_presentation_plan(
+                presentation_plan_id=presentation["presentation_plan_id"], user_id=user_id
+            )
+            if _stage1_presentation_id(opportunity) is None:
+                from app.services.journey_generation import update_stage1_presentation_state
+
+                update_stage1_presentation_state(
+                    store,
+                    opportunity_id=opportunity_id,
+                    user_id=user_id,
+                    status="ready",
+                    presentation_id=presentation_id,
+                    code=None,
+                )
+            return presentation, plan, None, True
+
+    try:
+        plan_json = build_master_plan(approved)
+    except (AppendixPlanError, MasterDeckError) as exc:
+        raise bad_request(exc.code, str(exc)) from exc
+    framework = _framework_for_plan_storage(store, opportunity_id=opportunity_id, user_id=user_id)
+    plan = store.create_presentation_plan(
+        framework_version_id=framework["id"],
+        user_id=user_id,
+        plan_json=plan_json,
+    )
+    return enqueue_presentation_generate(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        framework_version_id=framework["id"],
+        presentation_plan_id=plan["id"],
+        name=str(plan["plan_json"]["title"]),
+        journey_stage="first_contact",
+        enqueue_metadata={
+            "stage1_output_integration": True,
+            "generation_source_manifest": manifest,
+        },
+        on_enqueued=on_enqueued,
+        existing_presentation_id=presentation_id,
     )
 
 
@@ -953,6 +1071,12 @@ def _ppt1_planned_slides(
         version = store.get_latest_presentation_version(presentation_id=stage1, user_id=user_id)
     except HTTPException:
         return None
+    if isinstance(version.get("generation_source_manifest"), dict) and version[
+        "generation_source_manifest"
+    ].get("kind") == "master_presentation_v1":
+        # A Master Presentation is not a PPT #1 deck; the legacy post-meeting deck does not
+        # extend it (the Master Presentation gets its own second version later).
+        return None
     return planned_slides_from_specs(version.get("slides_json")) or None
 
 
@@ -1148,7 +1272,9 @@ def render_presentation_version(
     version: dict,
     plan: dict,
 ) -> dict:
-    if settings.RENDERER_EXECUTION_MODE != "live":
+    # A Master Presentation is assembled in-process from the canonical deck; it is always
+    # rendered for real, so no mode can make a placeholder deck look like a finished one.
+    if settings.RENDERER_EXECUTION_MODE != "live" and not is_master_plan(plan["plan_json"]):
         return version
     _assert_plan_matches_generated_specs(plan["plan_json"], version.get("slides_json"))
     if is_borek_plan(plan["plan_json"]):

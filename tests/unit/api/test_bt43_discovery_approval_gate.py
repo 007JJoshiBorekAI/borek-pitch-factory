@@ -164,8 +164,8 @@ def test_approved_discovery_allows_first_contact_and_a_newer_draft_stays_eligibl
         assert len(store.presentations) == 1
         assert len(store.generation_jobs) == 1
         assert len(store.presentation_versions) == 1
-        assert 1 <= len(store.slides) <= 8  # Borek AI Tech deck: at most 8 slides
-        assert len(next(iter(store.presentation_plans.values()))["plan_json"]["slides"]) <= 8
+        assert len(store.slides) > 26  # Master Presentation: canonical deck plus appendix
+        assert len(next(iter(store.presentation_plans.values()))["plan_json"]["slides"]) > 26
         assert store.filed_artifacts
         latest = get_latest_approved_discovery_paper(
             store,

@@ -9,9 +9,26 @@ export interface DeckResponse {
   presentation_name: string;
   version_number: number;
   status: string;
+  source?: DeckSource | null;
   slides: { slide_id: string; slide_index: number; layout_id: string; preview_url: string | null }[];
   pptx_download_url: string;
   pdf_download_url: string;
+}
+
+/** What a Master Presentation version was built from (absent for other decks). */
+export interface DeckSource {
+  kind: string;
+  /** Product stage, e.g. "V1" / "pre_meeting". Not the database version number. */
+  product_version: string;
+  product_stage: string;
+  /** Technical revision of this presentation (presentation_versions.version_number). */
+  revision: number;
+  master_id: string;
+  master_version: string;
+  canonical_slide_count: number;
+  appendix_slide_count: number;
+  approved_discovery_version_id: string;
+  discovery_schema_version: string;
 }
 
 export interface SlideResponse {
@@ -27,12 +44,15 @@ export interface LiveSlide {
   index: number;
   label: string;
   previewPath: string | null;
+  /** True for the client-specific slides that follow the canonical Borek deck. */
+  appendix?: boolean;
 }
 
 export interface LivePresentation extends FirstPitchResult {
   name: string;
   versionNumber: number;
   slides: LiveSlide[];
+  source: DeckSource | null;
 }
 
 type LiveWorkflow = WorkflowStatusResponse & {
@@ -57,6 +77,7 @@ export function adaptLivePresentation(
   checkSlides(metadata, identity);
   if (deck.status !== "ready") throw new Error("PPT #1 artifacts are not ready yet.");
   // /deck may list only the rendered pages. Do not hide unrendered /slides rows.
+  const source = deck.source ?? null;
   const indices = new Set([...deck.slides, ...metadata].map((slide) => slide.slide_index));
   if ([...indices].some((index) => !Number.isInteger(index) || index < 0)) {
     throw new Error("PPT #1 returned an invalid slide index.");
@@ -75,9 +96,10 @@ export function adaptLivePresentation(
       label,
       // Only send credentials to the expected same-API slide endpoint.
       previewPath: preview?.preview_url === expectedPath ? expectedPath : null,
+      appendix: Boolean(source) && index >= source!.canonical_slide_count,
     };
   });
-  return { ...identity, name: deck.presentation_name, versionNumber: deck.version_number, slides };
+  return { ...identity, name: deck.presentation_name, versionNumber: deck.version_number, slides, source };
 }
 
 export async function assertCurrentLivePresentation(
@@ -130,6 +152,63 @@ export async function loadExistingFirstPitch(token: string, opportunityId: strin
     loadError = livePresentationError(error);
   }
   return { deck, loadError, status: ppt1?.status ?? "missing", approvedSourceId: workflow.documents?.approved_discovery?.version_id ?? null };
+}
+
+/** One ready version as listed by GET /presentations/{id}/versions. */
+export interface PresentationVersionSummary {
+  presentation_version_id: string;
+  version_number: number;
+  status: string;
+  is_latest: boolean;
+  created_at?: string | null;
+  source?: DeckSource | null;
+  pptx_download_url: string;
+  pdf_download_url: string;
+}
+
+export interface EarlierVersion {
+  versionId: string;
+  versionNumber: number;
+  createdAt: string | null;
+  source: DeckSource | null;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function versionDownloadPath(presentationId: string, versionId: string, format: "pptx" | "pdf") {
+  return `/presentations/${presentationId}/versions/${versionId}/download/${format}`;
+}
+
+/** Ready versions before the latest one, newest first. Rows with unexpected URLs are dropped. */
+export function adaptEarlierVersions(presentationId: string, rows: PresentationVersionSummary[]): EarlierVersion[] {
+  return rows
+    .filter((row) => !row.is_latest && row.status === "ready" && UUID.test(row.presentation_version_id) &&
+      // Only send credentials to the expected same-API version endpoints.
+      row.pptx_download_url === versionDownloadPath(presentationId, row.presentation_version_id, "pptx") &&
+      row.pdf_download_url === versionDownloadPath(presentationId, row.presentation_version_id, "pdf"))
+    .map((row) => ({
+      versionId: row.presentation_version_id, versionNumber: row.version_number,
+      createdAt: row.created_at ?? null, source: row.source ?? null,
+    }))
+    .sort((a, b) => b.versionNumber - a.versionNumber);
+}
+
+export async function loadEarlierVersions(token: string, presentationId: string, signal?: AbortSignal) {
+  const rows = await apiFetch<PresentationVersionSummary[]>(
+    `/presentations/${presentationId}/versions`, token, { signal, cache: "no-store" },
+  );
+  signal?.throwIfAborted();
+  return adaptEarlierVersions(presentationId, rows);
+}
+
+/** A version is immutable, so its files need no latest-version check. */
+export async function downloadPresentationVersion(
+  token: string, presentationId: string, versionId: string, format: "pptx" | "pdf", signal?: AbortSignal,
+) {
+  if (!UUID.test(presentationId) || !UUID.test(versionId)) throw new Error("The presentation version is not valid.");
+  const blob = await apiFetchBlob(versionDownloadPath(presentationId, versionId, format), token, { signal, cache: "no-store" });
+  signal?.throwIfAborted();
+  return blob;
 }
 
 export function livePresentationError(error: unknown): string {

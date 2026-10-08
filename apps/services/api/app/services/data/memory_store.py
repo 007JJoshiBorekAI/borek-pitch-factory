@@ -1508,7 +1508,9 @@ class MemoryDataStore:
             slide_specs.append(copy.deepcopy(persisted_slide_spec))
 
         version_row["slides_json"] = slide_specs
-        if settings.RENDERER_EXECUTION_MODE == "fixture":
+        # A Master Presentation is never stood in for by the fixture deck: it becomes ready only
+        # once its real PPTX, PDF and previews exist.
+        if settings.RENDERER_EXECUTION_MODE == "fixture" and plan_json.get("deck_kind") != "master_v1":
             assets = materialize_fixture_deck_assets(
                 version_id=presentation_version_id,
                 slide_count=len(slide_specs),
@@ -1708,9 +1710,11 @@ class MemoryDataStore:
         *,
         presentation_id: UUID,
         user_id: UUID,
+        presentation_version_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
-        version = self.get_latest_presentation_version(
+        version = self._presentation_version(
             presentation_id=presentation_id,
+            presentation_version_id=presentation_version_id,
             user_id=user_id,
         )
         rows = [
@@ -1792,14 +1796,41 @@ class MemoryDataStore:
         ]
         return sorted(rows, key=_version_lineage_sort, reverse=True)
 
+    def _presentation_version(
+        self,
+        *,
+        presentation_id: UUID,
+        presentation_version_id: UUID | None,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        """The latest version, or the given one if it belongs to this presentation."""
+        if presentation_version_id is None:
+            return self.get_latest_presentation_version(
+                presentation_id=presentation_id,
+                user_id=user_id,
+            )
+        self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        version = self.get_presentation_version(
+            presentation_version_id=presentation_version_id,
+            user_id=user_id,
+        )
+        if str(version["presentation_id"]) != str(presentation_id):
+            raise not_found(
+                "PRESENTATION_VERSION_NOT_FOUND",
+                f"Presentation version {presentation_version_id} was not found",
+            )
+        return version
+
     def get_presentation_version_assets(
         self,
         *,
         presentation_id: UUID,
         user_id: UUID,
+        presentation_version_id: UUID | None = None,
     ) -> dict[str, Any]:
-        version = self.get_latest_presentation_version(
+        version = self._presentation_version(
             presentation_id=presentation_id,
+            presentation_version_id=presentation_version_id,
             user_id=user_id,
         )
         if version.get("status") != "ready":

@@ -172,8 +172,10 @@ def test_presentation_path_reads_the_brief_not_the_printed_pages(client: TestCli
     assert outputs.status_code == 200, outputs.text
     presentation = outputs.json()["outputs"]["presentation"]
     assert presentation["status"] == "ready"
+    # An approved analysis leads to the Master Presentation: the canonical deck plus an appendix.
     plan = next(iter(get_memory_store().presentation_plans.values()))["plan_json"]
-    assert 1 <= len(plan["slides"]) <= 8
+    assert plan["deck_kind"] == "master_v1"
+    assert len(plan["slides"]) == 26 + plan["appendix"]["slide_count"] > 26
 
 
 def test_presentation_gate_still_requires_an_approved_analysis(client: TestClient) -> None:

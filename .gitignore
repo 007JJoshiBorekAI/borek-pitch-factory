@@ -39,6 +39,8 @@ local_es_harness/
 *.pdf
 !samples/**/*.pdf
 !tests/fixtures/**/*.pptx
+# The canonical master deck is a trusted, checksummed asset of the Master Presentation.
+!apps/api/services/presentation/master_deck/assets/**/*.pptx
 tests/golden_deck/**/output/
 tmp/
 

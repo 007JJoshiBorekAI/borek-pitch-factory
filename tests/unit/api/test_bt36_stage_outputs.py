@@ -117,10 +117,11 @@ def test_stage1_outputs_need_no_client_document_and_persist() -> None:
     store = get_memory_store()
     assert len(store.presentations) == 1
     assert len(store.presentation_versions) == 1
-    assert 1 <= len(store.slides) <= 8  # Borek AI Tech deck: at most 8 slides
+    # Master Presentation: the 26 canonical slides plus the client appendix (no eight-slide cap).
+    assert len(store.slides) > 26
     plan = next(iter(store.presentation_plans.values()))
     assert len(plan["plan_json"]["slides"]) == len(store.slides)
-    assert len(plan["plan_json"]["slides"]) <= 8
+    assert len(plan["plan_json"]["slides"]) > 26
     version = next(iter(store.presentation_versions.values()))
     assert version["journey_stage"] == "first_contact"
     assert version["pptx_storage_path"]

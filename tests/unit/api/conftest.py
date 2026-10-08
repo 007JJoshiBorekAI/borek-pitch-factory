@@ -27,6 +27,7 @@ for key, value in _TEST_ENV.items():
 
 from app.services.data.memory_store import reset_memory_store
 from app.services.job_service import reset_job_store
+from tests.fixtures.master_render_double import install_master_render_double
 from tests.fixtures.stage_b_test_providers import install_stage_b_test_providers
 
 
@@ -35,3 +36,5 @@ def _reset_in_memory_backends(monkeypatch: pytest.MonkeyPatch) -> None:
     reset_memory_store()
     reset_job_store()
     install_stage_b_test_providers(monkeypatch)
+    # Only where LibreOffice is not installed; inside the images the real renderer is used.
+    install_master_render_double(monkeypatch)
