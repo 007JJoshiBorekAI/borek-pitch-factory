@@ -43,6 +43,7 @@ class AuditAction(StrEnum):
     PERSONAL_NOTES_UPDATE = "personal_notes.update"
     MEETING_EXTRACTION_GENERATE = "meeting_extraction.generate"
     MEETING_REVIEW_CONFIRM = "meeting_review.confirm"
+    MASTER_PRESENTATION_V2_GENERATE = "master_presentation_v2.generate"
     SELECTED_USE_CASES_UPDATE = "selected_use_cases.update"
     WORKFLOW_FIRST_MEETING_COMPLETED = "workflow.first_meeting_completed"
     WORKFLOW_OWNER_REVIEWED = "workflow.owner_reviewed"

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { usePostMeeting } from "@/components/PostMeetingShell";
 import { finalizeWorkflow, markOwnerReviewed } from "@/lib/api";
+import { postMeetingDeckLabel } from "@/lib/masterPresentationV2";
 import { loadPostMeetingWorkflow, postMeetingError, workflowCompleted } from "@/lib/postMeeting";
 import styles from "./post-meeting.module.css";
 
@@ -19,6 +20,7 @@ export function OwnerCheckpointPanel({ opportunityId, compact = false }: { oppor
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const ppt2 = workflow?.documents.ppt2;
   const version = ppt2?.latest_ready_version_id;
+  const product = postMeetingDeckLabel(ppt2?.product_version);
   const identity = version ? `${ppt2?.presentation_id}:${version}:${workflow?.documents.approved_discovery?.version_id}` : null;
   const reviewed = workflowCompleted(workflow, "owner_review");
   const finalized = workflowCompleted(workflow, "finalized") && Boolean(workflow?.finalization);
@@ -44,8 +46,9 @@ export function OwnerCheckpointPanel({ opportunityId, compact = false }: { oppor
     <span className={styles.eyebrow}>Owner checkpoint</span>{compact ? <h2>Review &amp; finalize</h2> : <h1>Review the final documents</h1>}
     {error ? <p className={styles.error} role="alert">{error}</p> : null}
     {busy ? <p role="status">Saving checkpoint...</p> : null}
-    <p>PPT #2: {version ?? "No ready version"}</p><p>Discovery: {workflow?.documents.approved_discovery?.version_id ?? "Not approved"}</p>
-    <Link href={`/opportunities/${encodeURIComponent(opportunityId)}/post-meeting-presentation`}>Open PPT #2 for review</Link>
+    <p>{product}: {version ?? "No ready version"}</p><p>Discovery: {workflow?.documents.approved_discovery?.version_id ?? "Not approved"}</p>
+    {compact ? null : <Link href={`/opportunities/${encodeURIComponent(opportunityId)}/post-meeting-presentation`}>Open {product} for review</Link>}
+    {ppt2?.product_version === "V2" ? <p><small>This is the owner review of the presentation itself. It is separate from confirming the meeting findings, and it applies to exactly this version: a newer version has to be reviewed again.</small></p> : null}
     <p><small>Owner review: {reviewed ? "Recorded" : "Required"} · Final documents: {finalized ? "Finalized" : "Not finalized"}</small></p>
     <label className={styles.check}><input type="checkbox" disabled={disabled || !version} checked={Boolean(identity && confirmation === identity)} onChange={(event) => setConfirmation(event.target.checked ? identity : null)} /><span>I reviewed these document versions and approve them for the follow-up package.</span></label>
     <div className={styles.actions}><button className="btn btn-secondary" disabled={disabled || !identity || confirmation !== identity || reviewed} onClick={() => void act(false)}>Record owner review</button><button className="btn btn-primary" disabled={disabled || !identity || confirmation !== identity || !reviewed} onClick={() => void act(true)}>Finalize documents</button></div>

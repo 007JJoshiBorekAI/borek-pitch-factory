@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { PostMeetingPhaseNav, usePostMeeting } from "@/components/PostMeetingShell";
 import { generateMeetingExtraction, listAvailableUseCases, saveSelectedUseCases, uploadTranscript, type AvailableUseCase } from "@/lib/api";
+import { isMasterJourney } from "@/lib/discoveryFirst";
+import { generateAndAwaitMasterV2, loadMasterV2Status, masterV2Error, masterV2StageText, type MasterV2Status } from "@/lib/masterPresentationV2";
 import { generateAndAwaitPostMeetingPresentation } from "@/lib/ppt2Generation";
 import {
   blockerText, confirmMeetingReview, excludedFromConfirmation, EXTRACTION_FIELDS, FINDING_SOURCE_LABEL, findingsState, isStaleReviewError,
@@ -38,6 +40,9 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
   const [conflictingNotes, setConflictingNotes] = useState<PersonalNotes | null>(null);
   const [available, setAvailable] = useState<AvailableUseCase[] | null>(null);
   const [useCaseDraft, setUseCaseDraft] = useState<string[] | null>(null);
+  const [v2, setV2] = useState<MasterV2Status | null>(null);
+  const [v2Stage, setV2Stage] = useState<string | null>(null);
+  const [v2Error, setV2Error] = useState<string | null>(null);
   const loaded = useRef(false);
   const operation = useRef<AbortController | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
@@ -79,6 +84,19 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
   const selectionChanged = review?.confirmation.status === "current" && !sameExcluded(excluded, storedExcluded);
   const confirmedCurrent = review?.confirmation.status === "current" && !selectionChanged && state === "current";
   const root = `/opportunities/${encodeURIComponent(opportunityId)}`;
+  // A pitch whose pre-meeting deck is not a Master Presentation still uses the earlier PPT #2 flow.
+  const legacyJourney = Boolean(review) && review!.master_presentation.status !== "ready" && !isMasterJourney(workflow?.documents);
+
+  // What exists of Master Presentation V2 is read from the server after every change of the review.
+  const reviewKey = review ? `${review.review_fingerprint}:${review.confirmation.status}:${review.confirmation.confirmed_at}` : "";
+  useEffect(() => {
+    if (!live || !accessToken || !reviewKey) return;
+    const controller = new AbortController();
+    void loadMasterV2Status(accessToken, opportunityId, controller.signal)
+      .then((value) => { if (!controller.signal.aborted) setV2(value); })
+      .catch((cause) => { if (!controller.signal.aborted) setV2Error(masterV2Error(cause)); });
+    return () => controller.abort();
+  }, [accessToken, live, opportunityId, reviewKey]);
 
   // Typed notes exist only in this tab until they are saved.
   useEffect(() => {
@@ -174,6 +192,27 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
       setUseCaseDraft(null);
       setSaved("Use cases saved.");
     });
+  }
+
+  async function generateV2() {
+    if (!review || !accessToken || !live || operation.current) return;
+    const controller = new AbortController();
+    operation.current = controller;
+    setBusy("Generating Master Presentation V2"); setError(null); setSaved(null); setV2Error(null); setV2Stage("QUEUED");
+    setV2((value) => value ? { ...value, state: "generating", can_generate: false } : value);
+    try {
+      setV2(await generateAndAwaitMasterV2(accessToken, opportunityId, (job) => setV2Stage(job.current_stage), controller.signal));
+      setSaved("Master Presentation V2 is ready.");
+    } catch (cause) {
+      if (controller.signal.aborted) return;
+      setV2Error(masterV2Error(cause));
+      // Show what the server holds now: a failed job, a still-running one, or changed sources.
+      try { setV2(await loadMasterV2Status(accessToken, opportunityId)); } catch { /* the error above is shown */ }
+      try { await refresh(accessToken, controller.signal); } catch { /* the review on screen stays */ }
+    } finally {
+      if (operation.current === controller) operation.current = null;
+      if (!controller.signal.aborted) { setBusy(""); setV2Stage(null); refreshWorkflow(); }
+    }
   }
 
   // Previous document flow (standalone PPT #2). Not part of the Master Presentation V2 path.
@@ -305,20 +344,32 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
             <li><span>Personal notes</span><strong>{notesDirty ? "Unsaved" : baseline.text ? "Saved" : "None"}</strong></li>
             <li><span>Meeting findings</span><strong>{{ "no-transcript": "Not analysed", "not-analysed": "Not analysed", "other-transcript": "Other transcript", "notes-unsaved": "Out of date", stale: "Out of date", current: `${review.extraction.item_count} found` }[state]}</strong></li>
             <li data-testid="findings-confirmation"><span>Meeting findings confirmed</span><strong>{confirmedCurrent ? `Yes · ${review.confirmation.confirmed_count} included` : review.confirmation.status === "none" ? "Not yet" : "Out of date"}</strong></li>
-            <li data-testid="presentation-owner-review"><span>Presentation owner review</span><strong>{workflowCompleted(workflow, "owner_review") ? "Completed" : "Pending · after V2"}</strong></li>
+            <li data-testid="presentation-owner-review"><span>Presentation owner review</span><strong>{workflowCompleted(workflow, "owner_review") ? "Completed" : v2?.state === "ready" ? "Pending · review V2" : "Pending · after V2"}</strong></li>
           </ul>
           {review.confirmation.status === "stale" ? <p><small>{review.confirmation.stale_reasons.map(staleReasonText).join(" ")}</small></p> : null}
           <button className="btn btn-primary" disabled={editingDisabled || state !== "current" || confirmedCurrent} onClick={() => void confirm()}>{busy === "Confirming findings" ? "Confirming..." : confirmedCurrent ? "Meeting information confirmed" : "Confirm meeting information"}</button>
           {confirmedCurrent ? <p><small>Confirmed {when(review.confirmation.confirmed_at)}: {review.confirmation.confirmed_count} findings included{review.confirmation.excluded_count ? `, ${review.confirmation.excluded_count} excluded` : ""}.</small></p> : <p><small>Untick any finding that is wrong or should not be used. Confirming records the remaining findings as checked by you.</small></p>}
           <p><small>Confirming the meeting findings is not the owner review of the presentation. That review is a separate, later step: it happens once Master Presentation V2 exists.</small></p>
-          {review.readiness.ready_for_v2 && confirmedCurrent ? <p className={styles.notice} data-testid="v2-ready">Everything Master Presentation V2 needs is in place. V2 will be a new version of the same presentation as V1. Generating V2 is not available yet.</p>
+          {review.readiness.ready_for_v2 && confirmedCurrent ? <div data-testid="v2-ready">
+            <p className={styles.notice}>Everything Master Presentation V2 needs is in place. V2 is a new version of the same presentation as V1: the same 26 Borek slides with a new appendix from the confirmed findings.</p>
+            {v2Error ? <p className={styles.error} role="alert" data-testid="v2-error">{v2Error}</p> : null}
+            {v2?.state === "generating" || busy === "Generating Master Presentation V2" ? <p role="status" data-testid="v2-progress">{masterV2StageText(v2Stage)}...</p> : null}
+            {v2?.state === "ready" ? <p data-testid="v2-generated"><strong>Master Presentation V2 is ready</strong> · revision {v2.latest_ready?.version_number}. <Link href={`${root}/post-meeting-presentation`}>Open Master Presentation V2</Link></p> : null}
+            {v2?.state === "outdated" ? <p data-testid="v2-outdated"><small>A Master Presentation V2 exists (revision {v2.latest_ready?.version_number}), but it was built before the latest confirmation. <Link href={`${root}/post-meeting-presentation`}>Open it</Link> or generate a new revision.</small></p> : null}
+            {v2 && v2.state !== "ready" ? <button className="btn btn-primary" data-testid="generate-v2" disabled={editingDisabled || !v2.can_generate} onClick={() => void generateV2()}>
+              {busy === "Generating Master Presentation V2" || v2.state === "generating" ? "Generating Master Presentation V2..." : v2.state === "failed" ? "Retry Master Presentation V2" : v2.state === "outdated" ? "Generate a new V2 revision" : "Generate Master Presentation V2"}
+            </button> : null}
+            {!v2 && !v2Error ? <p role="status"><small>Checking Master Presentation V2...</small></p> : null}
+          </div>
             : <div data-testid="v2-blockers"><small>Still needed before Master Presentation V2:</small><ul>{(selectionChanged ? ["MEETING_REVIEW_NOT_CONFIRMED"] : review.readiness.blockers).map((code) => <li key={code}><span>{blockerText(code)}</span></li>)}</ul></div>}
-          <details>
+          {/* Earlier pitches without a Master Presentation only. In the Master journey the next
+              presentation is V2 of the same presentation; the standalone PPT #2 is not offered. */}
+          {legacyJourney ? <details data-testid="previous-document-flow">
             <summary><small>Previous document flow</small></summary>
-            <p><small>Generates the earlier standalone PPT #2 and follow-up documents. It is separate from Master Presentation V2 and does not use your confirmation.</small></p>
+            <p><small>Generates the earlier standalone PPT #2 and follow-up documents. This pitch has no Master Presentation, so the earlier flow applies. It does not use your confirmation.</small></p>
             <button className="btn btn-secondary" disabled={editingDisabled || !transcript || notesDirty || !workflow?.documents.approved_discovery || Boolean(conflictingNotes)} onClick={() => void generateDocuments()}>Generate documents</button>
             {workflow?.documents.ppt2?.latest_ready_version_id ? <div className={styles.actions}><Link href={`${root}/post-meeting-presentation`}>View existing presentation</Link></div> : null}
-          </details>
+          </details> : null}
         </> : previewMode ? <p><small>Layout preview only. Uploading, analysing and confirming require a live session.</small></p> : null}
       </aside>
     </div>

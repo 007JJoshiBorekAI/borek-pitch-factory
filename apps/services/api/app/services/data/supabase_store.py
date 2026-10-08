@@ -292,6 +292,11 @@ class SupabaseDataStore:
     def create_generation_job(self, payload: dict[str, Any]) -> dict[str, Any]:
         body = _json_safe_value(copy.deepcopy(payload))
         response = self._request("POST", "generation_jobs", json_body=body)
+        if response.status_code == 409 and body.get("generation_lock_key"):
+            # Unique violation on generation_jobs_one_active_locked_generation: the lock is held.
+            from app.services.job_service import GenerationLockConflict
+
+            raise GenerationLockConflict(str(body["generation_lock_key"]))
         if response.status_code not in (200, 201):
             raise bad_request("JOB_CREATE_FAILED", response.text)
         return _normalize_generation_job(response.json()[0])
@@ -2312,7 +2317,7 @@ class SupabaseDataStore:
         version_row = _normalize_presentation_version(patch_response.json()[0])
         # A Master Presentation is never stood in for by the fixture deck: it becomes ready only
         # once its real PPTX, PDF and previews exist.
-        if settings.RENDERER_EXECUTION_MODE == "fixture" and plan_json.get("deck_kind") != "master_v1":
+        if settings.RENDERER_EXECUTION_MODE == "fixture" and plan_json.get("deck_kind") not in ("master_v1", "master_v2"):
             assets = materialize_fixture_deck_assets(
                 version_id=version_row["id"],
                 slide_count=len(slide_specs),

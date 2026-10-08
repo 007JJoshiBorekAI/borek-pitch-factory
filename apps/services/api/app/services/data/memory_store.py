@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -58,6 +59,9 @@ _RICH_FIXTURE_PATH = (
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+_GENERATION_LOCK_GUARD = threading.Lock()
 
 
 def _version_lineage_sort(row: dict[str, Any]) -> tuple:
@@ -274,7 +278,19 @@ class MemoryDataStore:
         row = copy.deepcopy(payload)
         row.setdefault("id", uuid.uuid4())
         row.setdefault("created_at", _now())
-        self.generation_jobs[row["id"]] = row
+        # Same rule as the database index generation_jobs_one_active_locked_generation.
+        with _GENERATION_LOCK_GUARD:
+            lock_key = row.get("generation_lock_key")
+            if lock_key and any(
+                other.get("generation_lock_key") == lock_key
+                and other.get("opportunity_id") == row.get("opportunity_id")
+                and str(getattr(other.get("status"), "value", other.get("status"))) in {"QUEUED", "RUNNING"}
+                for other in self.generation_jobs.values()
+            ):
+                from app.services.job_service import GenerationLockConflict
+
+                raise GenerationLockConflict(str(lock_key))
+            self.generation_jobs[row["id"]] = row
         return copy.deepcopy(row)
 
     def get_generation_job(self, job_id: UUID) -> dict[str, Any] | None:
@@ -1510,7 +1526,7 @@ class MemoryDataStore:
         version_row["slides_json"] = slide_specs
         # A Master Presentation is never stood in for by the fixture deck: it becomes ready only
         # once its real PPTX, PDF and previews exist.
-        if settings.RENDERER_EXECUTION_MODE == "fixture" and plan_json.get("deck_kind") != "master_v1":
+        if settings.RENDERER_EXECUTION_MODE == "fixture" and plan_json.get("deck_kind") not in ("master_v1", "master_v2"):
             assets = materialize_fixture_deck_assets(
                 version_id=presentation_version_id,
                 slide_count=len(slide_specs),

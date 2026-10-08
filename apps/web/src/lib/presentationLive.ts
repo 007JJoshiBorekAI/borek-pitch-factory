@@ -29,6 +29,8 @@ export interface DeckSource {
   appendix_slide_count: number;
   approved_discovery_version_id: string;
   discovery_schema_version: string;
+  /** Master Presentation V2 only: the V1 version of the same presentation it follows. */
+  base_presentation_version_id?: string | null;
 }
 
 export interface SlideResponse {
@@ -66,6 +68,15 @@ function identityMismatch(): never {
   );
 }
 
+/**
+ * Every read is pinned to one version. A Master Presentation holds its V1 and V2 versions under
+ * one presentation id, so "the latest version" is not necessarily the one a workspace shows.
+ */
+function versionPath(identity: Pick<FirstPitchResult, "presentationId" | "presentationVersionId">) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(identity.presentationId) || !/^[a-zA-Z0-9_-]+$/.test(identity.presentationVersionId)) identityMismatch();
+  return `/presentations/${identity.presentationId}/versions/${identity.presentationVersionId}`;
+}
+
 function checkSlides(slides: SlideResponse[], identity: FirstPitchResult) {
   if (slides.some((slide) => slide.presentation_version_id !== identity.presentationVersionId)) identityMismatch();
 }
@@ -89,7 +100,7 @@ export function adaptLivePresentation(
     const title = slide?.slide_spec.title;
     const label = typeof title === "string" && title.trim() ? title.trim()
       : `Slide ${index + 1} - ${slide?.layout_id ?? preview?.layout_id ?? "Untitled"}`;
-    const expectedPath = `/presentations/${identity.presentationId}/preview/slides/${index}.png`;
+    const expectedPath = `${versionPath(identity)}/preview/slides/${index}.png`;
     return {
       id: slide?.id ?? preview!.slide_id,
       index,
@@ -108,7 +119,7 @@ export async function assertCurrentLivePresentation(
   signal?.throwIfAborted();
   const [workflow, slides] = await Promise.all([
     getWorkflowStatus(token, opportunityId),
-    apiFetch<SlideResponse[]>(`/presentations/${identity.presentationId}/slides`, token, { signal, cache: "no-store" }),
+    apiFetch<SlideResponse[]>(`${versionPath(identity)}/slides`, token, { signal, cache: "no-store" }),
   ]);
   signal?.throwIfAborted();
   const current = workflow.documents?.ppt1;
@@ -122,8 +133,8 @@ export async function loadLivePresentation(
 ): Promise<LivePresentation> {
   signal?.throwIfAborted();
   const [deck, slides] = await Promise.all([
-    apiFetch<DeckResponse>(`/presentations/${identity.presentationId}/deck`, token, { signal, cache: "no-store" }),
-    apiFetch<SlideResponse[]>(`/presentations/${identity.presentationId}/slides`, token, { signal, cache: "no-store" }),
+    apiFetch<DeckResponse>(`${versionPath(identity)}/deck`, token, { signal, cache: "no-store" }),
+    apiFetch<SlideResponse[]>(`${versionPath(identity)}/slides`, token, { signal, cache: "no-store" }),
   ]);
   signal?.throwIfAborted();
   const result = adaptLivePresentation(identity, deck, slides);
@@ -179,10 +190,14 @@ export function versionDownloadPath(presentationId: string, versionId: string, f
   return `/presentations/${presentationId}/versions/${versionId}/download/${format}`;
 }
 
-/** Ready versions before the latest one, newest first. Rows with unexpected URLs are dropped. */
-export function adaptEarlierVersions(presentationId: string, rows: PresentationVersionSummary[]): EarlierVersion[] {
+/**
+ * The other ready versions of the presentation, newest first: every version except the one on
+ * screen (or except the latest, when no version is named). Rows with unexpected URLs are dropped.
+ */
+export function adaptEarlierVersions(presentationId: string, rows: PresentationVersionSummary[], currentVersionId?: string): EarlierVersion[] {
   return rows
-    .filter((row) => !row.is_latest && row.status === "ready" && UUID.test(row.presentation_version_id) &&
+    .filter((row) => (currentVersionId ? row.presentation_version_id !== currentVersionId : !row.is_latest) &&
+      row.status === "ready" && UUID.test(row.presentation_version_id) &&
       // Only send credentials to the expected same-API version endpoints.
       row.pptx_download_url === versionDownloadPath(presentationId, row.presentation_version_id, "pptx") &&
       row.pdf_download_url === versionDownloadPath(presentationId, row.presentation_version_id, "pdf"))
@@ -193,12 +208,18 @@ export function adaptEarlierVersions(presentationId: string, rows: PresentationV
     .sort((a, b) => b.versionNumber - a.versionNumber);
 }
 
-export async function loadEarlierVersions(token: string, presentationId: string, signal?: AbortSignal) {
+export async function loadEarlierVersions(token: string, presentationId: string, signal?: AbortSignal, currentVersionId?: string) {
   const rows = await apiFetch<PresentationVersionSummary[]>(
     `/presentations/${presentationId}/versions`, token, { signal, cache: "no-store" },
   );
   signal?.throwIfAborted();
-  return adaptEarlierVersions(presentationId, rows);
+  return adaptEarlierVersions(presentationId, rows, currentVersionId);
+}
+
+/** "Master Presentation V2 · revision 3". The product version comes from the server, never from the number. */
+export function versionLabel(version: Pick<EarlierVersion, "versionNumber" | "source">) {
+  const product = version.source?.product_version;
+  return `${product === "V1" || product === "V2" ? `Master Presentation ${product} · ` : ""}revision ${version.versionNumber}`;
 }
 
 /** A version is immutable, so its files need no latest-version check. */
@@ -264,7 +285,7 @@ export async function downloadLivePresentation(
   token: string, opportunityId: string, deck: LivePresentation, format: "pptx" | "pdf", signal?: AbortSignal,
 ) {
   await assertCurrentLivePresentation(token, opportunityId, deck, signal);
-  const blob = await apiFetchBlob(`/presentations/${deck.presentationId}/download/${format}`, token, { signal, cache: "no-store" });
+  const blob = await apiFetchBlob(`${versionPath(deck)}/download/${format}`, token, { signal, cache: "no-store" });
   await assertCurrentLivePresentation(token, opportunityId, deck, signal);
   signal?.throwIfAborted();
   return blob;

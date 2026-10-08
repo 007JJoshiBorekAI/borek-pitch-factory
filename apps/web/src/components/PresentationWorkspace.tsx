@@ -11,7 +11,7 @@ import { canDownloadDiscoveryPdf } from "@/lib/discoveryWorkspace";
 import { generateAndAwaitFirstPitch } from "@/lib/ppt1Generation";
 import { presentationPreview } from "@/lib/presentationPreview";
 import {
-  downloadLivePresentation, downloadPresentationVersion, livePresentationError, loadEarlierVersions, loadExistingFirstPitch,
+  downloadLivePresentation, downloadPresentationVersion, livePresentationError, loadEarlierVersions, loadExistingFirstPitch, versionLabel,
   loadLivePresentation, requestLiveSlidePreview,
   type EarlierVersion, type LivePresentation, type LivePreviewState,
 } from "@/lib/presentationLive";
@@ -182,7 +182,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
     const controller = new AbortController();
     const key = `${liveDeck.presentationId}:${liveDeck.presentationVersionId}`;
     // The list is an addition to the deck: if it cannot be read, the latest deck stays usable.
-    void loadEarlierVersions(accessToken, liveDeck.presentationId, controller.signal)
+    void loadEarlierVersions(accessToken, liveDeck.presentationId, controller.signal, liveDeck.presentationVersionId)
       .then((versions) => setEarlier({ key, versions }))
       .catch(() => { if (!controller.signal.aborted) setEarlier({ key, versions: [] }); });
     return () => controller.abort();
@@ -291,7 +291,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
                   <p>{!approved ? "Approve the Discovery analysis before generating PPT #1." : "Completed slides remain available in the slide list."}</p>
                 </div>
               )}
-              <p className="discovery-preview-caption">{live ? "Live rendered previews of the latest version. Version changes detected during requests are rejected; earlier ready versions stay available for download below." : "Local content preview from approved Discovery, not a rendered presentation artifact."}</p>
+              <p className="discovery-preview-caption">{live ? "Live rendered previews of this version. Version changes detected during requests are rejected; the other ready versions of this presentation stay available for download below." : "Local content preview from approved Discovery, not a rendered presentation artifact."}</p>
               {live && liveReady && liveDeck?.source ? (
                 <p className="discovery-preview-caption" data-testid="master-presentation-summary">
                   Master Presentation {liveDeck.source.product_version} ({liveDeck.source.product_stage === "pre_meeting" ? "pre-meeting" : liveDeck.source.product_stage}) · revision {liveDeck.source.revision} · slides 1–{liveDeck.source.canonical_slide_count}: the canonical Borek deck, unchanged · slides {liveDeck.source.canonical_slide_count + 1}–{totalSlides}: client appendix from the approved Discovery analysis.
@@ -332,7 +332,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
                   <ul className="discovery-version-label" data-testid="earlier-presentation-versions">
                     {earlier.versions.map((version) => (
                       <li key={version.versionId}>
-                        Earlier version · revision {version.versionNumber}{" "}
+                        Other version · {versionLabel(version)}{" "}
                         <button className="btn btn-secondary" type="button" onClick={() => void downloadEarlier(version, "pptx")}>PPTX</button>{" "}
                         <button className="btn btn-secondary" type="button" onClick={() => void downloadEarlier(version, "pdf")}>PDF</button>
                       </li>

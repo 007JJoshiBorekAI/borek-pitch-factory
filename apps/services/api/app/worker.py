@@ -527,6 +527,16 @@ def run_presentation_generation_task(
                                 "PPT2_GENERATION_INPUT_MISSING: frozen PPT #2 "
                                 "context was not stored on this job"
                             )
+                    elif isinstance(manifest, dict) and manifest.get("kind") == "master_presentation_v2":
+                        from app.services.master_presentation_v2 import verify_job_before_generation
+
+                        # Master Presentation V2 renders the snapshot frozen at the request.
+                        verify_job_before_generation(
+                            store,
+                            enqueue=enqueue,
+                            presentation_id=UUID(presentation_id),
+                            user_id=UUID(user_id),
+                        )
                     version, plan = presentation_generation.execute_presentation_generation(
                         store,
                         presentation_id=UUID(presentation_id),

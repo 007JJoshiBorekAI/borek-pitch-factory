@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { usePostMeeting } from "@/components/PostMeetingShell";
+import { OwnerCheckpointPanel } from "@/components/OwnerCheckpointPanel";
+import { postMeetingDeckLabel } from "@/lib/masterPresentationV2";
+import { downloadPresentationVersion, loadEarlierVersions, versionLabel, type EarlierVersion } from "@/lib/presentationLive";
 import {
   downloadPostMeetingPresentation, loadExistingPostMeetingPresentation, postMeetingPresentationError,
   requestPostMeetingSlidePreview, type PostMeetingPresentation, type LivePreviewState,
@@ -40,9 +43,13 @@ function PresentationSession({ opportunityId, accessToken, live }: {
   const readyCount = slides.filter((slide) => previewStates[slide.index] === "ready").length;
   const pageNumber = selected ? String(selected.index + 1).padStart(2, "0") : "";
   const root = `/opportunities/${encodeURIComponent(opportunityId)}`;
-  const statusText = !live ? "No generated PPT #2 in layout preview" : phase === "loading" ? "Loading existing PPT #2"
-    : phase === "failed" ? "PPT #2 could not be loaded" : deck ? "PPT #2 loaded for review"
-    : serverStatus === "missing" ? "No generated PPT #2 yet" : `PPT #2 status: ${serverStatus}`;
+  // Master Presentation V2 is a version of the same presentation as V1; earlier pitches have a standalone PPT #2.
+  const master = deck?.source?.product_version === "V2" || workflow?.documents.ppt2?.product_version === "V2";
+  const product = postMeetingDeckLabel(master ? "V2" : null);
+  const [others, setOthers] = useState<{ key: string; versions: EarlierVersion[] }>({ key: "", versions: [] });
+  const statusText = !live ? `No generated ${product} in layout preview` : phase === "loading" ? `Loading ${product}`
+    : phase === "failed" ? `${product} could not be loaded` : deck ? `${product} loaded for review`
+    : serverStatus === "missing" ? `No generated ${product} yet` : `${product} status: ${serverStatus}`;
 
   useEffect(() => {
     if (!live) return;
@@ -54,7 +61,7 @@ function PresentationSession({ opportunityId, accessToken, live }: {
     setError(null);
     if (!accessToken) {
       setPhase("failed");
-      setError("Sign in to load PPT #2.");
+      setError("Sign in to load the presentation.");
     } else {
       void loadExistingPostMeetingPresentation(accessToken, opportunityId, controller.signal).then((result) => {
         if (controller.signal.aborted) return;
@@ -95,6 +102,31 @@ function PresentationSession({ opportunityId, accessToken, live }: {
     };
   }, [accessToken, deck, opportunityId, phase, previewKey, selected]);
 
+  useEffect(() => {
+    if (!live || !accessToken || !deck?.source) return;
+    const controller = new AbortController();
+    // The list is an addition to the deck: if it cannot be read, the deck stays usable.
+    void loadEarlierVersions(accessToken, deck.presentationId, controller.signal, deck.presentationVersionId)
+      .then((versions) => setOthers({ key: deckKey, versions }))
+      .catch(() => { if (!controller.signal.aborted) setOthers({ key: deckKey, versions: [] }); });
+    return () => controller.abort();
+  }, [accessToken, deck, deckKey, live]);
+
+  async function downloadOther(version: EarlierVersion, format: "pptx" | "pdf") {
+    if (!accessToken || !deck) return;
+    setError(null);
+    try {
+      const blob = await downloadPresentationVersion(accessToken, deck.presentationId, version.versionId, format);
+      const url = URL.createObjectURL(blob);
+      try {
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `master-presentation-${version.source?.product_version ?? "version"}-revision-${version.versionNumber}-${opportunityId}.${format}`.toLowerCase();
+        anchor.click();
+      } finally { URL.revokeObjectURL(url); }
+    } catch (cause) { setError(postMeetingPresentationError(cause)); }
+  }
+
   function reload() {
     previewOperation.current?.cancel();
     setDeck(null);
@@ -116,7 +148,7 @@ function PresentationSession({ opportunityId, accessToken, live }: {
       try {
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = `ppt-2-${opportunityId}.${format}`;
+        anchor.download = master ? `master-presentation-v2-revision-${deck.versionNumber}-${opportunityId}.${format}` : `ppt-2-${opportunityId}.${format}`;
         anchor.click();
       } finally { URL.revokeObjectURL(url); }
     } catch (cause) {
@@ -132,20 +164,20 @@ function PresentationSession({ opportunityId, accessToken, live }: {
     <header className={styles.heading}>
       <span className={styles.eyebrow}>Post-meeting{companyName ? ` / ${companyName}` : ""}</span>
       <h1>Updating your pitch</h1>
-      <p>PPT #2 / Post-meeting presentation</p>
+      <p>{product} / Post-meeting presentation</p>
     </header>
     <nav className={styles.tabs} aria-label="Post-meeting documents">
       <Link href={`${root}/meeting`}>Meeting inputs</Link>
-      <Link href={`${root}/post-meeting-presentation`} aria-current="page">Presentation / PPT #2</Link>
+      <Link href={`${root}/post-meeting-presentation`} aria-current="page">Presentation / {product}</Link>
       <Link href={`${root}/follow-up`}>Follow-up &amp; review</Link>
     </nav>
-    <progress className="discovery-progress" max={slides.length || 1} value={readyCount} aria-label={`${readyCount} of ${slides.length} PPT #2 slide previews loaded`} />
+    <progress className="discovery-progress" max={slides.length || 1} value={readyCount} aria-label={`${readyCount} of ${slides.length} ${product} slide previews loaded`} />
     {error ? <p className={styles.error} role="alert">{error}</p> : null}
-    {!live ? <p className={styles.notice}>No generated PPT #2 is available in preview mode. Sign in to load real slide images and presentation files. Pre-meeting Discovery content is not a PPT #2 preview.</p> : null}
+    {!live ? <p className={styles.notice}>No generated post-meeting presentation is available in preview mode. Sign in to load real slide images and presentation files. Pre-meeting Discovery content is not a preview of it.</p> : null}
     <div className="workflow-artifact-grid">
-      <aside className="workflow-page-list" aria-label="PPT #2 slides">
-        <div className="discovery-list-heading"><span>Slides</span><span>View only</span></div>
-        {!slides.length ? <p className="discovery-preview-caption">{phase === "loading" ? "Loading slide list..." : "No PPT #2 slides loaded."}</p> : null}
+      <aside className="workflow-page-list" aria-label={`${product} slides`}>
+        <div className="discovery-list-heading"><span>Slides</span><span>{deck?.source ? `${deck.source.canonical_slide_count} + ${deck.source.appendix_slide_count} appendix` : "View only"}</span></div>
+        {!slides.length ? <p className="discovery-preview-caption">{phase === "loading" ? "Loading slide list..." : "No slides loaded."}</p> : null}
         <ol>{slides.map((slide, index) => {
           const state = previewStates[slide.index] ?? (slide.previewPath ? "waiting" : "failed");
           return <li key={slide.id} className={selected?.id === slide.id ? "is-selected" : undefined}>
@@ -158,12 +190,12 @@ function PresentationSession({ opportunityId, accessToken, live }: {
           </li>;
         })}</ol>
       </aside>
-      <article className="workflow-preview-panel" aria-label="Selected PPT #2 slide">
-        <div className="discovery-page-toolbar"><p className="workflow-panel-label">{selected ? `Slide ${pageNumber} / ${selected.label}` : "No slides"}</p><span className="presentation-view-only">PPT #2 / View only</span></div>
+      <article className="workflow-preview-panel" aria-label={`Selected ${product} slide`}>
+        <div className="discovery-page-toolbar"><p className="workflow-panel-label">{selected ? `Slide ${pageNumber} / ${selected.label}` : "No slides"}</p><span className="presentation-view-only">{product} / View only</span></div>
         <div className="discovery-preview-content">
           <div className="presentation-slide-canvas presentation-slide-state">
             {deck && selected ? previewState.state === "ready" ? (
-              <img key={previewKey} src={previewState.url} alt={`PPT #2 slide ${pageNumber}: ${selected.label}`} className="presentation-live-preview"
+              <img key={previewKey} src={previewState.url} alt={`${product} slide ${pageNumber}: ${selected.label}`} className="presentation-live-preview"
                 style={{ width: "100%", maxWidth: "100%", height: "auto", objectFit: "contain" }}
                 onLoad={() => setPreviewStates((states) => ({ ...states, [selected.index]: "ready" }))}
                 onError={() => {
@@ -177,26 +209,37 @@ function PresentationSession({ opportunityId, accessToken, live }: {
               {previewState.state === "failed" ? <button className="btn btn-secondary" type="button" disabled={Boolean(downloading)} onClick={() => selected.previewPath ? setPreviewAttempt((value) => value + 1) : reload()}>Retry preview</button> : null}
             </> : <>
               <strong>{deck ? "No slides returned" : statusText}</strong>
-              <p>Review meeting inputs to generate PPT #2, then reload here. Only backend-rendered PPT #2 images appear in this workspace.</p>
+              <p>Confirm the meeting findings and generate Master Presentation V2 on the Meeting inputs page, then reload here. Only backend-rendered slide images appear in this workspace.</p>
             </>}
           </div>
-          <p className="discovery-preview-caption">The API serves only the latest deck, previews and downloads; it cannot atomically pin historical versions. Changes detected before or after a request are rejected. PPT #1 remains a separate pre-meeting artifact.</p>
+          <p className="discovery-preview-caption">{master ? "Previews and downloads are those of this exact version. Master Presentation V1 stays available as an earlier version of the same presentation." : "Previews and downloads are those of this exact version. Changes detected before or after a request are rejected. PPT #1 remains a separate pre-meeting artifact."}</p>
+          {deck?.source ? <p className="discovery-preview-caption" data-testid="master-presentation-v2-summary">
+            Master Presentation {deck.source.product_version} ({deck.source.product_stage === "post_meeting" ? "post-meeting" : deck.source.product_stage}) · revision {deck.source.revision} · slides 1–{deck.source.canonical_slide_count}: the canonical Borek deck, unchanged · slides {deck.source.canonical_slide_count + 1}–{slides.length}: appendix from the confirmed findings of the first meeting.
+          </p> : null}
           <div className="discovery-generation-card">
             <div role="status" aria-live="polite" aria-atomic="true"><strong>{statusText}</strong><p>{readyCount} of {slides.length} slide previews loaded</p></div>
             <button className="btn btn-secondary" type="button" disabled={!live || !accessToken || phase === "loading" || Boolean(downloading)} onClick={reload}>Reload deck</button>
           </div>
           <footer className="discovery-download-card">
-            <strong>{deck ? "Generated PPT #2 loaded; previews load individually." : "Downloads require a generated PPT #2."}</strong>
+            <strong>{deck ? `${product} loaded; previews load individually.` : `Downloads require a generated ${product}.`}</strong>
             <p>Download real editable PPTX or PDF files when advertised by the backend. Missing previews do not imply missing downloads.</p>
             <div className="discovery-version-actions">
               <button className="btn btn-secondary" type="button" disabled={!deck?.downloads.pptx || phase !== "ready" || Boolean(downloading)} onClick={() => void download("pptx")}>{downloading === "pptx" ? "Downloading PPTX..." : "Download PPTX"}</button>
               <button className="btn btn-secondary" type="button" disabled={!deck?.downloads.pdf || phase !== "ready" || Boolean(downloading)} onClick={() => void download("pdf")}>{downloading === "pdf" ? "Downloading PDF..." : "Download PDF"}</button>
             </div>
-            <small className="discovery-version-label">PPT #2 version: {deck?.presentationVersionId ?? "Not loaded"}{deck ? ` / Revision ${deck.versionNumber}` : ""}. Source lineage is not exposed by the deck API.</small>
+            <small className="discovery-version-label">{product} version: {deck?.presentationVersionId ?? "Not loaded"}{deck ? ` / Revision ${deck.versionNumber}` : ""}. {deck?.source ? `Source: approved Discovery ${deck.source.approved_discovery_version_id} · follows V1 version ${deck.source.base_presentation_version_id ?? "unknown"}.` : "Source lineage is not exposed by the deck API."}</small>
+            {live && deck?.source && others.key === deckKey && others.versions.length ? <ul className="discovery-version-label" data-testid="other-presentation-versions">
+              {others.versions.map((version) => <li key={version.versionId}>
+                Other version · {versionLabel(version)}{" "}
+                <button className="btn btn-secondary" type="button" onClick={() => void downloadOther(version, "pptx")}>PPTX</button>{" "}
+                <button className="btn btn-secondary" type="button" onClick={() => void downloadOther(version, "pdf")}>PDF</button>
+              </li>)}
+            </ul> : null}
             {live && workflow?.documents.approved_discovery ? <small className="discovery-version-label">Latest approved Discovery: {workflow.documents.approved_discovery.version_id} (not confirmation of this deck&apos;s source).</small> : null}
           </footer>
         </div>
       </article>
     </div>
+    {live && master && deck ? <OwnerCheckpointPanel opportunityId={opportunityId} compact /> : null}
   </section>;
 }

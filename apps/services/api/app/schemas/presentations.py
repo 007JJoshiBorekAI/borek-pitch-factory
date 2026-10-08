@@ -94,6 +94,8 @@ class DeckSourceResponse(BaseModel):
     appendix_slide_count: int
     approved_discovery_version_id: UUID
     discovery_schema_version: str
+    # Master Presentation V2 only: the V1 version of the same presentation it follows.
+    base_presentation_version_id: UUID | None = None
 
 
 class PresentationVersionSummaryResponse(BaseModel):

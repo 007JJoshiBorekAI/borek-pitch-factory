@@ -73,6 +73,7 @@ export const APP_COPY = {
         first_meeting_completed: "First Meeting Completed", transcript_added: "Transcript Added",
         ppt_2_generated: "PPT #2 Generated", owner_review: "Owner Review", finalized: "Finalized",
       },
+      masterStatuses: { ppt_1_ready: "Master Presentation V1 Ready", ppt_2_generated: "Master Presentation V2 Ready" },
     },
   },
   de: {
@@ -143,6 +144,7 @@ export const APP_COPY = {
         first_meeting_completed: "Erstes Meeting abgeschlossen", transcript_added: "Transkript hinzugefügt",
         ppt_2_generated: "PPT #2 erstellt", owner_review: "Prüfung durch Owner", finalized: "Finalisiert",
       },
+      masterStatuses: { ppt_1_ready: "Master Presentation V1 bereit", ppt_2_generated: "Master Presentation V2 bereit" },
     },
   },
 } as const;

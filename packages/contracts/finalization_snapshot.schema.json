@@ -29,7 +29,8 @@
       "description": "Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.",
       "anyOf": [
         { "type": "null" },
-        { "$ref": "#/$defs/Ppt2GenerationSourceManifest" }
+        { "$ref": "#/$defs/Ppt2GenerationSourceManifest" },
+        { "$ref": "#/$defs/MasterPresentationV2SourceManifest" }
       ]
     }
   },
@@ -81,6 +82,38 @@
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         }
+      }
+    },
+    "MasterPresentationV2SourceManifest": {
+      "type": "object",
+      "description": "Generation manifest of a Master Presentation V2 version: the same presentation as V1, the canonical master and the frozen post-meeting sources. Identities, revisions and checksums only.",
+      "required": [
+        "schema_version",
+        "kind",
+        "product_version",
+        "master_id",
+        "master_sha256",
+        "presentation_id",
+        "base_presentation_version_id",
+        "approved_discovery_version_id",
+        "transcript_id",
+        "transcript_revision",
+        "source_hash",
+        "snapshot_hash"
+      ],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "kind": { "const": "master_presentation_v2" },
+        "product_version": { "const": "V2" },
+        "master_id": { "type": "string", "minLength": 1 },
+        "master_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "presentation_id": { "type": "string", "format": "uuid" },
+        "base_presentation_version_id": { "type": "string", "format": "uuid" },
+        "approved_discovery_version_id": { "type": "string", "format": "uuid" },
+        "transcript_id": { "type": "string", "format": "uuid" },
+        "transcript_revision": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "source_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "snapshot_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       }
     }
   }

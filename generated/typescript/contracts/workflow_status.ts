@@ -19,6 +19,10 @@ export type DeckLineage = {
   latest_ready_version_id: string | null;
   journey_stage: "first_contact" | "post_meeting";
   status: string;
+  /**
+   * Set for a Master Presentation: V1 (pre-meeting) or V2 (post-meeting). Both are versions of one presentation, so ppt1 and ppt2 then carry the same presentation_id. Absent for the earlier PPT #1 / PPT #2 decks.
+   */
+  product_version?: "V1" | "V2";
 } | null;
 
 /**
@@ -79,7 +83,7 @@ export interface FinalizationSnapshot {
   /**
    * Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.
    */
-  ppt2_generation_source_manifest: null | Ppt2GenerationSourceManifest;
+  ppt2_generation_source_manifest: null | Ppt2GenerationSourceManifest | MasterPresentationV2SourceManifest;
 }
 export interface Ppt2GenerationSourceManifest {
   schema_version: "1.0";
@@ -90,4 +94,22 @@ export interface Ppt2GenerationSourceManifest {
   extraction_notes_revision: string | null;
   current_personal_notes_updated_at: string | null;
   selected_use_case_ids: string[];
+}
+/**
+ * Generation manifest of a Master Presentation V2 version: the same presentation as V1, the canonical master and the frozen post-meeting sources. Identities, revisions and checksums only.
+ */
+export interface MasterPresentationV2SourceManifest {
+  schema_version: "1.0";
+  kind: "master_presentation_v2";
+  product_version: "V2";
+  master_id: string;
+  master_sha256: string;
+  presentation_id: string;
+  base_presentation_version_id: string;
+  approved_discovery_version_id: string;
+  transcript_id: string;
+  transcript_revision: string;
+  source_hash: string;
+  snapshot_hash: string;
+  [k: string]: unknown;
 }

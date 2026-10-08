@@ -1,6 +1,6 @@
 import { ApiRequestError, apiFetch } from "./api";
 import { BACKEND_UUID } from "./backendOpportunityMap";
-import { WORKFLOW_STATUS_CATALOG } from "./discoveryFirst";
+import { WORKFLOW_STATUS_CATALOG, isMasterJourney } from "./discoveryFirst";
 import { emptyLiveDiscovery } from "./liveDiscovery";
 import type { PreviewOpportunity } from "./previewJourney";
 
@@ -18,7 +18,10 @@ export async function loadLiveOpportunity(token: string, routeId: string, backen
   const intake = row.stage1_intake && typeof row.stage1_intake === "object" && !Array.isArray(row.stage1_intake)
     ? row.stage1_intake as Record<string, unknown> : {};
   const text = (value: unknown) => typeof value === "string" ? value : "";
-  const workflow = await apiFetch<{ current_status: string; steps?: Array<{ key: string; state: string }> }>(`/opportunities/${backendId}/workflow-status`, token, { signal });
+  const workflow = await apiFetch<{
+    current_status: string; steps?: Array<{ key: string; state: string }>;
+    documents?: { ppt1?: { product_version?: string } | null; ppt2?: { product_version?: string } | null };
+  }>(`/opportunities/${backendId}/workflow-status`, token, { signal });
   const uiStatus = (key: string) => key === "ppt1_ready" ? "ppt_1_ready" : key === "ppt2_generated" ? "ppt_2_generated" : key;
   const current = WORKFLOW_STATUS_CATALOG.find((status) => status.id === uiStatus(workflow.current_status));
   if (!current) throw new ApiRequestError("The API returned an unknown workflow status.", 502);
@@ -42,6 +45,7 @@ export async function loadLiveOpportunity(token: string, routeId: string, backen
       revision: 0, current_status: current.id,
       completed_statuses: WORKFLOW_STATUS_CATALOG.filter((status) => workflow.steps?.some((step) => uiStatus(step.key) === status.id && step.state === "completed")).map((status) => status.id),
       available_actions: [], blocked_reason: null,
+      master_journey: isMasterJourney(workflow.documents),
     },
   };
 }

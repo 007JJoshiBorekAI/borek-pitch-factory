@@ -20,7 +20,7 @@ export interface FinalizationSnapshot {
   /**
    * Null on historical snapshots. A new finalize copies the PPT #2 version manifest. Identities only.
    */
-  ppt2_generation_source_manifest: null | Ppt2GenerationSourceManifest;
+  ppt2_generation_source_manifest: null | Ppt2GenerationSourceManifest | MasterPresentationV2SourceManifest;
 }
 /**
  * Live source revisions observed at finalization. Absence is null. This object does not copy notes, extraction bodies, or use-case statements.
@@ -41,4 +41,22 @@ export interface Ppt2GenerationSourceManifest {
   extraction_notes_revision: string | null;
   current_personal_notes_updated_at: string | null;
   selected_use_case_ids: string[];
+}
+/**
+ * Generation manifest of a Master Presentation V2 version: the same presentation as V1, the canonical master and the frozen post-meeting sources. Identities, revisions and checksums only.
+ */
+export interface MasterPresentationV2SourceManifest {
+  schema_version: "1.0";
+  kind: "master_presentation_v2";
+  product_version: "V2";
+  master_id: string;
+  master_sha256: string;
+  presentation_id: string;
+  base_presentation_version_id: string;
+  approved_discovery_version_id: string;
+  transcript_id: string;
+  transcript_revision: string;
+  source_hash: string;
+  snapshot_hash: string;
+  [k: string]: unknown;
 }
