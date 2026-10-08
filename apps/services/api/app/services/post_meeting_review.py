@@ -98,6 +98,7 @@ def build_post_meeting_review(store: Any, *, opportunity_id: UUID, user_id: UUID
         "readiness": {"ready_for_v2": not blockers, "blockers": blockers},
         "v2_sources": None,
     }
+    view["review_fingerprint"] = _review_fingerprint(view)
     if not blockers:
         view["v2_sources"] = _v2_sources(view)
     return _validate(view, "PostMeetingReview")
@@ -110,9 +111,16 @@ def confirm_meeting_review(
     user_id: UUID,
     transcript_id: UUID,
     extraction_generated_at: str,
+    review_fingerprint: str,
     excluded: dict[str, list[str]],
 ) -> dict[str, Any]:
-    """Store the owner's confirmation for exactly the extraction they reviewed."""
+    """Store the owner's confirmation for exactly the sources they reviewed.
+
+    ``review_fingerprint`` is the one the owner's review was loaded with. It covers every
+    source of the review, so a change to the approved Discovery, the selected use cases, the
+    transcript, the notes or the extraction between loading and confirming is refused: nothing
+    the owner has not seen is ever confirmed.
+    """
     view = build_post_meeting_review(store, opportunity_id=opportunity_id, user_id=user_id)
     if view["finalized"]:
         raise conflict("WORKFLOW_FINALIZED", "This package is finalized. The meeting review is read-only.")
@@ -123,11 +131,12 @@ def confirm_meeting_review(
         extraction["status"] != "current"
         or extraction["transcript_id"] != str(transcript_id)
         or _iso(extraction["generated_at"]) != _iso(extraction_generated_at)
+        or review_fingerprint != view["review_fingerprint"]
     ):
         raise conflict(
             "MEETING_REVIEW_STALE",
-            "The transcript, the notes or the analysis changed after this review was opened. "
-            "Reload the review and analyse the meeting again before confirming.",
+            "A source of this review changed after it was opened: the transcript, the notes, the analysis, "
+            "the approved Discovery or the selected use cases. Reload the review and check it again before confirming.",
         )
     unknown_categories = sorted(set(excluded) - set(CATEGORIES))
     if unknown_categories:
@@ -374,6 +383,35 @@ def _blockers(
     elif confirmation["status"] == "stale":
         blockers.append("MEETING_REVIEW_STALE")
     return blockers
+
+
+def _review_fingerprint(view: dict[str, Any]) -> str:
+    """Identity of everything the owner sees in the review; changes when any source changes.
+
+    Covers the approved Discovery version, the Master Presentation version, every transcript
+    revision, the current notes revision, the selected use cases, and the extraction with its
+    findings and freshness. The stored confirmation and the time of reading are not part of it.
+    """
+    extraction = view["extraction"]
+    reviewed = {
+        "approved_discovery_version_id": view["approved_discovery"]["version_id"],
+        "master_presentation_version_id": view["master_presentation"]["version_id"],
+        "transcripts": [[item["id"], item["revision"]] for item in view["transcripts"]],
+        "personal_notes_updated_at": view["personal_notes"]["updated_at"],
+        "selected_use_case_ids": list(view["selected_use_cases"]["use_case_ids"]),
+        "selected_use_case_status": [item["status"] for item in view["selected_use_cases"]["use_cases"]],
+        "extraction": {
+            "status": extraction["status"],
+            "stale_reasons": extraction["stale_reasons"],
+            "transcript_id": extraction["transcript_id"],
+            "transcript_revision": extraction["transcript_revision"],
+            "generated_at": extraction["generated_at"],
+            "personal_notes_updated_at": extraction["personal_notes_updated_at"],
+            "categories": extraction["categories"],
+        },
+    }
+    canonical = json.dumps(reviewed, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _v2_sources(view: dict[str, Any]) -> dict[str, Any]:

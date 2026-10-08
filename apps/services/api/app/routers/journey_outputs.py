@@ -85,6 +85,8 @@ class MeetingReviewConfirmRequest(BaseModel):
 
     transcript_id: UUID
     extraction_generated_at: str
+    # The fingerprint the review was loaded with; anything that changed since is refused (409).
+    review_fingerprint: str = Field(pattern="^[0-9a-f]{64}$")
     excluded: dict[str, list[str]] = {}
 
 
@@ -496,6 +498,7 @@ def post_meeting_review_confirm(
         user_id=user.id,
         transcript_id=body.transcript_id,
         extraction_generated_at=body.extraction_generated_at,
+        review_fingerprint=body.review_fingerprint,
         excluded=body.excluded,
     )
     record_audit_event(

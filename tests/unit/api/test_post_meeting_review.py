@@ -96,6 +96,7 @@ def confirm(client: TestClient, opportunity_id: str, view: dict, excluded: dict 
         json={
             "transcript_id": view["extraction"]["transcript_id"],
             "extraction_generated_at": view["extraction"]["generated_at"],
+            "review_fingerprint": view["review_fingerprint"],
             "excluded": excluded or {},
         },
     )
@@ -314,7 +315,7 @@ def test_confirmation_is_explicit_per_item_and_bound_to_the_reviewed_sources(cli
     nothing = client.post(
         f"/opportunities/{opportunity_id}/post-meeting-review/confirm",
         headers=headers(),
-        json={"transcript_id": transcript_id, "extraction_generated_at": "2026-01-01T00:00:00Z"},
+        json={"transcript_id": transcript_id, "extraction_generated_at": "2026-01-01T00:00:00Z", "review_fingerprint": "0" * 64},
     )
     assert nothing.status_code == 400 and "MEETING_EXTRACTION_MISSING" in nothing.text
 
@@ -322,12 +323,20 @@ def test_confirmation_is_explicit_per_item_and_bound_to_the_reviewed_sources(cli
     view = review(client, opportunity_id)
     assert view["confirmation"]["status"] == "none", "an extraction alone confirms nothing"
 
+    reviewed = {
+        "transcript_id": transcript_id,
+        "extraction_generated_at": view["extraction"]["generated_at"],
+        "review_fingerprint": view["review_fingerprint"],
+    }
     for body, status, code in (
-        ({"transcript_id": str(uuid4()), "extraction_generated_at": view["extraction"]["generated_at"]}, 409, "MEETING_REVIEW_STALE"),
-        ({"transcript_id": transcript_id, "extraction_generated_at": "2026-01-01T00:00:00Z"}, 409, "MEETING_REVIEW_STALE"),
-        ({"transcript_id": transcript_id, "extraction_generated_at": view["extraction"]["generated_at"], "excluded": {"budget": ["x"]}}, 400, "MEETING_REVIEW_INVALID"),
-        ({"transcript_id": transcript_id, "extraction_generated_at": view["extraction"]["generated_at"], "excluded": {"decisions": ["Never said."]}}, 400, "MEETING_REVIEW_INVALID"),
-        ({"transcript_id": transcript_id, "extraction_generated_at": view["extraction"]["generated_at"], "items": {}}, 422, "VALIDATION_ERROR"),
+        ({**reviewed, "transcript_id": str(uuid4())}, 409, "MEETING_REVIEW_STALE"),
+        ({**reviewed, "extraction_generated_at": "2026-01-01T00:00:00Z"}, 409, "MEETING_REVIEW_STALE"),
+        ({**reviewed, "review_fingerprint": "0" * 64}, 409, "MEETING_REVIEW_STALE"),
+        ({**reviewed, "excluded": {"budget": ["x"]}}, 400, "MEETING_REVIEW_INVALID"),
+        ({**reviewed, "excluded": {"decisions": ["Never said."]}}, 400, "MEETING_REVIEW_INVALID"),
+        ({**reviewed, "items": {}}, 422, "VALIDATION_ERROR"),
+        ({key: value for key, value in reviewed.items() if key != "review_fingerprint"}, 422, "VALIDATION_ERROR"),
+        ({**reviewed, "review_fingerprint": "not-a-fingerprint"}, 422, "VALIDATION_ERROR"),
     ):
         response = client.post(f"/opportunities/{opportunity_id}/post-meeting-review/confirm", headers=headers(), json=body)
         assert response.status_code == status and code in response.text, response.text
@@ -336,7 +345,7 @@ def test_confirmation_is_explicit_per_item_and_bound_to_the_reviewed_sources(cli
     foreign = client.post(
         f"/opportunities/{opportunity_id}/post-meeting-review/confirm",
         headers=headers(OTHER),
-        json={"transcript_id": transcript_id, "extraction_generated_at": view["extraction"]["generated_at"]},
+        json=reviewed,
     )
     assert foreign.status_code in (403, 404)
 
@@ -465,6 +474,98 @@ def test_selected_use_cases_are_a_separate_source_and_changing_them_needs_a_new_
     assert fact_id not in json.dumps(view["extraction"]), "use cases are not mixed into the meeting findings"
     renewed = ok(confirm(client, opportunity_id, view))
     assert renewed["confirmation"]["sources"]["selected_use_case_ids"] == [fact_id]
+
+
+def test_a_source_changed_between_loading_the_review_and_confirming_is_refused(client: TestClient) -> None:
+    """The owner confirms what they saw. Anything that changed after the review was loaded is a 409."""
+    opportunity_id = create(client)
+    base = master_v1_and_meeting(client, opportunity_id)
+    transcript_id = upload(client, opportunity_id)
+    save_notes(client, opportunity_id, NOTES)
+    analyse(client, opportunity_id, transcript_id)
+    fact_id = ok(client.get(f"/opportunities/{opportunity_id}/available-use-cases", headers=headers()))["use_cases"][0]["fact_id"]
+    store = get_memory_store()
+
+    def refused_then_accepted(change, expected_difference: str) -> dict:
+        loaded = review(client, opportunity_id)
+        assert loaded["extraction"]["status"] == "current", loaded["extraction"]
+        before = copy.deepcopy(store.opportunities[UUID(opportunity_id)].get("meeting_review"))
+        change()
+        refused = confirm(client, opportunity_id, loaded)
+        assert refused.status_code == 409 and "MEETING_REVIEW_STALE" in refused.text, refused.text
+        assert store.opportunities[UUID(opportunity_id)].get("meeting_review") == before, "a refused confirmation stores nothing"
+        refreshed = review(client, opportunity_id)
+        assert refreshed["review_fingerprint"] != loaded["review_fingerprint"], expected_difference
+        return refreshed
+
+    # 1. The selected Borek use cases change: the analysis is untouched, the request would have matched before.
+    refreshed = refused_then_accepted(
+        lambda: ok(client.put(f"/opportunities/{opportunity_id}/selected-use-cases", headers=headers(), json={"use_case_ids": [fact_id]})),
+        "use cases",
+    )
+    assert refreshed["extraction"]["generated_at"] == review(client, opportunity_id)["extraction"]["generated_at"]
+    confirmed = ok(confirm(client, opportunity_id, refreshed))
+    assert confirmed["confirmation"]["sources"]["selected_use_case_ids"] == [fact_id]
+    assert confirmed["readiness"]["ready_for_v2"]
+
+    # 2. A different Discovery version is approved.
+    def approve_new_discovery() -> None:
+        edited = client.patch(
+            f"/opportunities/{opportunity_id}/discovery-paper",
+            headers=headers(),
+            json={"edits": [{"target": "thesis", "value": {"text": "Working hypothesis: approved while the review was open"}}]},
+        )
+        assert edited.status_code == 200, edited.text
+        ok(client.post(f"/opportunities/{opportunity_id}/discovery-paper/approve", headers=headers()))
+
+    refreshed = refused_then_accepted(approve_new_discovery, "approved Discovery")
+    assert refreshed["approved_discovery"]["version_id"] != base["approved"]["id"]
+    assert refreshed["confirmation"]["stale_reasons"] == ["APPROVED_DISCOVERY_CHANGED"], "the earlier confirmation is shown as stale"
+    confirmed = ok(confirm(client, opportunity_id, refreshed))
+    assert confirmed["confirmation"]["sources"]["approved_discovery_version_id"] == refreshed["approved_discovery"]["version_id"]
+
+    # 3. The notes change (the analysis becomes stale as well; the guard does not depend on that).
+    refreshed = refused_then_accepted(lambda: save_notes(client, opportunity_id, NOTES + "\nDecision: Owner sponsors the pilot."), "notes")
+    assert refreshed["extraction"]["stale_reasons"] == ["NOTES_CHANGED"]
+    assert confirm(client, opportunity_id, refreshed).status_code == 409, "a stale analysis still cannot be confirmed"
+    analyse(client, opportunity_id, transcript_id)
+    ok(confirm(client, opportunity_id, review(client, opportunity_id)))
+
+    # 4. The meeting is analysed again: same transcript, same notes, new extraction.
+    refreshed = refused_then_accepted(lambda: analyse(client, opportunity_id, transcript_id), "extraction")
+    ok(confirm(client, opportunity_id, refreshed))
+
+    # 5. The transcript content changes.
+    def change_transcript() -> None:
+        store.transcripts[UUID(transcript_id)]["sections"][0]["content"] = "Requirement: Quotes must go out within two days."
+
+    refreshed = refused_then_accepted(change_transcript, "transcript")
+    assert refreshed["extraction"]["stale_reasons"] == ["TRANSCRIPT_CHANGED"]
+    analyse(client, opportunity_id, transcript_id)
+    ok(confirm(client, opportunity_id, review(client, opportunity_id)))
+
+    # 6. Another transcript is uploaded while the review is open: the owner has not seen it.
+    refreshed = refused_then_accepted(lambda: upload(client, opportunity_id, "Dana: Requirement: A later call.\n", name="second.txt"), "transcripts")
+    final = ok(confirm(client, opportunity_id, refreshed))
+    assert final["readiness"]["ready_for_v2"] and final["v2_sources"]["presentation_id"] == base["presentation_id"]
+
+
+def test_the_fingerprint_is_stable_for_unchanged_sources_and_independent_of_the_confirmation(client: TestClient) -> None:
+    opportunity_id = create(client)
+    transcript_id = upload(client, opportunity_id)
+    analyse(client, opportunity_id, transcript_id)
+    first = review(client, opportunity_id)
+    assert len(first["review_fingerprint"]) == 64
+    assert review(client, opportunity_id)["review_fingerprint"] == first["review_fingerprint"], "reading twice gives the same value"
+    confirmed = ok(confirm(client, opportunity_id, first, {"follow_ups": ["Send the pricing export by Friday."]}))
+    assert confirmed["review_fingerprint"] == first["review_fingerprint"], "confirming changes no source"
+    # So a changed selection can be confirmed again without reloading, and a repeated request is harmless.
+    again = ok(confirm(client, opportunity_id, confirmed))
+    assert (again["confirmation"]["status"], again["confirmation"]["excluded_count"]) == ("current", 0)
+    # Owner review and finalization are untouched by any of this.
+    workflow = ok(client.get(f"/opportunities/{opportunity_id}/workflow-status", headers=headers()))
+    states = {step["key"]: step["state"] for step in workflow["steps"]}
+    assert states["owner_review"] == "pending" and states["finalized"] == "pending" and workflow["finalization"] is None
 
 
 def test_post_meeting_review_does_not_change_existing_contracts(client: TestClient) -> None:

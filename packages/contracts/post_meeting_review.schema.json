@@ -9,6 +9,7 @@
     "schema_version",
     "opportunity_id",
     "assembled_at",
+    "review_fingerprint",
     "execution_mode",
     "first_meeting_completed",
     "finalized",
@@ -33,6 +34,11 @@
     "assembled_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "review_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Identity of every source shown in this review. A confirmation must send it back; it is refused when any source changed in the meantime."
     },
     "execution_mode": {
       "enum": [

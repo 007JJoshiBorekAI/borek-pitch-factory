@@ -474,6 +474,11 @@ class PostMeetingReview(BaseModel):
     schema_version: Literal['1.0']
     opportunity_id: UUID
     assembled_at: AwareDatetime
+    review_fingerprint: str = Field(
+        ...,
+        description='Identity of every source shown in this review. A confirmation must send it back; it is refused when any source changed in the meantime.',
+        pattern='^[0-9a-f]{64}$',
+    )
     execution_mode: ExecutionMode = Field(
         ..., description='How this API would run an extraction now.'
     )

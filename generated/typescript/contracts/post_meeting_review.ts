@@ -13,6 +13,10 @@ export interface PostMeetingReview {
   opportunity_id: string;
   assembled_at: string;
   /**
+   * Identity of every source shown in this review. A confirmation must send it back; it is refused when any source changed in the meantime.
+   */
+  review_fingerprint: string;
+  /**
    * How this API would run an extraction now.
    */
   execution_mode: "fixture" | "live";

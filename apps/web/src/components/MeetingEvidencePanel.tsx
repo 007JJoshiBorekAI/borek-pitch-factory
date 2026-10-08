@@ -8,7 +8,7 @@ import { PostMeetingPhaseNav, usePostMeeting } from "@/components/PostMeetingShe
 import { generateMeetingExtraction, listAvailableUseCases, saveSelectedUseCases, uploadTranscript, type AvailableUseCase } from "@/lib/api";
 import { generateAndAwaitPostMeetingPresentation } from "@/lib/ppt2Generation";
 import {
-  blockerText, confirmMeetingReview, excludedFromConfirmation, EXTRACTION_FIELDS, FINDING_SOURCE_LABEL, findingsState,
+  blockerText, confirmMeetingReview, excludedFromConfirmation, EXTRACTION_FIELDS, FINDING_SOURCE_LABEL, findingsState, isStaleReviewError,
   loadPostMeetingReview, MeetingNotesConflict, postMeetingError, prepareMeetingEvidence, reviewHeadline,
   savePersonalNotesChecked, staleReasonText, validateTranscript, workflowCompleted,
   type ExtractionCategory, type PersonalNotes, type PostMeetingReview,
@@ -147,7 +147,14 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
   async function confirm() {
     if (!review || state !== "current") return;
     await run("Confirming findings", async (token, signal) => {
-      apply(await confirmMeetingReview(token, opportunityId, review, excluded, signal));
+      try {
+        apply(await confirmMeetingReview(token, opportunityId, review, excluded, signal));
+      } catch (cause) {
+        if (!isStaleReviewError(cause)) throw cause;
+        // Nothing was confirmed. Show the sources as they are now, so the owner reviews them first.
+        await refresh(token, signal);
+        throw new Error("A source changed while you were reviewing, so nothing was confirmed. The review below is now up to date: check it and confirm again.");
+      }
       setSaved("Meeting information confirmed.");
     });
   }

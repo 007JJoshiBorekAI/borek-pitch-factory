@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import {
-  blockerText, confirmMeetingReview, excludedFromConfirmation, extractionIsCurrent, FINDING_SOURCE_LABEL, findingsState,
+  blockerText, confirmMeetingReview, excludedFromConfirmation, extractionIsCurrent, FINDING_SOURCE_LABEL, findingsState, isStaleReviewError,
   loadMeetingInputs, loadPostMeetingReview, loadPostMeetingWorkflow, MeetingNotesConflict, parseMeetingExtraction,
   parsePostMeetingReview, prepareMeetingEvidence, reviewHeadline, savePersonalNotesChecked, staleReasonText,
   validateTranscript, workflowCompleted, type MeetingExtraction, type PersonalNotes, type PostMeetingReview,
@@ -243,7 +243,7 @@ test("meeting screen shows the sources separately, the findings with their sourc
 });
 
 const review = (overrides: Partial<PostMeetingReview> = {}): PostMeetingReview => ({
-  opportunity_id: opportunityId, execution_mode: "fixture", first_meeting_completed: true, finalized: false,
+  opportunity_id: opportunityId, review_fingerprint: "a".repeat(64), execution_mode: "fixture", first_meeting_completed: true, finalized: false,
   transcripts: [{ id: "transcript-1", file_name: "call.txt", processing_status: "pending", created_at: "2026-10-08T09:00:00Z", turn_count: 4, analysed: true }],
   personal_notes: { status: "available", text: "Owner observation", updated_at: "2026-10-08T09:05:00Z" },
   extraction: {
@@ -267,6 +267,8 @@ test("review responses are validated and never accepted for another opportunity"
   assert.equal(parsePostMeetingReview(review(), opportunityId).extraction.item_count, 2);
   assert.throws(() => parsePostMeetingReview({ ...review(), opportunity_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" }, opportunityId), /another opportunity/);
   assert.throws(() => parsePostMeetingReview({ ...review(), readiness: undefined }, opportunityId), /incomplete/);
+  assert.throws(() => parsePostMeetingReview({ ...review(), review_fingerprint: undefined }, opportunityId), /incomplete/, "a review without a fingerprint cannot be confirmed safely");
+  assert.throws(() => parsePostMeetingReview({ ...review(), review_fingerprint: "abc" }, opportunityId), /incomplete/);
   const broken = review();
   (broken.extraction.categories as Record<string, unknown>).decisions = [{ text: 5, source: "transcript" }];
   assert.throws(() => parsePostMeetingReview(broken, opportunityId), /incomplete/);
@@ -337,8 +339,18 @@ test("confirmation sends the reviewed analysis identity and refuses a stale one 
     assert.match(requests[0].url, new RegExp(`/opportunities/${opportunityId}/post-meeting-review/confirm$`));
     assert.equal(requests[0].method, "POST");
     assert.deepEqual(requests[0].body, {
-      transcript_id: "transcript-1", extraction_generated_at: "2026-10-08T09:10:00Z", excluded: { decisions: ["Run a pilot"] },
+      transcript_id: "transcript-1", extraction_generated_at: "2026-10-08T09:10:00Z",
+      review_fingerprint: "a".repeat(64), excluded: { decisions: ["Run a pilot"] },
     });
+    // A source changed between loading and confirming: the API answers 409 and nothing is treated as confirmed.
+    globalThis.fetch = async () => new Response(JSON.stringify({ error: { code: "MEETING_REVIEW_STALE", message: "A source of this review changed after it was opened." } }), { status: 409 });
+    const refused = await confirmMeetingReview("token", opportunityId, review(), {}).then(() => null, (error: unknown) => error);
+    assert.equal(isStaleReviewError(refused), true);
+    assert.match(String((refused as Error).message), /changed after it was opened/);
+    assert.equal(isStaleReviewError(new Error("network")), false);
+    const panel = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
+    assert.match(panel, /if \(!isStaleReviewError\(cause\)\) throw cause;\s+\/\/ Nothing was confirmed[^\n]*\s+await refresh\(token, signal\);/, "a refused confirmation reloads the review");
+    assert.match(panel, /nothing was confirmed/);
   } finally { globalThis.fetch = original; }
 });
 

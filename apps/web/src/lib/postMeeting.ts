@@ -1,4 +1,4 @@
-import { apiFetch, generateMeetingExtraction, resolveBackendOpportunityId, savePersonalNotes, type WorkflowDeckLine } from "./api";
+import { ApiRequestError, apiFetch, generateMeetingExtraction, resolveBackendOpportunityId, savePersonalNotes, type WorkflowDeckLine } from "./api";
 
 export const EXTRACTION_FIELDS = [
   ["requirements", "Requirements"], ["challenges", "Challenges"], ["priorities", "Priorities"],
@@ -136,6 +136,8 @@ export interface ReviewTranscript {
 }
 export interface PostMeetingReview {
   opportunity_id: string;
+  /** Identity of every source shown in this review; sent back when confirming. */
+  review_fingerprint: string;
   /** How the API runs an analysis: a configured model ("live") or the deterministic test extractor. */
   execution_mode: "fixture" | "live";
   first_meeting_completed: boolean;
@@ -194,6 +196,7 @@ export function parsePostMeetingReview(value: unknown, opportunityId: string): P
   const record = value as Partial<PostMeetingReview> | null;
   const categories = record?.extraction?.categories as Record<string, unknown> | undefined;
   if (!record || typeof record !== "object" || record.opportunity_id !== resolveBackendOpportunityId(opportunityId) ||
+    typeof record.review_fingerprint !== "string" || !/^[0-9a-f]{64}$/.test(record.review_fingerprint) ||
     !Array.isArray(record.transcripts) || !record.personal_notes || !record.extraction || !record.confirmation ||
     !record.readiness || !Array.isArray(record.readiness.blockers) || !record.selected_use_cases ||
     !record.approved_discovery || !record.master_presentation || !categories ||
@@ -225,7 +228,12 @@ export async function savePersonalNotesChecked(
   return saved;
 }
 
-/** Confirms exactly the analysis the owner is looking at; the API refuses anything stale. */
+/** True when the API refused a confirmation because a source changed after the review was loaded. */
+export function isStaleReviewError(error: unknown) {
+  return error instanceof ApiRequestError && error.status === 409 && error.code === "MEETING_REVIEW_STALE";
+}
+
+/** Confirms exactly the sources the owner is looking at; the API refuses anything that changed since. */
 export async function confirmMeetingReview(
   token: string, opportunityId: string, review: PostMeetingReview, excluded: Partial<Record<ExtractionCategory, string[]>>,
   signal?: AbortSignal,
@@ -237,6 +245,8 @@ export async function confirmMeetingReview(
     method: "POST", signal,
     body: JSON.stringify({
       transcript_id: review.extraction.transcript_id, extraction_generated_at: review.extraction.generated_at,
+      // The sources exactly as they were shown: the API refuses the confirmation if any of them changed since.
+      review_fingerprint: review.review_fingerprint,
       excluded: Object.fromEntries(Object.entries(excluded).filter(([, items]) => items && items.length)),
     }),
   });
