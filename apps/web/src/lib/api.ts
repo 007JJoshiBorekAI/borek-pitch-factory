@@ -323,6 +323,16 @@ export async function getStage1Outputs(
   return apiFetch(`${opportunityPath(opportunityId)}/stage1-outputs`, accessToken);
 }
 
+/** Explicitly build a new presentation version from the latest approved Discovery. */
+export async function regenerateStage1Presentation(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch(`${opportunityPath(opportunityId)}/stage1-outputs/presentation/regenerate`, accessToken, {
+    method: "POST",
+  });
+}
+
 export async function generateStage1Outputs(
   accessToken: string,
   opportunityId: string,

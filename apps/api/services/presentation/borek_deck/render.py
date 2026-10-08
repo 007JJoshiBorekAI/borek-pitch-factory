@@ -43,6 +43,16 @@ def render_deck_bundle(
     pdf_engine: str = "preview",
 ) -> bytes:
     """Build deck.pptx, deck.pdf and previews for persisted slide specs; return the zipped bundle."""
+    if deck_kind == "master_v1":
+        # Master Presentation: the canonical deck is assembled, never drawn by the layout engine.
+        from services.presentation.master_deck.render import MasterRenderError, render_master_bundle
+
+        try:
+            return render_master_bundle(slide_specs)
+        except MasterRenderError as exc:
+            error = BorekDeckRenderError(str(exc))
+            error.code = exc.code
+            raise error from exc
     eng = engine()
     try:
         slides = borek_slides_from_specs(slide_specs)

@@ -2310,7 +2310,9 @@ class SupabaseDataStore:
         if patch_response.status_code not in (200, 204) or not patch_response.json():
             raise bad_request("PRESENTATION_VERSION_UPDATE_FAILED", patch_response.text)
         version_row = _normalize_presentation_version(patch_response.json()[0])
-        if settings.RENDERER_EXECUTION_MODE == "fixture":
+        # A Master Presentation is never stood in for by the fixture deck: it becomes ready only
+        # once its real PPTX, PDF and previews exist.
+        if settings.RENDERER_EXECUTION_MODE == "fixture" and plan_json.get("deck_kind") != "master_v1":
             assets = materialize_fixture_deck_assets(
                 version_id=version_row["id"],
                 slide_count=len(slide_specs),

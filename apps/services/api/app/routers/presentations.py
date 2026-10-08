@@ -263,7 +263,8 @@ def change_slide_layout(
     return JobEnqueueResponse(job_id=str(job.id), status="queued")
 
 
-@router.get("/{presentation_id}/deck", response_model=DeckCenterResponse)
+# ``source`` exists only for a Master Presentation; other decks keep their exact payload.
+@router.get("/{presentation_id}/deck", response_model=DeckCenterResponse, response_model_exclude_unset=True)
 def get_deck_center(
     presentation_id: UUID,
     user: AuthUserDep,

@@ -234,3 +234,53 @@ test("cancelled mount loads stop before requesting a deck", async () => {
   await assert.rejects(loadExistingFirstPitch(token, opportunityId, controller.signal), { name: "AbortError" });
   assert.equal(calls.length, 1);
 });
+
+test("a Master Presentation lists the canonical deck and the client appendix with its approved source", () => {
+  const total = 33;
+  const source = {
+    kind: "master_presentation_v1", product_version: "V1", product_stage: "pre_meeting", revision: 2,
+    master_id: "borek_ai_tech_en_v1", master_version: "1.0",
+    canonical_slide_count: 26, appendix_slide_count: 7,
+    approved_discovery_version_id: "approved-1", discovery_schema_version: "2.0",
+  };
+  const slides: SlideResponse[] = Array.from({ length: total }, (_, index) => ({
+    id: `slide-${index}`, presentation_version_id: "version-1", slide_index: index,
+    layout_id: index < 26 ? "CANONICAL" : "L08", slide_spec: { title: `Title ${index + 1}` },
+  }));
+  const master: DeckResponse = {
+    ...deck, source,
+    slides: slides.map((slide) => ({ slide_id: slide.id, slide_index: slide.slide_index, layout_id: slide.layout_id, preview_url: `${prefix}/preview/slides/${slide.slide_index}.png` })),
+  };
+  const result = adaptLivePresentation(identity, master, slides);
+  assert.equal(result.slides.length, total, "no slide cap: every canonical and appendix slide is listed");
+  assert.deepEqual(result.slides.map((slide) => slide.index), slides.map((slide) => slide.slide_index));
+  assert.equal(result.slides.filter((slide) => slide.appendix).length, 7);
+  assert.equal(result.slides[25].appendix, false, "slide 26 is the canonical closing slide");
+  assert.equal(result.slides[26].appendix, true, "the appendix begins at slide 27");
+  assert.equal(result.slides[32].previewPath, `${prefix}/preview/slides/32.png`);
+  assert.equal(result.source?.approved_discovery_version_id, "approved-1");
+  // Other decks carry no source and no appendix marker.
+  const legacy = adaptLivePresentation(identity, deck, metadata);
+  assert.equal(legacy.source, null);
+  assert.ok(legacy.slides.every((slide) => !slide.appendix));
+  // A deck version that changed underneath is still rejected.
+  assert.throws(
+    () => adaptLivePresentation(identity, master, slides.map((slide) => ({ ...slide, presentation_version_id: "version-2" }))),
+    /latest presentation version changed/,
+  );
+});
+
+test("the workspace shows the approved source and never substitutes fixture slides in a live session", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync("src/components/PresentationWorkspace.tsx", "utf8");
+  assert.match(source, /approved Discovery \$\{liveDeck\.source\.approved_discovery_version_id\}/);
+  assert.match(source, /canonical Borek deck, unchanged/);
+  // The product stage comes from the server; the database version is shown as a revision only.
+  assert.match(source, /Master Presentation \{liveDeck\.source\.product_version\}/);
+  assert.match(source, /revision \{liveDeck\.source\.revision\}/);
+  assert.doesNotMatch(source, /Master Presentation V\{liveDeck\.versionNumber\}/);
+  assert.match(source, /generateAndAwaitFirstPitch\(accessToken, opportunityId, undefined, \{ regenerate \}\)/);
+  assert.match(source, /approvedSourceId !== liveDeck\.source\.approved_discovery_version_id/);
+  assert.match(source, /No fixture content is shown in a live session/);
+  assert.match(source, /const slides = live \? \(liveDeck\?\.slides \?\? \[\]\)/, "live slides come from the server only");
+});

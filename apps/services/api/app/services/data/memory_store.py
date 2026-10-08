@@ -1508,7 +1508,9 @@ class MemoryDataStore:
             slide_specs.append(copy.deepcopy(persisted_slide_spec))
 
         version_row["slides_json"] = slide_specs
-        if settings.RENDERER_EXECUTION_MODE == "fixture":
+        # A Master Presentation is never stood in for by the fixture deck: it becomes ready only
+        # once its real PPTX, PDF and previews exist.
+        if settings.RENDERER_EXECUTION_MODE == "fixture" and plan_json.get("deck_kind") != "master_v1":
             assets = materialize_fixture_deck_assets(
                 version_id=presentation_version_id,
                 slide_count=len(slide_specs),

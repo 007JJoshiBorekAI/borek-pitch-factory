@@ -12,11 +12,16 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+# Generated decks live on the artifact volume; the application directory is read-only for appuser.
+ENV ARTIFACT_ROOT=/artifacts
 ENV PYTHONPATH=/app:/app/apps/services/api:/app/apps/api:/app/apps/worker
 ENV PDFTOPPM_PATH=/usr/bin/pdftoppm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl poppler-utils \
+    # LibreOffice + poppler + Inter render the Master Presentation (PDF and slide previews)
+    # from the assembled PPTX. fonts-inter is the Inter family under the SIL Open Font License.
+    && apt-get install -y --no-install-recommends curl poppler-utils libreoffice-impress fontconfig fonts-inter \
+    && fc-cache -f \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 appuser \
     && mkdir -p /artifacts \

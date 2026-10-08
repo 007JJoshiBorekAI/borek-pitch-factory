@@ -80,11 +80,28 @@ class DeckSlidePreviewResponse(BaseModel):
     preview_url: str
 
 
+class DeckSourceResponse(BaseModel):
+    """What a Master Presentation version was built from. Identifiers only, never paths."""
+
+    kind: str
+    # Product stage ("V1", "pre_meeting") and the technical revision of this presentation.
+    product_version: str
+    product_stage: str
+    revision: int
+    master_id: str
+    master_version: str
+    canonical_slide_count: int
+    appendix_slide_count: int
+    approved_discovery_version_id: UUID
+    discovery_schema_version: str
+
+
 class DeckCenterResponse(BaseModel):
     presentation_id: UUID
     presentation_name: str
     version_number: int
     status: str
+    source: DeckSourceResponse | None = None
     slides: list[DeckSlidePreviewResponse]
     pptx_download_url: str
     pdf_download_url: str

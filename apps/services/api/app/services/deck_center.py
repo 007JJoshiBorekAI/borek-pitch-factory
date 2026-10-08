@@ -63,7 +63,7 @@ def build_deck_center_payload(
                 }
             )
 
-    return {
+    payload: dict[str, object] = {
         "presentation_id": presentation_id,
         "presentation_name": presentation["name"],
         "version_number": version["version_number"],
@@ -71,6 +71,30 @@ def build_deck_center_payload(
         "slides": slide_items,
         "pptx_download_url": f"/presentations/{presentation_id_str}/download/pptx",
         "pdf_download_url": f"/presentations/{presentation_id_str}/download/pdf",
+    }
+    source = _deck_source(version, slide_count=len(slides))
+    if source is not None:
+        payload["source"] = source
+    return payload
+
+
+def _deck_source(version: dict[str, object], *, slide_count: int) -> dict[str, object] | None:
+    """Master and approved Discovery version of a Master Presentation; None for other decks."""
+    manifest = version.get("generation_source_manifest")
+    if not isinstance(manifest, dict) or manifest.get("kind") != "master_presentation_v1":
+        return None
+    canonical = int(manifest.get("master_slide_count") or 0)
+    return {
+        "kind": manifest["kind"],
+        "product_version": str(manifest.get("product_version") or "V1"),
+        "product_stage": str(manifest.get("product_stage") or "pre_meeting"),
+        "revision": int(version["version_number"]),
+        "master_id": manifest["master_id"],
+        "master_version": manifest["master_version"],
+        "canonical_slide_count": canonical,
+        "appendix_slide_count": max(slide_count - canonical, 0),
+        "approved_discovery_version_id": manifest["approved_discovery_version_id"],
+        "discovery_schema_version": manifest["discovery_schema_version"],
     }
 
 

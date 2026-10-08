@@ -5,6 +5,7 @@ import {
   getJob,
   getStage1Outputs,
   getWorkflowStatus,
+  regenerateStage1Presentation,
   resolveBackendOpportunityId,
   waitForJob,
   type JobResponse,
@@ -29,9 +30,14 @@ export async function generateAndAwaitFirstPitch(
   accessToken: string,
   previewOrBackendId: string,
   onJob?: (job: JobResponse) => void,
+  options: { regenerate?: boolean } = {},
 ): Promise<FirstPitchResult> {
   const opportunityId = resolveBackendOpportunityId(previewOrBackendId);
-  const started = await generateStage1Outputs(accessToken, opportunityId);
+  // Regenerating asks for a new version from the latest approved Discovery; the server still
+  // returns the existing ready deck when the source has not changed.
+  const started = options.regenerate
+    ? await regenerateStage1Presentation(accessToken, opportunityId)
+    : await generateStage1Outputs(accessToken, opportunityId);
   let presentation = presentationOf(started);
   let jobId: string | null = null;
   let completedJob: JobResponse | undefined;

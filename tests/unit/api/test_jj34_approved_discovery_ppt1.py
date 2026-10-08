@@ -145,23 +145,22 @@ def test_approved_v1_grounds_plan_and_slide_content() -> None:
         assert version["pdf_storage_path"]
         assert version["preview_image_paths"]
         manifest = version["generation_source_manifest"]
-        assert manifest == {
-            "schema_version": "1.0",
-            "kind": "ppt1",
-            "approved_discovery_version_id": approved["id"],
-        }
+        # An approved Discovery analysis (schema 2.0) is the source of the Master Presentation.
+        assert manifest["kind"] == "master_presentation_v1"
+        assert manifest["approved_discovery_version_id"] == approved["id"]
+        assert manifest["discovery_schema_version"] == "2.0"
         assert "client_name" not in json.dumps(manifest)
         assert "pages" not in manifest
         plan = next(iter(store.presentation_plans.values()))["plan_json"]
-        assert 1 <= len(plan["slides"]) <= 8
-        assert plan["slides"][0]["frameworkReferences"] == ["discovery.cover"]
+        assert len(plan["slides"]) > 26
+        assert plan["slides"][0]["frameworkReferences"] == []
         specs = version["slides_json"]
-        assert "Northwind" in specs[0]["title"]
-        assert specs[0]["sourceChapterIds"] == ["discovery.cover"]
+        assert specs[0]["layoutId"] == "CANONICAL"
+        assert specs[26]["sourceChapterIds"]
         assert plan["engine"] == "borek_deck"
-        assert plan["deck_kind"] == "pre_meeting"
-        assert specs[0]["layoutId"] == "cover"
-        assert specs[-1]["layoutId"] == "closing"
+        assert plan["deck_kind"] == "master_v1"
+        assert specs[25]["title"] == "Let’s talk"
+        assert specs[-1]["layoutId"].startswith("L")
         assert "Northwind" in json.dumps(specs)
         framework = next(iter(store.framework_versions.values()))
         framework_blob = json.dumps(framework["framework_json"])
@@ -199,7 +198,7 @@ def test_draft_after_approval_does_not_change_the_planner_source() -> None:
         store = get_memory_store()
         presentation_id = UUID(generated.json()["outputs"]["presentation"]["presentation_id"])
         specs = latest_version(store, presentation_id)["slides_json"]
-        assert "Northwind" in specs[0]["title"]
+        assert "Northwind" in json.dumps(specs)
         assert "Edited after approval" not in json.dumps(specs)
         manifest = latest_version(store, presentation_id)["generation_source_manifest"]
         assert manifest["approved_discovery_version_id"] == approved["id"]
@@ -242,8 +241,9 @@ def test_explicit_regenerate_uses_v2_and_keeps_the_stage1_presentation() -> None
             headers=headers(),
         )
         assert again.status_code == 200, again.text
+        # Same master and same approved version: the ready deck is returned, not generated again.
         latest = latest_version(store, UUID(presentation_id))
-        assert latest["version_number"] == 3
+        assert latest["version_number"] == 2
         assert "Second Approved Client" in str(latest["slides_json"])
         assert "Draft Only Client" not in json.dumps(latest["slides_json"])
         assert again.json()["outputs"]["presentation"]["presentation_id"] == presentation_id
