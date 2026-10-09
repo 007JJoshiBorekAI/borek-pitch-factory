@@ -66,7 +66,7 @@ export function FirstMeetingHandoff({ opportunityId, ppt1Ready }: { opportunityI
     {error || preview.error ? <p className="client-information-error" role="alert">{error ?? preview.error}</p> : null}
     {checking || busy ? <p role="status">{busy ? "Confirming meeting completion..." : "Checking meeting status..."}</p> : null}
     {previewMode ? <p className="discovery-version-label">Preview only: confirmation is stored locally for this pitch. It opens the post-meeting layout without changing backend status.</p> : !live ? <p className="discovery-version-label">A signed-in API session is required.</p> : null}
-    {!checking && !completed && !ready ? <p className="discovery-version-label">Generate a ready PPT #1 before confirming the first meeting.</p> : null}
+    {!checking && !completed && !ready ? <p className="discovery-version-label">Generate Master Presentation V1 before confirming the first meeting.</p> : null}
     {confirming && !completed ? <div role="group" aria-labelledby="meeting-confirmation-question">
       <p id="meeting-confirmation-question">Has the first client meeting taken place?</p>
       <p>{previewMode ? "This records a local preview confirmation and opens the transcript-and-notes screen. No backend milestone is changed." : "This records the meeting as completed and opens the meeting-input page."}</p>

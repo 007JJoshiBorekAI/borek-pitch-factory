@@ -8,7 +8,7 @@ import { WorkflowArtifactTabs } from "@/components/WorkflowArtifactTabs";
 import { FirstMeetingHandoff } from "@/components/FirstMeetingHandoff";
 import { DISCOVERY_PAGE_CATALOG } from "@/lib/discoveryFirst";
 import { canDownloadDiscoveryPdf } from "@/lib/discoveryWorkspace";
-import { generateAndAwaitFirstPitch } from "@/lib/ppt1Generation";
+import { generateAndAwaitFirstPitch, resumeFirstPitch } from "@/lib/ppt1Generation";
 import { presentationPreview } from "@/lib/presentationPreview";
 import {
   downloadLivePresentation, downloadPresentationVersion, livePresentationError, loadEarlierVersions, loadExistingFirstPitch, versionLabel,
@@ -89,6 +89,10 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
   const downloadable = previewDownloadable || liveReady;
   const pageNumber = String((live ? selectedLiveSlide?.index ?? 0 : selectedIndex) + 1).padStart(2, "0");
   const phase = live ? (liveReady ? "ready" : livePhase) : presentation.state;
+  // Every deck generated here is Master Presentation V1. Only a deck from before the Master
+  // Presentation (no product version in its source) keeps the earlier name.
+  const product = liveDeck && !liveDeck.source ? "PPT #1" : "Master Presentation V1";
+  const fileStem = liveDeck && !liveDeck.source ? "ppt-1" : "master-presentation-v1";
 
   useEffect(() => {
     if (live || presentation.state !== "generating") return;
@@ -106,18 +110,32 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
     setError(null);
     if (!accessToken) {
       setLivePhase("load-failed");
-      setError("Sign in to load PPT #1.");
+      setError("Sign in to load the presentation.");
     } else {
       void loadExistingFirstPitch(accessToken, opportunityId, controller.signal).then((result) => {
         if (controller.signal.aborted) return;
         setLiveDeck(result.deck);
         setPreviewStates({});
         setApprovedSourceId(result.approvedSourceId);
-        setLivePhase(result.loadError ? "load-failed" : result.deck ? "ready" : result.status === "failed" ? "failed" : "idle");
+        const running = !result.loadError && !result.deck && (result.status === "queued" || result.status === "generating");
+        setLivePhase(result.loadError ? "load-failed" : result.deck ? "ready" : running ? "generating" : result.status === "failed" ? "failed" : "idle");
         if (result.loadError) {
           setError(result.loadError);
+        } else if (running) {
+          // A generation started before this page was opened (reload, or coming back to it) is
+          // followed to its end. This only reads the job; it never starts a second generation.
+          void resumeFirstPitch(accessToken, opportunityId, undefined, controller.signal).then(async (resumed) => {
+            if (controller.signal.aborted) return;
+            if (!resumed) { setLivePhase("idle"); return; }
+            const deck = await loadLivePresentation(accessToken, opportunityId, resumed, controller.signal);
+            if (controller.signal.aborted) return;
+            setLiveDeck(deck); setLivePhase("ready");
+          }).catch((resumeError) => {
+            if (controller.signal.aborted) return;
+            setLivePhase("failed"); setError(livePresentationError(resumeError));
+          });
         } else if (!result.deck && result.status !== "missing") {
-          setError(`PPT #1 status: ${result.status}. No ready version is available. Generate to resume, or reload the deck.`);
+          setError(`Master Presentation V1 status: ${result.status}. No ready version is available. Generate it again, or reload the deck.`);
         }
       }).catch((loadError) => {
         if (controller.signal.aborted) return;
@@ -197,7 +215,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
       try {
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = `ppt-1-${opportunityId}-revision-${version.versionNumber}.${format}`;
+        anchor.download = `${fileStem}-revision-${version.versionNumber}-${opportunityId}.${format}`;
         anchor.click();
       } finally { URL.revokeObjectURL(url); }
     } catch (downloadError) {
@@ -217,7 +235,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
         try {
           const anchor = document.createElement("a");
           anchor.href = url;
-          anchor.download = `ppt-1-${opportunityId}.${format}`;
+          anchor.download = `${fileStem}-revision-${liveDeck.versionNumber}-${opportunityId}.${format}`;
           anchor.click();
         } finally { URL.revokeObjectURL(url); }
       } catch (downloadError) {
@@ -233,7 +251,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
       <WorkflowArtifactTabs opportunityId={opportunityId} active="presentations" />
       <progress className="discovery-progress" max={totalSlides || 1} value={readyCount} aria-label={`${readyCount} of ${totalSlides} presentation ${live ? "previews loaded" : "slides ready"}`} />
       <div id="artifact-panel-presentations" role="tabpanel" aria-labelledby="artifact-tab-presentations">
-        <h1 className="sr-only">Pre-meeting presentation · PPT #1</h1>
+        <h1 className="sr-only">Pre-meeting presentation · {product}</h1>
         {error ? <p className="client-information-error" role="alert">{error}</p> : null}
         <div className="workflow-artifact-grid">
           <aside className="workflow-page-list" aria-label="Presentation slides">
@@ -254,12 +272,12 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
             </ol>
           </aside>
           <article className="workflow-preview-panel">
-            <div className="discovery-page-toolbar"><p className="workflow-panel-label">Slide {pageNumber} · {selectedLabel}</p><span className="presentation-view-only">PPT #1 · View only</span></div>
+            <div className="discovery-page-toolbar"><p className="workflow-panel-label">Slide {pageNumber} · {selectedLabel}</p><span className="presentation-view-only">{product} · View only</span></div>
             <div className="discovery-preview-content">
               {live ? (
                 <div className="presentation-slide-canvas presentation-slide-state">
                   {liveReady && selectedLiveSlide ? previewState.state === "ready" ? (
-                    <img key={previewKey} src={previewState.url} alt={`PPT #1 slide ${pageNumber}: ${selectedLabel}`} className="presentation-live-preview"
+                    <img key={previewKey} src={previewState.url} alt={`${product} slide ${pageNumber}: ${selectedLabel}`} className="presentation-live-preview"
                       style={{ width: "100%", maxWidth: "100%", height: "auto", objectFit: "contain" }}
                       onError={() => {
                         setPreview((current) => current?.key === previewKey ? { key: previewKey, value: { state: "failed", message: "This slide image could not be displayed. Retry the preview." } } : current);
@@ -273,7 +291,7 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
                     </>
                   ) : (
                     <>
-                      <strong>{phase === "generating" ? "Generating PPT #1" : phase === "loading" ? "Loading existing PPT #1" : phase === "load-failed" ? "PPT #1 could not be loaded" : phase === "failed" ? "PPT #1 generation failed" : liveReady ? "No slides returned" : !approved ? "Discovery approval required" : "No ready PPT #1 yet"}</strong>
+                      <strong>{phase === "generating" ? `Generating ${product}` : phase === "loading" ? `Loading ${product}` : phase === "load-failed" ? `${product} could not be loaded` : phase === "failed" ? `${product} generation failed` : liveReady ? "No slides returned" : !approved ? "Discovery approval required" : `${product} has not been generated yet`}</strong>
                       <p>{phase === "generating" ? "The approved Discovery version is being mapped to the locked slide layouts." : "Live previews require rendered slide images from the backend. No fixture content is shown in a live session."}</p>
                     </>
                   )}
@@ -287,8 +305,8 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
                 </div>
               ) : (
                 <div className="presentation-slide-canvas presentation-slide-state">
-                  <strong>{!approved ? "Discovery approval required" : selected?.state === "generating" ? "Generating this slide" : selected?.state === "failed" ? "Slide generation failed" : phase === "failed" ? "PPT #1 generation failed" : "Waiting for this slide"}</strong>
-                  <p>{!approved ? "Approve the Discovery analysis before generating PPT #1." : "Completed slides remain available in the slide list."}</p>
+                  <strong>{!approved ? "Discovery approval required" : selected?.state === "generating" ? "Generating this slide" : selected?.state === "failed" ? "Slide generation failed" : phase === "failed" ? `${product} generation failed` : "Waiting for this slide"}</strong>
+                  <p>{!approved ? "Approve the Discovery analysis before generating Master Presentation V1." : "Completed slides remain available in the slide list."}</p>
                 </div>
               )}
               <p className="discovery-preview-caption">{live ? "Live rendered previews of this version. Version changes detected during requests are rejected; the other ready versions of this presentation stay available for download below." : "Local content preview from approved Discovery, not a rendered presentation artifact."}</p>
@@ -307,12 +325,12 @@ function PresentationSession({ opportunityId, accessToken, live }: PresentationW
               {!live && presentation.state === "ready" && previewSlides.length === 0 ? <p role="alert">The saved source snapshot is unavailable. Regenerate from approved Discovery to restore the preview.</p> : null}
               <div className="discovery-generation-card">
                 <div role="status" aria-live="polite" aria-atomic="true">
-                  <strong>{phase === "generating" ? live ? "Generating PPT #1" : `Generating slide ${String(Math.min(readyCount + 1, totalSlides)).padStart(2, "0")}` : phase === "loading" ? "Loading PPT #1" : phase === "load-failed" ? "PPT #1 load failed" : phase === "failed" ? "PPT #1 generation failed" : downloadable ? "PPT #1 ready for review" : approved ? "Ready to generate PPT #1" : "Generation blocked"}</strong>
+                  <strong>{phase === "generating" ? live ? `Generating ${product}` : `Generating slide ${String(Math.min(readyCount + 1, totalSlides)).padStart(2, "0")}` : phase === "loading" ? `Loading ${product}` : phase === "load-failed" ? `${product} could not be loaded` : phase === "failed" ? `${product} generation failed` : downloadable ? `${product} ready for review` : approved ? `Ready to generate ${product}` : "Generation blocked"}</strong>
                   <p>{readyCount} of {totalSlides} {live ? "slide previews loaded" : "slides ready"}</p>
                 </div>
                 {phase === "failed" || phase === "waiting" || phase === "idle" || (phase === "load-failed" && approved) || (!live && phase === "ready") ? (
                   <button className="btn btn-primary" type="button" disabled={!approved} onClick={() => void generate()}>
-                    {phase === "failed" ? "Retry PPT #1 generation" : phase === "ready" ? "Regenerate PPT #1 from approved Discovery" : "Generate PPT #1"}
+                    {phase === "failed" ? `Retry ${product} generation` : phase === "ready" ? `Regenerate ${product} from approved Discovery` : `Generate ${product}`}
                   </button>
                 ) : null}
                 {live && phase !== "generating" ? <button className="btn btn-secondary" type="button" disabled={phase === "loading" || !accessToken} onClick={() => setRefresh((value) => value + 1)}>Reload deck</button> : null}

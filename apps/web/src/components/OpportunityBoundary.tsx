@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { usePreviewJourney } from "@/components/PreviewJourneyProvider";
-import { ApiRequestError, resolveBackendOpportunityId } from "@/lib/api";
+import { ApiRequestError, canonicalOpportunityPath, previewAliasForBackendId, resolveBackendOpportunityId } from "@/lib/api";
 import { loadLiveOpportunity, opportunityAccessMode } from "@/lib/opportunityResolution";
 
 export function OpportunityBoundary({ opportunityId, children }: { opportunityId: string; children: ReactNode }) {
@@ -20,8 +20,23 @@ export function OpportunityBoundary({ opportunityId, children }: { opportunityId
   const mode = opportunityAccessMode(opportunityId, Boolean(known), Boolean(accessToken) && !previewMode, backendId);
   const registerRef = useRef(registerLiveOpportunity);
   registerRef.current = registerLiveOpportunity;
-  const extrasRef = useRef(known?.client_extras);
-  extrasRef.current = known?.client_extras;
+  // Details kept only in this browser (for example the logo) stay with the opportunity when its
+  // address changes from the local preview id to the backend id.
+  const localRecord = known ?? getOpportunity(previewAliasForBackendId(opportunityId) ?? "");
+  const extrasRef = useRef(localRecord?.client_extras);
+  extrasRef.current = localRecord?.client_extras;
+
+  // A local preview id in the address only works in the browser that created the client. Once the
+  // opportunity exists on the server, every page that is opened or navigated to gets the backend
+  // id in its address instead, so the link can be opened in another browser. The address is not
+  // changed while the user stays on a page: that would restart an operation in progress there.
+  const router = useRouter();
+  const canonicalRef = useRef<string | null>(null);
+  canonicalRef.current = canonicalOpportunityPath(pathname, opportunityId);
+  useEffect(() => {
+    if (loading || !hydrated || !canonicalRef.current) return;
+    router.replace(`${canonicalRef.current}${window.location.search}`);
+  }, [pathname, loading, hydrated, router]);
 
   useEffect(() => {
     if (loading || !hydrated || mode !== "live" || !accessToken) return;

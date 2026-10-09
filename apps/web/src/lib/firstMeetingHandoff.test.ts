@@ -49,7 +49,7 @@ test("a current-status label or client-side ready state cannot bypass server PPT
       assert.equal(init?.method ?? "GET", "GET", "no milestone write when the prerequisite is missing");
       return Response.json(status);
     };
-    await assert.rejects(completeFirstMeetingAndGetRoute("token", id), /PPT #1 must be ready/);
+    await assert.rejects(completeFirstMeetingAndGetRoute("token", id), /Master Presentation V1 must be ready/);
   }
 });
 

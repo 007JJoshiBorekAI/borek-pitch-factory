@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync("src/components/PresentationWorkspace.tsx", "utf8");
 
-assert.match(source, /PPT #1/);
+assert.match(source, /Master Presentation V1/);
 assert.match(source, /Pre-meeting presentation/);
 assert.match(source, /generateAndAwaitFirstPitch/);
 assert.match(source, /artifact-preview-workspace presentation-document-workspace/);
@@ -13,8 +13,8 @@ assert.match(source, /setSelection\(\{ opportunityId, index \}\)/);
 assert.match(source, /<progress[^>]*max=\{totalSlides \|\| 1\}[^>]*value=\{readyCount\}/);
 assert.match(source, /disabled=\{!downloadable\}/);
 assert.match(source, /not a rendered presentation artifact/);
-assert.match(source, /PPT #1 generation failed/);
-assert.match(source, /Retry PPT #1 generation/);
+assert.match(source, /`\$\{product\} generation failed`/);
+assert.match(source, /`Retry \$\{product\} generation`/);
 assert.match(source, /aria-live="polite"/);
 assert.match(source, /preview manifest/);
 assert.doesNotMatch(source, /PPT #2|Second meeting|Post-meeting/);

@@ -396,7 +396,7 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
         <section className={styles.packageChanges}>
           <h3 className={styles.packageLabel}>What the email is based on</h3>
           <p>{draft?.source
-            ? `${draft.source.confirmedFindings ?? 0} findings you confirmed for this presentation version${draft.source.excludedFindings ? `; ${draft.source.excludedFindings} excluded findings are not used` : ""}. ${draft.source.extractionMode === "live" ? "Findings were extracted by the live AI analysis." : "Findings were extracted by the built-in demo extraction, not by a live AI analysis."}`
+            ? `${draft.source.confirmedFindings ?? 0} findings you confirmed for this presentation version${draft.source.excludedFindings ? `; ${draft.source.excludedFindings} excluded ${draft.source.excludedFindings === 1 ? "finding is" : "findings are"} not used` : ""}. ${draft.source.extractionMode === "live" ? "Findings were extracted by the live AI analysis." : "Findings were extracted by the built-in demo extraction, not by a live AI analysis."}`
             : master ? "The findings you confirmed for the finalized Master Presentation V2." : "The meeting transcript of this opportunity."}</p>
         </section>
         <section className={styles.packageAttachments}>

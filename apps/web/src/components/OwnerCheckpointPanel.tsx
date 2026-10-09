@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { usePostMeeting } from "@/components/PostMeetingShell";
-import { finalizeWorkflow, markOwnerReviewed } from "@/lib/api";
+import { apiFetch, finalizeWorkflow, markOwnerReviewed } from "@/lib/api";
 import { postMeetingDeckLabel } from "@/lib/masterPresentationV2";
 import { loadPostMeetingWorkflow, postMeetingError, workflowCompleted } from "@/lib/postMeeting";
 import styles from "./post-meeting.module.css";
@@ -22,6 +22,22 @@ export function OwnerCheckpointPanel({ opportunityId, compact = false }: { oppor
   const version = ppt2?.latest_ready_version_id;
   const product = postMeetingDeckLabel(ppt2?.product_version);
   const identity = version ? `${ppt2?.presentation_id}:${version}:${workflow?.documents.approved_discovery?.version_id}` : null;
+  // The revision number of the ready version, for display. The ids stay what every request uses.
+  const [revision, setRevision] = useState<{ version: string; number: number } | null>(null);
+  const presentationId = ppt2?.presentation_id;
+  useEffect(() => {
+    if (!accessToken || previewMode || !presentationId || !version) return;
+    const controller = new AbortController();
+    void apiFetch<Array<{ presentation_version_id: string; version_number: number }>>(`/presentations/${encodeURIComponent(presentationId)}/versions`, accessToken, { signal: controller.signal, cache: "no-store" })
+      .then((rows) => {
+        const row = rows.find((item) => item.presentation_version_id === version);
+        if (!controller.signal.aborted && row) setRevision({ version, number: row.version_number });
+      })
+      .catch(() => { /* the label falls back to "ready version" */ });
+    return () => controller.abort();
+  }, [accessToken, previewMode, presentationId, version]);
+  const discovery = workflow?.documents.approved_discovery;
+  const deckLabel = !version ? "no ready version" : revision?.version === version ? `revision ${revision.number}, ready` : "ready version";
   const reviewed = workflowCompleted(workflow, "owner_review");
   const finalized = workflowCompleted(workflow, "finalized") && Boolean(workflow?.finalization);
   const disabled = busy || !accessToken || previewMode || !workflow || finalized;
@@ -46,7 +62,8 @@ export function OwnerCheckpointPanel({ opportunityId, compact = false }: { oppor
     <span className={styles.eyebrow}>Owner checkpoint</span>{compact ? <h2>Review &amp; finalize</h2> : <h1>Review the final documents</h1>}
     {error ? <p className={styles.error} role="alert">{error}</p> : null}
     {busy ? <p role="status">Saving checkpoint...</p> : null}
-    <p>{product}: {version ?? "No ready version"}</p><p>Discovery: {workflow?.documents.approved_discovery?.version_id ?? "Not approved"}</p>
+    <p data-testid="checkpoint-presentation" title={version ? `Version id ${version}` : undefined}><strong>{product}</strong> · {deckLabel}</p>
+    <p data-testid="checkpoint-discovery" title={discovery ? `Version id ${discovery.version_id}` : undefined}><strong>Discovery analysis</strong> · {discovery ? `approved version ${discovery.version_number}` : "not approved"}</p>
     {compact ? null : <Link href={`/opportunities/${encodeURIComponent(opportunityId)}/post-meeting-presentation`}>Open {product} for review</Link>}
     {ppt2?.product_version === "V2" ? <p><small>This is the owner review of the presentation itself. It is separate from confirming the meeting findings, and it applies to exactly this version: a newer version has to be reviewed again.</small></p> : null}
     <p><small>Owner review: {reviewed ? "Recorded" : "Required"} · Final documents: {finalized ? "Finalized" : "Not finalized"}</small></p>
