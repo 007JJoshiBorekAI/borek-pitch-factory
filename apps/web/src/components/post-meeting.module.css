@@ -97,5 +97,50 @@
 .root .packageSidebar .packageExport :global(.btn-primary) { width: 100%; margin-top: 18px; background: var(--pitch-blue); border-color: var(--pitch-blue); }
 .packageExport > small { display: block; margin-top: 10px; line-height: 1.5; }
 .packageError { color: var(--pitch-red); }
+.nextStep { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; margin-top: 16px; padding: 16px; border-radius: var(--pitch-control-radius); background: color-mix(in srgb, var(--pitch-teal) 10%, white); }
+.nextStep p { margin: 4px 0 0; font-size: var(--pitch-text-label); }
+.nextStep :global(.btn-primary) { background: var(--pitch-teal); border-color: var(--pitch-teal); text-decoration: none; }
+.phaseNavThree { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1080px; }
+/* Follow-up email (Figma 416:877): label rows, length selector, saved state, review and package. */
+.emailHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.emailHeader .eyebrow { color: var(--pitch-teal); }
+.emailPill { padding: 4px 14px; border-radius: 999px; background: var(--pitch-gray-50); color: var(--pitch-blue); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-semibold); letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.emailPillDone { background: color-mix(in srgb, var(--pitch-teal) 12%, white); color: var(--pitch-teal); }
+.emailPillWarn { color: var(--pitch-red); }
+.emailFields { display: grid; gap: 0; margin: 0; }
+.emailFields > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--pitch-gray-200); }
+.emailFields dt { color: var(--pitch-gray-500); font-size: var(--pitch-text-caption); letter-spacing: .05em; text-transform: uppercase; }
+.emailFields dd { margin: 0; font-size: var(--pitch-text-body); font-weight: var(--pitch-weight-medium); overflow-wrap: anywhere; }
+.emailLink { margin-left: 12px; padding: 0; border: 0; background: none; color: var(--pitch-blue); font: inherit; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-regular); text-decoration: underline; cursor: pointer; }
+.emailStatics, .emailChecklist { margin: 0; padding: 16px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); min-width: 0; }
+.emailStatics legend, .emailChecklist legend { padding: 0 8px; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-semibold); }
+.emailStatics p { margin: 0 0 12px; }
+.emailStaticsGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.emailStaticsGrid label { font-size: var(--pitch-text-label); }
+.emailLengths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 6px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-panel-radius); }
+.emailLengths button { display: grid; gap: 2px; padding: 10px 12px; border: 0; border-radius: var(--pitch-control-radius); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.emailLengths button strong { font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-semibold); }
+.emailLengths .emailLengthActive { background: color-mix(in srgb, var(--pitch-teal) 12%, white); }
+.root .emailSubject { grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 12px; }
+.emailSubject > span { color: var(--pitch-gray-500); font-size: var(--pitch-text-caption); letter-spacing: .05em; text-transform: uppercase; }
+.root .emailSubject input { font-weight: var(--pitch-weight-medium); }
+.emailFooter { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: center; }
+.emailSaved, .emailUnsaved { font-size: var(--pitch-text-label); }
+.emailSaved { color: var(--pitch-teal); }
+.emailUnsaved { color: var(--pitch-red); }
+.emailEmpty { display: grid; gap: 12px; }
+.emailEmpty p { margin: 0; color: var(--pitch-gray-500); }
+.emailDecision { display: grid; gap: 6px; margin-bottom: 20px; }
+.emailDecision p { margin: 0; }
+.emailFlags { margin: 8px 0 16px; padding-left: 18px; font-size: var(--pitch-text-label); line-height: 1.6; }
+.emailChecklist { margin-top: 16px; }
+.emailChecklist .check { margin: 8px 0; }
+.root .packageAttachments .emailAttachment { padding: 4px 12px; margin-bottom: 8px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); color: var(--pitch-navy); }
+.emailAttachment .check { margin: 8px 0; }
+.emailAttachment span { font-weight: var(--pitch-weight-medium); overflow-wrap: anywhere; }
+.packageDocument { background: color-mix(in srgb, var(--pitch-teal) 10%, white); }
+.root .packageSidebar .packageExport :global(.btn-primary) { background: var(--pitch-teal); border-color: var(--pitch-teal); }
+.root .packageSidebar .packageExport :global(.btn-secondary) { width: 100%; margin-top: 10px; }
+.root .packageSidebar .packageExport :global(.btn:disabled) { opacity: .5; }
 @media (max-width: 960px) { .columns, .followUpColumns { grid-template-columns: minmax(0, 1fr); } .workflow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .phaseNav, .extraction, .workflow ol { grid-template-columns: minmax(0, 1fr); } .card, .summary { padding: 16px; } .actions { align-items: stretch; flex-direction: column; } .actions > * { width: 100%; } }
+@media (max-width: 640px) { .phaseNav, .extraction, .workflow ol { grid-template-columns: minmax(0, 1fr); } .emailStaticsGrid, .emailLengths { grid-template-columns: minmax(0, 1fr); } .emailFields > div, .root .emailSubject { grid-template-columns: minmax(0, 1fr); gap: 4px; } .emailLink { display: block; margin: 6px 0 0; } .card, .summary { padding: 16px; } .actions { align-items: stretch; flex-direction: column; } .actions > * { width: 100%; } }

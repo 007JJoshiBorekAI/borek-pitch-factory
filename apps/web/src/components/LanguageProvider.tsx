@@ -28,7 +28,7 @@ export const APP_COPY = {
     },
     language: "Language",
     sidebar: { preMeeting: "Pre-meeting", postMeeting: "Post-meeting", clients: "Clients" },
-    header: { clients: "Clients", addClient: "Add New Client", pitchGeneration: "Pitch generation", profile: "Profile", signIn: "Sign in" },
+    header: { clients: "Clients", addClient: "Add New Client", pitchGeneration: "Pitch generation", followUpEmail: "Follow-up Email", followUpEmailSubtitle: "Review, edit and prepare your client follow-up.", profile: "Profile", signIn: "Sign in" },
     clients: {
       kicker: "Clients", title: "Clients", activePitches: "active pitches", add: "Add new client",
       search: "Search clients", all: "All clients", preMeeting: "Pre-meeting", postMeeting: "Post-meeting",
@@ -99,7 +99,7 @@ export const APP_COPY = {
     },
     language: "Sprache",
     sidebar: { preMeeting: "Vor dem Meeting", postMeeting: "Nach dem Meeting", clients: "Kunden" },
-    header: { clients: "Kunden", addClient: "Neuen Kunden anlegen", pitchGeneration: "Pitch-Erstellung", profile: "Profil", signIn: "Anmelden" },
+    header: { clients: "Kunden", addClient: "Neuen Kunden anlegen", pitchGeneration: "Pitch-Erstellung", followUpEmail: "Follow-up-E-Mail", followUpEmailSubtitle: "Prüfen, bearbeiten und für den Kunden vorbereiten.", profile: "Profil", signIn: "Anmelden" },
     clients: {
       kicker: "Kunden", title: "Kunden", activePitches: "aktive Pitches", add: "Neuen Kunden anlegen",
       search: "Kunden suchen", all: "Alle Kunden", preMeeting: "Vor dem Meeting", postMeeting: "Nach dem Meeting",

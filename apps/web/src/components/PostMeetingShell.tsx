@@ -22,10 +22,11 @@ export function PostMeetingPhaseNav({ opportunityId, active }: { opportunityId: 
   // Master journey: the second step is the presentation itself (V2) with its owner review.
   // Earlier pitches keep the document and follow-up step they were built with.
   const master = isMasterJourney(workflow?.documents);
-  return <nav className={styles.phaseNav} aria-label="Post-meeting workspace">
+  return <nav className={`${styles.phaseNav} ${master ? styles.phaseNavThree : ""}`} aria-label="Post-meeting workspace">
     <Link href={`${root}/meeting`} aria-current={active === "meeting" ? "page" : undefined}><span>1</span><div><small>Meeting input</small><strong>{master ? "Confirm the meeting findings" : "Capture what changed"}</strong></div></Link>
     {master
-      ? <Link href={`${root}/post-meeting-presentation`}><span>2</span><div><small>Master Presentation V2</small><strong>Presentation &amp; owner review</strong></div></Link>
+      ? <><Link href={`${root}/post-meeting-presentation`}><span>2</span><div><small>Master Presentation V2</small><strong>Presentation &amp; owner review</strong></div></Link>
+        <Link href={`${root}/follow-up`} aria-current={active === "review" ? "page" : undefined}><span>3</span><div><small>Follow-up email</small><strong>Review, confirm &amp; export</strong></div></Link></>
       : <Link href={`${root}/follow-up`} aria-current={active === "review" ? "page" : undefined}><span>2</span><div><small>Generate</small><strong>Documents &amp; review</strong></div></Link>}
   </nav>;
 }

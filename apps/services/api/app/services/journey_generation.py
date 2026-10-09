@@ -488,16 +488,30 @@ def generate_email_draft(
     opportunity_id: UUID,
     user_id: UUID,
     journey_stage: str,
+    overwrite_edits: bool = False,
 ) -> dict[str, Any]:
+    from app.services import followup_email
+
     if journey_stage not in JOURNEY_STAGES:
         raise bad_request("INVALID_JOURNEY_STAGE", "journey_stage must be first_contact, deepening, or concretisation")
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     name = str(opportunity.get("opportunity_name") or "this opportunity")
     topic = resolve_meeting_purpose(opportunity) or name
+    email_source: dict[str, Any] | None = None
+    review_flags: list[str] = []
+    # A Master Presentation opportunity writes the email from its finalized V2 package; an
+    # earlier opportunity with a standalone PPT #2 keeps the transcript-based draft below.
+    master = (
+        followup_email.master_generation(store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id)
+        if journey_stage == "deepening"
+        else None
+    )
     statics = _require_followup_statics(opportunity)
     meeting_date = datetime.now(UTC).strftime("%d.%m.%Y")
 
-    if journey_stage == "deepening":
+    if master is not None:
+        lengths, review_flags, email_source = master["lengths"], master["review_flags"], master["source"]
+    elif journey_stage == "deepening":
         sources = store.list_transcript_sources(opportunity_id=opportunity_id, user_id=user_id)
         if not sources:
             raise bad_request(
@@ -528,25 +542,26 @@ def generate_email_draft(
             calendar_meeting_date=meeting_date,
         )
         lengths = render_three_lengths(extraction, statics)
-    drafts = opportunity.get("email_drafts") or {}
-    existing_raw = drafts.get(journey_stage)
-    existing = dict(existing_raw) if isinstance(existing_raw, dict) else None
-    stored = store.upsert_email_draft(
+    return followup_email.store_generated(
+        store,
+        opportunity=opportunity,
         opportunity_id=opportunity_id,
         user_id=user_id,
         journey_stage=journey_stage,
-        payload={
-            "status": "draft",
-            "selected_length": existing.get("selected_length") if existing else None,
-            "lengths": lengths,
-            "confirmed_at": None,
-        },
-        opportunity=opportunity,
+        lengths=lengths,
+        source=email_source,
+        review_flags=review_flags,
+        overwrite_edits=overwrite_edits,
     )
-    return envelope_from_stored(opportunity_id, journey_stage, stored)
 
 
-def envelope_from_stored(opportunity_id: UUID, journey_stage: str, stored: dict[str, Any] | None) -> dict[str, Any]:
+def envelope_from_stored(
+    opportunity_id: UUID,
+    journey_stage: str,
+    stored: dict[str, Any] | None,
+    *,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     if stored is None:
         return empty_email(opportunity_id, journey_stage)
     created = stored.get("created_at")
@@ -561,6 +576,7 @@ def envelope_from_stored(opportunity_id: UUID, journey_stage: str, stored: dict[
         "confirmed_at": confirmed.isoformat().replace("+00:00", "Z") if hasattr(confirmed, "isoformat") else confirmed,
         "created_at": created.isoformat().replace("+00:00", "Z") if hasattr(created, "isoformat") else str(created),
         "updated_at": updated.isoformat().replace("+00:00", "Z") if hasattr(updated, "isoformat") else str(updated),
+        **(extra or {"revision": int(stored.get("revision") or 1)}),
     }
     return _validate(
         "email_draft.schema.json",
@@ -580,27 +596,22 @@ def confirm_email_draft(
     user_id: UUID,
     draft_id: UUID,
     selected_length: str,
+    expected_revision: int | None = None,
+    review_checks: list[str] | None = None,
+    acknowledged_flags: list[str] | None = None,
 ) -> dict[str, Any]:
-    if selected_length not in {"short", "medium", "extensive"}:
-        raise bad_request("INVALID_EMAIL_LENGTH", "selected_length must be short, medium, or extensive")
-    stored = store.get_email_draft_by_id(
+    from app.services import followup_email
+
+    return followup_email.confirm_draft(
+        store,
         opportunity_id=opportunity_id,
         user_id=user_id,
         draft_id=draft_id,
+        selected_length=selected_length,
+        expected_revision=expected_revision,
+        review_checks=review_checks,
+        acknowledged_flags=acknowledged_flags,
     )
-    journey_stage = stored["journey_stage"]
-    updated = store.upsert_email_draft(
-        opportunity_id=opportunity_id,
-        user_id=user_id,
-        journey_stage=journey_stage,
-        payload={
-            "status": "confirmed",
-            "selected_length": selected_length,
-            "lengths": stored["lengths"],
-            "confirmed_at": _now(),
-        },
-    )
-    return envelope_from_stored(opportunity_id, journey_stage, updated)
 
 
 def prompt_uses_summary_only(prompt: str) -> None:

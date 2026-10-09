@@ -62,6 +62,8 @@ def _now() -> datetime:
 
 
 _GENERATION_LOCK_GUARD = threading.Lock()
+# One email draft write at a time: the revision check and the write are one step.
+_EMAIL_DRAFT_GUARD = threading.Lock()
 
 
 def _version_lineage_sort(row: dict[str, Any]) -> tuple:
@@ -2148,39 +2150,45 @@ class MemoryDataStore:
         rows = [row for row in self.llm_calls.values() if row.get("job_id") == target]
         return [copy.deepcopy(row) for row in sorted(rows, key=lambda item: item["created_at"])]
 
-    def upsert_email_draft(
+    def save_email_draft(
         self,
         *,
         opportunity_id: UUID,
         user_id: UUID,
         journey_stage: str,
-        payload: dict[str, Any],
-        opportunity: dict[str, Any] | None = None,
+        draft: dict[str, Any],
+        expected_revision: int | None,
     ) -> dict[str, Any]:
+        """Write one stage's draft only if it is still at ``expected_revision`` (None: no draft yet).
+
+        Check and write are one step under the guard, and only this stage's entry is replaced in
+        the current row - the same guarantee the database function gives the Supabase store.
+        """
         from app.services.pitch_owner import user_can_access_opportunity
 
-        row = self.opportunities.get(opportunity_id)
-        if row is None or not user_can_access_opportunity(row, user_id):
-            raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
-        drafts = copy.deepcopy(row.get("email_drafts") or {})
-        existing = drafts.get(journey_stage)
-        now = _now()
-        stored = {
-            "id": UUID(str(existing["id"])) if existing else uuid.uuid4(),
-            "opportunity_id": opportunity_id,
-            "journey_stage": journey_stage,
-            "status": payload["status"],
-            "send_status": "not_sent",
-            "selected_length": payload.get("selected_length"),
-            "lengths": copy.deepcopy(payload["lengths"]),
-            "confirmed_at": payload.get("confirmed_at"),
-            "created_at": existing["created_at"] if existing else now,
-            "updated_at": now,
-        }
-        drafts[journey_stage] = stored
-        row["email_drafts"] = drafts
-        row["updated_at"] = now
-        return copy.deepcopy(stored)
+        with _EMAIL_DRAFT_GUARD:
+            row = self.opportunities.get(opportunity_id)
+            if row is None or not user_can_access_opportunity(row, user_id):
+                raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
+            drafts = row.get("email_drafts") if isinstance(row.get("email_drafts"), dict) else {}
+            existing = drafts.get(journey_stage)
+            current = None if existing is None else int(existing.get("revision") or 1)
+            if current != expected_revision:
+                raise conflict("EMAIL_DRAFT_CONFLICT", "The email draft was changed in the meantime. Reload it before saving.")
+            now = _now()
+            stored = {
+                **copy.deepcopy(draft),
+                "id": UUID(str(existing["id"])) if existing else uuid.uuid4(),
+                "opportunity_id": opportunity_id,
+                "journey_stage": journey_stage,
+                "send_status": "not_sent",
+                "revision": (current or 0) + 1,
+                "created_at": existing["created_at"] if existing else now,
+                "updated_at": now,
+            }
+            row["email_drafts"] = {**drafts, journey_stage: stored}
+            row["updated_at"] = now
+            return copy.deepcopy(stored)
 
     def get_email_draft(
         self,

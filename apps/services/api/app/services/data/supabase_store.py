@@ -765,39 +765,56 @@ class SupabaseDataStore:
             return _normalize_opportunity(row)
         return self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
 
-    def upsert_email_draft(
+    def save_email_draft(
         self,
         *,
         opportunity_id: UUID,
         user_id: UUID,
         journey_stage: str,
-        payload: dict[str, Any],
-        opportunity: dict[str, Any] | None = None,
+        draft: dict[str, Any],
+        expected_revision: int | None,
     ) -> dict[str, Any]:
-        if opportunity is None:
-            opportunity = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
-        drafts = dict(opportunity.get("email_drafts") or {})
-        existing = drafts.get(journey_stage) or {}
+        """Write one stage's draft only if it is still at ``expected_revision`` (None: no draft yet).
+
+        The database function ``save_email_draft`` (migration 043) changes only this stage inside
+        the locked row and checks the revision in the same statement. The whole ``email_drafts``
+        object is never sent back, so a save of another stage at the same moment is not lost, and
+        two API processes saving the same draft cannot both succeed.
+        """
+        opportunity = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        existing = (opportunity.get("email_drafts") or {}).get(journey_stage)
+        current = None if existing is None else int(existing.get("revision") or 1)
+        stale = conflict("EMAIL_DRAFT_CONFLICT", "The email draft was changed in the meantime. Reload it before saving.")
+        if current != expected_revision:
+            raise stale
         now = datetime.now(UTC).isoformat()
         stored = {
-            "id": str(existing.get("id") or uuid4()),
+            **draft,
+            "id": str(existing["id"]) if existing else str(uuid4()),
             "opportunity_id": str(opportunity_id),
             "journey_stage": journey_stage,
-            "status": payload["status"],
             "send_status": "not_sent",
-            "selected_length": payload.get("selected_length"),
-            "lengths": payload["lengths"],
-            "confirmed_at": payload.get("confirmed_at"),
-            "created_at": existing.get("created_at") or now,
+            "revision": (current or 0) + 1,
+            "created_at": existing.get("created_at") if existing else now,
             "updated_at": now,
         }
-        drafts[journey_stage] = stored
-        self.update_opportunity(
-            opportunity_id=opportunity_id,
-            user_id=user_id,
-            updates={"email_drafts": drafts},
+        response = self._request(
+            "POST",
+            "rpc/save_email_draft",
+            json_body={
+                "p_opportunity_id": str(opportunity_id),
+                "p_journey_stage": journey_stage,
+                "p_expected_revision": expected_revision,
+                "p_draft": stored,
+            },
         )
-        return stored
+        if response.status_code not in (200, 201):
+            raise bad_request("EMAIL_DRAFT_SAVE_FAILED", "The email draft could not be saved.")
+        saved = response.json()
+        if not isinstance(saved, dict):
+            # No row matched: the draft moved on (or was created) after it was read.
+            raise stale
+        return saved
 
     def get_email_draft(
         self,

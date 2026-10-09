@@ -184,6 +184,9 @@ body:has(.app-workspace) {
   gap: 14px;
 }
 
+.pitch-page-heading { min-width: 0; }
+.pitch-page-subtitle { margin: 4px 0 0; color: var(--pitch-gray-500); font-size: var(--pitch-text-label); line-height: 1.5; }
+
 .pitch-title-underline {
   width: 230px;
   max-width: 100%;

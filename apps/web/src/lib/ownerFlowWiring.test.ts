@@ -42,8 +42,8 @@ test("owner review can finalize and follow-up prepares a deepening draft only", 
   const api = source("./api.ts");
   assert.match(review, /markOwnerReviewed/);
   assert.match(review, /finalizeWorkflow/);
-  assert.match(followUp, /generateEmailDraft/);
-  assert.match(followUp, /"deepening"/);
+  assert.match(followUp, /generatePostMeetingEmail\(token, opportunityId, overwrite\)/);
+  assert.match(source("./postMeetingEmail.ts"), /journey_stage: "deepening"/);
   assert.doesNotMatch(followUp, /concretisation/);
   assert.doesNotMatch(api, /gamma|GAMMA|PRESENTATION_ENGINE/);
   assert.match(api, /\/ppt2\/generate/);

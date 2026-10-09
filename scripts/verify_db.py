@@ -366,6 +366,20 @@ def verify_via_postgres(db_url: str) -> tuple[int, bool]:
                     ok("auth.uid() exists")
                 else:
                     warn("auth.uid() not found")
+                # Migration 043: email drafts are saved one journey stage at a time by this function.
+                cur.execute(
+                    """
+                    SELECT 1 FROM pg_proc p
+                    JOIN pg_namespace n ON n.oid = p.pronamespace
+                    WHERE n.nspname = %s AND p.proname = %s
+                    """,
+                    ("public", "save_email_draft"),
+                )
+                if cur.fetchone():
+                    ok("public.save_email_draft() exists")
+                else:
+                    fail("public.save_email_draft() missing (migration 043)")
+                    errors += 1
 
             print("\n7) Required columns, foreign keys, and indexes")
             with conn.cursor() as cur:

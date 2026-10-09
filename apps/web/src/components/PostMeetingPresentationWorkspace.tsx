@@ -169,7 +169,7 @@ function PresentationSession({ opportunityId, accessToken, live }: {
     <nav className={styles.tabs} aria-label="Post-meeting documents">
       <Link href={`${root}/meeting`}>Meeting inputs</Link>
       <Link href={`${root}/post-meeting-presentation`} aria-current="page">Presentation / {product}</Link>
-      <Link href={`${root}/follow-up`}>Follow-up &amp; review</Link>
+      <Link href={`${root}/follow-up`}>Follow-up email</Link>
     </nav>
     <progress className="discovery-progress" max={slides.length || 1} value={readyCount} aria-label={`${readyCount} of ${slides.length} ${product} slide previews loaded`} />
     {error ? <p className={styles.error} role="alert">{error}</p> : null}
