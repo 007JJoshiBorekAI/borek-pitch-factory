@@ -1,165 +1,423 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { PostMeetingPhaseNav, usePostMeeting } from "@/components/PostMeetingShell";
-import { generateEmailDraft } from "@/lib/api";
+import { isMasterJourney } from "@/lib/discoveryFirst";
 import { loadPostMeetingWorkflow, postMeetingError } from "@/lib/postMeeting";
-import { canPreparePostMeetingEmail, loadPostMeetingEmail, parsePostMeetingEmail, type PostMeetingEmail } from "@/lib/postMeetingEmail";
+import {
+  EMAIL_LENGTHS, EMAIL_LENGTH_LABEL, EMAIL_REVIEW_CHECKS, EMAIL_STATE_LABEL, canPreparePostMeetingEmail, clipboardText,
+  confirmPostMeetingEmail, contentWordCount, downloadEmailAttachment, emailError, emailExportable, emailFlagText, emailState,
+  exportPostMeetingEmail, formatFileSize, generatePostMeetingEmail, isEmailConflict, isEmailHasEdits, isStaticsMissing,
+  loadFollowupStatics, loadPostMeetingEmail, openReviewFlags, personLabel, saveFollowupStatics, savePostMeetingEmail, staticsFormFrom,
+  unsavedLengths, validateStaticsForm, workingCopy,
+  type EmailAttachment, type EmailLength, type EmailWorkingCopy, type FollowupStaticsForm, type PostMeetingEmail,
+} from "@/lib/postMeetingEmail";
 import { downloadPostMeetingPresentation, loadExistingPostMeetingPresentation, type PostMeetingPresentation } from "@/lib/postMeetingPresentation";
 import styles from "./post-meeting.module.css";
 
+type Busy = null | "loading" | "generating" | "saving" | "confirming" | "exporting" | "statics";
+
+function saveBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const anchor = window.document.createElement("a");
+    anchor.href = url; anchor.download = fileName; anchor.click();
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/** Earlier opportunities with a standalone PPT #2: the current deck, as before. */
+function StandalonePresentationCard({ opportunityId, token, reviewHref }: { opportunityId: string; token: string | null; reviewHref: string }) {
+  const [deck, setDeck] = useState<PostMeetingPresentation | null>(null);
+  const [phase, setPhase] = useState<"loading" | "ready" | "none" | "failed">("loading");
+  const [message, setMessage] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  useEffect(() => {
+    if (!token) { setPhase("none"); return; }
+    const controller = new AbortController();
+    void loadExistingPostMeetingPresentation(token, opportunityId, controller.signal).then((result) => {
+      if (controller.signal.aborted) return;
+      setDeck(result.deck); setPhase(result.deck ? "ready" : "none");
+    }).catch((cause) => { if (!controller.signal.aborted) { setMessage(postMeetingError(cause)); setPhase("failed"); } });
+    return () => controller.abort();
+  }, [token, opportunityId]);
+  async function download() {
+    if (!token || !deck?.downloads.pptx || downloading) return;
+    setDownloading(true); setMessage(null);
+    try { saveBlob(await downloadPostMeetingPresentation(token, opportunityId, deck, "pptx"), `ppt-2-${opportunityId}.pptx`); }
+    catch (cause) { setMessage(postMeetingError(cause)); }
+    finally { setDownloading(false); }
+  }
+  return <div className={styles.packageDocument}>
+    <strong>{deck?.name || "Updated presentation"}</strong>
+    <small>{deck ? `${deck.slides.length} slides · PPT #2 · Version ${deck.versionNumber}` : phase === "loading" ? "Loading presentation..." : phase === "failed" ? "Presentation unavailable" : "No presentation generated yet"}</small>
+    <div className={styles.packageDocumentActions}>
+      <Link className="btn btn-secondary" href={reviewHref}>Review</Link>
+      <button className="btn btn-primary" type="button" disabled={!deck?.downloads.pptx || downloading} onClick={() => void download()}>{downloading ? "Downloading..." : "Download"}</button>
+    </div>
+    {message ? <p className={styles.packageError} role="alert">{message}</p> : null}
+  </div>;
+}
+
+const dateTime = (value: string | null) => (value ? new Date(value).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "");
+
 export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string }) {
   const { accessToken, previewMode } = useAuth();
-  const { workflow, companyName, contactPerson, refreshWorkflow } = usePostMeeting();
+  const { workflow, companyName, contactPerson } = usePostMeeting();
   const live = Boolean(accessToken) && !previewMode;
+  const root = `/opportunities/${encodeURIComponent(opportunityId)}`;
+  const master = isMasterJourney(workflow?.documents);
+  const eligible = canPreparePostMeetingEmail(workflow);
+
   const [draft, setDraft] = useState<PostMeetingEmail | null>(null);
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [phase, setPhase] = useState<"loading" | "ready" | "failed" | "generating">(live ? "loading" : "ready");
+  const [copy, setCopy] = useState<EmailWorkingCopy | null>(null);
+  const [length, setLength] = useState<EmailLength>("medium");
+  const [busy, setBusy] = useState<Busy>(live ? "loading" : null);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+  const [checks, setChecks] = useState<string[]>([]);
+  // The review flags the owner ticked, one by one. A new or changed draft starts with none.
+  const [acknowledged, setAcknowledged] = useState<string[]>([]);
+  const [statics, setStatics] = useState<unknown>(null);
+  const [form, setForm] = useState<FollowupStaticsForm | null>(null);
+  const [editStatics, setEditStatics] = useState(false);
+  const [staticsError, setStaticsError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
-  const [document, setDocument] = useState<PostMeetingPresentation | null>(null);
-  const [documentPhase, setDocumentPhase] = useState<"idle" | "loading" | "ready" | "failed">("idle");
-  const [documentError, setDocumentError] = useState<string | null>(null);
-  const [documentRetry, setDocumentRetry] = useState(0);
-  const [downloading, setDownloading] = useState(false);
-  const downloadOperation = useRef<AbortController | null>(null);
   const lock = useRef(false);
-  const loaded = useRef(false);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  const root = `/opportunities/${encodeURIComponent(opportunityId)}`;
-  const eligible = canPreparePostMeetingEmail(workflow);
-  const dirty = subject !== (draft?.subject ?? "") || body !== (draft?.body ?? "");
-  const busy = phase === "loading" || phase === "generating";
-  const presentationId = workflow?.documents.ppt2?.presentation_id;
-  const presentationVersionId = workflow?.documents.ppt2?.latest_ready_version_id;
-  const currentDocument = live && document?.presentationId === presentationId && document?.presentationVersionId === presentationVersionId ? document : null;
+
+  const dirty = unsavedLengths(draft, copy);
+  const state = emailState(draft, copy);
+  const exportable = emailExportable(draft) && dirty.length === 0;
+  const working = busy !== null;
+
+  /**
+   * A loaded or saved draft replaces the saved state. ``keep`` names the lengths whose typed text
+   * stays in the editor; every other length shows what is saved, including another editor's change.
+   */
+  const adopt = useCallback((next: PostMeetingEmail | null, keep: EmailLength[] | null = null) => {
+    setDraft(next);
+    setCopy((current) => {
+      if (!next) return null;
+      const saved = workingCopy(next);
+      if (!keep || !current) return saved;
+      for (const name of keep) saved[name] = current[name];
+      return saved;
+    });
+    setChecks([]);
+    setAcknowledged([]);
+    if (next?.selectedLength && !keep) setLength(next.selectedLength);
+  }, []);
 
   useEffect(() => {
+    if (!accessToken || !live) return;
     const controller = new AbortController();
-    downloadOperation.current?.abort(); downloadOperation.current = null;
-    setDownloading(false); setDocument(null); setDocumentError(null);
-    if (!live || !accessToken || !presentationId || !presentationVersionId) {
-      setDocumentPhase("idle");
-    } else {
-      setDocumentPhase("loading");
-      void loadExistingPostMeetingPresentation(accessToken, opportunityId, controller.signal).then((result) => {
-        if (controller.signal.aborted) return;
-        if (result.deck?.presentationId !== presentationId || result.deck.presentationVersionId !== presentationVersionId) {
-          throw new Error("The presentation changed. Open Review to load the current version.");
-        }
-        setDocument(result.deck); setDocumentPhase("ready");
-      }).catch((cause) => {
-        if (!controller.signal.aborted) { setDocumentError(postMeetingError(cause)); setDocumentPhase("failed"); }
-      });
-    }
-    return () => { controller.abort(); downloadOperation.current?.abort(); };
-  }, [accessToken, live, opportunityId, presentationId, presentationVersionId, documentRetry]);
-
-  useEffect(() => {
-    if (!accessToken || !live || loaded.current) return;
-    const controller = new AbortController();
-    setPhase("loading"); setError(null);
-    void loadPostMeetingEmail(accessToken, opportunityId, controller.signal).then((value) => {
+    setBusy("loading"); setError(null);
+    void Promise.all([
+      loadPostMeetingEmail(accessToken, opportunityId, controller.signal),
+      loadFollowupStatics(accessToken, opportunityId, controller.signal),
+    ]).then(([email, stored]) => {
       if (controller.signal.aborted) return;
-      loaded.current = true;
-      setDraft(value); setSubject(value?.subject ?? ""); setBody(value?.body ?? ""); setPhase("ready");
-    }).catch((cause) => { if (!controller.signal.aborted) { setError(postMeetingError(cause)); setPhase("failed"); } });
+      adopt(email); setStatics(stored);
+      setForm(staticsFormFrom(stored, { companyName, contactPerson }));
+      setEditStatics(stored === null);
+      setLoaded(true); setConflict(false); setBusy(null);
+    }).catch((cause) => { if (!controller.signal.aborted) { setError(emailError(cause)); setBusy(null); } });
     return () => controller.abort();
-  }, [accessToken, live, opportunityId, reload]);
+  }, [accessToken, live, opportunityId, reload, adopt, companyName, contactPerson]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty.length) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [dirty.length]);
 
-  async function createDraft() {
-    if (!accessToken || !live || !eligible || !loaded.current || lock.current || dirty) return;
-    lock.current = true; setPhase("generating"); setError(null);
-    try {
-      const latest = await loadPostMeetingWorkflow(accessToken, opportunityId);
+  /** One request at a time; a 409 from another editor opens the reload decision instead of an error. */
+  async function run(kind: Exclude<Busy, null | "loading">, action: (token: string) => Promise<void>) {
+    if (!accessToken || !live || lock.current) return;
+    lock.current = true; setBusy(kind); setError(null); setNotice(null);
+    try { await action(accessToken); }
+    catch (cause) {
       if (!alive.current) return;
-      if (!canPreparePostMeetingEmail(latest)) throw new Error("The documents are no longer finalized. Return to owner review before preparing an email.");
-      const next = parsePostMeetingEmail(await generateEmailDraft(accessToken, opportunityId, "deepening"), opportunityId);
-      if (!next) throw new Error("No email draft was returned. Retry preparation.");
-      if (alive.current) { setDraft(next); setSubject(next.subject); setBody(next.body); setPhase("ready"); }
-    } catch (cause) { if (alive.current) { setError(postMeetingError(cause)); setPhase("failed"); } }
-    finally { lock.current = false; }
+      if (isEmailConflict(cause)) setConflict(true);
+      else if (isEmailHasEdits(cause)) setConfirmRegenerate(true);
+      else { if (isStaticsMissing(cause)) setEditStatics(true); setError(emailError(cause)); }
+    } finally { lock.current = false; if (alive.current) setBusy(null); }
   }
 
-  async function downloadDocument() {
-    if (!accessToken || !currentDocument?.downloads.pptx || downloadOperation.current) return;
-    const controller = new AbortController();
-    downloadOperation.current = controller; setDownloading(true); setDocumentError(null);
-    try {
-      const blob = await downloadPostMeetingPresentation(accessToken, opportunityId, currentDocument, "pptx", controller.signal);
-      if (controller.signal.aborted) return;
-      const url = URL.createObjectURL(blob);
-      try {
-        const anchor = window.document.createElement("a");
-        anchor.href = url;
-        anchor.download = `ppt-2-${opportunityId}.pptx`;
-        anchor.click();
-      } finally { URL.revokeObjectURL(url); }
-    } catch (cause) { if (!controller.signal.aborted) setDocumentError(postMeetingError(cause)); }
-    finally {
-      if (downloadOperation.current === controller) downloadOperation.current = null;
-      if (!controller.signal.aborted) setDownloading(false);
-    }
+  const generate = (overwrite: boolean) => run("generating", async (token) => {
+    const latest = await loadPostMeetingWorkflow(token, opportunityId);
+    if (!canPreparePostMeetingEmail(latest)) throw new Error("The documents are no longer finalized. Return to owner review before preparing an email.");
+    const next = await generatePostMeetingEmail(token, opportunityId, overwrite);
+    if (!alive.current) return;
+    adopt(next); setConfirmRegenerate(false); setConflict(false);
+    setNotice("A new draft was generated from the finalized presentation package.");
+  });
+
+  function requestGenerate() {
+    // Saved edits, unsaved text or a confirmation would be replaced: ask first.
+    const hasWork = Boolean(draft) && (dirty.length > 0 || draft!.status === "confirmed" || EMAIL_LENGTHS.some((name) => draft!.lengths[name].edited));
+    if (hasWork) setConfirmRegenerate(true); else void generate(false);
   }
 
-  return <section aria-labelledby="follow-up-title">
-    <header className={styles.heading}><span className={styles.eyebrow}>Post-meeting</span><h1 id="follow-up-title">Review follow-up package</h1><p>{companyName} · Documents and email for your next conversation</p></header>
+  const save = () => run("saving", async (token) => {
+    if (!draft || !copy) return;
+    const lengths = Object.fromEntries(dirty.map((name) => [name, copy[name]]));
+    const saved = await savePostMeetingEmail(token, opportunityId, draft, { selectedLength: length, lengths });
+    if (alive.current) { adopt(saved); setNotice("Changes saved."); }
+  });
+
+  const toggleAttachment = (attachment: EmailAttachment) => run("saving", async (token) => {
+    if (!draft) return;
+    const saved = await savePostMeetingEmail(token, opportunityId, draft, { attachments: { [attachment.format]: !attachment.selected } });
+    if (alive.current) adopt(saved, dirty);
+  });
+
+  const confirm = () => run("confirming", async (token) => {
+    if (!draft) return;
+    const confirmed = await confirmPostMeetingEmail(token, opportunityId, draft, length, checks, acknowledged);
+    if (alive.current) { adopt(confirmed); setNotice("Draft confirmed. Nothing was sent."); }
+  });
+
+  const exportEmail = () => run("exporting", async (token) => {
+    if (!draft) return;
+    saveBlob(await exportPostMeetingEmail(token, opportunityId, draft), `${(form?.projectName || "follow-up").replace(/[^\w .()-]+/g, "-")} - follow-up email.eml`);
+    if (alive.current) setNotice("The email file was downloaded. Open it in your mail program to send it yourself.");
+  });
+
+  const download = (attachment: EmailAttachment) => run("exporting", async (token) => {
+    saveBlob(await downloadEmailAttachment(token, attachment), attachment.fileName);
+  });
+
+  async function copyText() {
+    if (!draft) return;
+    try { await navigator.clipboard.writeText(clipboardText(draft)); setNotice("Subject and message copied."); setError(null); }
+    catch (cause) { setError(emailError(cause)); }
+  }
+
+  const saveStatics = () => run("statics", async (token) => {
+    if (!form) return;
+    const problem = validateStaticsForm(form);
+    setStaticsError(problem);
+    if (problem) return;
+    const stored = await saveFollowupStatics(token, opportunityId, form, statics);
+    if (!alive.current) return;
+    setStatics(stored); setForm(staticsFormFrom(stored, { companyName, contactPerson })); setEditStatics(false);
+    const refreshed = await loadPostMeetingEmail(token, opportunityId);
+    if (!alive.current) return;
+    adopt(refreshed, dirty);
+    setNotice(refreshed ? "Recipient and sender saved. Greeting and signature of the existing drafts are text: regenerate to apply new names." : "Recipient and sender saved.");
+  });
+
+  /** Conflict decision: take the saved version, or keep the typed text on top of it and save again. */
+  const resolveConflict = (keepMine: boolean) => run("saving", async (token) => {
+    const latest = await loadPostMeetingEmail(token, opportunityId);
+    if (!alive.current) return;
+    adopt(latest, keepMine && latest !== null ? dirty : null); setConflict(false);
+    setNotice(keepMine ? "The saved version was loaded underneath your text. Review it, then save again." : "The saved version was loaded.");
+  });
+
+  const text = copy?.[length];
+  const words = text ? contentWordCount(text.body) : 0;
+  const limit = draft?.wordLimits[length] ?? 0;
+  const overLimit = Boolean(draft) && words > limit;
+  const allChecked = EMAIL_REVIEW_CHECKS.every(([key]) => checks.includes(key));
+  const needsReview = master || Boolean(draft?.source);
+  const openFlags = openReviewFlags(draft, acknowledged);
+  const selectedFiles = draft?.attachments.filter((item) => item.selected) ?? [];
+  const blockedFile = selectedFiles.find((item) => !item.available);
+  const canConfirm = Boolean(draft) && !working && dirty.length === 0 && !overLimit && !conflict && draft!.sourceStatus !== "changed"
+    && !blockedFile && (!needsReview || (allChecked && openFlags.length === 0)) && !exportable;
+  const set = (patch: Partial<FollowupStaticsForm>) => setForm((current) => (current ? { ...current, ...patch } : current));
+  const pill = { none: "Not prepared", unsaved: "Unsaved", saved: "Editable", confirmed: "Confirmed" }[state];
+
+  // Until the workflow is known the page cannot tell a Master Presentation from an earlier
+  // standalone PPT #2, so it shows neither journey's navigation, documents or gates.
+  if (live && !workflow) {
+    return <section aria-labelledby="follow-up-title" aria-busy="true">
+      <header className={styles.heading}><span className={styles.eyebrow}>Post-meeting</span><h1 id="follow-up-title">Review follow-up package</h1><p>{companyName}</p></header>
+      <p className={styles.notice} role="status">Loading the follow-up package...</p>
+    </section>;
+  }
+
+  return <section aria-labelledby="follow-up-title" data-testid="follow-up-email">
+    <header className={styles.heading}><span className={styles.eyebrow}>Post-meeting</span><h1 id="follow-up-title">Review follow-up package</h1><p>{companyName} · Presentation updated from the first meeting</p></header>
     <PostMeetingPhaseNav opportunityId={opportunityId} active="review" />
-    {error ? <p className={styles.error} role="alert">{error}</p> : null}
-    {busy ? <p className={styles.notice} role="status">{phase === "loading" ? "Loading saved email draft..." : "Preparing the email draft..."}</p> : null}
+    {!live ? <p className={styles.notice} role="status">Preview mode: email drafts are stored by the backend and are not available without a signed-in session.</p> : null}
+    {error ? <p className={styles.error} role="alert" data-testid="email-error">{error}</p> : null}
+    {notice ? <p className={styles.notice} role="status" data-testid="email-notice">{notice}</p> : null}
+    {conflict ? <div className={`${styles.notice} ${styles.emailDecision}`} role="alert" data-testid="email-conflict">
+      <strong>This draft was changed elsewhere after you loaded it.</strong>
+      <p>Nothing of yours was saved, and nothing was overwritten. Choose which text to continue with.</p>
+      <div className={styles.actions}>
+        <button className="btn btn-primary" disabled={working} onClick={() => void resolveConflict(false)}>Load the saved version</button>
+        <button className="btn btn-secondary" disabled={working} onClick={() => void resolveConflict(true)}>Keep my text and review</button>
+      </div>
+    </div> : null}
+    {confirmRegenerate ? <div className={`${styles.notice} ${styles.emailDecision}`} role="alertdialog" aria-label="Regenerate the email draft" data-testid="email-regenerate-warning">
+      <strong>Regenerating replaces all three lengths.</strong>
+      <p>Your edits{draft?.status === "confirmed" ? " and the confirmation" : ""} will be replaced by a new draft from the finalized package. This cannot be undone.</p>
+      <div className={styles.actions}>
+        <button className="btn btn-primary" disabled={working} onClick={() => void generate(true)}>Replace with a new draft</button>
+        <button className="btn btn-secondary" disabled={working} onClick={() => setConfirmRegenerate(false)}>Keep my draft</button>
+      </div>
+    </div> : null}
+
     <div className={`${styles.columns} ${styles.followUpColumns}`}>
-      <article className={`${styles.card} ${styles.email}`}>
-        <div><span className={styles.eyebrow}>Follow-up email</span><h2>Review and edit your message</h2><small>To: {contactPerson || "No contact person recorded"}{companyName ? ` · ${companyName}` : ""}</small></div>
-        <label htmlFor="follow-up-subject">Subject<input id="follow-up-subject" value={subject} disabled={busy || (live && !draft)} placeholder="Your follow-up subject" onChange={(event) => setSubject(event.target.value)} /></label>
-        <label htmlFor="follow-up-body">Message<textarea id="follow-up-body" value={body} disabled={busy || (live && !draft)} placeholder="Prepare a draft after reviewing and finalizing the documents." onChange={(event) => setBody(event.target.value)} /></label>
-        <p className={styles.notice} role="status">{dirty ? "Unsaved local edits. " : draft ? "Saved generated draft loaded. " : "No draft prepared yet. "}Email text saving and approved-attachment export are awaiting the backend contract. Edits on this page are not persisted and will be lost if you navigate away.</p>
-        {draft ? <small>Draft {draft.id} · Updated {draft.updatedAt}</small> : null}
-        <div className={styles.actions}>
-          <button className="btn btn-primary" disabled={!live || !eligible || !loaded.current || busy || dirty} onClick={() => void createDraft()}>{draft ? "Regenerate email draft" : "Prepare email draft"}</button>
-          {phase === "failed" ? <button className="btn btn-secondary" disabled={dirty || !live} onClick={() => { loaded.current = false; setReload((value) => value + 1); }}>Retry loading draft</button> : null}
-          {dirty ? <button className="btn btn-secondary" onClick={() => { setSubject(draft?.subject ?? ""); setBody(draft?.body ?? ""); }}>Discard local edits</button> : null}
-        </div>
-        {!eligible ? <small><Link href={`${root}/review`}>Review and finalize the current documents</Link> before preparing the email.</small> : <small>The current email service uses meeting transcript context. Unified finalized-context generation remains an integration dependency.</small>}
-      </article>
+      <div className={styles.stack}>
+        <article className={`${styles.card} ${styles.email}`} aria-busy={working}>
+          <div className={styles.emailHeader}>
+            <span className={styles.eyebrow}>Follow-up email</span>
+            <span className={`${styles.emailPill} ${state === "confirmed" ? styles.emailPillDone : state === "unsaved" ? styles.emailPillWarn : ""}`} data-testid="email-state-pill">{pill}</span>
+          </div>
+
+          <dl className={styles.emailFields}>
+            <div><dt>To</dt><dd data-testid="email-to">{draft?.recipients ? draft.recipients.to.map(personLabel).join(", ") : form?.recipientEmail ? `${[form.recipientFirstName, form.recipientLastName].filter(Boolean).join(" ")} <${form.recipientEmail}>`.trim() : "No recipient entered yet"}{companyName ? ` · ${companyName}` : ""}</dd></div>
+            {draft?.recipients?.cc.length ? <div><dt>Cc</dt><dd>{draft.recipients.cc.map(personLabel).join(", ")}</dd></div> : null}
+            <div><dt>From</dt><dd data-testid="email-from">{draft?.recipients ? `${draft.recipients.sender.name} <${draft.recipients.sender.email}>` : form?.senderEmail ? `${form.senderName} <${form.senderEmail}>` : "No sender entered yet"}
+              {live && loaded && !editStatics ? <button type="button" className={styles.emailLink} disabled={working} onClick={() => setEditStatics(true)}>Edit recipient and sender</button> : null}</dd></div>
+          </dl>
+
+          {editStatics && form ? <fieldset className={styles.emailStatics} disabled={working} data-testid="email-statics">
+            <legend>Recipient and sender</legend>
+            <p><small>Entered by you and used for the greeting, the signature and the exported file. Nothing here is guessed.</small></p>
+            <div className={styles.emailStaticsGrid}>
+              <label>Project name<input value={form.projectName} onChange={(event) => set({ projectName: event.target.value })} /></label>
+              <label>Client (short name)<input value={form.clientShort} onChange={(event) => set({ clientShort: event.target.value })} /></label>
+              <label>Greeting<select value={form.style} onChange={(event) => set({ style: event.target.value === "formal" ? "formal" : "informal" })}><option value="informal">Informal — Hi first name</option><option value="formal">Formal — Dear salutation last name</option></select></label>
+              <label>Recipient email<input type="email" value={form.recipientEmail} onChange={(event) => set({ recipientEmail: event.target.value })} /></label>
+              <label>Salutation<input value={form.recipientSalutation} placeholder="Ms / Mr / Dr" onChange={(event) => set({ recipientSalutation: event.target.value })} /></label>
+              <label>Recipient first name<input value={form.recipientFirstName} onChange={(event) => set({ recipientFirstName: event.target.value })} /></label>
+              <label>Recipient last name<input value={form.recipientLastName} onChange={(event) => set({ recipientLastName: event.target.value })} /></label>
+              <label>Sender name<input value={form.senderName} onChange={(event) => set({ senderName: event.target.value })} /></label>
+              <label>Sender role<input value={form.senderRole} onChange={(event) => set({ senderRole: event.target.value })} /></label>
+              <label>Sender email<input type="email" value={form.senderEmail} onChange={(event) => set({ senderEmail: event.target.value })} /></label>
+            </div>
+            {staticsError ? <p className={styles.error} role="alert">{staticsError}</p> : null}
+            <div className={styles.actions}>
+              <button type="button" className="btn btn-primary" onClick={() => void saveStatics()}>{busy === "statics" ? "Saving..." : "Save recipient and sender"}</button>
+              {statics ? <button type="button" className="btn btn-secondary" onClick={() => { setForm(staticsFormFrom(statics, { companyName, contactPerson })); setEditStatics(false); setStaticsError(null); }}>Cancel</button> : null}
+            </div>
+          </fieldset> : null}
+
+          {draft && copy && text ? <>
+            <div className={styles.emailLengths} role="tablist" aria-label="Draft length">
+              {EMAIL_LENGTHS.map((name) => <button key={name} type="button" role="tab" aria-selected={name === length} data-testid={`email-length-${name}`}
+                className={name === length ? styles.emailLengthActive : undefined} onClick={() => setLength(name)}>
+                <strong>{EMAIL_LENGTH_LABEL[name]}</strong>
+                <small>{contentWordCount(copy[name].body)} / {draft.wordLimits[name]} words{dirty.includes(name) ? " · unsaved" : draft.lengths[name].edited ? " · edited" : ""}</small>
+              </button>)}
+            </div>
+            <label className={styles.emailSubject} htmlFor="follow-up-subject"><span>Subject</span>
+              <input id="follow-up-subject" value={text.subject} maxLength={200} disabled={working}
+                onChange={(event) => setCopy({ ...copy, [length]: { ...text, subject: event.target.value } })} /></label>
+            <label htmlFor="follow-up-body" className={styles.emailBody}><span className="sr-only">Message</span>
+              <textarea id="follow-up-body" value={text.body} disabled={working}
+                onChange={(event) => setCopy({ ...copy, [length]: { ...text, body: event.target.value } })} /></label>
+            <div className={styles.emailFooter}>
+              <small className={overLimit ? styles.packageError : undefined} data-testid="email-words">{words} of {limit} content words{overLimit ? " — shorten this draft or use a longer one" : ""}</small>
+              <span className={state === "unsaved" ? styles.emailUnsaved : styles.emailSaved} data-testid="email-save-state" role="status">
+                {state === "unsaved" ? `Unsaved changes in ${dirty.map((name) => EMAIL_LENGTH_LABEL[name]).join(", ")}` : state === "confirmed" ? "✓ Confirmed · not sent" : `✓ ${EMAIL_STATE_LABEL.saved}`}
+              </span>
+            </div>
+            <div className={styles.actions}>
+              <button className="btn btn-primary" data-testid="email-save" disabled={working || !dirty.length || overLimit || conflict} onClick={() => void save()}>{busy === "saving" ? "Saving..." : "Save changes"}</button>
+              {dirty.length ? <button className="btn btn-secondary" disabled={working} onClick={() => setCopy(workingCopy(draft))}>Discard unsaved changes</button> : null}
+              <button className="btn btn-secondary" data-testid="email-regenerate" disabled={working || !eligible} onClick={requestGenerate}>{busy === "generating" ? "Generating..." : "Regenerate from the finalized package"}</button>
+            </div>
+            <small>Draft revision {draft.revision} · saved {dateTime(draft.updatedAt)}{draft.status === "confirmed" ? ` · confirmed ${dateTime(draft.confirmedAt)}` : ""}</small>
+          </> : <div className={styles.emailEmpty}>
+            <p>{busy === "loading" ? "Loading the saved email draft..." : eligible ? "No follow-up email has been prepared yet. It is written from the finalized presentation package: the confirmed meeting findings and your recipient and sender details." : "The follow-up email is written from the finalized presentation package."}</p>
+            {eligible ? <div className={styles.actions}><button className="btn btn-primary" data-testid="email-generate" disabled={!live || !loaded || working || editStatics} onClick={() => void generate(false)}>{busy === "generating" ? "Generating..." : "Prepare email draft"}</button>
+              {editStatics ? <small>Save the recipient and sender first.</small> : null}</div>
+              : <p><Link href={`${root}/${master ? "post-meeting-presentation" : "review"}`}>{master ? "Review and finalize Master Presentation V2" : "Review and finalize the current documents"}</Link> before preparing the email.</p>}
+            {!loaded && busy !== "loading" && live ? <button className="btn btn-secondary" onClick={() => setReload((value) => value + 1)}>Retry loading</button> : null}
+          </div>}
+        </article>
+
+        {draft ? <article className={styles.card} aria-labelledby="email-review-title" data-testid="email-review">
+          <span className={styles.eyebrow}>Owner review</span>
+          <h2 id="email-review-title">{exportable ? "Reviewed and confirmed" : "Review before confirming"}</h2>
+          <dl className={styles.emailFields}>
+            <div><dt>Length</dt><dd>{EMAIL_LENGTH_LABEL[exportable && draft.selectedLength ? draft.selectedLength : length]} · {draft.lengths[exportable && draft.selectedLength ? draft.selectedLength : length].wordCount} content words</dd></div>
+            <div><dt>Subject</dt><dd>{draft.lengths[exportable && draft.selectedLength ? draft.selectedLength : length].subject}</dd></div>
+            <div><dt>Source</dt><dd data-testid="email-source">{draft.source
+              ? `Master Presentation V2 · version ${draft.source.versionNumber} · finalized ${dateTime(draft.source.finalizedAt)} · ${draft.source.confirmedFindings ?? 0} confirmed findings, ${draft.source.excludedFindings ?? 0} excluded`
+              : "Meeting transcript (earlier document flow)"}{draft.sourceStatus === "changed" ? " — the finalized package changed; regenerate the email" : ""}</dd></div>
+            <div><dt>Attachments</dt><dd>{selectedFiles.length ? selectedFiles.map((item) => item.fileName).join(", ") : "None selected"}</dd></div>
+          </dl>
+          {draft.reviewFlags.length && exportable ? <><h3>Review flags you acknowledged</h3><ul className={styles.emailFlags} data-testid="email-flags">{draft.reviewFlags.map((flag) => <li key={flag}>{emailFlagText(flag)}</li>)}</ul></> : null}
+          {draft.reviewFlags.length && !exportable ? <fieldset className={styles.emailChecklist} disabled={working || dirty.length > 0} data-testid="email-flags">
+            <legend>Review flags — acknowledge each one</legend>
+            {draft.reviewFlags.map((flag) => <label key={flag} className={styles.check}>
+              <input type="checkbox" data-testid={`email-flag-${flag}`} checked={acknowledged.includes(flag)}
+                onChange={(event) => setAcknowledged(event.target.checked ? [...acknowledged, flag] : acknowledged.filter((item) => item !== flag))} />
+              <span>{emailFlagText(flag)}</span></label>)}
+            <small data-testid="email-flags-open">{openFlags.length ? `${openFlags.length} of ${draft.reviewFlags.length} still to acknowledge` : "All review flags acknowledged"}</small>
+          </fieldset> : null}
+          {exportable
+            ? <p className={styles.notice} role="status">Confirmed {dateTime(draft.confirmedAt)} for revision {draft.confirmedRevision}. Nothing has been sent. Editing the text or the attachments withdraws the confirmation.</p>
+            : <>
+              {needsReview ? <fieldset className={styles.emailChecklist} disabled={working || dirty.length > 0} data-testid="email-checklist">
+                <legend>Checklist</legend>
+                {EMAIL_REVIEW_CHECKS.map(([key, label]) => <label key={key} className={styles.check}>
+                  <input type="checkbox" checked={checks.includes(key)} onChange={(event) => setChecks(event.target.checked ? [...checks, key] : checks.filter((item) => item !== key))} />
+                  <span>{label}</span></label>)}
+              </fieldset> : null}
+              {dirty.length ? <p><small>Save your changes first: the review is of the saved text.</small></p> : null}
+              {blockedFile ? <p className={styles.error} role="alert">{blockedFile.fileName} is selected but not available. Deselect it or restore the approved file.</p> : null}
+              <div className={styles.actions}>
+                <button className="btn btn-primary" data-testid="email-confirm" disabled={!canConfirm} onClick={() => void confirm()}>{busy === "confirming" ? "Confirming..." : `Confirm the ${EMAIL_LENGTH_LABEL[length].toLowerCase()} draft`}</button>
+                <small>Confirming records your review of this saved revision. It does not send the email.</small>
+              </div>
+            </>}
+        </article> : null}
+      </div>
+
       <aside className={`${styles.card} ${styles.packageSidebar}`} aria-label="Follow-up package">
         <header>
-          <h3 className={styles.packageLabel}>Updated client documents</h3>
-          <div className={styles.packageDocument}>
-            <strong>{currentDocument?.name || "Updated presentation"}</strong>
-            <small>{currentDocument ? `${currentDocument.slides.length} slides · PPT #2 · Version ${currentDocument.versionNumber}` : documentPhase === "loading" ? "Loading presentation..." : documentPhase === "failed" ? "Presentation unavailable" : "No presentation generated yet"}</small>
+          <h3 className={styles.packageLabel}>Updated presentation</h3>
+          {!master && !draft?.source ? <StandalonePresentationCard opportunityId={opportunityId} token={live ? accessToken : null} reviewHref={`${root}/post-meeting-presentation`} /> : <div className={styles.packageDocument} data-testid="email-presentation">
+            <strong>{draft?.source ? (draft.attachments[0]?.fileName.replace(/\.(pptx|pdf)$/, "") ?? "Master Presentation V2") : master ? "Master Presentation V2" : "Updated presentation"}</strong>
+            <small>{draft?.source ? `Master Presentation V2 · version ${draft.source.versionNumber} · reviewed and finalized` : eligible ? "Finalized · prepare the email to pin this version" : "Not finalized yet"}</small>
             <div className={styles.packageDocumentActions}>
-              <Link className="btn btn-secondary" href={`${root}/post-meeting-presentation`}>Review</Link>
-              <button className="btn btn-primary" type="button" disabled={!currentDocument?.downloads.pptx || downloading} onClick={() => void downloadDocument()}>{downloading ? "Downloading..." : "Download"}</button>
+              <Link className="btn btn-secondary" href={`${root}/${master ? "post-meeting-presentation" : "review"}`}>Open in Deck Center</Link>
+              {draft?.attachments.map((item) => <button key={item.format} className="btn btn-primary" type="button" disabled={!item.available || working} onClick={() => void download(item)}>{item.format.toUpperCase()}</button>)}
             </div>
-            {documentError ? <p className={styles.packageError} role="alert">{documentError}</p> : null}
-            {documentError ? <button className="btn btn-secondary" type="button" disabled={downloading} onClick={() => { setDocumentRetry((value) => value + 1); refreshWorkflow(); }}>Retry document</button> : null}
-          </div>
+            {draft?.source ? <small>Downloads are the reviewed version {draft.source.versionNumber}, never a newer one.</small> : null}
+          </div>}
         </header>
         <section className={styles.packageChanges}>
-          <h3 className={styles.packageLabel}>What changed</h3>
-          <p>{currentDocument ? "Review the updated presentation for changes from the first meeting." : "Meeting updates will be available after the presentation is generated."}</p>
+          <h3 className={styles.packageLabel}>What the email is based on</h3>
+          <p>{draft?.source
+            ? `${draft.source.confirmedFindings ?? 0} findings you confirmed for this presentation version${draft.source.excludedFindings ? `; ${draft.source.excludedFindings} excluded findings are not used` : ""}. ${draft.source.extractionMode === "live" ? "Findings were extracted by the live AI analysis." : "Findings were extracted by the built-in demo extraction, not by a live AI analysis."}`
+            : master ? "The findings you confirmed for the finalized Master Presentation V2." : "The meeting transcript of this opportunity."}</p>
         </section>
         <section className={styles.packageAttachments}>
           <h3 className={styles.packageLabel}>Email attachments</h3>
-          <ul aria-label="Approved email attachments"><li>No approved attachments available yet.</li></ul>
+          {draft?.attachments.length ? <ul aria-label="Approved email attachments" data-testid="email-attachments">
+            {draft.attachments.map((item) => <li key={item.format} className={styles.emailAttachment}>
+              <label className={styles.check}><input type="checkbox" checked={item.selected} disabled={working || conflict} data-testid={`email-attach-${item.format}`} onChange={() => void toggleAttachment(item)} />
+                <span>{item.fileName}<small>{item.available ? `${formatFileSize(item.sizeBytes)} · approved version ${item.versionNumber ?? ""}` : "Not available — this file cannot be attached"}</small></span></label>
+            </li>)}
+          </ul> : <p>{draft ? "This draft has no approved presentation version to attach." : "Available after the email draft is prepared."}</p>}
+          {draft?.attachments.length ? <small>Selected files are packed into the exported email file. A file that is not selected is not attached.</small> : null}
         </section>
         <footer className={styles.packageExport}>
           <span className={styles.packageLabel}>Email export</span>
-          <h2>Not ready to export</h2>
-          <p>Review the email and approved attachments before exporting your draft.</p>
-          <button className="btn btn-primary" disabled aria-describedby="email-export-blocked">Export email draft</button>
-          <small id="email-export-blocked">Export is unavailable until draft saving and approved attachments are connected.</small>
+          <h2 data-testid="email-export-title">{exportable ? "Ready to export" : "Not ready to export"}</h2>
+          <p>{exportable
+            ? `The confirmed ${draft?.selectedLength ? EMAIL_LENGTH_LABEL[draft.selectedLength].toLowerCase() : ""} draft${selectedFiles.length ? ` with ${selectedFiles.length} attached file${selectedFiles.length > 1 ? "s" : ""}` : " without attachments"}, as an unsent email file for your mail program.`
+            : draft ? "Save, review and confirm the draft. Only a confirmed draft can be exported." : "Prepare, review and confirm the email first."}</p>
+          <button className="btn btn-primary" data-testid="email-export" disabled={!exportable || working} onClick={() => void exportEmail()}>{busy === "exporting" ? "Preparing..." : "Download email file (.eml)"}</button>
+          <button className="btn btn-secondary" data-testid="email-copy" disabled={!exportable || working} onClick={() => void copyText()}>Copy subject and message</button>
+          <small id="email-export-note">Nothing is sent from this application. You send the email yourself after your own check.</small>
         </footer>
       </aside>
     </div>

@@ -50,6 +50,8 @@ class AuditAction(StrEnum):
     WORKFLOW_FINALIZED = "workflow.finalized"
     EMAIL_DRAFT_GENERATE = "email_draft.generate"
     EMAIL_DRAFT_CONFIRM = "email_draft.confirm"
+    EMAIL_DRAFT_UPDATE = "email_draft.update"
+    EMAIL_DRAFT_EXPORT = "email_draft.export"
     CLIENT_PREPARATION_EMAIL_GENERATE = "client_preparation_email.generate"
     DISCOVERY_PAPER_GENERATE = "discovery_paper.generate"
     DISCOVERY_PAPER_EDIT = "discovery_paper.edit"

@@ -52,6 +52,11 @@ export function OwnerCheckpointPanel({ opportunityId, compact = false }: { oppor
     <p><small>Owner review: {reviewed ? "Recorded" : "Required"} · Final documents: {finalized ? "Finalized" : "Not finalized"}</small></p>
     <label className={styles.check}><input type="checkbox" disabled={disabled || !version} checked={Boolean(identity && confirmation === identity)} onChange={(event) => setConfirmation(event.target.checked ? identity : null)} /><span>I reviewed these document versions and approve them for the follow-up package.</span></label>
     <div className={styles.actions}><button className="btn btn-secondary" disabled={disabled || !identity || confirmation !== identity || reviewed} onClick={() => void act(false)}>Record owner review</button><button className="btn btn-primary" disabled={disabled || !identity || confirmation !== identity || !reviewed} onClick={() => void act(true)}>Finalize documents</button></div>
-    <p><small>Finalizing documents does not save or export email edits. Atomic revision checks and email approval remain backend dependencies.</small></p>
+    {finalized
+      ? <div className={styles.nextStep} data-testid="finalized-next-step" role="status">
+        <div><strong>The documents are finalized.</strong><p>Next: prepare the follow-up email from this reviewed package. Nothing is sent automatically.</p></div>
+        <Link className="btn btn-primary" data-testid="continue-to-follow-up" href={`/opportunities/${encodeURIComponent(opportunityId)}/follow-up`}>Continue to the follow-up email</Link>
+      </div>
+      : <p><small>After finalizing you continue to the follow-up email. The email is reviewed and confirmed separately; finalizing sends nothing.</small></p>}
   </section>;
 }

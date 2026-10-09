@@ -43,7 +43,11 @@ export function SiteHeader({
     { id: "post_meeting", href: "/clients?phase=post_meeting", label: copy.sidebar.postMeeting },
     { id: "clients", href: "/clients", label: copy.sidebar.clients },
   ] as const;
-  const title = pathname.startsWith("/opportunities/new/")
+  // The follow-up email has its own page title (Figma 416:877); every other pitch route keeps its title.
+  const followUpEmail = /^\/opportunities\/[^/]+\/follow-up\/?$/.test(pathname);
+  const title = followUpEmail
+    ? copy.header.followUpEmail
+    : pathname.startsWith("/opportunities/new/")
     ? copy.header.addClient
     : pathname.startsWith("/clients")
       ? copy.header.clients
@@ -73,7 +77,10 @@ export function SiteHeader({
       </aside>
       <header className="pitch-topbar">
         <div className="pitch-topline">
-          <h1 className="pitch-page-title">{title}</h1>
+          <div className="pitch-page-heading">
+            <h1 className="pitch-page-title">{title}</h1>
+            {followUpEmail ? <p className="pitch-page-subtitle">{copy.header.followUpEmailSubtitle}</p> : null}
+          </div>
           <div className="pitch-header-actions">
             <div className="pitch-language-switch" role="group" aria-label={copy.language}>
               <button type="button" aria-pressed={language === "de"} onClick={() => setLanguage("de")}>DE</button>

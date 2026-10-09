@@ -5,13 +5,14 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
 from app.services.api_errors import bad_request
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
+from app.services import followup_email
 from app.services.discovery_paper import (
     approve_discovery_paper,
     edit_discovery_paper,
@@ -101,6 +102,41 @@ class EmailGenerateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     journey_stage: Literal["first_contact", "deepening", "concretisation"]
+    # Regenerating replaces all three lengths; saved edits or a confirmation need this consent.
+    overwrite_edits: bool = False
+
+
+class EmailLengthEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    subject: str = Field(..., min_length=1, max_length=400)
+    body: str = Field(..., min_length=1, max_length=40000)
+
+
+class EmailLengthEdits(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    short: EmailLengthEdit | None = None
+    medium: EmailLengthEdit | None = None
+    extensive: EmailLengthEdit | None = None
+
+
+class EmailAttachmentSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pptx: bool | None = None
+    pdf: bool | None = None
+
+
+class EmailUpdateRequest(BaseModel):
+    """Save edits to one draft. ``expected_revision`` is the revision the edit was made on."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(..., ge=1)
+    selected_length: Literal["short", "medium", "extensive"] | None = None
+    lengths: EmailLengthEdits | None = None
+    attachments: EmailAttachmentSelection | None = None
 
 
 class DiscoveryPaperPageEdit(BaseModel):
@@ -157,6 +193,10 @@ class EmailConfirmRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     selected_length: Literal["short", "medium", "extensive"]
+    # Required for a draft written from a finalized Master Presentation V2 package.
+    expected_revision: int | None = Field(default=None, ge=1)
+    review_checks: list[str] | None = Field(default=None, max_length=20)
+    acknowledged_flags: list[str] | None = Field(default=None, max_length=50)
 
 
 @router.get("/{opportunity_id}/stage1-outputs")
@@ -760,7 +800,9 @@ def get_email_drafts(
         user_id=user.id,
         journey_stage=journey_stage,
     )
-    return envelope_from_stored(opportunity_id, journey_stage, stored)
+    return followup_email.envelope(
+        store, opportunity_id=opportunity_id, user_id=user.id, journey_stage=journey_stage, stored=stored
+    )
 
 
 @router.post("/{opportunity_id}/email-drafts/generate")
@@ -773,6 +815,14 @@ def post_email_drafts(
     from app.services.journey_stage import reject_owner_concretisation
 
     reject_owner_concretisation(body.journey_stage)
+    generated = generate_email_draft(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        journey_stage=body.journey_stage,
+        overwrite_edits=body.overwrite_edits,
+    )
+    # Recorded once the draft exists: a refused request generated nothing.
     record_audit_event(
         store,
         actor_id=user.id,
@@ -780,11 +830,67 @@ def post_email_drafts(
         object_type=AuditObjectType.OPPORTUNITY,
         object_id=opportunity_id,
     )
-    return generate_email_draft(
+    return generated
+
+
+@router.patch("/{opportunity_id}/email-drafts/{draft_id}")
+def patch_email_draft(
+    opportunity_id: UUID,
+    draft_id: UUID,
+    body: EmailUpdateRequest,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    """Save edited subject and message, the chosen length and the attachment selection."""
+    saved = followup_email.update_draft(
         store,
         opportunity_id=opportunity_id,
         user_id=user.id,
-        journey_stage=body.journey_stage,
+        draft_id=draft_id,
+        expected_revision=body.expected_revision,
+        selected_length=body.selected_length,
+        lengths=body.lengths.model_dump(exclude_none=True) if body.lengths else None,
+        attachments=body.attachments.model_dump(exclude_none=True) if body.attachments else None,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.EMAIL_DRAFT_UPDATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    return saved
+
+
+@router.get("/{opportunity_id}/email-drafts/{draft_id}/export")
+def get_email_export(
+    opportunity_id: UUID,
+    draft_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+    revision: int = Query(..., ge=1),
+) -> Response:
+    """The confirmed draft as an unsent .eml file with the selected approved files. Sends nothing."""
+    exported = followup_email.export_eml(
+        store, opportunity_id=opportunity_id, user_id=user.id, draft_id=draft_id, revision=revision
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.EMAIL_DRAFT_EXPORT,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    ascii_name = exported["file_name"].encode("ascii", "ignore").decode() or "follow-up-email.eml"
+    return Response(
+        content=exported["content"],
+        media_type="message/rfc822",
+        headers={
+            "Content-Disposition": f'attachment; filename="{ascii_name}"',
+            "X-Email-Draft-Revision": str(exported["revision"]),
+            "X-Email-Attachment-Count": str(len(exported["attachments"])),
+            "Cache-Control": "no-store",
+        },
     )
 
 
@@ -796,6 +902,17 @@ def post_email_confirm(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> dict:
+    confirmed = confirm_email_draft(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        draft_id=draft_id,
+        selected_length=body.selected_length,
+        expected_revision=body.expected_revision,
+        review_checks=body.review_checks,
+        acknowledged_flags=body.acknowledged_flags,
+    )
+    # Recorded once the confirmation is stored: a refused review confirmed nothing.
     record_audit_event(
         store,
         actor_id=user.id,
@@ -803,13 +920,7 @@ def post_email_confirm(
         object_type=AuditObjectType.OPPORTUNITY,
         object_id=opportunity_id,
     )
-    return confirm_email_draft(
-        store,
-        opportunity_id=opportunity_id,
-        user_id=user.id,
-        draft_id=draft_id,
-        selected_length=body.selected_length,
-    )
+    return confirmed
 
 
 @router.post("/{opportunity_id}/email-drafts/{draft_id}/send")

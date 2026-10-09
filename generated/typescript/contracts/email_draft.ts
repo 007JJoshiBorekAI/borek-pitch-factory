@@ -6,7 +6,7 @@
  */
 
 /**
- * TSK-013: three draft lengths persist in the API. Confirm never sends mail.
+ * TSK-013: three draft lengths persist in the API. Confirm never sends mail. Edits are saved per length against a draft revision; a confirmation names the reviewed revision; the export is an unsent file.
  */
 export interface EmailDraftEnvelope {
   schema_version: "1.0";
@@ -25,10 +25,86 @@ export interface EmailDraftEnvelope {
     confirmed_at: string | null;
     created_at: string;
     updated_at: string;
+    /**
+     * Increases with every saved change. A write names the revision it is based on.
+     */
+    revision?: number;
+    /**
+     * The revision the owner reviewed and confirmed. Null once the draft is edited again.
+     */
+    confirmed_revision?: number | null;
+    confirmed_by?: string | null;
+    /**
+     * The finalized Master Presentation V2 package the draft was written from. Null for drafts of other stages and for standalone PPT #2 opportunities.
+     */
+    source?: FinalizedSource | null;
+    source_status?: "valid" | "changed" | "not_applicable";
+    review_flags?: string[];
+    review?: Review | null;
+    recipients?: Recipients | null;
+    attachments?: Attachment[];
+    word_limits?: {
+      short: number;
+      medium: number;
+      extensive: number;
+    };
   } | null;
 }
 export interface LengthBody {
   subject: string;
   body: string;
   word_count: number;
+  /**
+   * True once the owner saved a change to this length.
+   */
+  edited?: boolean;
+}
+export interface FinalizedSource {
+  kind: "master_presentation_v2";
+  product_version: "V2";
+  finalized_at: string;
+  presentation_id: string;
+  presentation_version_id: string;
+  version_number: number;
+  snapshot_hash: string;
+  generation_fingerprint?: string | null;
+  approved_discovery_version_id?: string | null;
+  transcript_id?: string | null;
+  transcript_revision?: string | null;
+  meeting_review_confirmed_at?: string | null;
+  extraction_execution_mode?: string | null;
+  confirmed_finding_count?: number | null;
+  excluded_finding_count?: number | null;
+  renderer_version?: string;
+}
+export interface Review {
+  checks: string[];
+  acknowledged_flags: string[];
+}
+export interface Recipients {
+  /**
+   * @minItems 1
+   */
+  to: [Person, ...Person[]];
+  cc: Person[];
+  sender: {
+    name: string;
+    role: string | null;
+    email: string;
+  };
+}
+export interface Person {
+  name: string | null;
+  email: string;
+}
+export interface Attachment {
+  format: "pptx" | "pdf";
+  file_name: string;
+  selected: boolean;
+  available: boolean;
+  size_bytes: number | null;
+  presentation_id: string;
+  presentation_version_id: string;
+  version_number: number | null;
+  product_version: "V2";
 }

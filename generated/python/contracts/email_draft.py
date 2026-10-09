@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 
 
 class JourneyStage(Enum):
@@ -28,6 +28,25 @@ class SelectedLength(Enum):
     NoneType_None = None
 
 
+class SourceStatus(Enum):
+    valid = 'valid'
+    changed = 'changed'
+    not_applicable = 'not_applicable'
+
+
+class ReviewFlag(RootModel[str]):
+    root: str = Field(..., min_length=1)
+
+
+class WordLimits(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    short: int = Field(..., ge=1)
+    medium: int = Field(..., ge=1)
+    extensive: int = Field(..., ge=1)
+
+
 class LengthBody(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -35,6 +54,93 @@ class LengthBody(BaseModel):
     subject: str = Field(..., min_length=1)
     body: str = Field(..., min_length=1)
     word_count: int = Field(..., ge=1)
+    edited: bool | None = Field(
+        None, description='True once the owner saved a change to this length.'
+    )
+
+
+class FinalizedSource(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    kind: Literal['master_presentation_v2']
+    product_version: Literal['V2']
+    finalized_at: AwareDatetime
+    presentation_id: UUID
+    presentation_version_id: UUID
+    version_number: int = Field(..., ge=1)
+    snapshot_hash: str = Field(..., pattern='^[0-9a-f]{64}$')
+    generation_fingerprint: str | None = None
+    approved_discovery_version_id: str | None = None
+    transcript_id: str | None = None
+    transcript_revision: str | None = None
+    meeting_review_confirmed_at: str | None = None
+    extraction_execution_mode: str | None = None
+    confirmed_finding_count: int | None = None
+    excluded_finding_count: int | None = None
+    renderer_version: str | None = Field(None, min_length=1)
+
+
+class Check(RootModel[str]):
+    root: str = Field(..., min_length=1)
+
+
+class AcknowledgedFlag(RootModel[str]):
+    root: str = Field(..., min_length=1)
+
+
+class Review(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    checks: list[Check]
+    acknowledged_flags: list[AcknowledgedFlag]
+
+
+class Person(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: str | None
+    email: str = Field(..., min_length=3)
+
+
+class Sender(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: str
+    role: str | None
+    email: str = Field(..., min_length=3)
+
+
+class Recipients(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    to: list[Person] = Field(..., min_length=1)
+    cc: list[Person]
+    sender: Sender
+
+
+class Format(Enum):
+    pptx = 'pptx'
+    pdf = 'pdf'
+
+
+class Attachment(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    format: Format
+    file_name: str = Field(..., min_length=1)
+    selected: bool
+    available: bool
+    size_bytes: int | None = Field(..., ge=0)
+    presentation_id: UUID
+    presentation_version_id: UUID
+    version_number: int | None
+    product_version: Literal['V2']
 
 
 class Lengths(BaseModel):
@@ -58,6 +164,27 @@ class Draft(BaseModel):
     confirmed_at: AwareDatetime | None
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    revision: int | None = Field(
+        None,
+        description='Increases with every saved change. A write names the revision it is based on.',
+        ge=1,
+    )
+    confirmed_revision: int | None = Field(
+        None,
+        description='The revision the owner reviewed and confirmed. Null once the draft is edited again.',
+        ge=1,
+    )
+    confirmed_by: UUID | None = None
+    source: FinalizedSource | None = Field(
+        None,
+        description='The finalized Master Presentation V2 package the draft was written from. Null for drafts of other stages and for standalone PPT #2 opportunities.',
+    )
+    source_status: SourceStatus | None = None
+    review_flags: list[ReviewFlag] | None = None
+    review: Review | None = None
+    recipients: Recipients | None = None
+    attachments: list[Attachment] | None = None
+    word_limits: WordLimits | None = None
 
 
 class EmailDraftEnvelope(BaseModel):

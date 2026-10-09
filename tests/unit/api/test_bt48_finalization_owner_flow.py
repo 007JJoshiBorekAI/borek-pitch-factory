@@ -469,15 +469,17 @@ def test_owner_concretisation_stays_visible_in_history_and_is_not_startable() ->
     stored = store.get_presentation_version(presentation_version_id=historical_version, user_id=OWNER)
     assert stored["journey_stage"] == "concretisation"
     length = {"subject": "Proposal", "body": "Historical concretisation draft.", "word_count": 3}
-    store.upsert_email_draft(
+    store.save_email_draft(
         opportunity_id=UUID(opportunity_id),
         user_id=OWNER,
         journey_stage="concretisation",
-        payload={
+        draft={
             "status": "draft",
             "selected_length": None,
             "lengths": {"short": length, "medium": length, "extensive": length},
+            "confirmed_at": None,
         },
+        expected_revision=None,
     )
     email = client.get(
         f"/opportunities/{opportunity_id}/email-drafts",
