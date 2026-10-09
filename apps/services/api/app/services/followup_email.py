@@ -37,6 +37,7 @@ from services.followup.finalized import (
     LENGTHS,
     RENDERER_VERSION,
     WORD_CAPS,
+    ContentDoesNotFit,
     NoConfirmedContent,
     content_from_snapshot,
     render_finalized_lengths,
@@ -173,9 +174,12 @@ def master_generation(store: Any, *, opportunity: dict[str, Any], opportunity_id
     statics = require_complete_statics(opportunity.get("followup_statics"))
     try:
         content = content_from_snapshot(frozen)
-    except NoConfirmedContent as exc:
+        lengths, flags = render_finalized_lengths(content, statics)
+    except (NoConfirmedContent, ContentDoesNotFit) as exc:
         raise bad_request(exc.code, str(exc)) from exc
-    lengths, flags = render_finalized_lengths(content, statics)
+    over = [name for name in LENGTHS if lengths[name]["word_count"] > WORD_CAPS[name]]
+    if over:  # the renderer guarantees this; a draft over its cap is never stored
+        raise bad_request("FOLLOWUP_CONTENT_TOO_LONG", f"The generated {over[0]} draft exceeds its word limit.")
     return {"lengths": lengths, "review_flags": flags, "source": source}
 
 
@@ -456,6 +460,7 @@ def confirm_draft(
         missing = [check for check in REVIEW_CHECKS if check not in set(review_checks or [])]
         if missing:
             raise bad_request("EMAIL_REVIEW_INCOMPLETE", f"Complete the review checklist first: {', '.join(missing)}.")
+        # Each flag has to be acknowledged by name. Nothing is assumed for the owner.
         open_flags = [flag for flag in stored.get("review_flags") or [] if flag not in set(acknowledged_flags or [])]
         if open_flags:
             raise bad_request("EMAIL_REVIEW_FLAGS_OPEN", f"Acknowledge every review flag first: {', '.join(open_flags)}.")

@@ -10,7 +10,7 @@ import {
   EMAIL_LENGTHS, EMAIL_LENGTH_LABEL, EMAIL_REVIEW_CHECKS, EMAIL_STATE_LABEL, canPreparePostMeetingEmail, clipboardText,
   confirmPostMeetingEmail, contentWordCount, downloadEmailAttachment, emailError, emailExportable, emailFlagText, emailState,
   exportPostMeetingEmail, formatFileSize, generatePostMeetingEmail, isEmailConflict, isEmailHasEdits, isStaticsMissing,
-  loadFollowupStatics, loadPostMeetingEmail, personLabel, saveFollowupStatics, savePostMeetingEmail, staticsFormFrom,
+  loadFollowupStatics, loadPostMeetingEmail, openReviewFlags, personLabel, saveFollowupStatics, savePostMeetingEmail, staticsFormFrom,
   unsavedLengths, validateStaticsForm, workingCopy,
   type EmailAttachment, type EmailLength, type EmailWorkingCopy, type FollowupStaticsForm, type PostMeetingEmail,
 } from "@/lib/postMeetingEmail";
@@ -80,6 +80,8 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
   const [conflict, setConflict] = useState(false);
   const [confirmRegenerate, setConfirmRegenerate] = useState(false);
   const [checks, setChecks] = useState<string[]>([]);
+  // The review flags the owner ticked, one by one. A new or changed draft starts with none.
+  const [acknowledged, setAcknowledged] = useState<string[]>([]);
   const [statics, setStatics] = useState<unknown>(null);
   const [form, setForm] = useState<FollowupStaticsForm | null>(null);
   const [editStatics, setEditStatics] = useState(false);
@@ -108,6 +110,7 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
       return saved;
     });
     setChecks([]);
+    setAcknowledged([]);
     if (next?.selectedLength && !keep) setLength(next.selectedLength);
   }, []);
 
@@ -178,7 +181,7 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
 
   const confirm = () => run("confirming", async (token) => {
     if (!draft) return;
-    const confirmed = await confirmPostMeetingEmail(token, opportunityId, draft, length, checks);
+    const confirmed = await confirmPostMeetingEmail(token, opportunityId, draft, length, checks, acknowledged);
     if (alive.current) { adopt(confirmed); setNotice("Draft confirmed. Nothing was sent."); }
   });
 
@@ -226,10 +229,11 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
   const overLimit = Boolean(draft) && words > limit;
   const allChecked = EMAIL_REVIEW_CHECKS.every(([key]) => checks.includes(key));
   const needsReview = master || Boolean(draft?.source);
+  const openFlags = openReviewFlags(draft, acknowledged);
   const selectedFiles = draft?.attachments.filter((item) => item.selected) ?? [];
   const blockedFile = selectedFiles.find((item) => !item.available);
   const canConfirm = Boolean(draft) && !working && dirty.length === 0 && !overLimit && !conflict && draft!.sourceStatus !== "changed"
-    && !blockedFile && (!needsReview || allChecked) && !exportable;
+    && !blockedFile && (!needsReview || (allChecked && openFlags.length === 0)) && !exportable;
   const set = (patch: Partial<FollowupStaticsForm>) => setForm((current) => (current ? { ...current, ...patch } : current));
   const pill = { none: "Not prepared", unsaved: "Unsaved", saved: "Editable", confirmed: "Confirmed" }[state];
 
@@ -348,7 +352,15 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
               : "Meeting transcript (earlier document flow)"}{draft.sourceStatus === "changed" ? " — the finalized package changed; regenerate the email" : ""}</dd></div>
             <div><dt>Attachments</dt><dd>{selectedFiles.length ? selectedFiles.map((item) => item.fileName).join(", ") : "None selected"}</dd></div>
           </dl>
-          {draft.reviewFlags.length ? <><h3>Review flags</h3><ul className={styles.emailFlags} data-testid="email-flags">{draft.reviewFlags.map((flag) => <li key={flag}>{emailFlagText(flag)}</li>)}</ul></> : null}
+          {draft.reviewFlags.length && exportable ? <><h3>Review flags you acknowledged</h3><ul className={styles.emailFlags} data-testid="email-flags">{draft.reviewFlags.map((flag) => <li key={flag}>{emailFlagText(flag)}</li>)}</ul></> : null}
+          {draft.reviewFlags.length && !exportable ? <fieldset className={styles.emailChecklist} disabled={working || dirty.length > 0} data-testid="email-flags">
+            <legend>Review flags — acknowledge each one</legend>
+            {draft.reviewFlags.map((flag) => <label key={flag} className={styles.check}>
+              <input type="checkbox" data-testid={`email-flag-${flag}`} checked={acknowledged.includes(flag)}
+                onChange={(event) => setAcknowledged(event.target.checked ? [...acknowledged, flag] : acknowledged.filter((item) => item !== flag))} />
+              <span>{emailFlagText(flag)}</span></label>)}
+            <small data-testid="email-flags-open">{openFlags.length ? `${openFlags.length} of ${draft.reviewFlags.length} still to acknowledge` : "All review flags acknowledged"}</small>
+          </fieldset> : null}
           {exportable
             ? <p className={styles.notice} role="status">Confirmed {dateTime(draft.confirmedAt)} for revision {draft.confirmedRevision}. Nothing has been sent. Editing the text or the attachments withdraws the confirmation.</p>
             : <>

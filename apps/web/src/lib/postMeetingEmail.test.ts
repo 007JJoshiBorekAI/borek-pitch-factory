@@ -5,7 +5,7 @@ import { ApiRequestError } from "./api";
 import {
   EMAIL_REVIEW_CHECKS, canPreparePostMeetingEmail, clipboardText, confirmPostMeetingEmail, contentWordCount, downloadEmailAttachment,
   emailError, emailExportable, emailFlagText, emailState, exportPostMeetingEmail, formatFileSize, generatePostMeetingEmail,
-  isEmailConflict, isEmailHasEdits, loadPostMeetingEmail, parsePostMeetingEmail, saveFollowupStatics, savePostMeetingEmail,
+  isEmailConflict, isEmailHasEdits, loadPostMeetingEmail, openReviewFlags, parsePostMeetingEmail, saveFollowupStatics, savePostMeetingEmail,
   staticsFormFrom, staticsPayload, unsavedLengths, validateStaticsForm, workingCopy,
 } from "./postMeetingEmail";
 import type { PostMeetingWorkflow } from "./postMeeting";
@@ -136,7 +136,7 @@ test("generate, confirm and export call their own endpoints and never a delivery
   const checks = EMAIL_REVIEW_CHECKS.map(([key]) => key);
   assert.deepEqual(checks, ["recipients", "dates_and_owners", "supported_statements", "review_flags", "tone", "attachments"]);
   const confirmedEnvelope = envelope({ status: "confirmed", selected_length: "medium", revision: 4, confirmed_revision: 4, confirmed_at: "2026-10-09T10:00:00Z" });
-  const confirmed = await withFetch(() => Response.json(confirmedEnvelope), () => confirmPostMeetingEmail("token", id, draft, "medium", checks));
+  const confirmed = await withFetch(() => Response.json(confirmedEnvelope), () => confirmPostMeetingEmail("token", id, draft, "medium", checks, ["action_owner_unconfirmed", "fixture_extraction"]));
   assert.match(confirmed.calls[0].url, /\/email-drafts\/draft-1\/confirm$/);
   assert.deepEqual(confirmed.calls[0].body, { selected_length: "medium", expected_revision: 3, review_checks: checks, acknowledged_flags: ["fixture_extraction", "action_owner_unconfirmed"] });
 
@@ -182,7 +182,7 @@ test("recipient and sender are entered by the owner and validated before saving"
 
 test("review flags are explained in plain words, including that demo extraction is not live AI", () => {
   assert.match(emailFlagText("fixture_extraction"), /demo extraction, not from a live AI analysis/);
-  assert.match(emailFlagText("owner_notes_omitted"), /not client statements/);
+  assert.match(emailFlagText("owner_notes_omitted"), /not said in the meeting/);
   assert.match(emailFlagText("action_date_unconfirmed"), /date to be confirmed/);
   assert.match(emailFlagText("something_new"), /something new/);
 });
@@ -275,4 +275,40 @@ test("the email route has its own page title and is reachable from the finalized
   assert.ok(checkpoint.includes("disabled={disabled || !identity || confirmation !== identity || !reviewed} onClick={() => void act(true)}>Finalize documents"), "the finalization gate is unchanged");
   assert.ok(panel.includes('<PostMeetingPhaseNav opportunityId={opportunityId} active="review" />'));
   assert.ok(read("../components/PostMeetingPresentationWorkspace.tsx").includes("<Link href={`${root}/follow-up`}>Follow-up email</Link>"));
+});
+
+test("only the review flags the owner ticked are sent; an unticked flag is never acknowledged for them", async () => {
+  const draft = parsed();
+  assert.deepEqual(draft.reviewFlags, ["fixture_extraction", "action_owner_unconfirmed"]);
+  assert.deepEqual(openReviewFlags(draft, []), ["fixture_extraction", "action_owner_unconfirmed"]);
+  assert.deepEqual(openReviewFlags(draft, ["fixture_extraction"]), ["action_owner_unconfirmed"]);
+  assert.deepEqual(openReviewFlags(draft, ["action_owner_unconfirmed", "fixture_extraction"]), []);
+  assert.deepEqual(openReviewFlags(null, []), []);
+
+  const checks = EMAIL_REVIEW_CHECKS.map(([key]) => key);
+  const refuse = () => new Response(JSON.stringify({ error: { code: "EMAIL_REVIEW_FLAGS_OPEN", message: "Acknowledge every review flag first: action_owner_unconfirmed." } }), { status: 400, headers: { "Content-Type": "application/json" } });
+  const sent: unknown[] = [];
+  for (const ticked of [[], ["fixture_extraction"], ["not_a_flag_of_this_draft", "fixture_extraction"]]) {
+    const original = globalThis.fetch;
+    globalThis.fetch = async (_input, init) => { sent.push(JSON.parse(String(init?.body)).acknowledged_flags); return refuse(); };
+    try {
+      await assert.rejects(() => confirmPostMeetingEmail("token", id, draft, "medium", checks, ticked), (error) => {
+        assert.match(emailError(error), /Acknowledge every review flag/);
+        return true;
+      });
+    } finally { globalThis.fetch = original; }
+  }
+  assert.deepEqual(sent, [[], ["fixture_extraction"], ["fixture_extraction"]], "exactly the ticked flags of this draft, nothing added");
+
+  // The screen keeps one tick per flag, starts every draft revision with none, and gates the button on them.
+  assert.ok(panel.includes("const [acknowledged, setAcknowledged] = useState<string[]>([]);"));
+  assert.ok(panel.includes("setChecks([]);\n    setAcknowledged([]);"), "a new or changed draft needs new acknowledgements");
+  assert.ok(panel.includes("data-testid={`email-flag-${flag}`} checked={acknowledged.includes(flag)}"));
+  assert.ok(panel.includes("setAcknowledged(event.target.checked ? [...acknowledged, flag] : acknowledged.filter((item) => item !== flag))"));
+  assert.ok(panel.includes("confirmPostMeetingEmail(token, opportunityId, draft, length, checks, acknowledged)"));
+  assert.ok(panel.includes("(!needsReview || (allChecked && openFlags.length === 0))"));
+  const lib = readFileSync(new URL("./postMeetingEmail.ts", import.meta.url), "utf8");
+  assert.ok(!lib.includes("acknowledged_flags: draft.reviewFlags }"), "the flags are no longer acknowledged wholesale");
+  assert.match(emailFlagText("speaker_unverified"), /not who made them/);
+  assert.match(emailError(new ApiRequestError("x", 400, "FOLLOWUP_CONTENT_TOO_LONG")), /never shortened automatically/);
 });

@@ -37,9 +37,10 @@ export const EMAIL_REVIEW_CHECKS = [
 ] as const;
 
 const FLAG_TEXT: Record<string, string> = {
+  speaker_unverified: "The package records that these points were made in the meeting, not who made them. Check that nothing a Borek colleague proposed reads as a client statement or as agreed.",
   fixture_extraction: "The meeting findings came from the built-in demo extraction, not from a live AI analysis. Check every statement against the transcript.",
   meeting_date_unconfirmed: "No approved source states the meeting date, so the email names none. Add it if you want it mentioned.",
-  owner_notes_omitted: "Findings that came only from your personal notes are left out: they are not client statements.",
+  owner_notes_omitted: "Findings that came only from your personal notes are left out: they were not said in the meeting.",
   action_owner_unconfirmed: "At least one next step does not name who is responsible. Add the owner or remove the step.",
   action_date_unconfirmed: "At least one next step has no deadline and is marked “date to be confirmed”.",
   no_next_steps_confirmed: "No next step was confirmed for this package, so the email lists none.",
@@ -53,6 +54,7 @@ const ERROR_TEXT: Record<string, string> = {
   FOLLOWUP_FINALIZATION_REQUIRED: "Review and finalize Master Presentation V2 before preparing the follow-up email.",
   FOLLOWUP_SOURCE_UNAVAILABLE: "The finalized presentation package could not be read. The email is not generated from other sources.",
   FOLLOWUP_SOURCE_CHANGED: "The finalized presentation package changed. Regenerate the email from the current package.",
+  FOLLOWUP_CONTENT_TOO_LONG: "A confirmed finding is too long for one of the three drafts and is never shortened automatically, so no draft was generated.",
   FOLLOWUP_NO_CONFIRMED_CONTENT: "The finalized package contains no confirmed statement from the meeting, so there is nothing to summarise.",
   EMAIL_DRAFT_CONFLICT: "This draft was changed elsewhere after you loaded it.",
   EMAIL_DRAFT_HAS_EDITS: "This draft contains saved edits or a confirmation.",
@@ -192,11 +194,23 @@ export async function savePostMeetingEmail(token: string, opportunityId: string,
   return saved;
 }
 
-/** Records the owner's review of one saved revision. Confirming never sends anything. */
-export async function confirmPostMeetingEmail(token: string, opportunityId: string, draft: PostMeetingEmail, length: EmailLength, checks: string[]) {
+/** The review flags of this draft that the owner has not ticked yet. */
+export const openReviewFlags = (draft: PostMeetingEmail | null, acknowledged: string[]) => (draft?.reviewFlags ?? []).filter((flag) => !acknowledged.includes(flag));
+
+/**
+ * Records the owner's review of one saved revision. Confirming never sends anything.
+ * ``acknowledgedFlags`` are the flags the owner ticked, one by one. Exactly these are sent; a
+ * flag that was not ticked is not sent, and the API refuses the confirmation.
+ */
+export async function confirmPostMeetingEmail(
+  token: string, opportunityId: string, draft: PostMeetingEmail, length: EmailLength, checks: string[], acknowledgedFlags: string[],
+) {
   const value = await apiFetch(draftsPath(opportunityId, `/${encodeURIComponent(draft.id)}/confirm`), token, {
     method: "POST",
-    body: JSON.stringify({ selected_length: length, expected_revision: draft.revision, review_checks: checks, acknowledged_flags: draft.reviewFlags }),
+    body: JSON.stringify({
+      selected_length: length, expected_revision: draft.revision, review_checks: checks,
+      acknowledged_flags: draft.reviewFlags.filter((flag) => acknowledgedFlags.includes(flag)),
+    }),
   });
   const confirmed = parsePostMeetingEmail(value, opportunityId);
   if (!confirmed) throw new Error("The confirmed email draft was not returned.");

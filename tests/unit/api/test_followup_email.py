@@ -127,13 +127,13 @@ def test_three_lengths_are_written_from_the_finalized_v2_package(client: TestCli
         assert OBSERVATION not in text["body"]
         assert "Send the pricing export by Friday." in text["body"], "the confirmed follow-up is a next step"
     assert "Quotes must go out within one day." in short["body"] and "Decisions" not in short["body"]
-    assert "Decisions\n- Run a pilot with ten quotes." in medium["body"]
+    assert "Decisions noted\n- Run a pilot with ten quotes." in medium["body"]
     assert "Also discussed\n- A drafting assistant that prepares the quote from the request." in medium["body"]
     assert "Discussed, not yet decided\n- A drafting assistant" in extensive["body"]
     assert "trade fair" not in extensive["body"], "small talk was never a finding"
     # No date, participant or owner is invented.
     assert "2026" not in extensive["body"] and "Participants" not in extensive["body"]
-    assert {"fixture_extraction", "meeting_date_unconfirmed", "owner_notes_omitted", "action_owner_unconfirmed"} <= set(draft["review_flags"])
+    assert {"fixture_extraction", "speaker_unverified", "meeting_date_unconfirmed", "owner_notes_omitted", "action_owner_unconfirmed"} <= set(draft["review_flags"])
     assert "action_date_unconfirmed" not in draft["review_flags"], "'by Friday' is the stated deadline"
     assert draft["recipients"] == {
         "to": [{"name": "Dana Weber", "email": "dana.weber@nordwind.example"}],
@@ -653,3 +653,71 @@ def test_two_api_processes_save_atomically_per_stage(monkeypatch: pytest.MonkeyP
     assert "COALESCE((email_drafts -> p_journey_stage ->> 'revision')::integer, 1) = p_expected_revision" in migration
     assert "GRANT EXECUTE ON FUNCTION public.save_email_draft(UUID, TEXT, INTEGER, JSONB) TO authenticated, service_role" in migration
     assert "SECURITY DEFINER" not in migration and "CREATE TABLE" not in migration and "CREATE POLICY" not in migration.upper()
+
+
+def test_a_borek_employees_statements_are_not_reported_as_the_clients(client: TestClient) -> None:
+    """The transcript holds what BOREK said as well. Being in the transcript is not the client saying it."""
+    meeting = (
+        "Lena Hoffmann (BOREK): Requirement: We recommend a fixed-price pilot of six weeks.\n"
+        "Lena Hoffmann (BOREK): Priority: Borek suggests starting with the service team.\n"
+        "Lena Hoffmann (BOREK): Decision: Borek will prepare a proposal for a pilot.\n"
+        "Lena Hoffmann (BOREK): Follow-up: Borek will send the proposal by 16.10.2026.\n"
+        "Dana: Challenge: Pricing data sits in three systems.\n"
+    )
+    opportunity_id = finalized(client, meeting=meeting, notes=None, excluded={})["opportunity"]
+    draft = ok(generate(client, opportunity_id))["draft"]
+    assert "speaker_unverified" in draft["review_flags"]
+    for name in ("short", "medium", "extensive"):
+        body = draft["lengths"][name]["body"]
+        assert "We recommend a fixed-price pilot of six weeks." in body, "the statement is reported"
+        frame = "\n".join(line for line in body.splitlines() if not line.startswith("- "))
+        for phrase in ("Your ", "you said", "you described", "you raised", "What we heard", "we agreed", "agreed"):
+            assert phrase not in frame, (name, phrase)
+    extensive = draft["lengths"]["extensive"]["body"]
+    assert "Requirements\n- We recommend a fixed-price pilot of six weeks." in extensive
+    assert "Decisions noted\n- Borek will prepare a proposal for a pilot." in extensive
+    assert "Your requirements" not in extensive and "Your priorities" not in extensive
+
+
+def test_each_review_flag_has_to_be_acknowledged_by_name(client: TestClient) -> None:
+    opportunity_id = finalized(client)["opportunity"]
+    draft = ok(generate(client, opportunity_id))["draft"]
+    flags = draft["review_flags"]
+    assert len(flags) >= 4
+    url = f"{root(opportunity_id)}/{draft['id']}/confirm"
+    base = {"selected_length": "medium", "expected_revision": draft["revision"], "review_checks": CHECKS}
+
+    # Nothing sent, some sent, everything but one, and names the draft does not have: all refused.
+    for sent in (None, [], flags[:1], flags[:-1], ["something_else", "fixture_extraction_"], [flag.upper() for flag in flags]):
+        refused = post(client, url, {**base, **({} if sent is None else {"acknowledged_flags": sent})})
+        assert refused.status_code == 400 and "EMAIL_REVIEW_FLAGS_OPEN" in refused.text, (sent, refused.text)
+        missing = [flag for flag in flags if flag not in (sent or [])]
+        assert all(flag in refused.text for flag in missing), "the answer names every flag that is still open"
+        assert load(client, opportunity_id)["status"] == "draft"
+    # The checklist item "review flags" does not stand in for the flags themselves.
+    assert "review_flags" in CHECKS
+    # Every flag named: accepted, in any order, and the stored review lists exactly the draft's flags.
+    confirmed = ok(post(client, url, {**base, "acknowledged_flags": [*reversed(flags), "something_else"]}))["draft"]
+    assert confirmed["status"] == "confirmed" and confirmed["review"]["acknowledged_flags"] == flags
+    assert confirmed["send_status"] == "not_sent"
+
+
+def test_a_finding_too_long_for_a_draft_is_refused_and_never_shortened(client: TestClient) -> None:
+    long_requirement = " ".join(["Requirement:", *(f"word{index}" for index in range(170))]) + " end."
+    opportunity_id = finalized(client, meeting=f"Dana: {long_requirement}\n", notes=None, excluded={})["opportunity"]
+    refused = generate(client, opportunity_id)
+    assert refused.status_code == 400 and "FOLLOWUP_CONTENT_TOO_LONG" in refused.text, refused.text
+    assert "short draft (150 content words)" in refused.text
+    assert load(client, opportunity_id) is None, "no draft over its limit, and no shortened statement, is stored"
+
+    # With statements that fit, the long one is left out of the drafts it cannot be part of - whole.
+    meeting = f"Dana: {long_requirement}\nDana: Requirement: Quotes must go out within one day.\nTom: Decision: Run a pilot with ten quotes.\n"
+    other = finalized(client, meeting=meeting, notes=None, excluded={})["opportunity"]
+    draft = ok(generate(client, other))["draft"]
+    limits = draft["word_limits"]
+    for name in ("short", "medium", "extensive"):
+        text = draft["lengths"][name]
+        assert text["word_count"] <= limits[name]
+        assert ("word0 " in text["body"]) == ("word169 end." in text["body"]), "whole or absent"
+    assert "word0" not in draft["lengths"]["short"]["body"] and "Quotes must go out within one day." in draft["lengths"]["short"]["body"]
+    assert "word169 end." in draft["lengths"]["extensive"]["body"]

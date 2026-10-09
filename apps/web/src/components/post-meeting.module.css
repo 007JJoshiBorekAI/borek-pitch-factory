@@ -134,6 +134,7 @@
 .emailDecision p { margin: 0; }
 .emailFlags { margin: 8px 0 16px; padding-left: 18px; font-size: var(--pitch-text-label); line-height: 1.6; }
 .emailChecklist { margin-top: 16px; }
+.emailChecklist > small { display: block; margin-top: 8px; }
 .emailChecklist .check { margin: 8px 0; }
 .root .packageAttachments .emailAttachment { padding: 4px 12px; margin-bottom: 8px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); color: var(--pitch-navy); }
 .emailAttachment .check { margin: 8px 0; }
