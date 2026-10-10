@@ -134,8 +134,8 @@ test("the V2 action is offered only when the API allows it, and owner review sta
   assert.match(meeting, /"Retry Master Presentation V2" : v2.state === "outdated" \? "Generate a new V2 revision" : "Generate Master Presentation V2"/);
   assert.match(meeting, /data-testid="v2-progress">\{masterV2StageText\(v2Stage\)\}/);
   assert.match(meeting, /data-testid="v2-error"/);
-  assert.match(meeting, /<Link href=\{`\$\{root\}\/post-meeting-presentation`\}>Open Master Presentation V2<\/Link>/);
-  assert.match(meeting, /review.readiness.ready_for_v2 && confirmedCurrent \? <div data-testid="v2-ready">/, "no V2 action before the findings are confirmed");
+  assert.ok(meeting.includes('<Link className="btn btn-primary" data-testid="open-v2" href={`${root}/post-meeting-presentation`}>Open Master Presentation V2</Link>'));
+  assert.ok(meeting.includes("const canGenerateV2 = Boolean(review?.readiness.ready_for_v2 && confirmedCurrent);") && meeting.includes('{canGenerateV2 ? <div data-testid="v2-ready">'), "no V2 action before the findings are confirmed");
   const generate = meeting.slice(meeting.indexOf("async function generateV2("), meeting.indexOf("// Previous document flow (standalone PPT #2)"));
   assert.match(generate, /generateAndAwaitMasterV2\(accessToken, opportunityId/);
   assert.doesNotMatch(generate, /generateAndAwaitPostMeetingPresentation|prepareMeetingEvidence|ppt2|markOwnerReviewed|finalizeWorkflow/i);

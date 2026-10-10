@@ -97,6 +97,89 @@
 .root .packageSidebar .packageExport :global(.btn-primary) { width: 100%; margin-top: 18px; background: var(--pitch-blue); border-color: var(--pitch-blue); }
 .packageExport > small { display: block; margin-top: 10px; line-height: 1.5; }
 .packageError { color: var(--pitch-red); }
+/* Post-meeting page (Figma 259:5): one meeting-input card, grouped findings, compact readiness card. */
+.meetingPage .heading h1 { font-weight: var(--pitch-weight-semibold); }
+.meetingCard .eyebrow, .meetingSummary .eyebrow, .findingsHead .eyebrow { color: var(--pitch-teal); }
+.inputTabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 20px; }
+.inputTabs button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 168px; min-height: 40px; padding: 8px 20px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); background: white; color: var(--pitch-gray-500); font: inherit; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); text-align: center; cursor: pointer; }
+.inputTabs button small { padding: 1px 8px; border-radius: 999px; background: var(--pitch-gray-50); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-regular); }
+.inputTabs .inputTabActive small { background: white; }
+.inputTabs button small[data-attention] { color: var(--pitch-red); }
+.inputPanel:focus-visible { outline-offset: 6px; }
+.transcriptList .check > .transcriptIcon { flex: 0 0 32px; font-weight: var(--pitch-weight-semibold); }
+.inputTabs .inputTabActive { border-color: var(--pitch-navy); background: var(--pitch-gray-50); color: var(--pitch-navy); }
+.inputPanel { display: grid; gap: 4px; }
+.inputPanel[hidden] { display: none; }
+.root .inputPanel .actions { margin-top: 0; }
+.root .transcriptList { gap: 8px; }
+.root .transcriptList li { padding: 12px 16px; border: 1px solid transparent; }
+.root .transcriptList .transcriptSelected { border-color: var(--pitch-gray-200); }
+.transcriptList .check { align-items: center; margin: 0; }
+.transcriptList .check > span { flex: 1; }
+.transcriptBadge { margin-left: auto; font-style: normal; font-weight: var(--pitch-weight-semibold); letter-spacing: .05em; white-space: nowrap; }
+.transcriptIconEmpty { color: var(--pitch-gray-500); }
+.sourceMeta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--pitch-gray-200); }
+.sourceMeta dt { color: var(--pitch-gray-500); font-size: var(--pitch-text-caption); letter-spacing: .05em; text-transform: uppercase; }
+.sourceMeta dd { margin: 4px 0 0; font-size: var(--pitch-text-label); overflow-wrap: anywhere; }
+.findingsHead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.statePill { padding: 4px 14px; border-radius: 999px; background: var(--pitch-gray-50); color: var(--pitch-blue); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-semibold); letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.statePillDone { background: color-mix(in srgb, var(--pitch-teal) 12%, white); color: var(--pitch-teal); }
+.statePillWarn { color: var(--pitch-red); }
+.findingTotals { margin-left: auto; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
+.root .extraction { margin-top: 20px; align-items: start; }
+.findingGroup { padding: 12px 16px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); min-width: 0; }
+.findingGroup summary { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.findingGroup summary h3 { margin: 0; }
+.findingGroup summary small { margin-left: auto; }
+.findingCount { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--pitch-gray-50); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-semibold); }
+.findingGroup p { margin: 8px 0 0; }
+.sourceBadge { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--pitch-blue) 10%, white); color: var(--pitch-blue); font-style: normal; font-size: var(--pitch-text-caption); }
+.sourceBadgeNotes { background: var(--pitch-gray-50); color: var(--pitch-gray-500); }
+.sourceBadgeBoth { background: color-mix(in srgb, var(--pitch-teal) 12%, white); color: var(--pitch-teal); }
+.findingText { font-weight: inherit; }
+.root .findingExcluded .check > span { text-decoration: none; }
+.findingExcluded .findingText { text-decoration: line-through; }
+/* The readiness card keeps the height of its content (Figma 259:5) and stays in view beside a long findings column. */
+.meetingColumns { align-items: start; }
+.root .meetingSummary { padding: 22px; }
+/* Sticky only where the whole card, including its action at the bottom, fits the window. */
+@media (min-width: 961px) and (min-height: 920px) { .meetingSummary { position: sticky; top: 24px; } }
+.root .meetingSummary h2 { margin: 8px 0 4px; font-size: 22px; font-weight: var(--pitch-weight-medium); line-height: 1.3; }
+.root .summary .readiness { margin: 18px 0 16px; border-top: 1px solid var(--pitch-gray-200); }
+.root .summary .readiness li { align-items: center; justify-content: flex-start; gap: 12px; padding: 12px 0; }
+.readiness li span { flex: 1; min-width: 0; }
+.readiness li strong { font-weight: var(--pitch-weight-medium); text-align: right; }
+.readinessMark { display: grid; place-items: center; flex: 0 0 22px; height: 22px; border: 1px solid var(--pitch-gray-200); border-radius: 50%; background: white; color: var(--pitch-teal); font-style: normal; font-size: 12px; font-weight: var(--pitch-weight-semibold); }
+.readiness li[data-mark="done"] strong { color: var(--pitch-teal); }
+.readiness li[data-mark="optional"] .readinessMark, .readiness li[data-mark="optional"] strong { color: var(--pitch-gray-500); }
+.readiness li[data-mark="optional"] .readinessMark { border-style: dashed; }
+.readiness li[data-mark="attention"] .readinessMark, .readiness li[data-mark="attention"] strong { color: var(--pitch-red); }
+.blockers ul { margin: 8px 0 0; }
+.root .summary .blockers li { padding: 6px 0; border: 0; }
+.progressLine { margin: 0 0 12px; font-size: var(--pitch-text-label); }
+.primaryAction { margin: 16px 0 12px; }
+.primaryAction :global(.btn) { display: flex; justify-content: center; width: 100%; min-height: 44px; text-decoration: none; }
+.primaryAction:empty { display: none; }
+/* Figma's action colour (#0d1240) for the one primary action of this card; the shared button is a darker navy. */
+.root .meetingSummary .primaryAction :global(.btn-primary):not(:disabled) { background: var(--pitch-navy); border-color: var(--pitch-navy); }
+@media (max-width: 480px) { .inputTabs { flex-direction: column; } .inputTabs button { width: 100%; justify-content: space-between; } }
+/* Desktop: the checklist is always open and the toggle does not exist. */
+.readinessSummary { display: none; }
+.readinessToggle { padding: 4px 0; border: 0; background: none; color: var(--pitch-blue); font: inherit; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); text-decoration: underline; cursor: pointer; }
+/* 960px and below: a compact summary first - status, progress, the one action - with the
+   eight-row checklist and the explanations behind "Show details". */
+@media (max-width: 960px) {
+  .meetingSummary { order: -1; display: flex; flex-direction: column; }
+  .root .meetingSummary { padding: 16px 20px; }
+  .root .readinessSummary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 0; font-size: var(--pitch-text-label); }
+  .readinessToggle { min-height: 32px; }
+  .readinessDetails[data-collapsed="true"] { display: none; }
+  .meetingSummary .primaryAction { order: 1; margin: 12px 0 4px; }
+  .meetingSummary [data-testid="v2-ready"] { order: 0; }
+  .meetingSummary .readinessDetails { order: 2; }
+  .root .summary .readiness { margin: 12px 0 8px; }
+}
+@media (max-width: 640px) { .inputTabs button { flex: 1; min-width: 0; } .sourceMeta { grid-template-columns: minmax(0, 1fr); } .findingsHead { flex-direction: column; } .findingTotals { margin-left: 0; } }
 .nextStep { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; margin-top: 16px; padding: 16px; border-radius: var(--pitch-control-radius); background: color-mix(in srgb, var(--pitch-teal) 10%, white); }
 .nextStep p { margin: 4px 0 0; font-size: var(--pitch-text-label); }
 .nextStep :global(.btn-primary) { background: var(--pitch-teal); border-color: var(--pitch-teal); text-decoration: none; }

@@ -260,7 +260,7 @@ test("the email route has its own page title and is reachable from the finalized
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
   const header = read("../components/SiteHeader.tsx");
   assert.ok(header.includes("const followUpEmail = /^\\/opportunities\\/[^/]+\\/follow-up\\/?$/.test(pathname);"), "only the follow-up route");
-  assert.match(header, /const title = followUpEmail\s+\? copy\.header\.followUpEmail\s+: pathname\.startsWith/);
+  assert.match(header, /const title = followUpEmail\s+\? copy\.header\.followUpEmail\s+: postMeeting\s+\? copy\.sidebar\.postMeeting\s+: pathname\.startsWith/);
   assert.ok(header.includes('{followUpEmail ? <p className="pitch-page-subtitle">{copy.header.followUpEmailSubtitle}</p> : null}'));
   assert.ok(header.includes("? copy.header.pitchGeneration"), "other pitch routes keep their title");
   const route = /^\/opportunities\/[^/]+\/follow-up\/?$/;

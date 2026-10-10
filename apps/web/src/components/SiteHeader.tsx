@@ -45,8 +45,12 @@ export function SiteHeader({
   ] as const;
   // The follow-up email has its own page title (Figma 416:877); every other pitch route keeps its title.
   const followUpEmail = /^\/opportunities\/[^/]+\/follow-up\/?$/.test(pathname);
+  // The meeting-input page is the "Post-meeting" screen of the design (Figma 259:5).
+  const postMeeting = /^\/opportunities\/[^/]+\/meeting\/?$/.test(pathname);
   const title = followUpEmail
     ? copy.header.followUpEmail
+    : postMeeting
+    ? copy.sidebar.postMeeting
     : pathname.startsWith("/opportunities/new/")
     ? copy.header.addClient
     : pathname.startsWith("/clients")

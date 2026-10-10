@@ -193,12 +193,14 @@ test("missing transcript, ineligible workflow and conflicting notes stop prepara
 
 test("meeting screen shows the sources separately, the findings with their source, and an explicit confirmation", () => {
   const source = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
-  // Three labelled sources and one analysis card; notes are optional and never required.
-  assert.match(source, /Source 1 · Transcript/);
-  assert.match(source, /Source 2 · Personal notes/);
-  assert.match(source, /Source 3 · Borek use cases/);
-  assert.match(source, /Analysis · Interpretation of the sources/);
-  assert.match(source, /never treated as something the client said/);
+  // One meeting-input card with the transcript and the notes as two separate inputs, one analysis
+  // card and the use cases; notes are optional and never required.
+  assert.ok(source.includes('aria-labelledby="meeting-input-title" data-testid="meeting-input"'));
+  assert.ok(source.includes('role="tabpanel" id="panel-transcript"') && source.includes('role="tabpanel" id="panel-notes"'));
+  assert.ok(source.includes('<span className={styles.eyebrow}>Borek use cases</span>'));
+  assert.ok(source.includes('<span className={styles.eyebrow}>Analysis</span><h2 id="findings-title">Meeting findings</h2>'));
+  assert.match(source, /notes are your view and are never treated as something said in the meeting/);
+  assert.match(source, /Findings are an interpretation of the sources until you confirm them/);
   assert.doesNotMatch(source, /<textarea[^>]*\brequired\b/);
   // Transcript choice, notes save state, seven categories with per-finding source and include box.
   assert.match(source, /type="radio" name="transcript"/);
@@ -217,15 +219,18 @@ test("meeting screen shows the sources separately, the findings with their sourc
   assert.match(source, /data-testid="v2-blockers"/);
   // Analysing and confirming need saved notes and a current analysis; nothing is confirmed implicitly.
   assert.match(source, /disabled=\{editingDisabled \|\| !transcript \|\| notesDirty\} onClick=\{\(\) => void analyse\(\)\}/);
-  assert.match(source, /disabled=\{editingDisabled \|\| state !== "current" \|\| confirmedCurrent\} onClick=\{\(\) => void confirm\(\)\}/);
+  // The confirm action exists only for a current, not yet confirmed analysis - the same gate as before.
+  assert.ok(source.includes(': state !== "current" ? <button className="btn btn-primary" disabled={editingDisabled} onClick={() => void analyse()}>'));
+  assert.ok(source.includes(': !confirmedCurrent ? <button className="btn btn-primary" disabled={editingDisabled} onClick={() => void confirm()}>'));
+  assert.equal(source.match(/void confirm\(\)/g)?.length, 1, "one explicit confirmation action; nothing confirms by itself");
   // The test extractor is named as such, and preview mode never shows findings.
   assert.match(source, /review\?.execution_mode === "fixture"/);
   assert.match(source, /No AI model is called/);
   assert.match(source, /\{live && review \? <article className=\{styles.card\} aria-labelledby="findings-title"/);
   assert.match(source, /if \(previewMode\) \{ setPreviewFile\(file\)/);
   // Confirming findings and the owner review of the presentation are two different, separately shown steps.
-  assert.match(source, /data-testid="findings-confirmation"><span>Meeting findings confirmed<\/span>/);
-  assert.match(source, /data-testid="presentation-owner-review"><span>Presentation owner review<\/span><strong>\{workflowCompleted\(workflow, "owner_review"\) \? "Completed" : v2\?.state === "ready" \? "Pending · review V2" : "Pending · after V2"\}/);
+  assert.ok(source.includes('label: "Meeting findings confirmed", value: confirmedCurrent ? `Yes · ${review.confirmation.confirmed_count} included`') && source.includes('testid: "findings-confirmation"'));
+  assert.ok(source.includes('label: "Presentation owner review", value: workflowCompleted(workflow, "owner_review") ? "Completed" : v2?.state === "ready" ? "Pending · review V2" : "Pending · after V2"') && source.includes('testid: "presentation-owner-review"'));
   assert.match(source, /is not the owner review of the presentation/);
   assert.doesNotMatch(source, /markOwnerReviewed|workflow\/owner-reviewed|workflow\/finalize/);
   // The old PPT #2 generator is reachable only from the labelled previous flow.
@@ -378,4 +383,116 @@ test("notes are saved only when nobody else changed them, and a failed load is a
     globalThis.fetch = async () => new Response(JSON.stringify({ error: { code: "INTERNAL", message: "Database unavailable" } }), { status: 500 });
     await assert.rejects(loadPostMeetingReview("token", opportunityId), /Database unavailable|failed|500/i);
   } finally { globalThis.fetch = original; }
+});
+
+test("Figma post-meeting layout: tabs keep both inputs, findings are grouped, the sidebar has one primary action", () => {
+  const source = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../components/post-meeting.module.css", import.meta.url), "utf8");
+  // "Upload transcript" and "Type notes" are accessible tabs; both panels stay mounted, so typed notes survive switching.
+  assert.ok(source.includes('<div className={styles.inputTabs} role="tablist" aria-label="Meeting input"'));
+  assert.ok(source.includes('role="tab" id="tab-transcript" aria-controls="panel-transcript" aria-selected={inputTab === "transcript"}'));
+  assert.ok(source.includes('role="tab" id="tab-notes" aria-controls="panel-notes" aria-selected={inputTab === "notes"}'));
+  assert.ok(source.includes('hidden={inputTab !== "transcript"}') && source.includes('hidden={inputTab !== "notes"}'));
+  assert.equal(source.match(/id="personal-notes"/g)?.length, 1, "one notes field, always rendered");
+  assert.ok(source.includes('data-testid="source-metadata"'));
+  assert.doesNotMatch(source, /meeting-feedback|meeting_feedback|Meeting feedback|Promised attachments/, "no field for data this journey does not use, and no invented attachments");
+  // Findings: grouped per category with a count, source badges, included/excluded totals and a state label.
+  assert.ok(source.includes('<details key={key} open={items.length > 0} className={styles.findingGroup} aria-label={label}>'));
+  assert.ok(source.includes('<span className={styles.findingCount}>{items.length}</span>'));
+  assert.ok(source.includes('data-testid="findings-totals">{found - excludedNow} included · {excludedNow} excluded</strong>'));
+  assert.ok(source.includes('{confirmedCurrent ? "Confirmed by you" : state === "current" ? "Analysis · not confirmed" : "Out of date"}'));
+  assert.ok(source.includes("styles.sourceBadgeNotes") && source.includes("styles.sourceBadgeBoth"));
+  assert.ok(source.includes('disabled={editingDisabled || state !== "current"} onChange={() => toggle(key, item.text)}'), "the include box keeps its gate");
+  // Sidebar: a status list from real state and exactly one primary action for the current state.
+  const action = source.slice(source.indexOf('data-testid="primary-action"'), source.indexOf("{confirmedCurrent ? <p><small>Confirmed"));
+  for (const label of ["Open follow-up email", "Generating Master Presentation V2...", ">Upload transcript<", ">Save notes<", "Analyse meeting", "Confirm meeting information", "Open Master Presentation V2", "Generate Master Presentation V2"]) {
+    assert.ok(action.includes(label), label);
+  }
+  assert.equal(action.match(/ \? </g)?.length ?? 0, 8, "one branch per state: the actions are alternatives, never shown together");
+  assert.ok(action.indexOf("v2Generating ?") < action.indexOf("!transcript ?"), "a running job shows a disabled progress button before anything else can be started");
+  assert.equal(source.match(/className="btn btn-primary"/g)?.length, 8, "primary buttons exist only in that one slot");
+  assert.ok(action.includes('disabled={editingDisabled || !v2.can_generate} onClick={() => void generateV2()}'), "generation keeps the server's gate");
+  assert.ok(source.includes('{ key: "v2", label: "Master Presentation V2", value: confirmedCurrent && review.readiness.ready_for_v2 ? v2Label : "After confirmation"'), "never shown as ready before it is");
+  // Layout: main column and compact card on desktop, stacked with the status first on smaller screens.
+  assert.match(css, /\.inputTabs button \{[^}]*min-width: 168px/);
+  assert.match(css, /@media \(max-width: 960px\) \{\s+\.meetingSummary \{ order: -1; display: flex; flex-direction: column; \}/);
+  assert.match(css, /@media \(max-width: 640px\) \{ \.inputTabs button \{ flex: 1; min-width: 0; \}/);
+  assert.match(css, /\.primaryAction :global\(\.btn\) \{[^}]*width: 100%/);
+  const header = readFileSync(new URL("../components/SiteHeader.tsx", import.meta.url), "utf8");
+  assert.ok(header.includes(": postMeeting\n    ? copy.sidebar.postMeeting"), "the page title reads Post-meeting on the meeting-input route only");
+});
+
+test("polish: keyboard tabs, compact readiness card, and unchanged conflict and use-case handling", () => {
+  const source = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../components/post-meeting.module.css", import.meta.url), "utf8");
+  // Tabs: arrow keys, Home and End; only the selected tab is in the tab order; panels are focusable.
+  assert.ok(source.includes('<div className={styles.inputTabs} role="tablist" aria-label="Meeting input" onKeyDown={onTabKey}>'));
+  assert.ok(source.includes('event.key === "ArrowRight"') && source.includes('event.key === "ArrowLeft"') && source.includes('event.key === "Home"') && source.includes('event.key === "End"'));
+  assert.ok(source.includes('tabIndex={inputTab === "transcript" ? 0 : -1}') && source.includes('tabIndex={inputTab === "notes" ? 0 : -1}'));
+  assert.ok(source.includes('aria-labelledby="tab-transcript" tabIndex={0} hidden={inputTab !== "transcript"}') && source.includes('aria-labelledby="tab-notes" tabIndex={0} hidden={inputTab !== "notes"}'));
+  const key = source.slice(source.indexOf("function onTabKey("), source.indexOf("return <section"));
+  assert.doesNotMatch(key, /setNotes|setReview|saveNotes|setExcluded/, "switching tabs never touches typed or saved data");
+  assert.ok(source.includes('data-attention={notesDirty ? "true" : undefined}'), "unsaved notes are flagged on the tab that hides them");
+  assert.match(source, /addEventListener\("beforeunload"/);
+  // One transcript is a plain row; several keep the explicit choice.
+  assert.ok(source.includes("{review.transcripts.length > 1") && source.includes('? <input type="radio" name="transcript" checked={item.id === transcriptId} disabled={editingDisabled}'));
+  // The readiness card keeps the height of its content and stays in view on desktop only.
+  assert.match(css, /\.meetingColumns \{ align-items: start; \}/);
+  assert.ok(css.lastIndexOf(".meetingColumns { align-items: start; }") > css.indexOf(".meetingColumns { align-items: stretch; }"), "the later rule wins");
+  assert.match(css, /@media \(min-width: 961px\) and \(min-height: 920px\) \{ \.meetingSummary \{ position: sticky; top: 24px; \} \}/);
+  assert.match(css, /\.root \.meetingSummary h2 \{[^}]*font-size: 22px/);
+  assert.match(css, /\.inputTabs button \{[^}]*min-height: 40px/);
+  // Conflict resolution and use-case selection are the handlers that were there before.
+  assert.ok(source.includes("onClick={() => adoptNotes(conflictingNotes, false)}>Use saved notes") && source.includes("onClick={() => adoptNotes(conflictingNotes, true)}>Keep my notes"));
+  assert.ok(source.includes("disabled={editingDisabled || !notesDirty || Boolean(conflictingNotes)} onClick={() => void saveNotes()}>Save notes"), "no save while a conflict is open");
+  assert.ok(source.includes("disabled={editingDisabled || !useCaseDraft} onClick={() => void saveUseCases()}>Save use cases"));
+  assert.ok(source.includes('checked={selectedIds.includes(item.fact_id)} disabled={editingDisabled}'), "read-only once finalized");
+  assert.ok(source.includes("const editingDisabled = Boolean(busy) || v2Running || finalized"));
+});
+
+test("compact readiness summary at 960px and below; the desktop card is unchanged", () => {
+  const source = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../components/post-meeting.module.css", import.meta.url), "utf8");
+  // A summary line with progress and a real toggle button that names what it controls.
+  assert.ok(source.includes('<span data-testid="readiness-progress">{requiredSteps.filter((row) => row.mark === "done").length} of {requiredSteps.length} steps complete</span>'));
+  assert.ok(source.includes('aria-expanded={detailsOpen} aria-controls="readiness-details readiness-notes" onClick={() => setDetailsOpen((open) => !open)}>{detailsOpen ? "Hide details" : "Show details"}</button>'));
+  assert.ok(source.includes('<div id="readiness-details" className={styles.readinessDetails} data-collapsed={!detailsOpen}>'));
+  assert.ok(source.includes('<div id="readiness-notes" className={styles.readinessDetails} data-collapsed={!detailsOpen}>'));
+  assert.ok(source.includes("const [detailsOpen, setDetailsOpen] = useState(false);"), "collapsed until the owner opens it");
+  // The checklist, the blockers and the explanations are inside the collapsible parts; the status
+  // heading, the V2 messages and the one action are not.
+  const details = source.slice(source.indexOf('<div id="readiness-details"'), source.indexOf('{canGenerateV2 ? <div data-testid="v2-ready">'));
+  assert.ok(details.includes("<ul className={styles.readiness}>") && details.includes('data-testid="v2-blockers"'));
+  const always = source.slice(source.indexOf('{canGenerateV2 ? <div data-testid="v2-ready">'), source.indexOf('<div id="readiness-notes"'));
+  assert.ok(always.includes('data-testid="v2-error"') && always.includes('data-testid="v2-progress"') && always.includes('data-testid="primary-action"'));
+  assert.ok(source.indexOf('id="readiness-title"') < source.indexOf('data-testid="readiness-summary"'), "the status headline comes first");
+  // Still exactly one action slot, with the same gates; the toggle is not a primary button and starts nothing.
+  assert.equal(source.match(/data-testid="primary-action"/g)?.length, 1);
+  assert.equal(source.match(/className="btn btn-primary"/g)?.length, 8);
+  const toggle = source.slice(source.indexOf('data-testid="readiness-toggle"'), source.indexOf("</button>", source.indexOf('data-testid="readiness-toggle"')));
+  assert.doesNotMatch(toggle, /analyse|confirm\(|generateV2|saveNotes|fileInput/);
+  // CSS: hidden toggle and always-open checklist on desktop; collapsed parts hidden only at 960px and below.
+  assert.match(css, /\n\.readinessSummary \{ display: none; \}/);
+  const mobile = css.slice(css.indexOf("@media (max-width: 960px) {\n  .meetingSummary { order: -1;"));
+  assert.ok(mobile.includes('.readinessDetails[data-collapsed="true"] { display: none; }'));
+  assert.ok(mobile.includes(".root .readinessSummary { display: flex;"));
+  assert.ok(mobile.includes(".meetingSummary .primaryAction { order: 1;") && mobile.includes(".meetingSummary .readinessDetails { order: 2; }"));
+  assert.equal(css.match(/\[data-collapsed="true"\]/g)?.length, 1, "nothing collapses outside that media query");
+  assert.match(css, /@media \(min-width: 961px\) and \(min-height: 920px\) \{ \.meetingSummary \{ position: sticky; top: 24px; \} \}/);
+});
+
+test("optional personal notes are not a required step in the readiness progress", () => {
+  const source = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../components/post-meeting.module.css", import.meta.url), "utf8");
+  // The notes row: done when saved, attention when unsaved, otherwise "optional" - never an open step.
+  assert.ok(source.includes('value: notesDirty ? "Unsaved" : baseline.text ? "Saved" : "Optional · none", mark: notesDirty ? "attention" : baseline.text ? "done" : "optional", optional: true'));
+  assert.ok(source.includes("const requiredSteps = readiness.filter((row) => !row.optional);"));
+  assert.equal(source.match(/optional: true/g)?.length, 1, "only the notes are optional; every other row still counts");
+  assert.doesNotMatch(source, /\{readiness\.length\} steps complete/, "the total is the required steps, not all rows");
+  assert.equal(source.match(/\{ key: "/g)?.length, 8, "all eight rows are still shown");
+  assert.ok(source.includes('row.mark === "optional" ? "–" : ""'));
+  assert.match(css, /\.readiness li\[data-mark="optional"\] \.readinessMark, \.readiness li\[data-mark="optional"\] strong \{ color: var\(--pitch-gray-500\); \}/);
+  // Whether V2 can be generated still comes from the API, not from this counter.
+  assert.ok(source.includes("const canGenerateV2 = Boolean(review?.readiness.ready_for_v2 && confirmedCurrent);"));
+  assert.doesNotMatch(source, /requiredSteps[^;\n]*(disabled|can_generate|ready_for_v2)/);
 });
