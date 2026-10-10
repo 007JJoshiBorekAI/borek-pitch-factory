@@ -31,14 +31,26 @@ CATEGORIES = (
     "decisions",
     "follow_ups",
 )
-_LINE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("requirements", re.compile(r"(?i)^requirement\s*:\s*(.+)$")),
-    ("challenges", re.compile(r"(?i)^challenge\s*:\s*(.+)$")),
-    ("priorities", re.compile(r"(?i)^priority\s*:\s*(.+)$")),
-    ("opportunities", re.compile(r"(?i)^opportunity\s*:\s*(.+)$")),
-    ("discussed_solutions", re.compile(r"(?i)^discussed solution\s*:\s*(.+)$")),
-    ("decisions", re.compile(r"(?i)^decision\s*:\s*(.+)$")),
-    ("follow_ups", re.compile(r"(?i)^follow-up\s*:\s*(.+)$")),
+# The fixture extractor reads explicitly labelled statements only ("Requirement: ..."). It does
+# not interpret conversation. In front of the label a line may carry a list bullet, a time stamp
+# and a speaker name, as transcripts and notes usually do:
+#     - [02:15] Daniel: Requirement: Reduce support response time
+_LINE_LEAD = (
+    r"(?i)^\s*(?:[-*\u2022]\s+)?"  # list bullet
+    r"(?:[\[(]?\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d{1,3})?[\])]?\s*(?:[-\u2013\u2014]\s*)?)?"  # time stamp
+    r"(?:[A-Za-z][A-Za-z0-9 .'\-_()]{0,80}:\s*)??"  # speaker name
+)
+_LABELS: tuple[tuple[str, str], ...] = (
+    ("requirements", r"requirements?"),
+    ("challenges", r"challenges?"),
+    ("priorities", r"priorit(?:y|ies)"),
+    ("opportunities", r"opportunit(?:y|ies)"),
+    ("discussed_solutions", r"discussed solutions?"),
+    ("decisions", r"decisions?"),
+    ("follow_ups", r"follow[- ]?ups?"),
+)
+_LINE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
+    (category, re.compile(_LINE_LEAD + r"(?:" + label + r")\s*:\s*(.+)$")) for category, label in _LABELS
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -111,8 +123,11 @@ def _empty_categories() -> dict[str, list[str]]:
 
 
 def _append_unique(items: list[str], value: str) -> None:
+    """Keep the first wording of a statement; a repeat that differs only in case, spacing or the
+    final full stop is the same finding."""
     text = value.strip()
-    if text and text not in items:
+    key = " ".join(text.casefold().split()).rstrip(".")
+    if text and key not in {" ".join(item.casefold().split()).rstrip(".") for item in items}:
         items.append(text)
 
 

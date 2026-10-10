@@ -187,6 +187,8 @@ const BLOCKER_TEXT: Record<string, string> = {
   MEETING_EXTRACTION_STALE: "Analyse the meeting again: a source changed.",
   MEETING_REVIEW_NOT_CONFIRMED: "Review the findings and confirm them.",
   MEETING_REVIEW_STALE: "Confirm the findings again: a source changed.",
+  MEETING_FINDINGS_EMPTY: "The analysis found no findings. Master Presentation V2 needs at least one confirmed finding.",
+  MEETING_FINDINGS_NONE_CONFIRMED: "No finding is confirmed. Include at least one finding and confirm again.",
 };
 
 export const staleReasonText = (code: string) => STALE_REASON_TEXT[code] ?? "A source changed.";
@@ -287,6 +289,7 @@ export function reviewHeadline(review: PostMeetingReview, v2State?: string | nul
   if (review.readiness.ready_for_v2) return "Ready for Master Presentation V2";
   if (review.confirmation.status === "stale") return "Confirmation is out of date";
   if (review.extraction.status === "stale") return "Analysis is out of date";
+  if (review.extraction.status === "current" && review.extraction.item_count === 0) return "No findings to confirm";
   if (review.extraction.status === "current") return "Review the findings";
   return review.transcripts.length ? "Analyse the meeting" : "Add your transcript";
 }
