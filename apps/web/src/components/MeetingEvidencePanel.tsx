@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { PostMeetingPhaseNav, usePostMeeting } from "@/components/PostMeetingShell";
 import { generateMeetingExtraction, listAvailableUseCases, saveSelectedUseCases, uploadTranscript, type AvailableUseCase } from "@/lib/api";
 import { isMasterJourney } from "@/lib/discoveryFirst";
-import { generateAndAwaitMasterV2, loadMasterV2Status, masterV2Error, masterV2StageText, type MasterV2Status } from "@/lib/masterPresentationV2";
+import { awaitRunningMasterV2, generateAndAwaitMasterV2, loadMasterV2Status, masterV2Error, masterV2StageText, type MasterV2Status } from "@/lib/masterPresentationV2";
 import { generateAndAwaitPostMeetingPresentation } from "@/lib/ppt2Generation";
 import {
   blockerText, confirmMeetingReview, excludedFromConfirmation, EXTRACTION_FIELDS, FINDING_SOURCE_LABEL, findingsState, isStaleReviewError,
@@ -77,7 +77,9 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
   const baseline: PersonalNotes = { text: review?.personal_notes.text ?? null, updated_at: review?.personal_notes.updated_at ?? null };
   const notesDirty = Boolean(review) && notes.trim() !== (baseline.text ?? "");
   const finalized = Boolean(review?.finalized ?? workflow?.finalization);
-  const editingDisabled = Boolean(busy) || finalized || (!previewMode && (!live || !review));
+  // A generation that is running on the server locks the inputs, whichever page or tab started it.
+  const v2Running = v2?.state === "generating";
+  const editingDisabled = Boolean(busy) || v2Running || finalized || (!previewMode && (!live || !review));
   const transcript = review?.transcripts.find((item) => item.id === transcriptId);
   const state = review ? findingsState(review, transcriptId, notesDirty) : "no-transcript";
   const storedExcluded = review && review.confirmation.status === "current" ? excludedFromConfirmation(review) : {};
@@ -193,6 +195,28 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
       setSaved("Use cases saved.");
     });
   }
+
+  // A V2 generation that is already running when this page opens - after a reload, or after the
+  // user left and came back - is followed until the server reports ready or failed. This only
+  // reads the job and the status; the generation started here is followed by generateV2 itself.
+  const v2JobId = v2?.job?.job_id ?? null;
+  useEffect(() => {
+    if (!live || !accessToken || !v2 || v2.state !== "generating" || operation.current) return;
+    const controller = new AbortController();
+    setV2Stage((stage) => stage ?? "QUEUED");
+    void awaitRunningMasterV2(accessToken, opportunityId, v2, (job) => setV2Stage(job.current_stage), controller.signal).then((final) => {
+      if (controller.signal.aborted) return;
+      setV2(final); setV2Stage(null);
+      if (final.state === "ready") setSaved("Master Presentation V2 is ready.");
+      else if (final.state === "failed") setV2Error(final.job?.error_message || "Master Presentation V2 was not generated. Retry the generation.");
+      refreshWorkflow();
+    }).catch((cause) => {
+      if (controller.signal.aborted) return;
+      setV2Stage(null); setV2Error(masterV2Error(cause));
+    });
+    return () => controller.abort();
+    // Keyed on the running job, not on the status object: every poll result would restart it.
+  }, [accessToken, live, opportunityId, v2?.state, v2JobId]);
 
   async function generateV2() {
     if (!review || !accessToken || !live || operation.current) return;
@@ -335,7 +359,7 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
 
       <aside className={`${styles.summary} ${styles.meetingSummary}`} aria-labelledby="readiness-title" data-testid="meeting-readiness">
         <span className={styles.eyebrow}>{companyName}</span>
-        <h2 id="readiness-title">{previewMode ? "Layout preview" : review ? selectionChanged ? "Confirm your changes" : reviewHeadline(review) : "Loading"}</h2><small>First meeting</small>
+        <h2 id="readiness-title">{previewMode ? "Layout preview" : review ? selectionChanged ? "Confirm your changes" : reviewHeadline(review, v2?.state) : "Loading"}</h2><small>First meeting</small>
         {live && review ? <>
           <ul>
             <li><span>Approved Discovery</span><strong>{review.approved_discovery.status === "available" ? `Version ${review.approved_discovery.version_number}` : "Missing"}</strong></li>
@@ -348,7 +372,7 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
           </ul>
           {review.confirmation.status === "stale" ? <p><small>{review.confirmation.stale_reasons.map(staleReasonText).join(" ")}</small></p> : null}
           <button className="btn btn-primary" disabled={editingDisabled || state !== "current" || confirmedCurrent} onClick={() => void confirm()}>{busy === "Confirming findings" ? "Confirming..." : confirmedCurrent ? "Meeting information confirmed" : "Confirm meeting information"}</button>
-          {confirmedCurrent ? <p><small>Confirmed {when(review.confirmation.confirmed_at)}: {review.confirmation.confirmed_count} findings included{review.confirmation.excluded_count ? `, ${review.confirmation.excluded_count} excluded` : ""}.</small></p> : <p><small>Untick any finding that is wrong or should not be used. Confirming records the remaining findings as checked by you.</small></p>}
+          {confirmedCurrent ? <p><small>Confirmed {when(review.confirmation.confirmed_at)}: {review.confirmation.confirmed_count} {review.confirmation.confirmed_count === 1 ? "finding" : "findings"} included{review.confirmation.excluded_count ? `, ${review.confirmation.excluded_count} excluded` : ""}.</small></p> : <p><small>Untick any finding that is wrong or should not be used. Confirming records the remaining findings as checked by you.</small></p>}
           <p><small>Confirming the meeting findings is not the owner review of the presentation. That review is a separate, later step: it happens once Master Presentation V2 exists.</small></p>
           {review.readiness.ready_for_v2 && confirmedCurrent ? <div data-testid="v2-ready">
             <p className={styles.notice}>Everything Master Presentation V2 needs is in place. V2 is a new version of the same presentation as V1: the same 26 Borek slides with a new appendix from the confirmed findings.</p>

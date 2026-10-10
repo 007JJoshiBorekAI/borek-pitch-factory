@@ -78,6 +78,37 @@ export async function generateAndAwaitMasterV2(
   return status;
 }
 
+const pause = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+  const timer = setTimeout(resolve, ms);
+  signal?.addEventListener("abort", () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
+});
+
+/**
+ * Follows a V2 generation that is ALREADY running - started in another tab, before a reload, or
+ * before the user left the page - until the server reports a final state. It only reads: it never
+ * starts a generation, so reopening the page cannot create a second one.
+ */
+export async function awaitRunningMasterV2(
+  token: string, opportunityId: string, status: MasterV2Status, onJob?: (job: JobResponse) => void, signal?: AbortSignal, pollMs = 2000,
+): Promise<MasterV2Status> {
+  let current = status;
+  while (current.state === "generating") {
+    signal?.throwIfAborted();
+    const jobId = current.job?.job_id;
+    if (jobId) {
+      // A failed job is not an error here: the status read below says what the server holds.
+      try { await waitForJob(token, jobId, { onProgress: onJob, signal }); } catch (error) { signal?.throwIfAborted(); if (!(error instanceof ApiRequestError)) throw error; }
+    } else {
+      await pause(pollMs, signal);
+    }
+    signal?.throwIfAborted();
+    const next = await loadMasterV2Status(token, opportunityId, signal);
+    if (next.state === "generating" && next.job?.job_id === jobId) await pause(pollMs, signal);
+    current = next;
+  }
+  return current;
+}
+
 const STAGE_TEXT: Record<string, string> = {
   QUEUED: "Waiting for the generation to start",
   SLIDE_GENERATING: "Building the post-meeting appendix",

@@ -278,8 +278,12 @@ export function excludedFromConfirmation(review: PostMeetingReview): Partial<Rec
   }));
 }
 
-export function reviewHeadline(review: PostMeetingReview): string {
+/** ``v2State`` is what the server reports for Master Presentation V2, once it has been read. */
+export function reviewHeadline(review: PostMeetingReview, v2State?: string | null): string {
   if (review.finalized) return "Package finalized";
+  if (review.readiness.ready_for_v2 && v2State === "ready") return "Master Presentation V2 is ready";
+  if (review.readiness.ready_for_v2 && v2State === "generating") return "Generating Master Presentation V2";
+  if (review.readiness.ready_for_v2 && v2State === "outdated") return "Master Presentation V2 needs a new revision";
   if (review.readiness.ready_for_v2) return "Ready for Master Presentation V2";
   if (review.confirmation.status === "stale") return "Confirmation is out of date";
   if (review.extraction.status === "stale") return "Analysis is out of date";

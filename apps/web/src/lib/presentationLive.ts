@@ -63,7 +63,7 @@ type LiveWorkflow = WorkflowStatusResponse & {
 
 function identityMismatch(): never {
   throw new ApiRequestError(
-    "The latest presentation version changed or does not match PPT #1. Reload the deck to continue. Historical previews are not supported by this API.",
+    "The latest presentation version changed or does not match the pre-meeting presentation. Reload the deck to continue. Historical previews are not supported by this API.",
     409, "PPT1_IDENTITY_MISMATCH",
   );
 }
@@ -86,12 +86,12 @@ export function adaptLivePresentation(
 ): LivePresentation {
   if (deck.presentation_id !== identity.presentationId) identityMismatch();
   checkSlides(metadata, identity);
-  if (deck.status !== "ready") throw new Error("PPT #1 artifacts are not ready yet.");
+  if (deck.status !== "ready") throw new Error("The presentation files are not ready yet.");
   // /deck may list only the rendered pages. Do not hide unrendered /slides rows.
   const source = deck.source ?? null;
   const indices = new Set([...deck.slides, ...metadata].map((slide) => slide.slide_index));
   if ([...indices].some((index) => !Number.isInteger(index) || index < 0)) {
-    throw new Error("PPT #1 returned an invalid slide index.");
+    throw new Error("The presentation returned an invalid slide index.");
   }
   const slides = [...indices].sort((a, b) => a - b).map((index) => {
     const preview = deck.slides.find((slide) => slide.slide_index === index);

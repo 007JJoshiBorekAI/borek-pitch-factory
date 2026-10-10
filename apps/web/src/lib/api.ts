@@ -148,6 +148,8 @@ export interface WaitForJobOptions {
   timeoutMs?: number;
   pollIntervalMs?: number;
   onProgress?: (job: JobResponse) => void;
+  /** Stops polling when the page that follows the job goes away. */
+  signal?: AbortSignal;
 }
 
 export async function waitForJob(
@@ -155,11 +157,13 @@ export async function waitForJob(
   jobId: string,
   options: number | WaitForJobOptions = {},
 ): Promise<JobResponse> {
-  const { timeoutMs = JOB_TIMEOUT_MS, pollIntervalMs = JOB_POLL_INTERVAL_MS, onProgress } =
-    typeof options === "number" ? { timeoutMs: options } : options;
+  const { timeoutMs = JOB_TIMEOUT_MS, pollIntervalMs = JOB_POLL_INTERVAL_MS, onProgress, signal } =
+    typeof options === "number" ? { timeoutMs: options, signal: undefined } : options;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    signal?.throwIfAborted();
     const job = await getJob(accessToken, jobId);
+    signal?.throwIfAborted();
     onProgress?.(job);
     if (job.status === "COMPLETED") return job;
     if (job.status === "FAILED") {
@@ -288,6 +292,25 @@ export async function ensureBackendOpportunityId(
   map[opportunityId] = created.id;
   window.localStorage.setItem(backendOpportunityMapKey(owner, getApiBaseUrl()), JSON.stringify(map));
   return created.id;
+}
+
+/** The local preview id this browser created for a backend opportunity, if it created it. */
+export function previewAliasForBackendId(backendId: string): string | null {
+  const entry = Object.entries(readBackendOpportunityMap()).find(([, value]) => value === backendId);
+  return entry ? entry[0] : null;
+}
+
+/**
+ * The path with the backend opportunity id in it, or null when it already has one (or the
+ * opportunity does not exist on the server yet). A path with a local preview id only works in the
+ * browser that created it; the backend id works for every signed-in user who may open it.
+ */
+export function canonicalOpportunityPath(pathname: string, opportunityId: string): string | null {
+  if (UUID_RE.test(opportunityId)) return null;
+  const backendId = resolveBackendOpportunityId(opportunityId);
+  const prefix = `/opportunities/${opportunityId}`;
+  if (!UUID_RE.test(backendId) || !(pathname === prefix || pathname.startsWith(`${prefix}/`))) return null;
+  return `/opportunities/${backendId}${pathname.slice(prefix.length)}`;
 }
 
 /** Map a local preview id to its backend UUID (created during Discovery generation). */

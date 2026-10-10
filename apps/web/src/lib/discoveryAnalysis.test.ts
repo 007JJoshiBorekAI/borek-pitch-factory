@@ -161,7 +161,7 @@ async function run() {
   assert.match(workspace, /pagePosition\(manifest, selected\.id\)/);
   assert.match(workspace, /max=\{manifest\.length\}/);
   assert.match(workspace, /findOverflowingPages/);
-  assert.match(readFileSync("src/components/PresentationWorkspace.tsx", "utf8"), /Approve the Discovery analysis before generating PPT #1\./);
+  assert.match(readFileSync("src/components/PresentationWorkspace.tsx", "utf8"), /Approve the Discovery analysis before generating Master Presentation V1\./);
 
   // Preview mode has no server: approving the sample records the approval in the local journey.
   const adapter = createFixtureDiscoveryWorkspaceAdapter(createDiscoveryWorkspaceFixture("opp-preview", DISCOVERY_PAGE_CATALOG.map(() => "ready")));

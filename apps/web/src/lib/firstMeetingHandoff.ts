@@ -6,7 +6,7 @@ export async function completeFirstMeetingAndGetRoute(token: string, opportunity
   signal?.throwIfAborted();
   if (!workflowCompleted(current, "first_meeting_completed")) {
     if (!workflowCompleted(current, "ppt1_ready") || !current.documents.ppt1?.latest_ready_version_id) {
-      throw new Error("PPT #1 must be ready before you can mark the first meeting completed.");
+      throw new Error("Master Presentation V1 must be ready before you can mark the first meeting completed.");
     }
     const confirmed = await apiFetch<PostMeetingWorkflow>(postMeetingPath(opportunityId, "workflow/first-meeting-completed"), token, { method: "POST", signal });
     signal?.throwIfAborted();
