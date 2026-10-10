@@ -454,7 +454,7 @@ test("compact readiness summary at 960px and below; the desktop card is unchange
   const source = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../components/post-meeting.module.css", import.meta.url), "utf8");
   // A summary line with progress and a real toggle button that names what it controls.
-  assert.ok(source.includes('<span data-testid="readiness-progress">{readiness.filter((row) => row.mark === "done").length} of {readiness.length} steps complete</span>'));
+  assert.ok(source.includes('<span data-testid="readiness-progress">{requiredSteps.filter((row) => row.mark === "done").length} of {requiredSteps.length} steps complete</span>'));
   assert.ok(source.includes('aria-expanded={detailsOpen} aria-controls="readiness-details readiness-notes" onClick={() => setDetailsOpen((open) => !open)}>{detailsOpen ? "Hide details" : "Show details"}</button>'));
   assert.ok(source.includes('<div id="readiness-details" className={styles.readinessDetails} data-collapsed={!detailsOpen}>'));
   assert.ok(source.includes('<div id="readiness-notes" className={styles.readinessDetails} data-collapsed={!detailsOpen}>'));
@@ -479,4 +479,20 @@ test("compact readiness summary at 960px and below; the desktop card is unchange
   assert.ok(mobile.includes(".meetingSummary .primaryAction { order: 1;") && mobile.includes(".meetingSummary .readinessDetails { order: 2; }"));
   assert.equal(css.match(/\[data-collapsed="true"\]/g)?.length, 1, "nothing collapses outside that media query");
   assert.match(css, /@media \(min-width: 961px\) and \(min-height: 920px\) \{ \.meetingSummary \{ position: sticky; top: 24px; \} \}/);
+});
+
+test("optional personal notes are not a required step in the readiness progress", () => {
+  const source = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../components/post-meeting.module.css", import.meta.url), "utf8");
+  // The notes row: done when saved, attention when unsaved, otherwise "optional" - never an open step.
+  assert.ok(source.includes('value: notesDirty ? "Unsaved" : baseline.text ? "Saved" : "Optional · none", mark: notesDirty ? "attention" : baseline.text ? "done" : "optional", optional: true'));
+  assert.ok(source.includes("const requiredSteps = readiness.filter((row) => !row.optional);"));
+  assert.equal(source.match(/optional: true/g)?.length, 1, "only the notes are optional; every other row still counts");
+  assert.doesNotMatch(source, /\{readiness\.length\} steps complete/, "the total is the required steps, not all rows");
+  assert.equal(source.match(/\{ key: "/g)?.length, 8, "all eight rows are still shown");
+  assert.ok(source.includes('row.mark === "optional" ? "–" : ""'));
+  assert.match(css, /\.readiness li\[data-mark="optional"\] \.readinessMark, \.readiness li\[data-mark="optional"\] strong \{ color: var\(--pitch-gray-500\); \}/);
+  // Whether V2 can be generated still comes from the API, not from this counter.
+  assert.ok(source.includes("const canGenerateV2 = Boolean(review?.readiness.ready_for_v2 && confirmedCurrent);"));
+  assert.doesNotMatch(source, /requiredSteps[^;\n]*(disabled|can_generate|ready_for_v2)/);
 });

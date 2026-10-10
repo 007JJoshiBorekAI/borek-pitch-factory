@@ -287,17 +287,20 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
   const analysed = Boolean(review) && review!.extraction.status !== "missing";
   const v2Label = !v2 ? "Checking..." : v2Generating ? "Generating" : v2.state === "ready" ? `Ready · revision ${v2.latest_ready?.version_number ?? ""}`.trim()
     : v2.state === "failed" ? "Failed" : v2.state === "outdated" ? "Needs a new revision" : "Not generated";
-  type Mark = "done" | "todo" | "attention";
-  const readiness: { key: string; label: string; value: string; mark: Mark; testid?: string }[] = review ? [
+  // "optional": nothing is missing. Personal notes are never required, so without notes the row is
+  // neither done nor open, and it is not counted as a step.
+  type Mark = "done" | "todo" | "attention" | "optional";
+  const readiness: { key: string; label: string; value: string; mark: Mark; optional?: boolean; testid?: string }[] = review ? [
     { key: "discovery", label: "Approved Discovery", value: review.approved_discovery.status === "available" ? `Version ${review.approved_discovery.version_number}` : "Missing", mark: review.approved_discovery.status === "available" ? "done" : "attention" },
     { key: "v1", label: "Master Presentation V1", value: review.master_presentation.status === "ready" ? "Ready" : review.master_presentation.status === "legacy" ? "Earlier deck format" : "Missing", mark: review.master_presentation.status === "ready" ? "done" : "attention" },
     { key: "transcript", label: "Transcript", value: transcript ? "Selected" : "Required", mark: transcript ? "done" : "todo" },
-    { key: "notes", label: "Personal notes", value: notesDirty ? "Unsaved" : baseline.text ? "Saved" : "None", mark: notesDirty ? "attention" : baseline.text ? "done" : "todo" },
+    { key: "notes", label: "Personal notes", value: notesDirty ? "Unsaved" : baseline.text ? "Saved" : "Optional · none", mark: notesDirty ? "attention" : baseline.text ? "done" : "optional", optional: true, testid: "notes-row" },
     { key: "findings", label: "Meeting findings", value: { "no-transcript": "Not analysed", "not-analysed": "Not analysed", "other-transcript": "Other transcript", "notes-unsaved": "Out of date", stale: "Out of date", current: `${review.extraction.item_count} found` }[state], mark: state === "current" ? "done" : analysed ? "attention" : "todo" },
     { key: "confirmation", label: "Meeting findings confirmed", value: confirmedCurrent ? `Yes · ${review.confirmation.confirmed_count} included` : review.confirmation.status === "none" ? "Not yet" : "Out of date", mark: confirmedCurrent ? "done" : review.confirmation.status === "none" ? "todo" : "attention", testid: "findings-confirmation" },
     { key: "v2", label: "Master Presentation V2", value: confirmedCurrent && review.readiness.ready_for_v2 ? v2Label : "After confirmation", mark: v2?.state === "ready" ? "done" : v2?.state === "failed" || v2?.state === "outdated" ? "attention" : "todo", testid: "v2-status" },
     { key: "owner", label: "Presentation owner review", value: workflowCompleted(workflow, "owner_review") ? "Completed" : v2?.state === "ready" ? "Pending · review V2" : "Pending · after V2", mark: workflowCompleted(workflow, "owner_review") ? "done" : "todo", testid: "presentation-owner-review" },
   ] : [];
+  const requiredSteps = readiness.filter((row) => !row.optional);
   const canGenerateV2 = Boolean(review?.readiness.ready_for_v2 && confirmedCurrent);
   // Tabs follow the usual keyboard pattern: arrow keys, Home and End move between them, and only
   // the selected tab is in the page's tab order. Switching never touches what was typed.
@@ -423,13 +426,13 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
         <h2 id="readiness-title">{previewMode ? "Layout preview" : review ? selectionChanged ? "Confirm your changes" : reviewHeadline(review, v2?.state) : "Loading"}</h2><small>First meeting</small>
         {live && review ? <>
           <p className={styles.readinessSummary} data-testid="readiness-summary">
-            <span data-testid="readiness-progress">{readiness.filter((row) => row.mark === "done").length} of {readiness.length} steps complete</span>
+            <span data-testid="readiness-progress">{requiredSteps.filter((row) => row.mark === "done").length} of {requiredSteps.length} steps complete</span>
             <button type="button" className={styles.readinessToggle} data-testid="readiness-toggle" aria-expanded={detailsOpen} aria-controls="readiness-details readiness-notes" onClick={() => setDetailsOpen((open) => !open)}>{detailsOpen ? "Hide details" : "Show details"}</button>
           </p>
           <div id="readiness-details" className={styles.readinessDetails} data-collapsed={!detailsOpen}>
           <ul className={styles.readiness}>
             {readiness.map((row) => <li key={row.key} data-testid={row.testid} data-mark={row.mark}>
-              <i className={styles.readinessMark} aria-hidden="true">{row.mark === "done" ? "✓" : row.mark === "attention" ? "!" : ""}</i><span>{row.label}</span><strong>{row.value}</strong>
+              <i className={styles.readinessMark} aria-hidden="true">{row.mark === "done" ? "✓" : row.mark === "attention" ? "!" : row.mark === "optional" ? "–" : ""}</i><span>{row.label}</span><strong>{row.value}</strong>
             </li>)}
           </ul>
           {review.confirmation.status === "stale" ? <p><small>{review.confirmation.stale_reasons.map(staleReasonText).join(" ")}</small></p> : null}

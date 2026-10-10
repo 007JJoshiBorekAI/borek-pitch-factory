@@ -151,6 +151,8 @@
 .readiness li strong { font-weight: var(--pitch-weight-medium); text-align: right; }
 .readinessMark { display: grid; place-items: center; flex: 0 0 22px; height: 22px; border: 1px solid var(--pitch-gray-200); border-radius: 50%; background: white; color: var(--pitch-teal); font-style: normal; font-size: 12px; font-weight: var(--pitch-weight-semibold); }
 .readiness li[data-mark="done"] strong { color: var(--pitch-teal); }
+.readiness li[data-mark="optional"] .readinessMark, .readiness li[data-mark="optional"] strong { color: var(--pitch-gray-500); }
+.readiness li[data-mark="optional"] .readinessMark { border-style: dashed; }
 .readiness li[data-mark="attention"] .readinessMark, .readiness li[data-mark="attention"] strong { color: var(--pitch-red); }
 .blockers ul { margin: 8px 0 0; }
 .root .summary .blockers li { padding: 6px 0; border: 0; }
