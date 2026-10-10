@@ -43,6 +43,11 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
   const [v2, setV2] = useState<MasterV2Status | null>(null);
   const [v2Stage, setV2Stage] = useState<string | null>(null);
   const [v2Error, setV2Error] = useState<string | null>(null);
+  // Which meeting input is in front. Both stay mounted, so typed notes survive switching.
+  const [inputTab, setInputTab] = useState<"transcript" | "notes">("transcript");
+  // The readiness checklist is always shown on desktop. At 960px and below it is collapsed behind
+  // a toggle, so the meeting inputs are close to the top of the page.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const loaded = useRef(false);
   const operation = useRef<AbortController | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
@@ -275,7 +280,39 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
     setConflictingNotes(null); setError(null);
   };
 
-  return <section aria-labelledby="meeting-title">
+  // ---- what the page shows; every action below calls the same handler and obeys the same gate as before
+  const v2Generating = v2?.state === "generating" || busy === "Generating Master Presentation V2";
+  const found = review ? EXTRACTION_FIELDS.reduce((sum, [key]) => sum + review.extraction.categories[key].length, 0) : 0;
+  const excludedNow = review ? EXTRACTION_FIELDS.reduce((sum, [key]) => sum + review.extraction.categories[key].filter((item) => (excluded[key] ?? []).includes(item.text)).length, 0) : 0;
+  const analysed = Boolean(review) && review!.extraction.status !== "missing";
+  const v2Label = !v2 ? "Checking..." : v2Generating ? "Generating" : v2.state === "ready" ? `Ready · revision ${v2.latest_ready?.version_number ?? ""}`.trim()
+    : v2.state === "failed" ? "Failed" : v2.state === "outdated" ? "Needs a new revision" : "Not generated";
+  type Mark = "done" | "todo" | "attention";
+  const readiness: { key: string; label: string; value: string; mark: Mark; testid?: string }[] = review ? [
+    { key: "discovery", label: "Approved Discovery", value: review.approved_discovery.status === "available" ? `Version ${review.approved_discovery.version_number}` : "Missing", mark: review.approved_discovery.status === "available" ? "done" : "attention" },
+    { key: "v1", label: "Master Presentation V1", value: review.master_presentation.status === "ready" ? "Ready" : review.master_presentation.status === "legacy" ? "Earlier deck format" : "Missing", mark: review.master_presentation.status === "ready" ? "done" : "attention" },
+    { key: "transcript", label: "Transcript", value: transcript ? "Selected" : "Required", mark: transcript ? "done" : "todo" },
+    { key: "notes", label: "Personal notes", value: notesDirty ? "Unsaved" : baseline.text ? "Saved" : "None", mark: notesDirty ? "attention" : baseline.text ? "done" : "todo" },
+    { key: "findings", label: "Meeting findings", value: { "no-transcript": "Not analysed", "not-analysed": "Not analysed", "other-transcript": "Other transcript", "notes-unsaved": "Out of date", stale: "Out of date", current: `${review.extraction.item_count} found` }[state], mark: state === "current" ? "done" : analysed ? "attention" : "todo" },
+    { key: "confirmation", label: "Meeting findings confirmed", value: confirmedCurrent ? `Yes · ${review.confirmation.confirmed_count} included` : review.confirmation.status === "none" ? "Not yet" : "Out of date", mark: confirmedCurrent ? "done" : review.confirmation.status === "none" ? "todo" : "attention", testid: "findings-confirmation" },
+    { key: "v2", label: "Master Presentation V2", value: confirmedCurrent && review.readiness.ready_for_v2 ? v2Label : "After confirmation", mark: v2?.state === "ready" ? "done" : v2?.state === "failed" || v2?.state === "outdated" ? "attention" : "todo", testid: "v2-status" },
+    { key: "owner", label: "Presentation owner review", value: workflowCompleted(workflow, "owner_review") ? "Completed" : v2?.state === "ready" ? "Pending · review V2" : "Pending · after V2", mark: workflowCompleted(workflow, "owner_review") ? "done" : "todo", testid: "presentation-owner-review" },
+  ] : [];
+  const canGenerateV2 = Boolean(review?.readiness.ready_for_v2 && confirmedCurrent);
+  // Tabs follow the usual keyboard pattern: arrow keys, Home and End move between them, and only
+  // the selected tab is in the page's tab order. Switching never touches what was typed.
+  const INPUT_TABS = ["transcript", "notes"] as const;
+  function onTabKey(event: React.KeyboardEvent<HTMLDivElement>) {
+    const index = INPUT_TABS.indexOf(inputTab);
+    const next = event.key === "ArrowRight" ? (index + 1) % INPUT_TABS.length : event.key === "ArrowLeft" ? (index + INPUT_TABS.length - 1) % INPUT_TABS.length
+      : event.key === "Home" ? 0 : event.key === "End" ? INPUT_TABS.length - 1 : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    setInputTab(INPUT_TABS[next]);
+    document.getElementById(`tab-${INPUT_TABS[next]}`)?.focus();
+  }
+
+  return <section aria-labelledby="meeting-title" className={styles.meetingPage}>
     <header className={styles.heading}><span className={styles.eyebrow}>Post-meeting</span><h1 id="meeting-title">Turn the meeting into the next pitch</h1><p>{companyName} · First meeting</p></header>
     <PostMeetingPhaseNav opportunityId={opportunityId} active="meeting" />
     {error ? <p className={styles.error} role="alert">{error}</p> : null}
@@ -285,64 +322,88 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
     {review?.execution_mode === "fixture" ? <p className={styles.notice} data-testid="fixture-notice">Test mode: this environment analyses meetings with a rule-based extractor that only picks up lines such as “Requirement: …” or “Decision: …”. No AI model is called.</p> : null}
     <div className={`${styles.columns} ${styles.meetingColumns}`}>
       <div className={styles.stack}>
-        <article className={`${styles.card} ${styles.meetingCard}`} aria-labelledby="transcript-title">
-          <span className={styles.eyebrow}>Source 1 · Transcript</span><h2 id="transcript-title">What was said in the meeting?</h2>
-          <p className={styles.meetingIntro}>Upload the transcript of the first client meeting. If you upload more than one, choose the one to analyse.</p>
-          <div className={styles.actions}>
-            <button className="btn btn-secondary" disabled={editingDisabled} onClick={() => fileInput.current?.click()}>{review?.transcripts.length || previewFile ? "Upload another transcript" : "Upload transcript"}</button>
-            <small>TXT, VTT, SRT or DOCX</small>
-            <input ref={fileInput} type="file" hidden accept=".txt,.vtt,.srt,.docx" aria-label="Meeting transcript" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void onTranscript(file); }} />
+        <article className={`${styles.card} ${styles.meetingCard}`} aria-labelledby="meeting-input-title" data-testid="meeting-input">
+          <span className={styles.eyebrow}>Meeting input</span><h2 id="meeting-input-title">What happened in the meeting?</h2>
+          <p className={styles.meetingIntro}>Add the transcript of the first client meeting and, if you like, your own notes. The two are kept apart: notes are your view and are never treated as something said in the meeting.</p>
+          <div className={styles.inputTabs} role="tablist" aria-label="Meeting input" onKeyDown={onTabKey}>
+            <button type="button" role="tab" id="tab-transcript" aria-controls="panel-transcript" aria-selected={inputTab === "transcript"} tabIndex={inputTab === "transcript" ? 0 : -1} className={inputTab === "transcript" ? styles.inputTabActive : undefined} onClick={() => setInputTab("transcript")}>
+              Upload transcript<small>{review?.transcripts.length ? `${review.transcripts.length} added` : previewFile ? "1 selected" : "Required"}</small></button>
+            <button type="button" role="tab" id="tab-notes" aria-controls="panel-notes" aria-selected={inputTab === "notes"} tabIndex={inputTab === "notes" ? 0 : -1} className={inputTab === "notes" ? styles.inputTabActive : undefined} onClick={() => setInputTab("notes")}>
+              Type notes<small data-testid="notes-tab-state" data-attention={notesDirty ? "true" : undefined}>{notesDirty ? "Unsaved" : baseline.text ? "Saved" : "Optional"}</small></button>
           </div>
-          {previewMode ? <div className={styles.transcriptCard} role="status"><div><strong>{previewFile?.name ?? "No transcript added"}</strong><small>{previewFile ? "Selected locally; not uploaded" : "Layout preview only"}</small></div></div> : null}
-          {live && review && !review.transcripts.length ? <div className={styles.transcriptCard} role="status"><div><strong>No transcript added</strong><small>Nothing can be analysed until a transcript is uploaded.</small></div></div> : null}
-          {live && review?.transcripts.length ? <ul className={styles.transcriptList} data-testid="transcript-list">{review.transcripts.map((item) => <li key={item.id}>
-            <label className={styles.check}>
-              <input type="radio" name="transcript" checked={item.id === transcriptId} disabled={editingDisabled} onChange={() => setTranscriptId(item.id)} />
-              <span><strong>{item.file_name}</strong><small>Uploaded {when(item.created_at)} · {item.turn_count} speaker turns{item.analysed ? " · analysed" : ""}</small></span>
-            </label>
-          </li>)}</ul> : null}
-        </article>
 
-        <article className={styles.card} aria-labelledby="notes-title">
-          <span className={styles.eyebrow}>Source 2 · Personal notes</span><h2 id="notes-title">Your own observations</h2>
-          <p className={styles.meetingIntro}>Optional. Notes are your view of the meeting. They are stored separately from the transcript and are never treated as something the client said.</p>
-          <label className={styles.notesField} htmlFor="personal-notes">Personal notes <span>(optional)</span>
-            <textarea id="personal-notes" value={notes} maxLength={20000} disabled={editingDisabled} placeholder="Anything you noticed that the transcript does not show?" onChange={(event) => { setNotes(event.target.value); setSaved(null); }} />
-          </label>
-          <div className={styles.actions}>
-            <button className="btn btn-secondary" disabled={editingDisabled || !notesDirty || Boolean(conflictingNotes)} onClick={() => void saveNotes()}>Save notes</button>
-            <small role="status" data-testid="notes-status">{notesDirty ? "Unsaved changes" : baseline.text ? `Saved ${when(baseline.updated_at)}` : "No notes saved"}</small>
+          <div role="tabpanel" id="panel-transcript" aria-labelledby="tab-transcript" tabIndex={0} hidden={inputTab !== "transcript"} className={styles.inputPanel}>
+            <div className={styles.actions}>
+              <button className="btn btn-secondary" disabled={editingDisabled} onClick={() => fileInput.current?.click()}>{review?.transcripts.length || previewFile ? "Upload another transcript" : "Choose a transcript file"}</button>
+              <small>TXT, VTT, SRT or DOCX{review && review.transcripts.length > 1 ? " · choose the one to analyse" : ""}</small>
+              <input ref={fileInput} type="file" hidden accept=".txt,.vtt,.srt,.docx" aria-label="Meeting transcript" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void onTranscript(file); }} />
+            </div>
+            {previewMode ? <div className={styles.transcriptCard} role="status"><div><strong>{previewFile?.name ?? "No transcript added"}</strong><small>{previewFile ? "Selected locally; not uploaded" : "Layout preview only"}</small></div></div> : null}
+            {live && review && !review.transcripts.length ? <div className={styles.transcriptCard} role="status"><span className={`${styles.transcriptIcon} ${styles.transcriptIconEmpty}`} aria-hidden="true">–</span><div><strong>No transcript added</strong><small>Nothing can be analysed until a transcript is uploaded.</small></div></div> : null}
+            {live && review?.transcripts.length ? <ul className={styles.transcriptList} data-testid="transcript-list">{review.transcripts.map((item) => <li key={item.id} className={item.id === transcriptId ? styles.transcriptSelected : undefined}>
+              <label className={styles.check}>
+                {review.transcripts.length > 1
+                  ? <input type="radio" name="transcript" checked={item.id === transcriptId} disabled={editingDisabled} onChange={() => setTranscriptId(item.id)} />
+                  : <span className={styles.transcriptIcon} aria-hidden="true">✓</span>}
+                <span><strong>{item.file_name}</strong><small>Uploaded {when(item.created_at)} · {item.turn_count} speaker turns</small></span>
+                <em className={styles.transcriptBadge}>{item.analysed ? "Analysed" : item.id === transcriptId ? "Selected" : "Uploaded"}</em>
+              </label>
+            </li>)}</ul> : null}
           </div>
-          {conflictingNotes ? <div className={styles.source}><strong>Notes saved in another session</strong><p>{conflictingNotes.text || "No notes"}</p><div className={styles.actions}>
-            <button className="btn btn-secondary" disabled={Boolean(busy)} onClick={() => adoptNotes(conflictingNotes, false)}>Use saved notes</button>
-            <button className="btn btn-secondary" disabled={Boolean(busy)} onClick={() => adoptNotes(conflictingNotes, true)}>Keep my notes</button>
-          </div></div> : null}
+
+          <div role="tabpanel" id="panel-notes" aria-labelledby="tab-notes" tabIndex={0} hidden={inputTab !== "notes"} className={styles.inputPanel}>
+            <label className={styles.notesField} htmlFor="personal-notes">Personal notes <span>(optional)</span>
+              <textarea id="personal-notes" value={notes} maxLength={20000} disabled={editingDisabled} placeholder="Anything you noticed that the transcript does not show?" onChange={(event) => { setNotes(event.target.value); setSaved(null); }} />
+            </label>
+            <div className={styles.actions}>
+              <button className="btn btn-secondary" disabled={editingDisabled || !notesDirty || Boolean(conflictingNotes)} onClick={() => void saveNotes()}>Save notes</button>
+              <small role="status" data-testid="notes-status">{notesDirty ? "Unsaved changes" : baseline.text ? `Saved ${when(baseline.updated_at)}` : "No notes saved"}</small>
+            </div>
+            {conflictingNotes ? <div className={styles.source}><strong>Notes saved in another session</strong><p>{conflictingNotes.text || "No notes"}</p><div className={styles.actions}>
+              <button className="btn btn-secondary" disabled={Boolean(busy)} onClick={() => adoptNotes(conflictingNotes, false)}>Use saved notes</button>
+              <button className="btn btn-secondary" disabled={Boolean(busy)} onClick={() => adoptNotes(conflictingNotes, true)}>Keep my notes</button>
+            </div></div> : null}
+          </div>
+
+          {live && review ? <dl className={styles.sourceMeta} data-testid="source-metadata">
+            <div><dt>Transcript</dt><dd>{transcript ? `${transcript.file_name} · ${transcript.turn_count} speaker turns` : "None selected"}</dd></div>
+            <div><dt>Personal notes</dt><dd>{notesDirty ? "Unsaved changes" : baseline.text ? `Saved ${when(baseline.updated_at)}` : "None"}</dd></div>
+          </dl> : null}
         </article>
 
         {live && review ? <article className={styles.card} aria-labelledby="findings-title" data-testid="meeting-findings">
-          <span className={styles.eyebrow}>Analysis · Interpretation of the sources</span><h2 id="findings-title">Meeting findings</h2>
-          <p className={styles.meetingIntro}>The analysis reads the selected transcript and your saved notes and sorts what it finds into seven categories. Each finding names its source. Findings are an interpretation until you confirm them.</p>
+          <div className={styles.findingsHead}>
+            <div><span className={styles.eyebrow}>Analysis</span><h2 id="findings-title">Meeting findings</h2></div>
+            {analysed ? <span className={`${styles.statePill} ${confirmedCurrent ? styles.statePillDone : state === "current" ? "" : styles.statePillWarn}`} data-testid="findings-state">
+              {confirmedCurrent ? "Confirmed by you" : state === "current" ? "Analysis · not confirmed" : "Out of date"}</span> : null}
+          </div>
+          <p className={styles.meetingIntro}>The analysis sorts what it finds in the selected transcript and your saved notes into seven categories. Findings are an interpretation of the sources until you confirm them.</p>
           <p className={state === "current" ? styles.notice : styles.error} role="status" data-testid="findings-status">{findingsMessage}{state === "stale" ? ` ${review.extraction.stale_reasons.map(staleReasonText).join(" ")}` : ""}</p>
           <div className={styles.actions}>
-            <button className="btn btn-primary" disabled={editingDisabled || !transcript || notesDirty} onClick={() => void analyse()}>{review.extraction.status === "missing" ? "Analyse meeting" : "Analyse again"}</button>
+            <button className="btn btn-secondary" disabled={editingDisabled || !transcript || notesDirty} onClick={() => void analyse()}>{review.extraction.status === "missing" ? "Analyse meeting" : "Analyse again"}</button>
             {review.extraction.generated_at ? <small>Last analysed {when(review.extraction.generated_at)}{review.extraction.execution_mode === "fixture" ? " · rule-based test extractor" : review.extraction.execution_mode === "live" ? " · AI model" : ""}</small> : null}
+            {analysed ? <strong className={styles.findingTotals} data-testid="findings-totals">{found - excludedNow} included · {excludedNow} excluded</strong> : null}
           </div>
-          {review.extraction.status !== "missing" ? <div className={styles.extraction}>{EXTRACTION_FIELDS.map(([key, label]) => <section key={key} aria-label={label}>
-            <h3>{label}</h3>
-            {review.extraction.categories[key].length ? <ul className={styles.findings}>{review.extraction.categories[key].map((item) => {
-              const out = (excluded[key] ?? []).includes(item.text);
-              return <li key={item.text} className={out ? styles.findingExcluded : undefined}>
-                <label className={styles.check}>
-                  <input type="checkbox" checked={!out} disabled={editingDisabled || state !== "current"} onChange={() => toggle(key, item.text)} aria-label={`Include: ${item.text}`} />
-                  <span>{item.text}<small>{FINDING_SOURCE_LABEL[item.source]}{out ? " · excluded" : ""}</small></span>
-                </label>
-              </li>;
-            })}</ul> : <p><small>Nothing captured. Not mentioned in the transcript or the notes.</small></p>}
-          </section>)}</div> : null}
+          {analysed ? <div className={styles.extraction}>{EXTRACTION_FIELDS.map(([key, label]) => {
+            const items = review.extraction.categories[key];
+            const out = items.filter((item) => (excluded[key] ?? []).includes(item.text)).length;
+            return <details key={key} open={items.length > 0} className={styles.findingGroup} aria-label={label}>
+              <summary><h3>{label}</h3><span className={styles.findingCount}>{items.length}</span>{out ? <small>{out} excluded</small> : null}</summary>
+              {items.length ? <ul className={styles.findings}>{items.map((item) => {
+                const excludedItem = (excluded[key] ?? []).includes(item.text);
+                return <li key={item.text} className={excludedItem ? styles.findingExcluded : undefined}>
+                  <label className={styles.check}>
+                    <input type="checkbox" checked={!excludedItem} disabled={editingDisabled || state !== "current"} onChange={() => toggle(key, item.text)} aria-label={`Include: ${item.text}`} />
+                    <span><b className={styles.findingText}>{item.text}</b><small><em className={`${styles.sourceBadge} ${item.source === "personal_notes" ? styles.sourceBadgeNotes : item.source === "both" ? styles.sourceBadgeBoth : ""}`}>{FINDING_SOURCE_LABEL[item.source]}</em>{excludedItem ? " Excluded" : ""}</small></span>
+                  </label>
+                </li>;
+              })}</ul> : <p><small>Nothing captured. Not mentioned in the transcript or the notes.</small></p>}
+            </details>;
+          })}</div> : null}
         </article> : null}
 
         {live && review ? <article className={styles.card} aria-labelledby="use-cases-title">
-          <span className={styles.eyebrow}>Source 3 · Borek use cases</span><h2 id="use-cases-title">Selected Borek use cases</h2>
+          <span className={styles.eyebrow}>Borek use cases</span><h2 id="use-cases-title">Selected Borek use cases</h2>
           {review.selected_use_cases.use_cases.length ? <ul className={styles.findings}>{review.selected_use_cases.use_cases.map((item) => <li key={item.fact_id}>{item.statement ?? item.fact_id}{item.status !== "resolved" ? <small> · no longer available</small> : null}</li>)}</ul> : <p><small>No use case selected. This is optional.</small></p>}
           <details onToggle={(event) => { if ((event.target as HTMLDetailsElement).open) void openUseCases(); }}>
             <summary>Change selection</summary>
@@ -361,31 +422,48 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
         <span className={styles.eyebrow}>{companyName}</span>
         <h2 id="readiness-title">{previewMode ? "Layout preview" : review ? selectionChanged ? "Confirm your changes" : reviewHeadline(review, v2?.state) : "Loading"}</h2><small>First meeting</small>
         {live && review ? <>
-          <ul>
-            <li><span>Approved Discovery</span><strong>{review.approved_discovery.status === "available" ? `Version ${review.approved_discovery.version_number}` : "Missing"}</strong></li>
-            <li><span>Master Presentation V1</span><strong>{review.master_presentation.status === "ready" ? "Ready" : review.master_presentation.status === "legacy" ? "Earlier deck format" : "Missing"}</strong></li>
-            <li><span>Transcript</span><strong>{transcript ? "Selected" : "Required"}</strong></li>
-            <li><span>Personal notes</span><strong>{notesDirty ? "Unsaved" : baseline.text ? "Saved" : "None"}</strong></li>
-            <li><span>Meeting findings</span><strong>{{ "no-transcript": "Not analysed", "not-analysed": "Not analysed", "other-transcript": "Other transcript", "notes-unsaved": "Out of date", stale: "Out of date", current: `${review.extraction.item_count} found` }[state]}</strong></li>
-            <li data-testid="findings-confirmation"><span>Meeting findings confirmed</span><strong>{confirmedCurrent ? `Yes · ${review.confirmation.confirmed_count} included` : review.confirmation.status === "none" ? "Not yet" : "Out of date"}</strong></li>
-            <li data-testid="presentation-owner-review"><span>Presentation owner review</span><strong>{workflowCompleted(workflow, "owner_review") ? "Completed" : v2?.state === "ready" ? "Pending · review V2" : "Pending · after V2"}</strong></li>
+          <p className={styles.readinessSummary} data-testid="readiness-summary">
+            <span data-testid="readiness-progress">{readiness.filter((row) => row.mark === "done").length} of {readiness.length} steps complete</span>
+            <button type="button" className={styles.readinessToggle} data-testid="readiness-toggle" aria-expanded={detailsOpen} aria-controls="readiness-details readiness-notes" onClick={() => setDetailsOpen((open) => !open)}>{detailsOpen ? "Hide details" : "Show details"}</button>
+          </p>
+          <div id="readiness-details" className={styles.readinessDetails} data-collapsed={!detailsOpen}>
+          <ul className={styles.readiness}>
+            {readiness.map((row) => <li key={row.key} data-testid={row.testid} data-mark={row.mark}>
+              <i className={styles.readinessMark} aria-hidden="true">{row.mark === "done" ? "✓" : row.mark === "attention" ? "!" : ""}</i><span>{row.label}</span><strong>{row.value}</strong>
+            </li>)}
           </ul>
           {review.confirmation.status === "stale" ? <p><small>{review.confirmation.stale_reasons.map(staleReasonText).join(" ")}</small></p> : null}
-          <button className="btn btn-primary" disabled={editingDisabled || state !== "current" || confirmedCurrent} onClick={() => void confirm()}>{busy === "Confirming findings" ? "Confirming..." : confirmedCurrent ? "Meeting information confirmed" : "Confirm meeting information"}</button>
-          {confirmedCurrent ? <p><small>Confirmed {when(review.confirmation.confirmed_at)}: {review.confirmation.confirmed_count} {review.confirmation.confirmed_count === 1 ? "finding" : "findings"} included{review.confirmation.excluded_count ? `, ${review.confirmation.excluded_count} excluded` : ""}.</small></p> : <p><small>Untick any finding that is wrong or should not be used. Confirming records the remaining findings as checked by you.</small></p>}
-          <p><small>Confirming the meeting findings is not the owner review of the presentation. That review is a separate, later step: it happens once Master Presentation V2 exists.</small></p>
-          {review.readiness.ready_for_v2 && confirmedCurrent ? <div data-testid="v2-ready">
-            <p className={styles.notice}>Everything Master Presentation V2 needs is in place. V2 is a new version of the same presentation as V1: the same 26 Borek slides with a new appendix from the confirmed findings.</p>
+          {!canGenerateV2 ? <div data-testid="v2-blockers" className={styles.blockers}><small>Still needed before Master Presentation V2:</small><ul>{(selectionChanged ? ["MEETING_REVIEW_NOT_CONFIRMED"] : review.readiness.blockers).map((code) => <li key={code}><span>{blockerText(code)}</span></li>)}</ul></div> : null}
+          </div>
+          {canGenerateV2 ? <div data-testid="v2-ready">
             {v2Error ? <p className={styles.error} role="alert" data-testid="v2-error">{v2Error}</p> : null}
-            {v2?.state === "generating" || busy === "Generating Master Presentation V2" ? <p role="status" data-testid="v2-progress">{masterV2StageText(v2Stage)}...</p> : null}
-            {v2?.state === "ready" ? <p data-testid="v2-generated"><strong>Master Presentation V2 is ready</strong> · revision {v2.latest_ready?.version_number}. <Link href={`${root}/post-meeting-presentation`}>Open Master Presentation V2</Link></p> : null}
+            {v2Generating ? <p role="status" className={styles.progressLine} data-testid="v2-progress">{masterV2StageText(v2Stage)}...</p> : null}
+            {v2?.state === "ready" ? <p data-testid="v2-generated"><strong>Master Presentation V2 is ready</strong> · revision {v2.latest_ready?.version_number}.</p> : null}
             {v2?.state === "outdated" ? <p data-testid="v2-outdated"><small>A Master Presentation V2 exists (revision {v2.latest_ready?.version_number}), but it was built before the latest confirmation. <Link href={`${root}/post-meeting-presentation`}>Open it</Link> or generate a new revision.</small></p> : null}
-            {v2 && v2.state !== "ready" ? <button className="btn btn-primary" data-testid="generate-v2" disabled={editingDisabled || !v2.can_generate} onClick={() => void generateV2()}>
-              {busy === "Generating Master Presentation V2" || v2.state === "generating" ? "Generating Master Presentation V2..." : v2.state === "failed" ? "Retry Master Presentation V2" : v2.state === "outdated" ? "Generate a new V2 revision" : "Generate Master Presentation V2"}
-            </button> : null}
             {!v2 && !v2Error ? <p role="status"><small>Checking Master Presentation V2...</small></p> : null}
           </div>
-            : <div data-testid="v2-blockers"><small>Still needed before Master Presentation V2:</small><ul>{(selectionChanged ? ["MEETING_REVIEW_NOT_CONFIRMED"] : review.readiness.blockers).map((code) => <li key={code}><span>{blockerText(code)}</span></li>)}</ul></div>}
+            : null}
+
+          {/* One primary action: the next step the current state allows. Each one calls the same
+              handler as before and is held back by the same gate. */}
+          <div className={styles.primaryAction} data-testid="primary-action">
+            {finalized ? <Link className="btn btn-primary" href={`${root}/follow-up`}>Open follow-up email</Link>
+              : v2Generating ? <button className="btn btn-primary" data-testid="generate-v2" disabled>Generating Master Presentation V2...</button>
+              : !transcript ? <button className="btn btn-primary" disabled={editingDisabled} onClick={() => { setInputTab("transcript"); fileInput.current?.click(); }}>Upload transcript</button>
+              : notesDirty ? <button className="btn btn-primary" disabled={editingDisabled || Boolean(conflictingNotes)} onClick={() => void saveNotes()}>Save notes</button>
+              : state !== "current" ? <button className="btn btn-primary" disabled={editingDisabled} onClick={() => void analyse()}>{review.extraction.status === "missing" ? "Analyse meeting" : "Analyse again"}</button>
+              : !confirmedCurrent ? <button className="btn btn-primary" disabled={editingDisabled} onClick={() => void confirm()}>{busy === "Confirming findings" ? "Confirming..." : "Confirm meeting information"}</button>
+              : v2?.state === "ready" ? <Link className="btn btn-primary" data-testid="open-v2" href={`${root}/post-meeting-presentation`}>Open Master Presentation V2</Link>
+              : canGenerateV2 && v2 ? <button className="btn btn-primary" data-testid="generate-v2" disabled={editingDisabled || !v2.can_generate} onClick={() => void generateV2()}>
+                {v2.state === "failed" ? "Retry Master Presentation V2" : v2.state === "outdated" ? "Generate a new V2 revision" : "Generate Master Presentation V2"}</button>
+              : null}
+          </div>
+          <div id="readiness-notes" className={styles.readinessDetails} data-collapsed={!detailsOpen}>
+          {confirmedCurrent ? <p><small>Confirmed {when(review.confirmation.confirmed_at)}: {review.confirmation.confirmed_count} {review.confirmation.confirmed_count === 1 ? "finding" : "findings"} included{review.confirmation.excluded_count ? `, ${review.confirmation.excluded_count} excluded` : ""}.</small></p>
+            : state === "current" ? <p><small>Untick any finding that is wrong or should not be used. Confirming records the remaining findings as checked by you.</small></p> : null}
+          <p><small>Confirming the meeting findings is not the owner review of the presentation. That review is a separate, later step: it happens once Master Presentation V2 exists.</small></p>
+          {canGenerateV2 && v2 && v2.state !== "ready" && !v2Generating ? <p><small>V2 is a new version of the same presentation as V1: the same 26 Borek slides with a new appendix from the confirmed findings.</small></p> : null}
+
           {/* Earlier pitches without a Master Presentation only. In the Master journey the next
               presentation is V2 of the same presentation; the standalone PPT #2 is not offered. */}
           {legacyJourney ? <details data-testid="previous-document-flow">
@@ -394,6 +472,7 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
             <button className="btn btn-secondary" disabled={editingDisabled || !transcript || notesDirty || !workflow?.documents.approved_discovery || Boolean(conflictingNotes)} onClick={() => void generateDocuments()}>Generate documents</button>
             {workflow?.documents.ppt2?.latest_ready_version_id ? <div className={styles.actions}><Link href={`${root}/post-meeting-presentation`}>View existing presentation</Link></div> : null}
           </details> : null}
+          </div>
         </> : previewMode ? <p><small>Layout preview only. Uploading, analysing and confirming require a live session.</small></p> : null}
       </aside>
     </div>
