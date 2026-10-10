@@ -164,8 +164,8 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
     await run("Analysing meeting", async (token, signal) => {
       await generateMeetingExtraction(token, opportunityId, transcriptId);
       signal.throwIfAborted();
-      await refresh(token, signal);
-      setSaved("Meeting analysed. Review the findings below.");
+      const analysedReview = await refresh(token, signal);
+      setSaved(analysedReview.extraction.item_count === 0 ? "Meeting analysed. No findings were found." : "Meeting analysed. Review the findings below.");
     });
   }
 
@@ -272,7 +272,9 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
     "other-transcript": `These findings come from ${review?.extraction.transcript_file_name ?? "a transcript that was removed"}, not from the transcript selected above. Analyse the selected transcript to replace them.`,
     "notes-unsaved": "You have unsaved notes. Save them, then analyse again so the findings include them.",
     stale: "These findings are out of date.",
-    current: "Findings match the selected transcript and the saved notes.",
+    current: review && review.extraction.item_count === 0
+      ? "The analysis ran on the selected transcript and the saved notes, and found no findings."
+      : "Findings match the selected transcript and the saved notes.",
   }[state];
   const adoptNotes = (value: PersonalNotes, keepTyped: boolean) => {
     setReview((current) => current ? { ...current, personal_notes: { status: value.text ? "available" : "missing", text: value.text, updated_at: value.updated_at } } : current);
@@ -295,7 +297,7 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
     { key: "v1", label: "Master Presentation V1", value: review.master_presentation.status === "ready" ? "Ready" : review.master_presentation.status === "legacy" ? "Earlier deck format" : "Missing", mark: review.master_presentation.status === "ready" ? "done" : "attention" },
     { key: "transcript", label: "Transcript", value: transcript ? "Selected" : "Required", mark: transcript ? "done" : "todo" },
     { key: "notes", label: "Personal notes", value: notesDirty ? "Unsaved" : baseline.text ? "Saved" : "Optional · none", mark: notesDirty ? "attention" : baseline.text ? "done" : "optional", optional: true, testid: "notes-row" },
-    { key: "findings", label: "Meeting findings", value: { "no-transcript": "Not analysed", "not-analysed": "Not analysed", "other-transcript": "Other transcript", "notes-unsaved": "Out of date", stale: "Out of date", current: `${review.extraction.item_count} found` }[state], mark: state === "current" ? "done" : analysed ? "attention" : "todo" },
+    { key: "findings", label: "Meeting findings", value: { "no-transcript": "Not analysed", "not-analysed": "Not analysed", "other-transcript": "Other transcript", "notes-unsaved": "Out of date", stale: "Out of date", current: review.extraction.item_count === 0 ? "None found" : `${review.extraction.item_count} found` }[state], mark: state === "current" && review.extraction.item_count > 0 ? "done" : analysed ? "attention" : "todo" },
     { key: "confirmation", label: "Meeting findings confirmed", value: confirmedCurrent ? `Yes · ${review.confirmation.confirmed_count} included` : review.confirmation.status === "none" ? "Not yet" : "Out of date", mark: confirmedCurrent ? "done" : review.confirmation.status === "none" ? "todo" : "attention", testid: "findings-confirmation" },
     { key: "v2", label: "Master Presentation V2", value: confirmedCurrent && review.readiness.ready_for_v2 ? v2Label : "After confirmation", mark: v2?.state === "ready" ? "done" : v2?.state === "failed" || v2?.state === "outdated" ? "attention" : "todo", testid: "v2-status" },
     { key: "owner", label: "Presentation owner review", value: workflowCompleted(workflow, "owner_review") ? "Completed" : v2?.state === "ready" ? "Pending · review V2" : "Pending · after V2", mark: workflowCompleted(workflow, "owner_review") ? "done" : "todo", testid: "presentation-owner-review" },
@@ -381,12 +383,20 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
               {confirmedCurrent ? "Confirmed by you" : state === "current" ? "Analysis · not confirmed" : "Out of date"}</span> : null}
           </div>
           <p className={styles.meetingIntro}>The analysis sorts what it finds in the selected transcript and your saved notes into seven categories. Findings are an interpretation of the sources until you confirm them.</p>
-          <p className={state === "current" ? styles.notice : styles.error} role="status" data-testid="findings-status">{findingsMessage}{state === "stale" ? ` ${review.extraction.stale_reasons.map(staleReasonText).join(" ")}` : ""}</p>
+          <p className={state === "current" && found > 0 ? styles.notice : styles.error} role="status" data-testid="findings-status">{findingsMessage}{state === "stale" ? ` ${review.extraction.stale_reasons.map(staleReasonText).join(" ")}` : ""}</p>
           <div className={styles.actions}>
             <button className="btn btn-secondary" disabled={editingDisabled || !transcript || notesDirty} onClick={() => void analyse()}>{review.extraction.status === "missing" ? "Analyse meeting" : "Analyse again"}</button>
             {review.extraction.generated_at ? <small>Last analysed {when(review.extraction.generated_at)}{review.extraction.execution_mode === "fixture" ? " · rule-based test extractor" : review.extraction.execution_mode === "live" ? " · AI model" : ""}</small> : null}
             {analysed ? <strong className={styles.findingTotals} data-testid="findings-totals">{found - excludedNow} included · {excludedNow} excluded</strong> : null}
           </div>
+          {/* Nothing found: say why and what helps. An empty result cannot be confirmed. */}
+          {state === "current" && found === 0 ? <div className={styles.source} data-testid="no-findings">
+            <strong>Nothing to confirm yet</strong>
+            {review.extraction.execution_mode === "fixture"
+              ? <p>This test environment does not interpret conversation. Its rule-based extractor only picks up statements that are labelled with a category, for example “Requirement: …”, “Challenge: …”, “Priority: …”, “Opportunity: …”, “Discussed solution: …”, “Decision: …” or “Follow-up: …”. A time stamp and a speaker name in front of the label are fine. The selected transcript and the notes contain no such line.</p>
+              : <p>The analysis found no statement it could support from the selected transcript or your notes.</p>}
+            <p>Upload a transcript that contains the meeting, or add your own notes, then analyse again. Master Presentation V2 needs at least one confirmed finding.</p>
+          </div> : null}
           {analysed ? <div className={styles.extraction}>{EXTRACTION_FIELDS.map(([key, label]) => {
             const items = review.extraction.categories[key];
             const out = items.filter((item) => (excluded[key] ?? []).includes(item.text)).length;
@@ -436,7 +446,7 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
             </li>)}
           </ul>
           {review.confirmation.status === "stale" ? <p><small>{review.confirmation.stale_reasons.map(staleReasonText).join(" ")}</small></p> : null}
-          {!canGenerateV2 ? <div data-testid="v2-blockers" className={styles.blockers}><small>Still needed before Master Presentation V2:</small><ul>{(selectionChanged ? ["MEETING_REVIEW_NOT_CONFIRMED"] : review.readiness.blockers).map((code) => <li key={code}><span>{blockerText(code)}</span></li>)}</ul></div> : null}
+          {!canGenerateV2 ? <div data-testid="v2-blockers" className={styles.blockers}><small>Still needed before Master Presentation V2:</small><ul>{(selectionChanged ? ["MEETING_REVIEW_NOT_CONFIRMED"] : review.readiness.blockers.filter((code) => code !== "MEETING_REVIEW_NOT_CONFIRMED" || !review.readiness.blockers.includes("MEETING_FINDINGS_EMPTY"))).map((code) => <li key={code}><span>{blockerText(code)}</span></li>)}</ul></div> : null}
           </div>
           {canGenerateV2 ? <div data-testid="v2-ready">
             {v2Error ? <p className={styles.error} role="alert" data-testid="v2-error">{v2Error}</p> : null}
@@ -455,6 +465,8 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
               : !transcript ? <button className="btn btn-primary" disabled={editingDisabled} onClick={() => { setInputTab("transcript"); fileInput.current?.click(); }}>Upload transcript</button>
               : notesDirty ? <button className="btn btn-primary" disabled={editingDisabled || Boolean(conflictingNotes)} onClick={() => void saveNotes()}>Save notes</button>
               : state !== "current" ? <button className="btn btn-primary" disabled={editingDisabled} onClick={() => void analyse()}>{review.extraction.status === "missing" ? "Analyse meeting" : "Analyse again"}</button>
+              : found === 0 ? <button className="btn btn-primary" data-testid="no-findings-action" disabled={editingDisabled} onClick={() => { setInputTab("transcript"); fileInput.current?.click(); }}>Upload another transcript</button>
+              : !confirmedCurrent && found === excludedNow ? <button className="btn btn-primary" data-testid="confirm-blocked" disabled>Confirm meeting information</button>
               : !confirmedCurrent ? <button className="btn btn-primary" disabled={editingDisabled} onClick={() => void confirm()}>{busy === "Confirming findings" ? "Confirming..." : "Confirm meeting information"}</button>
               : v2?.state === "ready" ? <Link className="btn btn-primary" data-testid="open-v2" href={`${root}/post-meeting-presentation`}>Open Master Presentation V2</Link>
               : canGenerateV2 && v2 ? <button className="btn btn-primary" data-testid="generate-v2" disabled={editingDisabled || !v2.can_generate} onClick={() => void generateV2()}>
@@ -463,6 +475,8 @@ export function MeetingEvidencePanel({ opportunityId }: { opportunityId: string 
           </div>
           <div id="readiness-notes" className={styles.readinessDetails} data-collapsed={!detailsOpen}>
           {confirmedCurrent ? <p><small>Confirmed {when(review.confirmation.confirmed_at)}: {review.confirmation.confirmed_count} {review.confirmation.confirmed_count === 1 ? "finding" : "findings"} included{review.confirmation.excluded_count ? `, ${review.confirmation.excluded_count} excluded` : ""}.</small></p>
+            : state === "current" && found === 0 ? null
+            : state === "current" && found === excludedNow ? <p data-testid="all-excluded"><small>Every finding is excluded. Include at least one finding to confirm: Master Presentation V2 is built from confirmed findings.</small></p>
             : state === "current" ? <p><small>Untick any finding that is wrong or should not be used. Confirming records the remaining findings as checked by you.</small></p> : null}
           <p><small>Confirming the meeting findings is not the owner review of the presentation. That review is a separate, later step: it happens once Master Presentation V2 exists.</small></p>
           {canGenerateV2 && v2 && v2.state !== "ready" && !v2Generating ? <p><small>V2 is a new version of the same presentation as V1: the same 26 Borek slides with a new appendix from the confirmed findings.</small></p> : null}

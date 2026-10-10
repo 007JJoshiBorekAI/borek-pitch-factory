@@ -158,6 +158,13 @@ def confirm_meeting_review(
             }
             for entry in extraction["categories"][category]
         ]
+    # Master Presentation V2 is built from confirmed findings. Confirming none - because the
+    # analysis found nothing, or because every finding was excluded - would confirm an empty basis.
+    if not any(entry["status"] == "confirmed" for entries in items.values() for entry in entries):
+        raise bad_request(
+            "MEETING_REVIEW_NO_FINDINGS",
+            "There is no finding to confirm. Master Presentation V2 needs at least one confirmed finding from the meeting.",
+        )
     record = {
         "schema_version": SCHEMA_VERSION,
         "opportunity_id": str(opportunity_id),
@@ -378,10 +385,15 @@ def _blockers(
         blockers.append("MEETING_EXTRACTION_MISSING")
     elif extraction["status"] == "stale":
         blockers.append("MEETING_EXTRACTION_STALE")
+    if extraction["status"] == "current" and not extraction["item_count"]:
+        blockers.append("MEETING_FINDINGS_EMPTY")
     if confirmation["status"] == "none":
         blockers.append("MEETING_REVIEW_NOT_CONFIRMED")
     elif confirmation["status"] == "stale":
         blockers.append("MEETING_REVIEW_STALE")
+    elif not confirmation["confirmed_count"]:
+        # A confirmation without a single confirmed finding (possible before this rule existed).
+        blockers.append("MEETING_FINDINGS_NONE_CONFIRMED")
     return blockers
 
 

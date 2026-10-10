@@ -408,9 +408,9 @@ test("Figma post-meeting layout: tabs keep both inputs, findings are grouped, th
   for (const label of ["Open follow-up email", "Generating Master Presentation V2...", ">Upload transcript<", ">Save notes<", "Analyse meeting", "Confirm meeting information", "Open Master Presentation V2", "Generate Master Presentation V2"]) {
     assert.ok(action.includes(label), label);
   }
-  assert.equal(action.match(/ \? </g)?.length ?? 0, 8, "one branch per state: the actions are alternatives, never shown together");
+  assert.equal(action.match(/ \? </g)?.length ?? 0, 10, "one branch per state: the actions are alternatives, never shown together");
   assert.ok(action.indexOf("v2Generating ?") < action.indexOf("!transcript ?"), "a running job shows a disabled progress button before anything else can be started");
-  assert.equal(source.match(/className="btn btn-primary"/g)?.length, 8, "primary buttons exist only in that one slot");
+  assert.equal(source.match(/className="btn btn-primary"/g)?.length, 10, "primary buttons exist only in that one slot");
   assert.ok(action.includes('disabled={editingDisabled || !v2.can_generate} onClick={() => void generateV2()}'), "generation keeps the server's gate");
   assert.ok(source.includes('{ key: "v2", label: "Master Presentation V2", value: confirmedCurrent && review.readiness.ready_for_v2 ? v2Label : "After confirmation"'), "never shown as ready before it is");
   // Layout: main column and compact card on desktop, stacked with the status first on smaller screens.
@@ -468,7 +468,7 @@ test("compact readiness summary at 960px and below; the desktop card is unchange
   assert.ok(source.indexOf('id="readiness-title"') < source.indexOf('data-testid="readiness-summary"'), "the status headline comes first");
   // Still exactly one action slot, with the same gates; the toggle is not a primary button and starts nothing.
   assert.equal(source.match(/data-testid="primary-action"/g)?.length, 1);
-  assert.equal(source.match(/className="btn btn-primary"/g)?.length, 8);
+  assert.equal(source.match(/className="btn btn-primary"/g)?.length, 10);
   const toggle = source.slice(source.indexOf('data-testid="readiness-toggle"'), source.indexOf("</button>", source.indexOf('data-testid="readiness-toggle"')));
   assert.doesNotMatch(toggle, /analyse|confirm\(|generateV2|saveNotes|fileInput/);
   // CSS: hidden toggle and always-open checklist on desktop; collapsed parts hidden only at 960px and below.
@@ -495,4 +495,38 @@ test("optional personal notes are not a required step in the readiness progress"
   // Whether V2 can be generated still comes from the API, not from this counter.
   assert.ok(source.includes("const canGenerateV2 = Boolean(review?.readiness.ready_for_v2 && confirmedCurrent);"));
   assert.doesNotMatch(source, /requiredSteps[^;\n]*(disabled|can_generate|ready_for_v2)/);
+});
+
+test("an analysis without findings is explained and cannot be confirmed or generated", () => {
+  const empty = review({
+    extraction: { ...review().extraction, item_count: 0, categories: { requirements: [], challenges: [], priorities: [], opportunities: [], discussed_solutions: [], decisions: [], follow_ups: [] } },
+    readiness: { ready_for_v2: false, blockers: ["MEETING_FINDINGS_EMPTY", "MEETING_REVIEW_NOT_CONFIRMED"] },
+  });
+  assert.equal(parsePostMeetingReview(empty, opportunityId).readiness.blockers[0], "MEETING_FINDINGS_EMPTY");
+  assert.equal(reviewHeadline(empty), "No findings to confirm");
+  assert.equal(reviewHeadline(review()), "Review the findings", "with findings the headline is unchanged");
+  assert.match(blockerText("MEETING_FINDINGS_EMPTY"), /found no findings.*at least one confirmed finding/);
+  assert.match(blockerText("MEETING_FINDINGS_NONE_CONFIRMED"), /Include at least one finding/);
+
+  const source = readFileSync(new URL("../components/MeetingEvidencePanel.tsx", import.meta.url), "utf8");
+  // The status line does not call an empty result a match, and the explanation names the labelled format.
+  assert.ok(source.includes('"The analysis ran on the selected transcript and the saved notes, and found no findings."'));
+  assert.ok(source.includes('{state === "current" && found === 0 ? <div className={styles.source} data-testid="no-findings">'));
+  assert.ok(source.includes('review.extraction.execution_mode === "fixture"'));
+  assert.ok(source.includes("A time stamp and a speaker name in front of the label are fine."));
+  for (const label of ["Requirement", "Challenge", "Priority", "Opportunity", "Discussed solution", "Decision", "Follow-up"]) assert.ok(source.includes(`“${label}: …”`), label);
+  // With nothing found the single primary action is another upload - never a confirmation.
+  const actions = source.slice(source.indexOf('data-testid="primary-action"'));
+  const none = actions.indexOf(': found === 0 ? <button className="btn btn-primary" data-testid="no-findings-action"');
+  const blocked = actions.indexOf(': !confirmedCurrent && found === excludedNow ? <button className="btn btn-primary" data-testid="confirm-blocked" disabled>Confirm meeting information</button>');
+  const confirmAction = actions.indexOf(': !confirmedCurrent ? <button className="btn btn-primary" disabled={editingDisabled} onClick={() => void confirm()}>');
+  assert.ok(none > 0 && none < blocked && blocked < confirmAction, "empty and all-excluded come before the confirmation");
+  assert.ok(source.includes('data-testid="all-excluded"'));
+  assert.equal(source.match(/onClick=\{\(\) => void confirm\(\)\}/g)?.length, 1, "confirmation has exactly one entry point");
+  // The notice, the readiness row and the blocker list agree with the empty result.
+  assert.ok(source.includes('analysedReview.extraction.item_count === 0 ? "Meeting analysed. No findings were found." : "Meeting analysed. Review the findings below."'));
+  assert.ok(source.includes('current: review.extraction.item_count === 0 ? "None found" : `${review.extraction.item_count} found` }[state], mark: state === "current" && review.extraction.item_count > 0 ? "done" : analysed ? "attention" : "todo" }'));
+  assert.ok(source.includes('review.readiness.blockers.filter((code) => code !== "MEETING_REVIEW_NOT_CONFIRMED" || !review.readiness.blockers.includes("MEETING_FINDINGS_EMPTY"))'));
+  // Whether V2 can be generated still comes from the API.
+  assert.ok(source.includes("const canGenerateV2 = Boolean(review?.readiness.ready_for_v2 && confirmedCurrent);"));
 });

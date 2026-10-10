@@ -44,6 +44,8 @@ _BLOCKER_TEXT = {
     "MEETING_EXTRACTION_STALE": "analyse the meeting again",
     "MEETING_REVIEW_NOT_CONFIRMED": "confirm the meeting findings",
     "MEETING_REVIEW_STALE": "confirm the meeting findings again",
+    "MEETING_FINDINGS_EMPTY": "provide a transcript or notes with at least one finding",
+    "MEETING_FINDINGS_NONE_CONFIRMED": "confirm at least one meeting finding",
 }
 # The generation lock every V2 job takes. The store admits one active job per opportunity and
 # key (a partial unique index in the database), so competing requests are decided there and

@@ -283,9 +283,20 @@ def test_generation_is_refused_until_the_backend_reports_the_review_as_ready(cli
         category: [item["text"] for item in items]
         for category, items in review(client, second["opportunity"])["extraction"]["categories"].items()
     }
-    confirm(client, second["opportunity"], everything)
-    empty = generate_v2(client, second["opportunity"])
-    assert empty.status_code == 400 and "at least one confirmed meeting finding" in empty.text
+    view = review(client, second["opportunity"])
+    nothing = post(
+        client,
+        f"/opportunities/{second['opportunity']}/post-meeting-review/confirm",
+        {
+            "transcript_id": view["extraction"]["transcript_id"],
+            "extraction_generated_at": view["extraction"]["generated_at"],
+            "review_fingerprint": view["review_fingerprint"],
+            "excluded": everything,
+        },
+    )
+    assert nothing.status_code == 400 and "MEETING_REVIEW_NO_FINDINGS" in nothing.text, nothing.text
+    # The refused confirmation changed nothing: the earlier one still stands.
+    assert review(client, second["opportunity"])["confirmation"] == view["confirmation"]
     assert len(stored_versions(second["presentation"])) == 1
 
 
