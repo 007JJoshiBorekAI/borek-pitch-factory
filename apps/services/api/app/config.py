@@ -122,6 +122,13 @@ class Settings(BaseSettings):
         default="fixture",
         description="fixture for deterministic local/test runs; live invokes configured LLM providers",
     )
+    FOLLOWUP_AI_WRITER_ENABLED: bool = Field(
+        default=False,
+        description=(
+            "Follow-up email: let the configured model write the drafts (with the grounding checks). "
+            "Only honoured when AI_EXECUTION_MODE=live. Off by default: the rule-based writer is used"
+        ),
+    )
 
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000

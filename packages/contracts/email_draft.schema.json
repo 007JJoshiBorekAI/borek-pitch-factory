@@ -114,6 +114,10 @@
             "medium": { "type": "integer", "minimum": 1 },
             "extensive": { "type": "integer", "minimum": 1 }
           }
+        },
+        "writer": {
+          "description": "Who wrote the generated text. Null for drafts from before this was recorded and for other journey stages.",
+          "oneOf": [{ "$ref": "#/$defs/Writer" }, { "type": "null" }]
         }
       }
     }
@@ -159,6 +163,33 @@
         "confirmed_finding_count": { "type": ["integer", "null"] },
         "excluded_finding_count": { "type": ["integer", "null"] },
         "renderer_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "Writer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "model", "prompt_version", "verified", "fallback_reason", "checked_sentences"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["ai", "fallback", "deterministic"],
+          "description": "ai: written by the model and accepted by the grounding checks. fallback: AI writing was attempted and not used; the rule-based writer wrote the text. deterministic: AI writing is not enabled; the rule-based writer wrote the text."
+        },
+        "model": { "type": ["string", "null"] },
+        "prompt_version": { "type": "string" },
+        "verified": { "type": "boolean", "description": "True only for mode ai: every sentence passed the rule checks and the grounding verifier." },
+        "fallback_reason": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "message"],
+              "properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+            },
+            { "type": "null" }
+          ]
+        },
+        "checked_sentences": { "type": ["integer", "null"], "minimum": 0 }
       }
     },
     "Review": {

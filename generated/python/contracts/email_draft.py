@@ -81,6 +81,38 @@ class FinalizedSource(BaseModel):
     renderer_version: str | None = Field(None, min_length=1)
 
 
+class Mode(Enum):
+    ai = 'ai'
+    fallback = 'fallback'
+    deterministic = 'deterministic'
+
+
+class FallbackReason(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    code: str
+    message: str
+
+
+class Writer(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    mode: Mode = Field(
+        ...,
+        description='ai: written by the model and accepted by the grounding checks. fallback: AI writing was attempted and not used; the rule-based writer wrote the text. deterministic: AI writing is not enabled; the rule-based writer wrote the text.',
+    )
+    model: str | None
+    prompt_version: str
+    verified: bool = Field(
+        ...,
+        description='True only for mode ai: every sentence passed the rule checks and the grounding verifier.',
+    )
+    fallback_reason: FallbackReason | None
+    checked_sentences: int | None = Field(..., ge=0)
+
+
 class Check(RootModel[str]):
     root: str = Field(..., min_length=1)
 
@@ -185,6 +217,10 @@ class Draft(BaseModel):
     recipients: Recipients | None = None
     attachments: list[Attachment] | None = None
     word_limits: WordLimits | None = None
+    writer: Writer | None = Field(
+        None,
+        description='Who wrote the generated text. Null for drafts from before this was recorded and for other journey stages.',
+    )
 
 
 class EmailDraftEnvelope(BaseModel):

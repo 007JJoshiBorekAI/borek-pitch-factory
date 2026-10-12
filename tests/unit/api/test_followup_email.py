@@ -15,7 +15,9 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from app.services import followup_email as email_service
 from app.services.data.memory_store import get_memory_store
+from llm.claude.client import ClaudeClientError
 from tests.unit.api.test_master_presentation_v2_api import (
     EXCLUDED,
     OBSERVATION,
@@ -126,10 +128,17 @@ def test_three_lengths_are_written_from_the_finalized_v2_package(client: TestCli
         # A discussed solution is never reported as agreed, an owner observation never as a client statement.
         assert OBSERVATION not in text["body"]
         assert "Send the pricing export by Friday." in text["body"], "the confirmed follow-up is a next step"
-    assert "Quotes must go out within one day." in short["body"] and "Decisions" not in short["body"]
-    assert "Decisions noted\n- Run a pilot with ten quotes." in medium["body"]
-    assert "Also discussed\n- A drafting assistant that prepares the quote from the request." in medium["body"]
-    assert "Discussed, not yet decided\n- A drafting assistant" in extensive["body"]
+    assert "the situation at Nordwind" in short["body"], "the client is named as the owner entered it"
+    assert "quotes must go out within one day" in short["body"] and "way forward" not in short["body"]
+    assert "For the way forward, this is the direction that was discussed: run a pilot with ten quotes." in medium["body"]
+    assert "One idea we talked through, not decided yet: a drafting assistant that prepares the quote from the request." in medium["body"]
+    assert "not decided yet: a drafting assistant" in extensive["body"]
+    assert "we noted the following" not in short["body"] + medium["body"] + extensive["body"]
+    # A letter, not a report: no headed sections, and the attached presentation is introduced.
+    for text in (short, medium, extensive):
+        assert not {"Key points", "Requirements", "Decisions noted", "Next steps"} & set(text["body"].splitlines())
+        assert "attached" in text["body"] and text["body"].index("attached") < text["body"].index("Send the pricing export by Friday.")
+    assert source["renderer_version"] == "followup-finalized:v3"
     assert "trade fair" not in extensive["body"], "small talk was never a finding"
     # No date, participant or owner is invented.
     assert "2026" not in extensive["body"] and "Participants" not in extensive["body"]
@@ -148,7 +157,7 @@ def test_excluded_findings_and_later_source_changes_never_reach_the_email(client
     opportunity_id = base["opportunity"]
     first = ok(generate(client, opportunity_id))["draft"]
     bodies = " ".join(first["lengths"][name]["body"] for name in ("short", "medium", "extensive"))
-    assert EXCLUDED not in bodies and "Next steps" not in bodies, "an excluded finding is not an agreed next step, and the empty block is omitted"
+    assert EXCLUDED not in bodies and "next step" not in bodies.lower(), "an excluded finding is not an agreed next step, and the empty block is omitted"
     assert "no_next_steps_confirmed" in first["review_flags"] and "action_owner_unconfirmed" not in first["review_flags"]
 
     # After finalization: a newer transcript, changed notes and a re-analysis. None of it is in the package.
@@ -219,7 +228,7 @@ def test_edits_are_saved_per_length_and_survive_reload(client: TestClient) -> No
     draft = ok(generate(client, opportunity_id))["draft"]
     draft_id = draft["id"]
     medium = draft["lengths"]["medium"]
-    edited_body = medium["body"].replace("thank you for your time in our meeting.", "thank you for the very open conversation in Hamburg.")
+    edited_body = medium["body"].replace("Thank you for taking the time to speak with us.", "Thank you for the very open and friendly conversation in Hamburg.")
     saved = ok(
         patch(
             client,
@@ -239,7 +248,7 @@ def test_edits_are_saved_per_length_and_survive_reload(client: TestClient) -> No
     assert saved["lengths"]["short"] == draft["lengths"]["short"] and saved["lengths"]["extensive"] == draft["lengths"]["extensive"]
 
     # Another length is edited later: the first edit stays.
-    short_body = draft["lengths"]["short"]["body"].replace("Here is a short summary", "Here is the summary")
+    short_body = draft["lengths"]["short"]["body"].replace("In brief, the main points", "The main points")
     second = ok(patch(client, opportunity_id, draft_id, {"expected_revision": 2, "selected_length": "short", "lengths": {"short": {"subject": draft["lengths"]["short"]["subject"], "body": short_body}}}))["draft"]
     assert second["revision"] == 3 and second["selected_length"] == "short"
     assert second["lengths"]["medium"] == saved["lengths"]["medium"] and second["lengths"]["short"]["edited"] is True
@@ -669,13 +678,16 @@ def test_a_borek_employees_statements_are_not_reported_as_the_clients(client: Te
     assert "speaker_unverified" in draft["review_flags"]
     for name in ("short", "medium", "extensive"):
         body = draft["lengths"][name]["body"]
-        assert "We recommend a fixed-price pilot of six weeks." in body, "the statement is reported"
-        frame = "\n".join(line for line in body.splitlines() if not line.startswith("- "))
+        assert "e recommend a fixed-price pilot of six weeks" in body, "the statement is reported"
+        frame = body
+        for said in ("e recommend a fixed-price pilot of six weeks", "Borek suggests starting with the service team",
+                     "Borek will prepare a proposal for a pilot", "Borek will send the proposal by 16.10.2026", "ricing data sits in three systems"):
+            frame = frame.replace(said, "")
         for phrase in ("Your ", "you said", "you described", "you raised", "What we heard", "we agreed", "agreed"):
             assert phrase not in frame, (name, phrase)
     extensive = draft["lengths"]["extensive"]["body"]
-    assert "Requirements\n- We recommend a fixed-price pilot of six weeks." in extensive
-    assert "Decisions noted\n- Borek will prepare a proposal for a pilot." in extensive
+    assert "The core requirement, as we understood it: we recommend a fixed-price pilot of six weeks." in extensive
+    assert "this is the direction that was discussed: Borek will prepare a proposal for a pilot." in extensive
     assert "Your requirements" not in extensive and "Your priorities" not in extensive
 
 
@@ -718,6 +730,288 @@ def test_a_finding_too_long_for_a_draft_is_refused_and_never_shortened(client: T
     for name in ("short", "medium", "extensive"):
         text = draft["lengths"][name]
         assert text["word_count"] <= limits[name]
-        assert ("word0 " in text["body"]) == ("word169 end." in text["body"]), "whole or absent"
-    assert "word0" not in draft["lengths"]["short"]["body"] and "Quotes must go out within one day." in draft["lengths"]["short"]["body"]
-    assert "word169 end." in draft["lengths"]["extensive"]["body"]
+        assert ("word0 " in text["body"]) == ("word169 end" in text["body"]), "whole or absent"
+    assert "word0" not in draft["lengths"]["short"]["body"] and "uotes must go out within one day" in draft["lengths"]["short"]["body"]
+    assert "word169 end" in draft["lengths"]["extensive"]["body"]
+
+
+def test_the_text_only_says_attached_while_a_file_is_selected(client: TestClient) -> None:
+    opportunity_id = finalized(client)["opportunity"]
+    draft = ok(generate(client, opportunity_id))["draft"]
+    assert [item["selected"] for item in draft["attachments"]] == [False, True]
+    assert all("attached" in draft["lengths"][name]["body"] for name in ("short", "medium", "extensive"))
+
+    # The owner rewrites the medium email, keeping the sentence about the attachment in their own words.
+    mine = draft["lengths"]["medium"]["body"].replace("Please find attached the presentation,", "As discussed, I have attached the presentation,")
+    edited = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 1, "lengths": {"medium": {"subject": draft["lengths"]["medium"]["subject"], "body": mine}}}))["draft"]
+
+    # No file selected: the generated texts no longer claim an attachment. The owner's text is not touched.
+    none = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 2, "attachments": {"pdf": False}}))["draft"]
+    assert [item["selected"] for item in none["attachments"]] == [False, False] and none["revision"] == 3
+    for name in ("short", "extensive"):
+        text = none["lengths"][name]
+        assert "attach" not in text["body"].lower() and text["edited"] is False, name
+        assert text["word_count"] < draft["lengths"][name]["word_count"]
+        # Only that sentence went: every other paragraph is the one generated before.
+        assert set(text["body"].split("\n\n")) < set(draft["lengths"][name]["body"].split("\n\n"))
+    assert none["lengths"]["medium"] == edited["lengths"]["medium"], "an edited text is never rewritten for the owner"
+    assert "I have attached the presentation" in none["lengths"]["medium"]["body"]
+    assert none["review_flags"] == draft["review_flags"]
+    assert load(client, opportunity_id) == none
+
+    # A file is selected again: the sentence returns to the generated texts, exactly as before.
+    again = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 3, "attachments": {"pptx": True}}))["draft"]
+    for name in ("short", "extensive"):
+        assert again["lengths"][name] == draft["lengths"][name], name
+    assert again["lengths"]["medium"] == edited["lengths"]["medium"]
+    # Selecting a second file changes no text.
+    both = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 4, "attachments": {"pdf": True}}))["draft"]
+    assert both["lengths"] == again["lengths"] and both["revision"] == 5
+
+    # A new draft is written for the selection it finds: without a file, without the sentence.
+    ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 5, "attachments": {"pptx": False, "pdf": False}}))
+    fresh = ok(generate(client, opportunity_id, overwrite_edits=True))["draft"]
+    assert [item["selected"] for item in fresh["attachments"]] == [False, False]
+    assert all("attach" not in fresh["lengths"][name]["body"].lower() for name in ("short", "medium", "extensive"))
+    exported = export(client, opportunity_id, ok(confirm_email(client, opportunity_id, fresh))["draft"])
+    message = email.message_from_bytes(exported.content, policy=email.policy.default)
+    assert "attach" not in message.get_content().lower() and list(message.iter_attachments()) == []
+
+
+# ----------------------------------------------------------------------------- AI writer stage
+
+AI_PARAGRAPHS = [
+    {"kind": "opening", "sentences": [{"text": "Thank you for the open conversation.", "fact_ids": []}]},
+    {"kind": "context", "sentences": [
+        {"text": "Quotes need to go out within one day, while pricing data currently sits in three systems.", "fact_ids": ["R1", "C1"]},
+        {"text": "The sales team is the natural place to start, and a pilot with ten quotes was noted as the way forward.", "fact_ids": ["P1", "D1"]},
+    ]},
+    {"kind": "contribution", "sentences": [
+        {"text": "One idea we discussed is a drafting assistant that prepares the quote from the request; it is an option to explore and not yet decided.", "fact_ids": ["S1"]},
+    ]},
+    {"kind": "closing", "sentences": [{"text": "Please let me know if I have understood anything differently.", "fact_ids": []}]},
+]
+
+
+def ai_draft(**changes) -> dict:
+    draft = {name: {"paragraphs": copy.deepcopy(AI_PARAGRAPHS)} for name in ("short", "medium", "extensive")}
+    for name in draft:
+        for index, sentence in changes.items():
+            draft[name]["paragraphs"][int(index)]["sentences"][0] = sentence
+    return draft
+
+
+def approve_all(user: str) -> dict:
+    import re
+
+    found = re.findall(r"^(short|medium|extensive) #(\d+) \[", user, re.M)
+    return {"verdicts": [{"length": length, "index": int(index), "supported": True, "issue": ""} for length, index in found]}
+
+
+def live(monkeypatch: pytest.MonkeyPatch, writer, verifier=approve_all) -> dict:
+    """AI writing on, with the model replaced by scripted answers. Returns the call counters."""
+    calls = {"writer": 0, "verifier": 0, "users": []}
+
+    def model_call(*, stage: str, **_kwargs):
+        def complete(system: str, user: str, schema: dict) -> dict:
+            role = "writer" if stage == "followup_email_writer" else "verifier"
+            calls[role] += 1
+            calls["users"].append(user)
+            answer = writer if role == "writer" else verifier
+            if isinstance(answer, Exception):
+                raise answer
+            return answer(user) if callable(answer) else copy.deepcopy(answer)
+
+        return complete
+
+    monkeypatch.setattr(email_service, "ai_writing_enabled", lambda: True)
+    monkeypatch.setattr(email_service, "_model_call", model_call)
+    return calls
+
+
+def test_live_mode_stores_the_verified_ai_text_and_says_so(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    opportunity_id = finalized(client)["opportunity"]
+    calls = live(monkeypatch, ai_draft())
+    draft = ok(generate(client, opportunity_id))["draft"]
+    assert calls["writer"] == 1 and calls["verifier"] == 1
+    assert draft["writer"] == {
+        "mode": "ai", "model": draft["writer"]["model"], "prompt_version": "followup-email-writer:v1", "verified": True, "fallback_reason": None, "checked_sentences": 15,
+    }
+    assert draft["writer"]["model"]
+    for name in ("short", "medium", "extensive"):
+        body = draft["lengths"][name]["body"]
+        assert body.startswith("Hi Dana,\n\nThank you for the open conversation.\n\nQuotes need to go out within one day, while pricing data currently sits in three systems. The sales team")
+        assert "as we understood" not in body and body.endswith("Best regards\nJörg Müller\nManaging Partner - BOREK")
+        assert "attached" in body, "a file is selected, so the code added the attachment sentence"
+        assert draft["lengths"][name]["word_count"] <= draft["word_limits"][name] and draft["lengths"][name]["edited"] is False
+    assert "ai_written" in draft["review_flags"] and "ai_fallback" not in draft["review_flags"] and "content_trimmed" not in draft["review_flags"]
+    assert {"fixture_extraction", "speaker_unverified", "owner_notes_omitted"} <= set(draft["review_flags"]), "what the owner has to check about the findings is unchanged"
+    # Only the confirmed findings went to the model: no transcript line, note, recipient or sender.
+    sent = "\n".join(calls["users"])
+    assert "R1 [requirement] Quotes must go out within one day." in sent and "CLIENT: Nordwind" in sent
+    for private in ("Dana", "Weber", "Tom Keller", "Jörg", "joerg@", "trade fair", OBSERVATION, EXCLUDED, "Tom:", "Requirement:"):
+        assert private not in sent, private
+    # The sentence-level record is kept with the stored draft, not sent to the browser.
+    stored = get_memory_store().get_email_draft(opportunity_id=UUID(opportunity_id), user_id=OWNER, journey_stage="deepening")
+    record = stored["writer"]["verification"]
+    assert record["sentence_count"] == 15 and record["cited_fact_ids"] == ["C1", "D1", "P1", "R1", "S1"]
+    assert "writer_variants" not in draft and "verification" not in draft["writer"]
+    assert load(client, opportunity_id) == draft
+
+    # Changing the attachment selection uses the text that was verified for it: no new model call.
+    none = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 1, "attachments": {"pdf": False}}))["draft"]
+    assert all("attach" not in none["lengths"][name]["body"].lower() for name in none["lengths"]) and none["writer"] == draft["writer"]
+    back = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 2, "attachments": {"pdf": True}}))["draft"]
+    assert back["lengths"] == draft["lengths"] and calls["writer"] == 1 and calls["verifier"] == 1
+    # It is reviewed, confirmed and exported like any other draft, and nothing is sent.
+    confirmed = ok(confirm_email(client, opportunity_id, back))["draft"]
+    assert confirmed["status"] == "confirmed" and confirmed["send_status"] == "not_sent" and "ai_written" in confirmed["review"]["acknowledged_flags"]
+    message = email.message_from_bytes(export(client, opportunity_id, confirmed).content, policy=email.policy.default)
+    assert "Quotes need to go out within one day" in message.get_body().get_content() and message["X-Unsent"] == "1"
+
+
+@pytest.mark.parametrize(
+    ("writer", "verifier", "code", "calls_expected"),
+    [
+        (ClaudeClientError("Claude is not reachable right now.", code="PROVIDER_UNAVAILABLE"), approve_all, "PROVIDER_UNAVAILABLE", (1, 0)),
+        (ClaudeClientError("ANTHROPIC_API_KEY is not set."), approve_all, "AI_UNAVAILABLE", (1, 0)),
+        (ai_draft(**{"3": {"text": "We will deliver a drafting assistant by Friday for 40,000 euros.", "fact_ids": ["S1"]}}), approve_all, "AI_GROUNDING_REJECTED", (2, 0)),
+        (ai_draft(), lambda user: {"verdicts": [{**item, "supported": False, "issue": "not in the facts"} for item in approve_all(user)["verdicts"]]}, "AI_GROUNDING_REJECTED", (2, 2)),
+        (RuntimeError("boom"), approve_all, "AI_WRITER_FAILED", (1, 0)),
+    ],
+    ids=["model-unavailable", "no-credentials", "rules-reject", "verifier-rejects", "unexpected-error"],
+)
+def test_a_failed_or_rejected_ai_draft_falls_back_and_is_labelled(client: TestClient, monkeypatch: pytest.MonkeyPatch, writer, verifier, code: str, calls_expected: tuple) -> None:
+    opportunity_id = finalized(client)["opportunity"]
+    calls = live(monkeypatch, writer, verifier)
+    draft = ok(generate(client, opportunity_id))["draft"]
+    assert (calls["writer"], calls["verifier"]) == calls_expected
+    written_by = draft["writer"]
+    assert (written_by["mode"], written_by["verified"], written_by["checked_sentences"]) == ("fallback", False, None)
+    assert written_by["fallback_reason"]["code"] == code and written_by["fallback_reason"]["message"]
+    assert "ai_fallback" in draft["review_flags"] and "ai_written" not in draft["review_flags"]
+    everything = str(draft)
+    # The owner gets the rule-based text, and nothing of the rejected draft.
+    assert "as we understood" in draft["lengths"]["medium"]["body"]
+    for rejected in ("40,000", "by Friday", "We will deliver", "Thank you for the open conversation."):
+        assert rejected not in everything, rejected
+    assert "boom" not in everything, "an internal error is not shown"
+    # The fallback is a complete draft: it can be reviewed and confirmed, with the fallback acknowledged by name.
+    refused = post(client, f"{root(opportunity_id)}/{draft['id']}/confirm", {
+        "selected_length": "medium", "expected_revision": draft["revision"], "review_checks": CHECKS,
+        "acknowledged_flags": [flag for flag in draft["review_flags"] if flag != "ai_fallback"],
+    })
+    assert refused.status_code == 400 and "ai_fallback" in refused.text
+    assert ok(confirm_email(client, opportunity_id, draft))["draft"]["status"] == "confirmed"
+
+
+def test_fixture_mode_never_calls_a_model_and_is_labelled_rule_based(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def no_model(**_kwargs):
+        raise AssertionError("no model call in fixture mode")
+
+    monkeypatch.setattr(email_service, "_model_call", no_model)
+    opportunity_id = finalized(client)["opportunity"]
+    draft = ok(generate(client, opportunity_id))["draft"]
+    assert draft["writer"] == {"mode": "deterministic", "model": None, "prompt_version": "followup-finalized:v3", "verified": False, "fallback_reason": None, "checked_sentences": None}
+    assert "ai_written" not in draft["review_flags"] and "ai_fallback" not in draft["review_flags"]
+    # Regenerating in live mode replaces it with AI text; saved edits are still protected.
+    calls = live(monkeypatch, ai_draft())
+    kept = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 1, "lengths": {"short": {"subject": "My subject", "body": draft["lengths"]["short"]["body"] + "\nP.S. Mine."}}}))["draft"]
+    assert generate(client, opportunity_id).status_code == 409 and calls["writer"] == 0, "no model call before the owner agrees to replace the draft"
+    fresh = ok(generate(client, opportunity_id, overwrite_edits=True))["draft"]
+    assert fresh["writer"]["mode"] == "ai" and fresh["revision"] == kept["revision"] + 1 and "P.S. Mine." not in fresh["lengths"]["short"]["body"]
+
+
+def test_an_email_that_announces_a_missing_attachment_cannot_be_confirmed(client: TestClient) -> None:
+    opportunity_id = finalized(client)["opportunity"]
+    draft = ok(generate(client, opportunity_id))["draft"]
+    mine = draft["lengths"]["medium"]["body"].replace("Please find attached the presentation,", "As discussed, I have attached the presentation,")
+    ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 1, "lengths": {"medium": {"subject": draft["lengths"]["medium"]["subject"], "body": mine}}}))
+    none = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": 2, "attachments": {"pdf": False}}))["draft"]
+    assert "I have attached the presentation" in none["lengths"]["medium"]["body"], "the owner's text is not rewritten"
+
+    # Every check ticked and every flag acknowledged: it is still not confirmed.
+    refused = confirm_email(client, opportunity_id, none, "medium")
+    assert refused.status_code == 400 and refused.json()["error"]["code"] == "EMAIL_ATTACHMENT_CONTRADICTION", refused.text
+    assert load(client, opportunity_id)["status"] == "draft"
+    # The other lengths were generated without the sentence and can be confirmed.
+    assert ok(confirm_email(client, opportunity_id, none, "short"))["draft"]["status"] == "confirmed"
+
+    # Resolved by the owner, either way: the sentence is changed ...
+    current = load(client, opportunity_id)
+    reworded = mine.replace("As discussed, I have attached the presentation,", "No attachment this time; the presentation follows separately,")
+    fixed = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": current["revision"], "lengths": {"medium": {"subject": draft["lengths"]["medium"]["subject"], "body": reworded}}}))["draft"]
+    assert ok(confirm_email(client, opportunity_id, fixed, "medium"))["draft"]["status"] == "confirmed", "saying that nothing is attached is not a contradiction"
+    # ... or the file is selected.
+    current = load(client, opportunity_id)
+    again = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": current["revision"], "lengths": {"medium": {"subject": draft["lengths"]["medium"]["subject"], "body": mine}}}))["draft"]
+    assert confirm_email(client, opportunity_id, again, "medium").status_code == 400
+    selected = ok(patch(client, opportunity_id, draft["id"], {"expected_revision": again["revision"], "attachments": {"pdf": True}}))["draft"]
+    confirmed = ok(confirm_email(client, opportunity_id, selected, "medium"))["draft"]
+    assert confirmed["status"] == "confirmed" and [item["selected"] for item in confirmed["attachments"]] == [False, True]
+
+
+
+def test_no_request_is_made_with_missing_placeholder_or_refused_credentials(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """AI writing on, the real model path in place: the preflight decides before anything is sent."""
+    requests: list[str] = []
+
+    def provider(*_args, **_kwargs):
+        requests.append("request")
+        raise ClaudeClientError("Claude rejected the API key. Check ANTHROPIC_API_KEY in .env.", code="CLAUDE_AUTH", retryable=False)
+
+    monkeypatch.setattr(email_service, "ai_writing_enabled", lambda: True)
+    monkeypatch.setattr(email_service, "structured_complete", provider)
+    monkeypatch.setattr(email_service, "_REFUSED_KEYS", set())
+    opportunity_id = finalized(client)["opportunity"]
+
+    def written_by() -> dict:
+        return ok(generate(client, opportunity_id, overwrite_edits=True))["draft"]["writer"]
+
+    # The test suite's own placeholder key, an empty key and a malformed key: no request at all.
+    for key, code in ((None, "CLAUDE_CREDENTIALS_PLACEHOLDER"), ("", "CLAUDE_CREDENTIALS_MISSING"), ("sk-ant-short", "CLAUDE_CREDENTIALS_INVALID")):
+        if key is not None:
+            monkeypatch.setenv("ANTHROPIC_API_KEY", key)
+        writer = written_by()
+        assert (writer["mode"], writer["fallback_reason"]["code"]) == ("fallback", code) and requests == []
+        assert "no model was called" in writer["fallback_reason"]["message"]
+
+    # A key of the right form that the provider refuses: asked once, then never again in this process.
+    refused = "sk-ant-api03-" + "A1b2C3d4-_" * 8
+    monkeypatch.setenv("ANTHROPIC_API_KEY", refused)
+    assert email_service.model_preflight() is None
+    assert written_by()["fallback_reason"]["code"] == "CLAUDE_AUTH" and requests == ["request"]
+    for _again in range(3):
+        writer = written_by()
+        assert writer["fallback_reason"]["code"] == "CLAUDE_AUTH" and "rejected earlier" in writer["fallback_reason"]["message"]
+    assert requests == ["request"], "one refused request, however often the email is generated"
+    assert refused not in str(writer) and refused[:12] not in str(email_service._REFUSED_KEYS), "neither the key nor a readable part of it is kept or shown"
+    # A different key is a new situation and is tried.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-" + "Z9y8X7w6-_" * 8)
+    assert email_service.model_preflight() is None
+    written_by()
+    assert requests == ["request", "request"]
+
+
+def test_ai_writing_needs_its_own_switch_and_live_mode(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config import settings
+
+    assert settings.FOLLOWUP_AI_WRITER_ENABLED is False, "off unless an environment switches it on"
+    for switch, mode, expected in ((False, "fixture", False), (True, "fixture", False), (False, "live", False), (True, "live", True)):
+        monkeypatch.setattr(settings, "FOLLOWUP_AI_WRITER_ENABLED", switch)
+        monkeypatch.setattr(settings, "AI_EXECUTION_MODE", mode)
+        assert email_service.ai_writing_enabled() is expected, (switch, mode)
+
+    # A live environment without the switch: the rule-based writer, labelled as such, and no model call.
+    def no_model(**_kwargs):
+        raise AssertionError("no model call without FOLLOWUP_AI_WRITER_ENABLED")
+
+    monkeypatch.setattr(email_service, "_model_call", no_model)
+    monkeypatch.setattr(settings, "FOLLOWUP_AI_WRITER_ENABLED", False)
+    monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "fixture")  # the package is prepared without any model
+    opportunity_id = finalized(client)["opportunity"]
+    monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "live")  # only the email is generated in a live environment
+    draft = ok(generate(client, opportunity_id))["draft"]
+    assert draft["writer"]["mode"] == "deterministic" and draft["writer"]["verified"] is False and draft["writer"]["model"] is None
+    assert "ai_written" not in draft["review_flags"] and "ai_fallback" not in draft["review_flags"]
+    assert ok(confirm_email(client, opportunity_id, draft))["draft"]["status"] == "confirmed"

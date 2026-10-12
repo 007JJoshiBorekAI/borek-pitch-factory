@@ -24,6 +24,14 @@ export interface PostMeetingEmail {
   confirmedAt: string | null; confirmedRevision: number | null; updatedAt: string;
   source: EmailSource | null; sourceStatus: "valid" | "changed" | "not_applicable";
   reviewFlags: string[]; recipients: EmailRecipients | null; attachments: EmailAttachment[];
+  writer: EmailWriter | null;
+}
+/**
+ * Who wrote the generated text. "ai": the model, accepted by the grounding checks. "fallback": AI
+ * writing was attempted and not used. "deterministic": AI writing is not enabled here.
+ */
+export interface EmailWriter {
+  mode: "ai" | "fallback" | "deterministic"; model: string | null; verified: boolean; fallbackReason: string | null; checkedSentences: number | null;
 }
 
 /** The six checks the owner makes before a draft is confirmed. The API requires all of them. */
@@ -45,6 +53,8 @@ const FLAG_TEXT: Record<string, string> = {
   action_date_unconfirmed: "At least one next step has no deadline and is marked “date to be confirmed”.",
   no_next_steps_confirmed: "No next step was confirmed for this package, so the email lists none.",
   content_trimmed: "Some confirmed points did not fit the longest draft and were left out.",
+  ai_written: "This text was written by the AI writer from your confirmed findings. Every sentence passed the automatic grounding check; read it against the findings yourself before you approve.",
+  ai_fallback: "AI writing was not used for this draft, so the text comes from the rule-based writer. The reason is shown under the message.",
 };
 export const emailFlagText = (flag: string) => FLAG_TEXT[flag] ?? `Check before sending: ${flag.replaceAll("_", " ")}.`;
 
@@ -61,6 +71,7 @@ const ERROR_TEXT: Record<string, string> = {
   EMAIL_REVIEW_INCOMPLETE: "Complete every point of the review checklist first.",
   EMAIL_REVIEW_FLAGS_OPEN: "Acknowledge every review flag first.",
   EMAIL_ATTACHMENT_UNAVAILABLE: "A selected attachment is not available. Deselect it or restore the approved file.",
+  EMAIL_ATTACHMENT_CONTRADICTION: "The message says that something is attached, but no file is selected. Select the approved file or change that sentence, then save and review again.",
   EMAIL_NOT_CONFIRMED: "Review and confirm the saved draft before exporting it.",
   EMAIL_EXPORT_STALE: "The draft changed after it was confirmed. Review and confirm it again.",
   EMAIL_PLACEHOLDER_UNRESOLVED: "The email still contains a template placeholder such as {{name}}.",
@@ -97,6 +108,29 @@ function parsePerson(value: unknown): EmailPerson {
   const person = value as { name?: unknown; email?: unknown };
   if (!isString(person?.email)) throw new Error("The email draft has an invalid recipient.");
   return { name: isString(person.name) && person.name ? person.name : null, email: person.email };
+}
+
+function parseWriter(value: unknown): EmailWriter | null {
+  const writer = value as Record<string, unknown> | null | undefined;
+  if (!writer || (writer.mode !== "ai" && writer.mode !== "fallback" && writer.mode !== "deterministic")) return null;
+  const reason = writer.fallback_reason as Record<string, unknown> | null | undefined;
+  return {
+    mode: writer.mode, model: isString(writer.model) ? writer.model : null,
+    // Only a draft the API reports as AI-written and verified is ever labelled as such.
+    verified: writer.mode === "ai" && writer.verified === true,
+    fallbackReason: writer.mode === "fallback" ? (reason && isString(reason.message) && reason.message ? reason.message : "The AI draft could not be used.") : null,
+    checkedSentences: typeof writer.checked_sentences === "number" ? writer.checked_sentences : null,
+  };
+}
+
+/** One line that says who wrote the generated text. A fallback is never worded as AI-written. */
+export function writerLabel(writer: EmailWriter | null): string | null {
+  if (!writer) return null;
+  if (writer.mode === "ai" && writer.verified) {
+    return `Written by the AI writer${writer.model ? ` (${writer.model})` : ""} from your confirmed findings${writer.checkedSentences ? ` · ${writer.checkedSentences} sentences passed the grounding check` : ""}.`;
+  }
+  if (writer.mode === "fallback") return `Rule-based writer (fallback) — the AI draft was not used: ${writer.fallbackReason}`;
+  return "Rule-based writer — AI writing is not enabled in this environment.";
 }
 
 export function parsePostMeetingEmail(value: unknown, opportunityId: string): PostMeetingEmail | null {
@@ -141,6 +175,7 @@ export function parsePostMeetingEmail(value: unknown, opportunityId: string): Po
       : null,
     sourceStatus: draft.source_status === "valid" || draft.source_status === "changed" ? draft.source_status : "not_applicable",
     reviewFlags: Array.isArray(draft.review_flags) ? draft.review_flags.filter(isString) : [],
+    writer: parseWriter(draft.writer),
     recipients: recipients && Array.isArray(recipients.to) && recipients.sender && isString(recipients.sender.email)
       ? {
           to: recipients.to.map(parsePerson), cc: (recipients.cc ?? []).map(parsePerson),
@@ -193,6 +228,63 @@ export async function savePostMeetingEmail(token: string, opportunityId: string,
   if (!saved) throw new Error("The saved email draft was not returned.");
   return saved;
 }
+
+/**
+ * The original detailed review card (one tick per review flag and per checklist item) instead of
+ * the Review & confirm dialog. Off unless the web build sets the switch to exactly "true".
+ */
+export const advancedReviewUi = (value: string | undefined = process.env.NEXT_PUBLIC_FOLLOWUP_ADVANCED_REVIEW_UI) => value?.trim() === "true";
+
+export interface EmailReviewWarning { key: string; text: string; flag: boolean; blocking: boolean }
+
+/**
+ * Everything the owner has to see before approving one length of a saved draft: the review flags
+ * stored with the draft, and what the current selection adds (a missing file, a changed package,
+ * a message that announces an attachment that is not selected). ``blocking`` items cannot be
+ * approved; the API refuses them as well.
+ */
+export function emailReviewWarnings(draft: PostMeetingEmail, length: EmailLength): EmailReviewWarning[] {
+  const warnings: EmailReviewWarning[] = draft.reviewFlags.map((flag) => ({ key: flag, text: emailFlagText(flag), flag: true, blocking: false }));
+  const selected = draft.attachments.filter((item) => item.selected);
+  for (const item of selected.filter((file) => !file.available)) {
+    warnings.push({ key: `attachment_unavailable_${item.format}`, text: `${item.fileName} is selected but not available. Deselect it or restore the approved file.`, flag: false, blocking: true });
+  }
+  if (draft.sourceStatus === "changed") {
+    warnings.push({ key: "source_changed", text: "The finalized presentation package changed after this email was written. Regenerate the email from the current package.", flag: false, blocking: true });
+  }
+  if (draft.attachments.length && !selected.length) {
+    // A message that announces a file it does not carry is a contradiction, not a point to tick:
+    // the owner resolves it - selects the file or changes the sentence - before approving.
+    const contradiction = announcesAttachment(draft.lengths[length].body);
+    warnings.push(contradiction
+      ? { key: "attachment_contradiction", flag: false, blocking: true, text: "The message says that something is attached, but no file is selected. Select the approved file or change that sentence, then save." }
+      : { key: "no_attachment_selected", flag: false, blocking: false, text: "No file is selected: the email will be exported without an attachment." });
+  }
+  return warnings;
+}
+
+/**
+ * The text says that something is attached ("attached", "attachment", "enclosed"). "No attachment"
+ * and "not attached" say the opposite. The API applies the same rule when a draft is confirmed.
+ */
+export const announcesAttachment = (body: string) => /\b(?:attach\w*|enclos\w*)\b/i.test(body.replace(/\b(?:no|not|without|nothing|none|never)\b[^.!?\n]{0,30}?\battach\w*/gi, " "));
+
+/** The lengths whose saved text announces an attachment although no file is selected: the owner's own edits. */
+export const attachmentMismatch = (draft: PostMeetingEmail | null): EmailLength[] => (
+  draft && draft.attachments.length && !draft.attachments.some((item) => item.selected)
+    ? EMAIL_LENGTHS.filter((name) => announcesAttachment(draft.lengths[name].body))
+    : []
+);
+
+/**
+ * What the approval in the review dialog records - what the owner did there, and nothing else:
+ * the review flags they ticked one by one, and the six review checks only when they confirmed the
+ * written list of them. Anything not ticked is not sent, so the API refuses the confirmation.
+ */
+export const approvalFor = (draft: PostMeetingEmail, acknowledgedFlags: string[], checksConfirmed: boolean) => ({
+  checks: checksConfirmed ? EMAIL_REVIEW_CHECKS.map(([key]) => key as string) : [],
+  acknowledgedFlags: draft.reviewFlags.filter((flag) => acknowledgedFlags.includes(flag)),
+});
 
 /** The review flags of this draft that the owner has not ticked yet. */
 export const openReviewFlags = (draft: PostMeetingEmail | null, acknowledged: string[]) => (draft?.reviewFlags ?? []).filter((flag) => !acknowledged.includes(flag));

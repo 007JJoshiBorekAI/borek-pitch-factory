@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import os
+import re
 from typing import Any
 
 DEFAULT_SONNET_MODEL = "claude-sonnet-4-5"
@@ -34,6 +35,28 @@ class ClaudeClientError(RuntimeError):
             self.code = code
         if retryable is not None:
             self.retryable = retryable
+
+
+# Words that mark a value as a stand-in. They do not occur in a real key by chance.
+_PLACEHOLDER_KEY = re.compile(r"placeholder|dummy|fake|example|sample|changeme|change-me|your[-_]?(?:api[-_]?)?key|not[-_]a[-_]?(?:real[-_])?key|test[-_]|[-_]test|x{6,}|\.{3}|<|>", re.IGNORECASE)
+_KEY_FORM = re.compile(r"^sk-ant-[A-Za-z0-9_-]{32,}$")
+
+
+def claude_credentials_problem(api_key: str | None = None) -> tuple[str, str] | None:
+    """Why the configured API key cannot work - decided locally, without contacting Anthropic.
+
+    Returns (code, message) or None when the key has the form of a real key. The message never
+    contains the key or any part of it. A key of the right form can still be revoked or wrong:
+    only a request shows that, and the answer then is ``CLAUDE_AUTH``.
+    """
+    key = (os.environ.get("ANTHROPIC_API_KEY", "") if api_key is None else api_key).strip()
+    if not key:
+        return ("CLAUDE_CREDENTIALS_MISSING", "ANTHROPIC_API_KEY is not set, so no model was called.")
+    if _PLACEHOLDER_KEY.search(key):
+        return ("CLAUDE_CREDENTIALS_PLACEHOLDER", "ANTHROPIC_API_KEY holds a placeholder, not a key, so no model was called.")
+    if not _KEY_FORM.match(key):
+        return ("CLAUDE_CREDENTIALS_INVALID", "ANTHROPIC_API_KEY does not have the form of an Anthropic API key, so no model was called.")
+    return None
 
 
 def sonnet_model() -> str:
