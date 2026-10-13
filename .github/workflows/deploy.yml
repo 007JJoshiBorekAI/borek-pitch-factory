@@ -1,0 +1,93 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY: acrborekpitchfactory
+  RESOURCE_GROUP: rg-borek-pitch-prod
+  API_URL: https://api.gentletree-93d291c0.germanywestcentral.azurecontainerapps.io
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: borek-api
+            file: docker/api/Dockerfile
+          - image: borek-worker
+            file: docker/worker/Dockerfile
+          - image: borek-renderer
+            file: docker/renderer/Dockerfile
+          - image: borek-web
+            file: docker/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build image in Azure Container Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(
+            acr build
+            --registry "$REGISTRY"
+            --file "${{ matrix.file }}"
+            --image "${{ matrix.image }}:$IMAGE_TAG"
+            --image "${{ matrix.image }}:prod"
+            .
+          )
+          if [ "${{ matrix.image }}" = "borek-web" ]; then
+            args+=(
+              --build-arg "NEXT_PUBLIC_API_URL=$API_URL"
+              --build-arg "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
+              --build-arg "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}"
+              --build-arg "NEXT_PUBLIC_RUNTIME_PROFILE=production"
+              --build-arg "NEXT_PUBLIC_BYPASS_LOGIN=false"
+              --build-arg "NEXT_PUBLIC_DEPLOYED_DEV_BYPASS=false"
+              --build-arg "NEXT_PUBLIC_DEPLOYED_DEV_HOST="
+            )
+          fi
+          az "${args[@]}"
+
+  deploy:
+    name: Update Container Apps
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Point the running apps at the new images
+        shell: bash
+        run: |
+          set -euo pipefail
+          for app in renderer api worker web; do
+            az containerapp update \
+              --name "$app" \
+              --resource-group "$RESOURCE_GROUP" \
+              --image "$REGISTRY.azurecr.io/borek-$app:$IMAGE_TAG" \
+              --query "properties.template.containers[0].image" \
+              -o tsv
+          done
