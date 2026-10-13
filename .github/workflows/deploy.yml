@@ -49,6 +49,7 @@ jobs:
           args=(
             acr build
             --registry "$REGISTRY"
+            --resource-group "$RESOURCE_GROUP"
             --file "${{ matrix.file }}"
             --image "${{ matrix.image }}:$IMAGE_TAG"
             --image "${{ matrix.image }}:prod"
