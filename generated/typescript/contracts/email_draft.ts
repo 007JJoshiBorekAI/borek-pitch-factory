@@ -48,6 +48,10 @@ export interface EmailDraftEnvelope {
       medium: number;
       extensive: number;
     };
+    /**
+     * Who wrote the generated text. Null for drafts from before this was recorded and for other journey stages.
+     */
+    writer?: Writer | null;
   } | null;
 }
 export interface LengthBody {
@@ -107,4 +111,21 @@ export interface Attachment {
   presentation_version_id: string;
   version_number: number | null;
   product_version: "V2";
+}
+export interface Writer {
+  /**
+   * ai: written by the model and accepted by the grounding checks. fallback: AI writing was attempted and not used; the rule-based writer wrote the text. deterministic: AI writing is not enabled; the rule-based writer wrote the text.
+   */
+  mode: "ai" | "fallback" | "deterministic";
+  model: string | null;
+  prompt_version: string;
+  /**
+   * True only for mode ai: every sentence passed the rule checks and the grounding verifier.
+   */
+  verified: boolean;
+  fallback_reason: {
+    code: string;
+    message: string;
+  } | null;
+  checked_sentences: number | null;
 }

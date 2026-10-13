@@ -219,6 +219,37 @@
 .emailChecklist { margin-top: 16px; }
 .emailChecklist > small { display: block; margin-top: 8px; }
 .emailChecklist .check { margin: 8px 0; }
+/* Review & confirm dialog (Follow-up email). */
+.reviewDialog { width: min(760px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--pitch-gray-200); border-radius: 8px; background: #fff; color: inherit; font: inherit; overflow: hidden; }
+.reviewDialog[open] { display: flex; flex-direction: column; }
+.reviewDialog::backdrop { background: rgba(13, 27, 62, .5); }
+.reviewDialog > header, .reviewDialog > footer { flex-shrink: 0; padding: 20px 24px; }
+.reviewDialog > header { border-bottom: 1px solid var(--pitch-gray-200); }
+.reviewDialog > header h2 { margin: 6px 0 6px; font-weight: var(--pitch-weight-semibold); }
+.reviewDialog > header p { margin: 0; font-size: var(--pitch-text-label); line-height: 1.6; }
+.reviewDialog > footer { display: grid; gap: 12px; border-top: 1px solid var(--pitch-gray-200); background: var(--pitch-gray-50); }
+.reviewDialog > footer .check, .reviewDialog > footer p { margin: 0; }
+.reviewDialog > footer .check { font-size: var(--pitch-text-label); line-height: 1.6; }
+.reviewDialog > footer > small { line-height: 1.5; }
+.reviewScroll { display: grid; gap: 20px; min-height: 0; padding: 20px 24px; overflow-y: auto; }
+.reviewScroll h3 { margin: 0 0 8px; }
+.reviewBody { max-height: 300px; margin: 0; padding: 16px; overflow-y: auto; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); background: var(--pitch-gray-50); font: inherit; font-size: var(--pitch-text-label); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.reviewBody:focus-visible { outline: 2px solid var(--pitch-blue); outline-offset: 2px; }
+.reviewWarnings { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: var(--pitch-text-label); line-height: 1.6; }
+.reviewWarnings .check { margin: 0; cursor: pointer; }
+.reviewWarnings + small { display: block; margin-top: 8px; }
+.reviewWarnings li { padding: 10px 14px; border-left: 3px solid var(--pitch-blue); border-radius: 2px; background: var(--pitch-gray-50); }
+.reviewWarnings li[data-blocking="true"] { border-left-color: var(--pitch-red); color: var(--pitch-red); }
+.reviewCovers { min-width: 0; margin: 0; padding: 14px 16px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); font-size: var(--pitch-text-label); line-height: 1.6; }
+.reviewCovers legend { padding: 0 8px; }
+.reviewCovers ol { display: grid; gap: 2px; margin: 0 0 10px; padding-left: 20px; }
+.reviewCovers .check { margin: 0; font-weight: var(--pitch-weight-semibold); cursor: pointer; }
+@media (max-width: 640px) {
+  .reviewDialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
+  .reviewDialog > header, .reviewDialog > footer, .reviewScroll { padding: 16px; }
+  .reviewDialog > footer .actions :global(.btn) { width: 100%; }
+  .reviewBody { max-height: 220px; }
+}
 .root .packageAttachments .emailAttachment { padding: 4px 12px; margin-bottom: 8px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); color: var(--pitch-navy); }
 .emailAttachment .check { margin: 8px 0; }
 .emailAttachment span { font-weight: var(--pitch-weight-medium); overflow-wrap: anywhere; }

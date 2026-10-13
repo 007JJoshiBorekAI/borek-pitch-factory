@@ -499,10 +499,15 @@ def generate_email_draft(
     topic = resolve_meeting_purpose(opportunity) or name
     email_source: dict[str, Any] | None = None
     review_flags: list[str] = []
+    written_by: dict[str, Any] | None = None
+    text_variants: dict[str, Any] | None = None
     # A Master Presentation opportunity writes the email from its finalized V2 package; an
     # earlier opportunity with a standalone PPT #2 keeps the transcript-based draft below.
+    followup_email.existing_draft_for_generation(
+        store, opportunity_id=opportunity_id, user_id=user_id, journey_stage=journey_stage, overwrite_edits=overwrite_edits
+    )
     master = (
-        followup_email.master_generation(store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id)
+        followup_email.master_generation(store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id, journey_stage=journey_stage)
         if journey_stage == "deepening"
         else None
     )
@@ -511,6 +516,7 @@ def generate_email_draft(
 
     if master is not None:
         lengths, review_flags, email_source = master["lengths"], master["review_flags"], master["source"]
+        written_by, text_variants = master["writer"], master["variants"]
     elif journey_stage == "deepening":
         sources = store.list_transcript_sources(opportunity_id=opportunity_id, user_id=user_id)
         if not sources:
@@ -552,6 +558,8 @@ def generate_email_draft(
         source=email_source,
         review_flags=review_flags,
         overwrite_edits=overwrite_edits,
+        writer=written_by,
+        variants=text_variants,
     )
 
 
