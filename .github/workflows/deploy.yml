@@ -42,19 +42,16 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build image in Azure Container Registry
+      - name: Log in to the registry
+        shell: bash
+        run: az acr login --name "$REGISTRY" --resource-group "$RESOURCE_GROUP"
+
+      - name: Build and push the image
         shell: bash
         run: |
           set -euo pipefail
-          args=(
-            acr build
-            --registry "$REGISTRY"
-            --resource-group "$RESOURCE_GROUP"
-            --file "${{ matrix.file }}"
-            --image "${{ matrix.image }}:$IMAGE_TAG"
-            --image "${{ matrix.image }}:prod"
-            .
-          )
+          image="$REGISTRY.azurecr.io/${{ matrix.image }}"
+          args=(-f "${{ matrix.file }}" -t "$image:$IMAGE_TAG" -t "$image:prod")
           if [ "${{ matrix.image }}" = "borek-web" ]; then
             args+=(
               --build-arg "NEXT_PUBLIC_API_URL=$API_URL"
@@ -62,7 +59,9 @@ jobs:
               --build-arg "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}"
             )
           fi
-          az "${args[@]}"
+          docker build "${args[@]}" .
+          docker push "$image:$IMAGE_TAG"
+          docker push "$image:prod"
 
   deploy:
     name: Update Container Apps
