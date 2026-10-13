@@ -133,6 +133,7 @@ def test_fixture_mode_does_not_construct_openai_client(
 ) -> None:
     monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "fixture")
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "")
+    monkeypatch.setattr(settings, "STAGE_B_LLM_PROVIDER", "openai")
     monkeypatch.setattr(
         stage_b_providers,
         "build_live_planning_client",
@@ -180,6 +181,7 @@ def test_live_mode_returns_real_llm_planning_client(
 
     monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "live")
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "sk-live-test")
+    monkeypatch.setattr(settings, "STAGE_B_LLM_PROVIDER", "openai")
     monkeypatch.setattr(settings, "OPENAI_PRESENTATION_MODEL", "gpt-4.1-mini")
     monkeypatch.setattr("llm.openai_executor.OpenAIResponsesExecutor", FakeExecutor)
 
@@ -196,6 +198,7 @@ def test_live_mode_missing_openai_key_fails_clearly(
 ) -> None:
     monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "live")
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "")
+    monkeypatch.setattr(settings, "STAGE_B_LLM_PROVIDER", "openai")
 
     with pytest.raises(OpenAIProviderConfigurationError, match="OPENAI_API_KEY"):
         ORIGINAL_PLANNING_FACTORY()

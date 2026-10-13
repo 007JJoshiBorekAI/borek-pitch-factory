@@ -1,3 +1,7 @@
+# LEGACY / RETIRED / NOT ACTIVE ARCHITECTURE
+
+This spike records a retired provider experiment. The active presentation path is the internal Python planner and the internal PPTX/PDF renderer.
+
 # Phase 2 technical spikes — RAG and Gamma
 
 **Date:** 3 September 2026  

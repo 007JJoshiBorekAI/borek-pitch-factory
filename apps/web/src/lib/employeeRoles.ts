@@ -14,23 +14,6 @@ export interface EmployeeMe {
   };
 }
 
-export interface ActivityLogEntry {
-  id: string;
-  actor_id: string;
-  actor_email: string | null;
-  action: string;
-  object_type: string;
-  object_id: string;
-  document_id: string;
-  timestamp: string;
-}
-
-export interface EmployeeRoleRow {
-  user_id: string;
-  email: string;
-  role: EmployeeRole;
-}
-
 export const EMPTY_CAPABILITIES: EmployeeMe["capabilities"] = {
   generate: false,
   edit: false,
@@ -40,10 +23,6 @@ export const EMPTY_CAPABILITIES: EmployeeMe["capabilities"] = {
   view_all_activity: false,
 };
 
-export function isEmployeeSsoOnly(): boolean {
-  return process.env.NEXT_PUBLIC_EMPLOYEE_SSO_ONLY === "true";
-}
-
 export function formatEmployeeRole(role: EmployeeRole | null | undefined): string {
   if (!role) {
     return "Employee";
@@ -51,6 +30,3 @@ export function formatEmployeeRole(role: EmployeeRole | null | undefined): strin
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
-export function formatActivityAction(action: string): string {
-  return action.replaceAll(".", " · ");
-}

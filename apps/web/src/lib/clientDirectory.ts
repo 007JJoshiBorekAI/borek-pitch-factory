@@ -1,309 +1,150 @@
-import type { ListedOpportunityResponse, RecentWorkApiSnapshot } from "./api";
-import {
-  actionHrefFor,
-  latestActivityAt,
-  lifecycleFor,
-  snapshotsFromRecentWorkApi,
-  type RecentLifecycle,
-  type RecentWorkSnapshot,
-} from "./recentPresentations";
-import { hasStage1IntakeContent } from "./stage1Intake";
+import { ApiRequestError, apiFetch } from "./api";
+import { BACKEND_UUID } from "./backendOpportunityMap";
+import { WORKFLOW_STATUS_CATALOG, type WorkflowStatus } from "./discoveryFirst";
 
-export type ClientProgressLabel =
-  | "Pre-meeting"
-  | "Generating pitch"
-  | "Post-meeting"
-  | "No active pitch"
-  | "Follow-up ready";
+export type ClientPhase = "pre_meeting" | "post_meeting";
 
-export type ClientProgressTone =
-  | "pre-meeting"
-  | "generating"
-  | "post-meeting"
-  | "inactive"
-  | "follow-up";
-
-export type ClientFilterCategory = "all" | "pre-meeting" | "post-meeting";
-
-export type ClientRowActionLabel = "Open" | "View" | "Create pitch";
-
-export interface ClientDirectoryRow {
-  clientKey: string;
-  clientName: string;
-  opportunityContext: string;
-  contact: string | null;
-  progress: ClientProgressLabel;
-  progressTone: ClientProgressTone;
-  lastActivityAt: string;
-  lastActivityLabel: string;
-  actionLabel: ClientRowActionLabel;
-  actionHref: string;
-  primaryOpportunityId: string;
-  opportunityIds: string[];
-  filterCategory: Exclude<ClientFilterCategory, "all">;
-  isActivePitch: boolean;
+export interface ClientDirectoryItem {
+  opportunity_id: string;
+  company_name: string;
+  engagement_name: string;
+  contact_person: string;
+  contact_role: string;
+  workflow_status: WorkflowStatus;
+  phase: ClientPhase;
+  last_activity: string;
+  preview_fixture?: boolean;
 }
 
-export interface ClientDirectorySummary {
-  clientCount: number;
-  activePitchCount: number;
+export const CLIENT_DIRECTORY_FIXTURE: readonly ClientDirectoryItem[] = [
+  {
+    opportunity_id: "opp-acme",
+    company_name: "Acme GmbH",
+    engagement_name: "Multilingual customer operations",
+    contact_person: "Mira Koch",
+    contact_role: "COO",
+    workflow_status: "client_information",
+    phase: "pre_meeting",
+    last_activity: "Today",
+    preview_fixture: true,
+  },
+  {
+    opportunity_id: "opp-nova",
+    company_name: "Nova Retail",
+    engagement_name: "Data platform modernization",
+    contact_person: "Daniel Weber",
+    contact_role: "CTO",
+    workflow_status: "discovery_prepared",
+    phase: "pre_meeting",
+    last_activity: "3 min ago",
+    preview_fixture: true,
+  },
+  {
+    opportunity_id: "opp-karo",
+    company_name: "Karo Mobility",
+    engagement_name: "Service operations automation",
+    contact_person: "Aisha Rahman",
+    contact_role: "VP Operations",
+    workflow_status: "transcript_added",
+    phase: "post_meeting",
+    last_activity: "Yesterday",
+    preview_fixture: true,
+  },
+  {
+    opportunity_id: "opp-lindner",
+    company_name: "Lindner Health",
+    engagement_name: "AI product discovery",
+    contact_person: "Felix Krause",
+    contact_role: "CIO",
+    workflow_status: "client_information",
+    phase: "pre_meeting",
+    last_activity: "4 Sep",
+    preview_fixture: true,
+  },
+  {
+    opportunity_id: "opp-vela",
+    company_name: "Vela Foods",
+    engagement_name: "Quality assurance program",
+    contact_person: "Anna Meier",
+    contact_role: "COO",
+    workflow_status: "ppt_1_ready",
+    phase: "pre_meeting",
+    last_activity: "2 Sep",
+    preview_fixture: true,
+  },
+  {
+    opportunity_id: "opp-nordstern",
+    company_name: "Nordstern AG",
+    engagement_name: "Dedicated development team",
+    contact_person: "Leon Fischer",
+    contact_role: "CEO",
+    workflow_status: "owner_review",
+    phase: "post_meeting",
+    last_activity: "30 Aug",
+    preview_fixture: true,
+  },
+];
+
+export const CLIENT_STATUS_LABELS: Record<WorkflowStatus, string> = {
+  client_information: "Client Information",
+  discovery_prepared: "Discovery Prepared",
+  ppt_1_ready: "PPT #1 Ready",
+  first_meeting_completed: "First Meeting Completed",
+  transcript_added: "Transcript Added",
+  ppt_2_generated: "PPT #2 Generated",
+  owner_review: "Owner Review",
+  finalized: "Finalized",
+};
+
+export function clientOpportunityHref(item: ClientDirectoryItem): string {
+  const section = item.workflow_status === "client_information"
+    ? "client-information"
+    : item.workflow_status === "discovery_prepared"
+      ? "discovery"
+      : item.workflow_status === "ppt_1_ready" || (item.workflow_status === "first_meeting_completed" && item.phase === "pre_meeting")
+        ? "presentations"
+        : item.workflow_status === "ppt_2_generated"
+          ? "post-meeting-presentation"
+          : item.workflow_status === "first_meeting_completed" || item.workflow_status === "transcript_added"
+            ? "meeting"
+            : item.workflow_status === "owner_review"
+              ? "review"
+              : "follow-up";
+  return `/opportunities/${encodeURIComponent(item.opportunity_id)}/${section}`;
 }
 
-function normalizeClientKey(clientName: string): string {
-  return clientName.trim().toLowerCase();
-}
-
-export function resolveClientContact(opportunity: ListedOpportunityResponse): string | null {
-  const pocName = opportunity.stage1_intake?.poc_name?.trim();
-  const pocPosition = opportunity.stage1_intake?.poc_position?.trim();
-  if (pocName && pocPosition) {
-    return `${pocName} · ${pocPosition}`;
-  }
-  if (pocName) {
-    return pocName;
-  }
-
-  const contact = opportunity.additional_client_information?.contacts?.[0];
-  if (!contact) {
-    return null;
-  }
-  const contactName = contact.name?.trim();
-  if (!contactName) {
-    return null;
-  }
-  const contactRole = contact.role?.trim();
-  return contactRole ? `${contactName} · ${contactRole}` : contactName;
-}
-
-function isGenerationJob(snapshot: RecentWorkSnapshot): boolean {
-  const job = snapshot.job;
-  if (!job || (job.status !== "QUEUED" && job.status !== "RUNNING")) {
-    return false;
-  }
-  const jobType = job.job_type.toLowerCase();
-  return (
-    jobType.includes("stage1") ||
-    jobType.includes("research") ||
-    jobType.includes("framework") ||
-    jobType.includes("plan") ||
-    jobType.includes("presentation") ||
-    jobType.includes("slide")
-  );
-}
-
-export function mapClientProgress(
-  snapshot: RecentWorkSnapshot,
-  opportunity: ListedOpportunityResponse,
-): { progress: ClientProgressLabel; tone: ClientProgressTone; filterCategory: Exclude<ClientFilterCategory, "all"> } {
-  const lifecycle = lifecycleFor(snapshot);
-
-  if (isGenerationJob(snapshot)) {
-    return {
-      progress: "Generating pitch",
-      tone: "generating",
-      filterCategory: "pre-meeting",
-    };
-  }
-
-  if (snapshot.transcriptCount > 0) {
-    if (snapshot.deck || lifecycle === "ready") {
-      return {
-        progress: "Follow-up ready",
-        tone: "follow-up",
-        filterCategory: "post-meeting",
-      };
+export async function loadLiveClientDirectory(token: string, locale: string, signal?: AbortSignal): Promise<ClientDirectoryItem[]> {
+  const rows = await apiFetch<Array<{
+    id: string; client_name: string; opportunity_name: string; updated_at: string;
+    stage1_intake?: { poc_name?: string; poc_position?: string; sales_topic_description?: string } | null;
+  }>>("/opportunities", token, { signal, cache: "no-store" });
+  if (!Array.isArray(rows)) throw new ApiRequestError("The client list response is incomplete.", 502);
+  return Promise.all(rows.map(async (row) => {
+    if (!row || !BACKEND_UUID.test(row.id) || typeof row.client_name !== "string") {
+      throw new ApiRequestError("The client list contains an invalid opportunity.", 502);
     }
-    return {
-      progress: "Post-meeting",
-      tone: "post-meeting",
-      filterCategory: "post-meeting",
-    };
-  }
-
-  if (
-    lifecycle === "draft" &&
-    !hasStage1IntakeContent(opportunity.stage1_intake) &&
-    !snapshot.frameworkStatus &&
-    !snapshot.hasPlan &&
-    !snapshot.presentationId
-  ) {
-    return {
-      progress: "No active pitch",
-      tone: "inactive",
-      filterCategory: "pre-meeting",
-    };
-  }
-
-  return {
-    progress: "Pre-meeting",
-    tone: "pre-meeting",
-    filterCategory: "pre-meeting",
-  };
-}
-
-export function mapClientAction(
-  progress: ClientProgressLabel,
-  snapshot: RecentWorkSnapshot,
-  lifecycle: RecentLifecycle,
-): { label: ClientRowActionLabel; href: string } {
-  if (progress === "No active pitch") {
-    return { label: "Create pitch", href: "/upload?new=1" };
-  }
-
-  const href = actionHrefFor(snapshot, lifecycle);
-  if (progress === "Generating pitch") {
-    return { label: "View", href };
-  }
-
-  return { label: "Open", href };
-}
-
-export function formatClientLastActivity(value: string, now = Date.now()): string {
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) {
-    return "—";
-  }
-
-  const diffMs = now - timestamp;
-  const dayMs = 24 * 60 * 60 * 1000;
-  if (diffMs < 60_000) {
-    return "Just now";
-  }
-  if (diffMs < 60 * 60_000) {
-    const minutes = Math.max(1, Math.round(diffMs / 60_000));
-    return `${minutes} min ago`;
-  }
-  if (diffMs < dayMs) {
-    return "Today";
-  }
-  if (diffMs < dayMs * 2) {
-    return "Yesterday";
-  }
-
-  const date = new Date(timestamp);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${date.getUTCDate()} ${months[date.getUTCMonth()]}`;
-}
-
-function snapshotFromListedOpportunity(
-  opportunity: ListedOpportunityResponse,
-  recent?: RecentWorkApiSnapshot,
-): RecentWorkSnapshot {
-  if (recent) {
-    return snapshotsFromRecentWorkApi([recent])[0]!;
-  }
-
-  return {
-    opportunity: {
-      id: opportunity.id,
-      client_name: opportunity.client_name,
-      opportunity_name: opportunity.opportunity_name,
-      created_by: opportunity.created_by,
-      created_at: opportunity.created_at,
-      updated_at: opportunity.updated_at,
-    },
-    transcriptCount: 0,
-    hasPlan: false,
-    activityAt: opportunity.updated_at || opportunity.created_at,
-  };
-}
-
-function buildRowForOpportunity(
-  opportunity: ListedOpportunityResponse,
-  recentById: Map<string, RecentWorkApiSnapshot>,
-): ClientDirectoryRow {
-  const snapshot = snapshotFromListedOpportunity(opportunity, recentById.get(opportunity.id));
-  const lifecycle = lifecycleFor(snapshot);
-  const { progress, tone, filterCategory } = mapClientProgress(snapshot, opportunity);
-  const action = mapClientAction(progress, snapshot, lifecycle);
-  const lastActivityAt = latestActivityAt(
-    snapshot.activityAt,
-    snapshot.opportunity.updated_at,
-    snapshot.opportunity.created_at,
-  );
-
-  return {
-    clientKey: normalizeClientKey(opportunity.client_name),
-    clientName: opportunity.client_name.trim(),
-    opportunityContext: opportunity.opportunity_name.trim(),
-    contact: resolveClientContact(opportunity),
-    progress,
-    progressTone: tone,
-    lastActivityAt,
-    lastActivityLabel: formatClientLastActivity(lastActivityAt),
-    actionLabel: action.label,
-    actionHref: action.href,
-    primaryOpportunityId: opportunity.id,
-    opportunityIds: [opportunity.id],
-    filterCategory,
-    isActivePitch: progress !== "No active pitch",
-  };
-}
-
-function mergeRows(existing: ClientDirectoryRow, incoming: ClientDirectoryRow): ClientDirectoryRow {
-  const lastActivityAt = latestActivityAt(existing.lastActivityAt, incoming.lastActivityAt);
-  const primary =
-    Date.parse(incoming.lastActivityAt) >= Date.parse(existing.lastActivityAt) ? incoming : existing;
-
-  return {
-    ...primary,
-    lastActivityAt,
-    lastActivityLabel: formatClientLastActivity(lastActivityAt),
-    opportunityIds: [...new Set([...existing.opportunityIds, ...incoming.opportunityIds])],
-    isActivePitch: existing.isActivePitch || incoming.isActivePitch,
-  };
-}
-
-export function buildClientDirectory(
-  opportunities: ListedOpportunityResponse[],
-  recentWork: RecentWorkApiSnapshot[],
-): ClientDirectoryRow[] {
-  const recentById = new Map(recentWork.map((row) => [row.opportunity.id, row]));
-  const grouped = new Map<string, ClientDirectoryRow>();
-
-  for (const opportunity of opportunities) {
-    const row = buildRowForOpportunity(opportunity, recentById);
-    const existing = grouped.get(row.clientKey);
-    grouped.set(row.clientKey, existing ? mergeRows(existing, row) : row);
-  }
-
-  return [...grouped.values()].sort(
-    (left, right) => Date.parse(right.lastActivityAt) - Date.parse(left.lastActivityAt),
-  );
-}
-
-export function summarizeClientDirectory(rows: ClientDirectoryRow[]): ClientDirectorySummary {
-  return {
-    clientCount: rows.length,
-    activePitchCount: rows.filter((row) => row.isActivePitch).length,
-  };
-}
-
-export function filterClientDirectoryRows(
-  rows: ClientDirectoryRow[],
-  query: string,
-  filter: ClientFilterCategory,
-): ClientDirectoryRow[] {
-  const normalizedQuery = query.trim().toLowerCase();
-  return rows.filter((row) => {
-    if (filter !== "all" && row.filterCategory !== filter) {
-      return false;
+    const workflow = await apiFetch<{
+      opportunity_id: string; current_status: string; steps: Array<{ key: string; state: string }>;
+    }>(`/opportunities/${row.id}/workflow-status`, token, { signal, cache: "no-store" });
+    const status = workflow.current_status === "ppt1_ready" ? "ppt_1_ready"
+      : workflow.current_status === "ppt2_generated" ? "ppt_2_generated" : workflow.current_status;
+    const current = WORKFLOW_STATUS_CATALOG.find((entry) => entry.id === status);
+    if (workflow.opportunity_id !== row.id || !current || !Array.isArray(workflow.steps)) {
+      throw new ApiRequestError("The client workflow response is incomplete or mismatched.", 502);
     }
-    if (!normalizedQuery) {
-      return true;
-    }
-    const haystack = [
-      row.clientName,
-      row.opportunityContext,
-      row.contact ?? "",
-      row.progress,
-    ]
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(normalizedQuery);
-  });
-}
-
-export function clientDirectoryMatchesSearch(row: ClientDirectoryRow, query: string): boolean {
-  return filterClientDirectoryRows([row], query, "all").length > 0;
+    const updated = new Date(row.updated_at);
+    return {
+      opportunity_id: row.id,
+      company_name: row.client_name,
+      engagement_name: row.stage1_intake?.sales_topic_description || row.opportunity_name || "",
+      contact_person: row.stage1_intake?.poc_name || "-",
+      contact_role: row.stage1_intake?.poc_position || "",
+      workflow_status: current.id,
+      // The backend's current status is the next incomplete step, not proof of meeting completion.
+      phase: workflow.steps.some((step) => step.key === "first_meeting_completed" && step.state === "completed")
+        ? "post_meeting" : "pre_meeting",
+      last_activity: Number.isNaN(updated.getTime()) ? "-"
+        : updated.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }),
+    };
+  }));
 }

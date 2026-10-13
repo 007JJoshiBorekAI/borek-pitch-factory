@@ -4,15 +4,22 @@ from __future__ import annotations
 
 from app.schemas.jobs import JobStage
 from app.services.api_errors import failed_stage_from_exception
-from services.gamma.contract import GammaAuthError, GammaTimeoutError
 
 
-def test_gamma_timeout_maps_to_gamma_rendering_stage() -> None:
-    assert failed_stage_from_exception(GammaTimeoutError()) == JobStage.GAMMA_RENDERING
+class _RendererTimeout(Exception):
+    code = "RENDERER_TIMEOUT"
 
 
-def test_gamma_auth_maps_to_gamma_rendering_stage() -> None:
-    assert failed_stage_from_exception(GammaAuthError()) == JobStage.GAMMA_RENDERING
+class _HistoricalProviderTimeout(Exception):
+    code = "GAMMA_TIMEOUT"
+
+
+def test_renderer_timeout_maps_to_pptx_rendering_stage() -> None:
+    assert failed_stage_from_exception(_RendererTimeout()) == JobStage.PPTX_RENDERING
+
+
+def test_historical_provider_timeout_maps_to_pptx_rendering_stage() -> None:
+    assert failed_stage_from_exception(_HistoricalProviderTimeout()) == JobStage.PPTX_RENDERING
 
 
 def test_pre_generation_errors_default_to_slide_generating() -> None:

@@ -1,0 +1,442 @@
+# Demo with EVERY layout of the Borek Master Presentation - also the syntax reference for make_master_deck.py --spec
+# (all figures are placeholders for layout testing, not client facts)
+
+=== cover
+kicker_right: Family-owned since 1781
+kicker: Borek AI Tech · Proposal for Muster GmbH
+title: Your AI department.\nDelivered, not built.
+intro: Every company needs to automate. Few have the people, the system or the discipline to do it. Borek is your missing department.
+columns[].title: Borek AI Suite
+columns[].text: The system behind the department
+columns[].title: Borek AI Projects
+columns[].text: A finished solution at a fixed price
+columns[].title: Borek AI Department
+columns[].text: Your permanent AI team from our hub
+
+=== who_we_are
+
+=== contrast
+kicker: Why now
+title: In three to five years your competitor is an autonomous company
+lead: Every company will have to automate large parts of its business — not because it's fashionable, but because it competes with firms that run entire processes without people.
+left.label: Attackers
+left.title: AI-native attackers
+left.bullets[]: Automated from day one — no legacy in the way
+left.bullets[]: Small teams, machine speed, almost no marginal cost
+left.bullets[]: They grow into your market — without your personnel costs
+left.bullets[]: Your price floor becomes their price ceiling
+right.label: Incumbents
+right.title: Established mid-size companies
+right.bullets[]: Processes built for a pre-AI world — run by people
+right.bullets[]: AI arrives in fragments: a chatbot here, a script there
+right.bullets[]: No central place to steer automation
+right.bullets[]: Deep expertise — but locked in people's heads
+statement.kicker: The question
+statement.text: The question is not whether you automate. It’s how fast, at what cost — and on whose terms.
+note: Autonomous means: the process runs without anyone triggering it — people only decide the exceptions.
+
+=== four_cards
+kicker: The problem
+title: Everyone has recognised it. Almost nobody gets it done.
+lead: Mid-sized companies don’t need another roadmap. Real transformation starts where someone actually builds, runs and stands behind the automations.
+cards[].title: Resource scarcity
+cards[].text: AI engineers are scarce and expensive worldwide — a single hire takes months.
+cards[].title: Consultants deliver slides
+cards[].text: You pay day rates for concepts and roadmaps. The running automation is still missing.
+cards[].title: Tools are bought, not used
+cards[].text: A licence is not an automation. Someone has to specify, build, test and operate it.
+cards[].title: The potential stays invisible
+cards[].text: Nobody has the complete map of what can be automated.
+strip.kicker: The usual outcome
+strip.items[].big: Weeks
+strip.items[].text: per department, just for manual discovery
+strip.items[].big: A handful
+strip.items[].text: of ideas come to light — the rest stays hidden
+strip.items[].big: 1–2
+strip.items[].text: pilots that never go into production
+
+=== matrix
+kicker: The gap in the market
+title: Everyone delivers a piece. Nobody delivers the solution end to end.
+lead: Four types of provider work on the same problem. Each covers part of the chain — and leaves you the rest.
+columns: AI platforms | Consultancies | Offshore staffing | AI boutiques | Borek
+rows[].criterion: Finds the potential across the whole company
+rows[].cells: ✓ | — | — | partly | ✓
+rows[].criterion: Builds the running automation
+rows[].cells: partly | — | ✓ | ✓ | ✓
+rows[].criterion: Operates it and measures the automation level
+rows[].cells: partly | — | — | partly | ✓
+rows[].criterion: Provides a permanent, trained team
+rows[].cells: — | — | ✓ | — | ✓
+rows[].criterion: German project management & documentation
+rows[].cells: — | ✓ | — | partly | ✓
+rows[].criterion: EU data residency, ISO 27001 & TISAX
+rows[].cells: partly | ✓ | — | partly | ✓
+rows[].criterion: Cost per unit of build capacity
+rows[].cells: low | very high | low | medium | low
+statement: We deliver end to end solution — people, system, governance and accountability in one package.
+
+=== offers
+kicker: The entry
+title: Three ways in — one goal
+lead: Behind all three stand the same hub-trained developers and the same German project management.
+cards[].kicker: 01 / Product
+cards[].title: Borek AI Suite
+cards[].text: The system the department works with — our own product.
+cards[].bullets[]: Licence by company size
+cards[].bullets[]: One-off setup, no build effort
+cards[].bullets[]: Maintenance, updates and hosting
+cards[].price: To Be Defined
+cards[].kicker: 02 / Fixed price
+cards[].title: Borek AI Projects
+cards[].text: A finished solution at a fixed price.
+cards[].bullets[]: Fixed scope, price and date
+cards[].bullets[]: Tier 1 to Tier 4 by complexity
+cards[].bullets[]: Optional support and maintenance
+cards[].price: €20,000 – €80,000+
+cards[].kicker: 03 / Permanent team
+cards[].title: Borek AI Department
+cards[].text: The permanent team — your AI department.
+cards[].bullets[]: Monthly rate per developer level
+cards[].bullets[]: Your backlog, your priorities
+cards[].bullets[]: Scale up or down, three months' notice
+cards[].price: from €8,600 / month
+panel.kicker: The path
+panel.text: Easy to test — low risk, clear result. The goal is a team that keeps automating.
+note: AI Suite: licence price depends on company size and number of sites, plus one-off setup.
+
+=== pillars
+kicker: Why us
+title: The difference: we have the factory, not just the concept
+lead: Others sell consulting, licences or CVs. We run our own training and delivery organisation in Kosovo.
+cards[].n: 01
+cards[].title: Our own AI Academy
+cards[].text: Three months of our own curriculum with a final exam — only then does anyone join a client team.
+cards[].n: 02
+cards[].title: Knowledge Hub
+cards[].text: Every automation we build becomes a tested, reusable pattern.
+cards[].n: 03
+cards[].title: Our own domains
+cards[].text: Document AI & OCR, conversational agents, RAG, workflow automation, data engineering.
+cards[].n: 04
+cards[].title: Global project management
+cards[].text: A dedicated project lead steers cadence, quality, escalation and reporting.
+cards[].n: 05
+cards[].title: Practical — and affordable
+cards[].text: Running automations instead of roadmaps. One unit of build capacity from €3,800 a month.
+statement.kicker: And a sixth
+statement.text: And a sixth: verifiably secure — ISO 27001, TISAX, GDPR, EU hosting, no model training on your data.
+
+=== divider
+kicker: Section 01 · Product
+title: Borek AI Suite
+text: Capture, build, operate — the system behind the department
+
+=== process
+kicker: Borek AI Suite
+title: One system, three stages — a closed loop
+lead: Capture, build, operate: the Suite finds the automation potential across the whole company and shows in the cockpit what it is worth.
+stages[].n: 01
+stages[].title: Capture
+stages[].text: An AI agent interviews every level — from management to the shop floor. Five to ten minutes per conversation, by voice or text.
+stages[].result_label: Result:
+stages[].result: a scored backlog with a business case per candidate.
+stages[].n: 02
+stages[].title: Build
+stages[].text: Every approved specification goes to your expert team in the hub. Around four weeks per automation.
+stages[].result_label: Result:
+stages[].result: a running automation in production.
+stages[].n: 03
+stages[].title: Operate
+stages[].text: One cockpit for the whole company: automation level per department, hours saved, value contribution.
+stages[].result_label: Result:
+stages[].result: steering instead of gut feeling.
+panel.kicker: The loop
+panel.text: A continuous loop: capture, build, operate — and the running automations show what comes next.
+note: Our own product — monthly licence plus one-off setup.
+
+=== matrix_notes
+kicker: Your decision
+title: You decide how fast your company becomes autonomous
+lead: Every approved candidate moves from the backlog into build at the pace you choose.
+rows[].code: L1
+rows[].title: Quick win
+rows[].text: Live in under four weeks
+rows[].code: L2
+rows[].title: Standard
+rows[].text: Specified, built and tested
+rows[].code: L3
+rows[].title: Complex
+rows[].text: Several systems, several teams
+rows[].code: L4
+rows[].title: Strategic
+rows[].text: Changes a core process
+notes[].title: Go / no-go
+notes[].text: Nothing goes live without your approval — every automation has a specification and a test protocol.
+notes[].title: Pace
+notes[].text: Scale the number of parallel builds up or down with three months' notice.
+
+=== data_table
+kicker: Capture · the yield
+title: For the first time, an objective view of your automation potential
+lead: Automation map per department — a scored backlog replaces gut feeling.
+table_label: Automation map per department · example
+headers: Department | Candidates | Tier 1 / 2 / 3 | Potential
+rows[]: Finance | 24 | 8 / 12 / 4 | 620 h
+rows[]: HR | 18 | 6 / 9 / 3 | 410 h
+rows[]: Sales | 15 | 5 / 7 / 3 | 380 h
+rows[]: Operations | 31 | 10 / 15 / 6 | 940 h
+rows[]: Total | 88 | 29 / 43 / 16 | ~2,350 h
+points[].title: Scored, not guessed
+points[].text: Every candidate has a business case.
+points[].title: Build-ready
+points[].text: Each specification goes straight to the hub.
+points[].title: Visible to management
+points[].text: The cockpit shows the value contribution.
+callout: Example data — illustrative only.
+
+=== big_number
+kicker: Operate
+title: One cockpit: what runs, what it saves, what comes next
+lead: Hours saved and value contribution are measured per automation, not estimated.
+big.label: Hours saved
+big.value: 1,240
+big.text: per month across all running automations · example
+bars_label: Automation level by department · example
+bars[].title: Finance
+bars[].text: 18 automations live
+bars[].pct: 72
+bars[].value: 72 %
+bars[].title: HR
+bars[].text: 11 automations live
+bars[].pct: 48
+bars[].value: 48 %
+bars[].title: Sales
+bars[].text: 7 automations live
+bars[].pct: 31
+bars[].value: 31 %
+note: EXAMPLE · ILLUSTRATIVE — figures are shown to explain the cockpit.
+
+=== flow_facts
+kicker: Build
+title: Your AI experts in Kosovo turn plans into running automations
+lead: Five steps from approved specification to production.
+steps: Specify | Build | Test | IT sign-off | Go live
+facts[].big: 4 weeks
+facts[].text: per automation on average
+facts[].big: 100 %
+facts[].text: with specification and runbook
+facts[].big: 1
+facts[].text: dedicated project lead
+facts[].big: 0
+facts[].text: model training on your data
+note: IT sign-off runs in parallel to the build.
+
+=== faq
+kicker: Acceptance
+title: We automate tasks — not people
+lead: The four questions we hear most often — and our short answers.
+items[].q: Will this replace our employees?
+items[].a: No. People move from repetitive tasks to exceptions and decisions.
+items[].q: Where does our data go?
+items[].a: EU hosting, ISO 27001 and TISAX — no model training on your data.
+items[].q: What if the result does not convince us?
+items[].a: Start with a fixed-price project — 50 % money back if the result doesn't convince.
+items[].q: Do we need our own AI team?
+items[].a: No. Our hub provides the team; you steer the backlog.
+support: Start small, prove the value, then scale.
+
+=== two_models
+kicker: Borek AI Department
+title: The permanent team — your AI department, staffed by us
+lead: Two ways to work with the same people and the same standards.
+models[].kicker: Model A
+models[].title: Own AI team
+models[].text: A dedicated team that works only on your backlog, billed monthly per profile.
+models[].kicker: Model B
+models[].title: Project pool
+models[].text: Capacity shared across your projects, billed by consumption.
+features[].title: Hub-trained developers
+features[].text: Every developer completed the AI Academy.
+features[].title: Dedicated project lead
+features[].text: One contact for cadence, quality and reporting.
+features[].title: Scale on demand
+features[].text: Add or release profiles with three months' notice.
+features[].title: Transparent rates
+features[].text: One monthly rate per profile, no hidden costs.
+note: Rates are net, excl. VAT · indicative.
+
+=== phased
+kicker: Onboarding
+title: Your first automation live in 30 days
+lead: Four phases from kick-off to the first running automation.
+steps[].when: Day 1–5
+steps[].title: Kick-off
+steps[].text: Goals, access and a named contact on both sides.
+steps[].when: Day 6–10
+steps[].title: Discovery
+steps[].text: Capture agent interviews your people; first scored backlog.
+steps[].when: Day 11–25
+steps[].title: Build
+steps[].text: The hub team builds and tests the first automation.
+steps[].when: Day 26–30
+steps[].title: Go live
+steps[].text: IT sign-off, go / no-go and handover with runbook.
+panel.kicker: What we need from you
+panel.text: A project owner, read access to the relevant systems, and 30 minutes per interviewee.
+
+=== packages
+kicker: Packages
+title: Three team sizes — you choose the pace
+lead: Same people, same standards — a different size of team.
+packages[].title: Starter
+packages[].sub: 2 Junior + PM
+packages[].price: €8,600
+packages[].unit: per month
+packages[].bullets[]: Two junior developers
+packages[].bullets[]: Project management
+packages[].bullets[]: Monthly reporting
+packages[].bullets[]: 3 months' notice
+packages[].title: Standard
+packages[].sub: 2 Senior + 2 Junior + PM
+packages[].price: €19,500
+packages[].unit: per month
+packages[].bullets[]: Four developers
+packages[].bullets[]: Project management
+packages[].bullets[]: Weekly reporting
+packages[].bullets[]: 3 months' notice
+packages[].title: Scale
+packages[].sub: Team of 8 + PM
+packages[].price: €38,000
+packages[].unit: per month
+packages[].bullets[]: Eight developers
+packages[].bullets[]: Lead architect
+packages[].bullets[]: Weekly reporting
+packages[].bullets[]: 3 months' notice
+highlight: 1
+badge: Popular
+panel.kicker: Alternative
+panel.text: Not sure yet? Start with a fixed-price project and move to a permanent team later.
+
+=== capabilities
+kicker: Our AI hub
+title: Our AI hub in Kosovo — our own company, not a subcontractor
+lead: Three capabilities that run under one roof.
+cards[].title: Document AI
+cards[].text: OCR, extraction and classification of unstructured documents at scale.
+cards[].title: Conversational agents
+cards[].text: Voice and text agents with RAG on your own knowledge base.
+cards[].title: Workflow automation
+cards[].text: End-to-end processes with exception handling and monitoring.
+stats[].big: 250+
+stats[].text: employees at four locations
+stats[].big: 3 mo
+stats[].text: AI Academy curriculum
+stats[].big: 8 wks
+stats[].text: first call to a deployable team
+stats[].big: 27001
+stats[].text: ISO certified
+stats[].big: EU
+stats[].text: data residency
+note: Prishtina is our own subsidiary — founded 2022.
+
+=== certificates
+kicker: Borek trust
+title: Your data, your processes, your knowledge stay with you
+lead: Security is part of the product, not an add-on.
+badges[].title: ISO 27001
+badges[].text: Information security
+badges[].title: TISAX
+badges[].text: Automotive assessment
+badges[].title: GDPR
+badges[].text: EU-compliant
+badges[].title: EU hosting
+badges[].text: Data stays in the EU
+commitments[].title: No model training on your data
+commitments[].text: Your content is never used to improve third-party models.
+commitments[].title: Your IP stays yours
+commitments[].text: Specifications, code and runbooks are handed over.
+commitments[].title: Role-based access
+commitments[].text: Least privilege for every team member.
+commitments[].title: Audit trail
+commitments[].text: Every change is logged and traceable.
+commitments[].title: German project management
+commitments[].text: Documentation and reporting in German or English.
+commitments[].title: Exit without lock-in
+commitments[].text: Handover on request with three months' notice.
+
+=== options
+kicker: Which model fits
+title: Same people, same standards — a different commercial frame
+options: 1 · AI Suite | 2 · AI Projects | 3 · AI Department
+rows[].label: What you buy
+rows[].cells: A finished product | A result — a finished solution | Capacity — a team of your own
+rows[].label: Billing
+rows[].cells: Subscription + setup fee | Fixed price per project | Monthly rate per profile
+rows[].label: Entry price
+rows[].cells: €500 – €1,500 / month | €20,000 (Tier 1) | €8,600 / month (2 Junior + PM)
+rows[].style: bold
+rows[].label: Delivery risk
+rows[].cells: Product is finished | Entirely with us | Shared
+rows[].label: Typical duration
+rows[].cells: Ongoing subscription | 2 to 12+ months per project | Ongoing, 3 months' notice
+rows[].label: Fits if
+rows[].cells: You want to make potential and steering visible across the whole company | You have a clearly defined problem and want to start with low risk | You have ongoing demand — around four projects a year or more
+rows[].style: muted
+availability_label: Availability
+availability[].text: Coming soon
+availability[].on: false
+availability[].text: Available now
+availability[].on: true
+availability[].text: Available now
+availability[].on: true
+recommendation: Not sure? Start with a fixed-price project — 50 % money back if the result doesn't convince.
+
+=== price_tables
+kicker: Pricing
+title: One rate card, one tier table. That is the entire price list.
+lead: Own AI team — monthly rate per profile, and fixed-price projects by tier.
+left.kicker: Own AI team — monthly rate per profile
+left.headers: Profile | Description | Rate
+left.rows[]: Junior developer | Trained in the AI Academy | €3,800
+left.rows[]: Senior developer | Several years of delivery experience | €5,200
+left.rows[]: Lead architect | Architecture and quality | €6,900
+left.rows[]: Project manager | Cadence, reporting, escalation | €4,100
+right.kicker: Fixed price per project — tier table
+right.headers: Tier | Duration | Team | Price | Fits
+right.rows[]: Tier 1 | 2–3 months | Short value | €20,000 – 30,000 | One clear use case
+right.rows[]: Tier 2 | 3–5 months | Short value | €30,000 – 50,000 | Several systems
+right.rows[]: Tier 3 | 5–8 months | Short value | €50,000 – 80,000 | Core process
+right.rows[]: Tier 4 | 8+ months | Short value | from €80,000 | Programme
+note: All prices net, excl. VAT · indicative. Final prices after specification.
+
+=== case_study
+kicker: Case study · Muster GmbH
+title: Muster GmbH automates incoming invoices with an AI agent
+text: Muster processed 4,000 invoices a month by hand. The Borek agent now reads, checks and books them — people only handle exceptions.
+results[].label: Result
+results[].value: 87 %
+results[].text: of invoices fully automated within 3 months
+results[].label: Result
+results[].value: 310 h
+results[].text: saved per month
+
+=== team
+kicker: Management team
+title: The people who stand behind every delivery
+people: Konstantin Borek | Fiona Oldenburg | Kushal Rao | Viktoria Schünemann | Katharina Bahlsen | Elena Manovska | Muhamet Abdullahu | Meena Dholakia
+
+=== locations
+kicker: Locations
+title: Four locations, one delivery standard
+stat: 250+
+stat_label: Employees at four locations
+locations[]: Braunschweig | Headquarter, Germany
+locations[]: Prishtina | AI-Hub
+locations[]: Bulgaria | AI-Hub
+locations[]: Vadodara | AI-Operations-Hub
+
+=== closing
+title: Let’s talk
+contacts: Konstantin Borek | Viktoria Schünemann | Elena Manovska | Max Fichtner
+tagline: From first call to an operational team in eight weeks.

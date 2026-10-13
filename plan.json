@@ -1,0 +1,309 @@
+{
+  "slides": [
+    {
+      "layout": "cover",
+      "kicker_right": "Family-owned since 1781",
+      "kicker": "Borek AI Suite · Document Automation",
+      "title": "Cut document processing time\nand errors by 80%",
+      "intro": "AI-powered capture and triage for delivery notes, invoices and customs forms – with full SAP integration and German on-site support",
+      "columns": [
+        {
+          "title": "GDPR-compliant",
+          "text": "EU hosting, ISO 27001, no model training on your data"
+        },
+        {
+          "title": "Fast pilot",
+          "text": "Fixed-price project, delivered in Q1"
+        },
+        {
+          "title": "Local partner",
+          "text": "Braunschweig HQ, German-speaking team"
+        }
+      ]
+    },
+    {
+      "layout": "who_we_are"
+    },
+    {
+      "layout": "contrast",
+      "kicker": "The challenge",
+      "title": "Manual processing blocks your operations team",
+      "lead": "15,000 documents per month, retyped by hand into SAP and Excel – every day 3 hours lost per employee",
+      "left": {
+        "label": "Today",
+        "title": "Manual bottleneck",
+        "bullets": [
+          "Delivery notes, invoices, customs forms arrive by e-mail and post",
+          "Data retyped manually into SAP – up to 3 hours per day lost",
+          "Typing errors cause costly delays and customer complaints",
+          "No integration: OCR tools exist but don't talk to SAP"
+        ]
+      },
+      "right": {
+        "label": "Tomorrow",
+        "title": "Automated flow",
+        "bullets": [
+          "AI reads and extracts data from any document format automatically",
+          "Direct SAP integration – no retyping, no Excel detours",
+          "Validation rules catch errors before they reach your system",
+          "Your team focuses on exceptions and customer service"
+        ]
+      },
+      "statement": {
+        "kicker": "Your words",
+        "text": "\"The team loses about 3 hours a day on retyping data.\""
+      },
+      "note": "Source: Sales call with Dr. Anna Keller, 1 October"
+    },
+    {
+      "layout": "matrix",
+      "kicker": "Why Borek",
+      "title": "The only partner with SAP integration and German on-site support",
+      "lead": "Standard OCR tools can read documents – but they stop there. We deliver the full chain from capture to your ERP.",
+      "columns": [
+        "Generic OCR",
+        "Cloud platforms",
+        "Offshore providers",
+        "Borek"
+      ],
+      "rows": [
+        {
+          "criterion": "SAP integration out of the box",
+          "cells": [
+            "—",
+            "—",
+            "—",
+            "✓"
+          ]
+        },
+        {
+          "criterion": "German-speaking on-site support",
+          "cells": [
+            "—",
+            "✓",
+            "—",
+            "✓"
+          ]
+        },
+        {
+          "criterion": "GDPR, ISO 27001, EU hosting",
+          "cells": [
+            "—",
+            "✓",
+            "—",
+            "✓"
+          ]
+        },
+        {
+          "criterion": "Fixed-price pilot project",
+          "cells": [
+            "—",
+            "—",
+            "✓",
+            "✓"
+          ]
+        },
+        {
+          "criterion": "No training on your data",
+          "cells": [
+            "—",
+            "—",
+            "—",
+            "✓"
+          ]
+        },
+        {
+          "criterion": "Permanent AI team available",
+          "cells": [
+            "—",
+            "—",
+            "✓",
+            "✓"
+          ]
+        }
+      ],
+      "statement": "Headquartered in Braunschweig since 1781 · 250+ employees · Four AI hubs across Europe and India"
+    },
+    {
+      "layout": "offers",
+      "kicker": "How we work with you",
+      "title": "Three ways to start – all GDPR-compliant and SAP-ready",
+      "lead": "Whether you need a quick pilot, a complete solution or ongoing AI capacity: we tailor the engagement to your timeline and budget.",
+      "cards": [
+        {
+          "kicker": "Tier 1–2",
+          "title": "Borek AI Projects",
+          "text": "Fixed scope, fixed price, delivered in weeks – ideal for your Q1 pilot",
+          "bullets": [
+            "Document capture and e-mail triage for one process",
+            "SAP integration included",
+            "3-month delivery, German project lead on site"
+          ],
+          "price": "from €20,000"
+        },
+        {
+          "kicker": "Licence + Setup",
+          "title": "Borek AI Suite",
+          "text": "Our platform for document capture, workflows and SAP connector – you operate it",
+          "bullets": [
+            "Capture, build and operate modules included",
+            "Your IT team runs the system after setup",
+            "Initial configuration and training by Borek"
+          ],
+          "price": "on request"
+        },
+        {
+          "kicker": "Monthly",
+          "title": "Borek AI Department",
+          "text": "A permanent AI team from our hubs – scales with your needs, 3 months' notice",
+          "bullets": [
+            "Developers, analysts and project manager dedicated to you",
+            "Extend automation to more processes over time",
+            "German account lead, team works from our AI hubs"
+          ],
+          "price": "from €8,600 per month"
+        }
+      ],
+      "panel": {
+        "kicker": "Our recommendation",
+        "text": "Start with a Borek AI Project (Tier 1 or 2) to automate delivery-note processing and e-mail triage in Q1. Prove ROI, then scale with the AI Suite or a permanent AI Department."
+      },
+      "note": "All prices net, excl. VAT · indicative"
+    },
+    {
+      "layout": "divider",
+      "kicker": "Section 01 · Project Approach",
+      "title": "Fixed-price pilot in three phases",
+      "text": "Delivered in Q1 – from requirements to production in 12 weeks"
+    },
+    {
+      "layout": "process",
+      "kicker": "Delivery roadmap",
+      "title": "From kickoff to go-live in one quarter",
+      "lead": "We work in sprints. You see progress every two weeks, test early and approve each milestone before we move on.",
+      "stages": [
+        {
+          "n": "01",
+          "title": "Capture & Connect",
+          "text": "We map your document types (delivery notes, invoices, customs forms), set up the AI capture engine and build the SAP connector. Your team reviews sample extractions.",
+          "result_label": "Week 4",
+          "result": "AI reads 95%+ of fields correctly, writes to SAP test system"
+        },
+        {
+          "n": "02",
+          "title": "Triage & Validate",
+          "text": "We add e-mail classification (urgent / standard / spam) and validation rules (missing data, duplicate invoices). Your operations team tests the workflow in a sandbox.",
+          "result_label": "Week 8",
+          "result": "E-mails routed automatically, exceptions flagged for review"
+        },
+        {
+          "n": "03",
+          "title": "Train & Go Live",
+          "text": "We train your team (2-day workshop in Hannover), run parallel processing for 2 weeks, then switch to production. Borek support stays on standby for 4 weeks.",
+          "result_label": "Week 12",
+          "result": "Full automation live, 3 hours per day saved per employee"
+        }
+      ],
+      "panel": {
+        "kicker": "What you get",
+        "text": "Document capture API, SAP integration module, e-mail triage rules, validation library, user documentation, 2-day on-site training, 4 weeks hypercare support."
+      },
+      "note": "Timeline assumes requirements sign-off by end of November and SAP test access in week 1"
+    },
+    {
+      "layout": "big_number",
+      "kicker": "Impact forecast",
+      "title": "Save 80% of manual processing time in the first month",
+      "lead": "Based on 15,000 documents per month and 10 FTE in operations currently spending 3 hours a day on retyping.",
+      "big": {
+        "label": "Time saved per employee",
+        "value": "2.4 h",
+        "text": "per day – from 3 hours manual work to 0.6 hours handling exceptions"
+      },
+      "bars_label": "Where the time goes today vs. after automation",
+      "bars": [
+        {
+          "title": "Manual data entry",
+          "text": "Currently ~60% of processing time – eliminated",
+          "pct": 60,
+          "value": "1.8 h"
+        },
+        {
+          "title": "Error correction & rework",
+          "text": "~20% of time fixing typos and duplicates – reduced to near zero",
+          "pct": 20,
+          "value": "0.6 h"
+        },
+        {
+          "title": "Exception handling",
+          "text": "~20% reviewing unclear documents – remains (AI flags these)",
+          "pct": 20,
+          "value": "0.6 h"
+        }
+      ],
+      "note": "EXAMPLE · ILLUSTRATIVE · Actual savings depend on document complexity and exception rate"
+    },
+    {
+      "layout": "certificates",
+      "kicker": "Compliance & security",
+      "title": "GDPR, ISO 27001 and TISAX certified – your data stays in the EU",
+      "lead": "We know logistics and automotive supply chains demand the highest security standards. Every project meets them by default.",
+      "badges": [
+        {
+          "title": "ISO 27001",
+          "text": "Information security management certified across all locations"
+        },
+        {
+          "title": "TISAX",
+          "text": "Trusted by automotive clients for supply-chain data protection"
+        },
+        {
+          "title": "GDPR",
+          "text": "EU hosting, data processing agreements, right to deletion built in"
+        },
+        {
+          "title": "No model training",
+          "text": "Your documents never train our AI – full confidentiality guaranteed"
+        }
+      ],
+      "commitments": [
+        {
+          "title": "EU-only hosting",
+          "text": "All data processed and stored in German or EU data centres"
+        },
+        {
+          "title": "On-premise option",
+          "text": "Deploy the AI Suite in your own infrastructure if required"
+        },
+        {
+          "title": "Audit trails",
+          "text": "Every document extraction logged for compliance reviews"
+        },
+        {
+          "title": "Role-based access",
+          "text": "Your IT controls who sees what – we configure, you approve"
+        },
+        {
+          "title": "NDA & DPA",
+          "text": "Standard contracts ready, tailored clauses on request"
+        },
+        {
+          "title": "Penetration tested",
+          "text": "Annual external security audits, vulnerabilities patched within SLA"
+        }
+      ]
+    },
+    {
+      "layout": "closing",
+      "title": "Let's talk",
+      "contacts": [
+        "Konstantin Borek",
+        "Fiona Oldenburg",
+        "Viktoria Schünemann"
+      ],
+      "tagline": "Let's design your Q1 pilot together – we'll have a proposal ready for your COO decision in November.",
+      "address": "Borek Solutions Group · Braunschweig, Germany",
+      "phone": "+49 531 123 456"
+    }
+  ]
+}

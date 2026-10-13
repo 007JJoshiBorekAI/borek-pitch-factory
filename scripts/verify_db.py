@@ -7,6 +7,7 @@ to the Supabase REST API (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY).
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import uuid
@@ -44,6 +45,7 @@ EXPECTED_TABLES = [
     "knowledge_model_checkpoints",
     "user_roles",
     "transcript_summaries",
+    "discovery_paper_versions",
 ]
 
 EXPECTED_COLUMNS = {
@@ -63,7 +65,21 @@ EXPECTED_COLUMNS = {
         "stage2_outputs",
         "email_drafts",
         "client_preparation_email",
+        "discovery_paper",
+        "personal_notes",
+        "personal_notes_updated_at",
+        "meeting_extraction",
+        "meeting_review",
+        "selected_use_case_ids",
+        "first_meeting_completed_at",
+        "owner_reviewed_at",
+        "owner_reviewed_presentation_version_id",
+        "finalized_at",
+        "finalization_snapshot",
         "demo_marker",
+    ),
+    "presentation_versions": (
+        "generation_source_manifest",
     ),
     "transcript_summaries": (
         "transcript_id",
@@ -75,6 +91,17 @@ EXPECTED_COLUMNS = {
         "processing_status",
         "summary_json",
     ),
+    "discovery_paper_versions": (
+        "opportunity_id",
+        "version_number",
+        "document_id",
+        "status",
+        "paper_json",
+        "created_by",
+        "created_at",
+        "updated_at",
+        "approved_at",
+    ),
     "generation_jobs": (
         "llm_cost_eur",
         "error_retryable",
@@ -82,6 +109,8 @@ EXPECTED_COLUMNS = {
         "number_of_ai_calls",
         "ai_input_tokens",
         "ai_output_tokens",
+        "generation_lock_key",
+        "generation_fingerprint",
     ),
     "llm_calls": (
         "request_id",
@@ -151,6 +180,7 @@ EXPECTED_FOREIGN_KEYS = {
     "egress_audit": "presentation_versions",
     "knowledge_model_checkpoints": "generation_jobs",
     "transcript_summaries": "transcripts",
+    "discovery_paper_versions": "opportunities",
 }
 
 EXPECTED_INDEXES = (
@@ -170,6 +200,7 @@ EXPECTED_INDEXES = (
     "framework_versions_opportunity_version_key",
     "transcript_summaries_opportunity_id_idx",
     "transcript_summaries_generation_job_id_idx",
+    "discovery_paper_versions_opportunity_version_key",
 )
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}
@@ -312,8 +343,12 @@ def verify_via_postgres(db_url: str) -> tuple[int, bool]:
                 policies = cur.fetchall()
             ok(f"{len(policies)} policies found")
             policy_tables = {row[0] for row in policies}
+            # Internal pipeline tables: RLS on, no policies by design (service role only).
+            service_only = {"knowledge_model_checkpoints", "transcript_summaries"}
             for table in EXPECTED_TABLES:
-                if table not in policy_tables:
+                if table in service_only and table not in policy_tables:
+                    ok(f"{table}: RLS on, service-role only (no policy by design)")
+                elif table not in policy_tables:
                     fail(f"{table}: no policy")
                     errors += 1
 
@@ -331,6 +366,20 @@ def verify_via_postgres(db_url: str) -> tuple[int, bool]:
                     ok("auth.uid() exists")
                 else:
                     warn("auth.uid() not found")
+                # Migration 043: email drafts are saved one journey stage at a time by this function.
+                cur.execute(
+                    """
+                    SELECT 1 FROM pg_proc p
+                    JOIN pg_namespace n ON n.oid = p.pronamespace
+                    WHERE n.nspname = %s AND p.proname = %s
+                    """,
+                    ("public", "save_email_draft"),
+                )
+                if cur.fetchone():
+                    ok("public.save_email_draft() exists")
+                else:
+                    fail("public.save_email_draft() missing (migration 043)")
+                    errors += 1
 
             print("\n7) Required columns, foreign keys, and indexes")
             with conn.cursor() as cur:
@@ -394,10 +443,17 @@ def verify_via_postgres(db_url: str) -> tuple[int, bool]:
                 cur.execute(
                     """
                     INSERT INTO opportunities (
-                      id, client_name, opportunity_name, department, created_by
-                    ) VALUES (%s, %s, %s, %s, %s)
+                      id, client_name, opportunity_name, department, created_by, pitch_owner
+                    ) VALUES (%s, %s, %s, %s, %s, %s::jsonb)
                     """,
-                    (test_id, "Verify Client", "Verify Opp", "IT", user_id),
+                    (
+                        test_id,
+                        "Verify Client",
+                        "Verify Opp",
+                        "IT",
+                        user_id,
+                        json.dumps({"source": "employee", "employee_id": str(user_id)}),
+                    ),
                 )
                 cur.execute("SELECT count(*) FROM opportunities WHERE id = %s", (test_id,))
                 if cur.fetchone()[0] == 1:
@@ -429,7 +485,8 @@ def verify_via_rest(supabase_url: str, service_role_key: str) -> int:
             response = client.get(
                 f"{supabase_url}/rest/v1/{table}",
                 headers=headers,
-                params={"select": "id", "limit": "0"},
+                # Not every table has an id column (user_roles, transcript_summaries, ...).
+                params={"select": "*", "limit": "0"},
             )
             if response.status_code in (200, 206):
                 ok(table)
@@ -449,6 +506,7 @@ def verify_via_rest(supabase_url: str, service_role_key: str) -> int:
                 "opportunity_name": "Verify Opp",
                 "department": "IT",
                 "created_by": user_id,
+                "pitch_owner": {"source": "employee", "employee_id": user_id},
             },
         )
         if insert.status_code not in (200, 201, 204):

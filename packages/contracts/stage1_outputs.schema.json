@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://borek.ai/contracts/stage1_outputs.schema.json",
   "title": "Stage1OutputsEnvelope",
-  "description": "BT-36 First contact retrieval envelope for MS-35. Research facts stay evidence-bound; PPT stays unfrozen until JJ-31.",
+  "description": "BT-36 First contact retrieval envelope for MS-35. Research facts stay evidence-bound and presentation state follows the asynchronous generation pipeline.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "opportunity_id", "status", "outputs"],
@@ -108,7 +108,7 @@
           "properties": {
             "status": {
               "type": "string",
-              "enum": ["unfrozen", "ready"]
+              "enum": ["unfrozen", "queued", "generating", "ready", "failed"]
             },
             "profile": {
               "const": "first_meeting_3"

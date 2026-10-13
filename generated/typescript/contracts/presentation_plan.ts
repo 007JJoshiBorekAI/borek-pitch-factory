@@ -25,7 +25,7 @@ export type LayoutId =
   | "OPEN_QUESTIONS_01"
   | "NEXT_STEPS_01";
 /**
- * Pointer to FrameworkObject content, e.g. opportunity, chapter_1, chapter_10.
+ * Pointer to FrameworkObject content, an approved Discovery page, a meeting-extraction section, owner notes, or a selected use case.
  */
 export type FrameworkReference = string;
 
@@ -60,7 +60,7 @@ export interface PlannedSlide {
   purpose: string;
   layoutId: LayoutId;
   /**
-   * FrameworkObject fields/chapters this slide draws from.
+   * Framework chapters or approved Discovery pages this slide draws from.
    *
    * @minItems 1
    */

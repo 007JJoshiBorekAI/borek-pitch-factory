@@ -21,3 +21,9 @@ _TEST_ENV = {
 
 for key, value in _TEST_ENV.items():
     os.environ.setdefault(key, value)
+
+# Generated decks and exports go to a temporary directory that is removed when the run ends,
+# not to tmp/deck_assets in the repository (see tests/fixtures/artifact_root.py).
+from tests.fixtures.artifact_root import use_temporary_artifact_root  # noqa: E402
+
+use_temporary_artifact_root()

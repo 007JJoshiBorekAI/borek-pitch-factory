@@ -29,7 +29,11 @@ from services.framework.company_facts import (
     ground_company_facts,
     query_text_from_opportunity,
 )
-from services.framework.stage1_intake import intake_from_opportunity, safe_intake_for_llm
+from services.framework.stage1_intake import (
+    apply_persisted_intake_to_framework,
+    intake_from_opportunity,
+    safe_intake_for_llm,
+)
 from services.framework.journey_context import build_journey_context_block
 from services.knowledge_model.extraction import PROMPT_VERSION as EXTRACTION_PROMPT_VERSION
 from services.knowledge_model.extraction import extract_knowledge_model
@@ -88,6 +92,7 @@ def generate_framework_from_transcripts(
             payload["generated_from"] = [str(source["id"]) for source in sources]
         apply_client_pack_to_framework(payload, client_pack)
         apply_company_facts_to_framework(payload, company_facts)
+        apply_persisted_intake_to_framework(payload, opportunity)
         result = attach_review_insights(
             payload,
             pii_redaction_enabled=opportunity_pii_redaction_enabled(opportunity),
@@ -191,6 +196,7 @@ def generate_framework_from_transcripts(
     payload["generated_from"] = [str(source["id"]) for source in sources]
     apply_client_pack_to_framework(payload, client_pack)
     apply_company_facts_to_framework(payload, company_facts)
+    apply_persisted_intake_to_framework(payload, opportunity)
     result = attach_review_insights(payload, pii_redaction_enabled=redact)
     return result
 

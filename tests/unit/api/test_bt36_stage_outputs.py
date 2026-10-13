@@ -48,6 +48,19 @@ def followup_statics() -> dict:
     }
 
 
+def approve_discovery_paper(client: TestClient, opportunity_id: str) -> None:
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/discovery-paper/generate",
+        headers=headers(),
+    )
+    assert generated.status_code == 200, generated.text
+    approved = client.post(
+        f"/opportunities/{opportunity_id}/discovery-paper/approve",
+        headers=headers(),
+    )
+    assert approved.status_code == 200, approved.text
+
+
 def create_opportunity(client: TestClient) -> str:
     response = client.post(
         "/opportunities",
@@ -67,7 +80,7 @@ def create_opportunity(client: TestClient) -> str:
     return response.json()["id"]
 
 
-def test_stage1_outputs_require_document_and_persist() -> None:
+def test_stage1_outputs_need_no_client_document_and_persist() -> None:
     reset_memory_store()
     client = TestClient(create_app())
     opportunity_id = create_opportunity(client)
@@ -81,14 +94,13 @@ def test_stage1_outputs_require_document_and_persist() -> None:
         f"/opportunities/{opportunity_id}/stage1-outputs/generate",
         headers=headers(),
     )
+    # The only gate is the approved Discovery Paper; no client document is uploaded at any point.
     assert blocked.status_code == 400
-    assert blocked.json()["error"]["code"] == "CLIENT_DOCUMENT_REQUIRED"
-    upload = client.post(
-        f"/opportunities/{opportunity_id}/client-documents",
-        headers=headers(),
-        files={"file": ("brief.txt", b"Client background material.", "text/plain")},
-    )
-    assert upload.status_code == 201, upload.text
+    assert blocked.json()["error"]["code"] == "DISCOVERY_PAPER_APPROVAL_REQUIRED"
+    assert get_memory_store().list_client_document_sources(
+        opportunity_id=UUID(opportunity_id), user_id=OWNER
+    ) == []
+    approve_discovery_paper(client, opportunity_id)
     generated = client.post(
         f"/opportunities/{opportunity_id}/stage1-outputs/generate",
         headers=headers(),
@@ -97,12 +109,83 @@ def test_stage1_outputs_require_document_and_persist() -> None:
     body = generated.json()
     assert body["status"] == "ready"
     assert len(body["outputs"]["discovery_questions"]) >= 10
-    assert body["outputs"]["presentation"]["code"] == "FIRST_MEETING_PPT_PROFILE_UNFROZEN"
+    presentation = body["outputs"]["presentation"]
+    assert presentation["status"] == "ready"
+    assert presentation["profile"] == "first_meeting_3"
+    assert presentation["presentation_id"]
+    assert presentation["code"] is None
+    store = get_memory_store()
+    assert len(store.presentations) == 1
+    assert len(store.presentation_versions) == 1
+    # Master Presentation: the 26 canonical slides plus the client appendix (no eight-slide cap).
+    assert len(store.slides) > 26
+    plan = next(iter(store.presentation_plans.values()))
+    assert len(plan["plan_json"]["slides"]) == len(store.slides)
+    assert len(plan["plan_json"]["slides"]) > 26
+    version = next(iter(store.presentation_versions.values()))
+    assert version["journey_stage"] == "first_contact"
+    assert version["pptx_storage_path"]
+    assert version["pdf_storage_path"]
+    assert len(version["preview_image_paths"]) == len(store.slides)
+    filed_kinds = {artifact.get("artifact_kind") for artifact in store.filed_artifacts.values()}
+    assert {"pptx", "pdf"}.issubset(filed_kinds)
+    assert any(
+        artifact.get("presentation_id") == presentation["presentation_id"]
+        and artifact.get("journey_stage") == "first_contact"
+        for artifact in store.filed_artifacts.values()
+    )
+    repeated = client.post(
+        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        headers=headers(),
+    )
+    assert repeated.status_code == 200, repeated.text
+    assert repeated.json()["outputs"]["presentation"]["presentation_id"] == presentation["presentation_id"]
+    assert len(store.presentations) == 1
+    assert len(store.presentation_versions) == 1
     stored = client.get(
         f"/opportunities/{opportunity_id}/stage1-outputs",
         headers=headers(),
     ).json()
     assert stored["status"] == "ready"
+
+
+def test_stage1_presentation_failure_is_persisted_and_retryable(monkeypatch) -> None:
+    reset_memory_store()
+    client = TestClient(create_app())
+    opportunity_id = create_opportunity(client)
+    upload = client.post(
+        f"/opportunities/{opportunity_id}/client-documents",
+        headers=headers(),
+        files={"file": ("brief.txt", b"Client background material.", "text/plain")},
+    )
+    assert upload.status_code == 201, upload.text
+    approve_discovery_paper(client, opportunity_id)
+
+    from app.services import presentation_generation
+
+    original = presentation_generation.execute_presentation_generation
+
+    def fail_generation(*_args, **_kwargs):
+        raise RuntimeError("renderer unavailable")
+
+    monkeypatch.setattr(presentation_generation, "execute_presentation_generation", fail_generation)
+    failed = client.post(
+        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        headers=headers(),
+    )
+    assert failed.status_code == 200, failed.text
+    failed_presentation = failed.json()["outputs"]["presentation"]
+    assert failed_presentation["status"] == "failed"
+    assert failed_presentation["presentation_id"]
+    assert failed_presentation["code"] == "PRESENTATION_GENERATION_FAILED"
+
+    monkeypatch.setattr(presentation_generation, "execute_presentation_generation", original)
+    retried = client.post(
+        f"/opportunities/{opportunity_id}/stage1-outputs/generate",
+        headers=headers(),
+    )
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["outputs"]["presentation"]["status"] == "ready"
 
 
 def test_meeting_feedback_and_stage2_outputs() -> None:
@@ -215,6 +298,7 @@ def test_client_preparation_email_after_brief() -> None:
         files={"file": ("brief.txt", b"Client background material.", "text/plain")},
     )
     assert upload.status_code == 201, upload.text
+    approve_discovery_paper(client, opportunity_id)
     stage1 = client.post(
         f"/opportunities/{opportunity_id}/stage1-outputs/generate",
         headers=headers(),
@@ -291,6 +375,7 @@ def test_stage1_outputs_unlock_deepening_without_first_contact_deck() -> None:
         headers=headers(),
         files={"file": ("brief.txt", b"Client background material.", "text/plain")},
     )
+    approve_discovery_paper(client, opportunity_id)
     generated = client.post(
         f"/opportunities/{opportunity_id}/stage1-outputs/generate",
         headers=headers(),

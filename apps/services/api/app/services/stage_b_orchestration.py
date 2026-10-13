@@ -192,6 +192,12 @@ def build_slide_spec_for_planned_slide(
 
     Layouts without an owner generator fail here if invoked directly.
     """
+    if planned.get("borekSlide") is not None:
+        # Borek-engine plan (PPT #1 / PPT #2): the slide was finished when the plan was
+        # written; there is no per-layout generator to run.
+        from services.presentation.borek_deck.deck_plan import borek_slide_spec
+
+        return borek_slide_spec(planned)
     order = int(planned["order"])
     layout_id = str(planned["layoutId"])
     generate_fn = (

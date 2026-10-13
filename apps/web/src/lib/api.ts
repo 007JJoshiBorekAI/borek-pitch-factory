@@ -1,35 +1,9 @@
-const DEFAULT_API_URL = "http://localhost:8000";
-
-import { buildArchiveListPath } from "./archiveHistory";
-import { formatJobFailureMessage } from "./jobErrors";
+import type { EmployeeMe } from "./employeeRoles";
 import { getSupabaseBrowserClient } from "./supabase";
-import type { FrameworkObject, FrameworkVersionResponse } from "./frameworkTypes";
-import type { FrameworkReviewPayload } from "./frameworkReview";
-import type {
-  PresentationPlanGenerateResponse,
-  PresentationPlanResponse,
-} from "./planTypes";
-import type {
-  DeckCenterResponse,
-  PresentationGenerateResponse,
-  PresentationResponse,
-} from "./deckTypes";
-import type { FollowupProjectStatics } from "./followupReview";
-import type {
-  ActivityLogEntry,
-  EmployeeMe,
-  EmployeeRole,
-  EmployeeRoleRow,
-} from "./employeeRoles";
-import type {
-  EmailDraftConfirmRequest,
-  EmailDraftEnvelope,
-  EmailDraftGenerateRequest,
-  MeetingFeedbackResponse,
-  MeetingFeedbackUpdateRequest,
-  Stage1OutputsEnvelope,
-  Stage2OutputsEnvelope,
-} from "./journeyOutputsContracts";
+import { getAuthOwnerId } from "./authSession";
+import { BACKEND_UUID, backendOpportunityMapKey, readBackendOpportunityMap as readScopedBackendMap } from "./backendOpportunityMap";
+
+const DEFAULT_API_URL = "http://localhost:8000";
 
 export function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || DEFAULT_API_URL;
@@ -37,13 +11,8 @@ export function getApiBaseUrl(): string {
 
 async function resolveAccessToken(fallback: string): Promise<string> {
   const client = getSupabaseBrowserClient();
-  if (client) {
-    const { data } = await client.auth.getSession();
-    if (data.session?.access_token) {
-      return data.session.access_token;
-    }
-  }
-  return fallback;
+  const session = client ? (await client.auth.getSession()).data.session : null;
+  return session?.access_token ?? fallback;
 }
 
 export interface ApiErrorBody {
@@ -93,8 +62,6 @@ export interface JobResponse {
   completed_at: string | null;
   result: Record<string, unknown>;
   error: JobErrorDetail | null;
-  /** Telemetry (tokens, cost, durations) — never rendered as generation progress. */
-  metrics?: Record<string, unknown>;
 }
 
 export interface ActiveJobResponse {
@@ -106,17 +73,21 @@ export interface ActiveJobResponse {
   error: JobErrorDetail | null;
 }
 
+export interface JobEnqueueResponse {
+  job_id: string;
+  status: string;
+  is_existing_job?: boolean;
+}
+
 async function parseError(response: Response): Promise<ApiRequestError> {
   let message = `Request failed (${response.status})`;
   let code: string | undefined;
   try {
     const body = (await response.json()) as ApiErrorBody;
-    if (body.error?.message) {
-      message = body.error.message;
-    }
+    if (body.error?.message) message = body.error.message;
     code = body.error?.code;
   } catch {
-    // Response body is not JSON — keep default message.
+    // Keep the status message when the body is not JSON.
   }
   return new ApiRequestError(message, response.status, code);
 }
@@ -126,51 +97,31 @@ export async function apiFetch<T>(
   accessToken: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const token = await resolveAccessToken(accessToken);
   const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${token}`);
+  headers.set("Authorization", `Bearer ${await resolveAccessToken(accessToken)}`);
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers,
-  });
-
-  if (!response.ok) {
-    throw await parseError(response);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
+  const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, headers });
+  if (!response.ok) throw await parseError(response);
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
-export async function getJob(
+export async function apiFetchBlob(
+  path: string,
   accessToken: string,
-  jobId: string,
-): Promise<JobResponse> {
+  init: RequestInit = {},
+): Promise<Blob> {
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${await resolveAccessToken(accessToken)}`);
+  const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, headers });
+  if (!response.ok) throw await parseError(response);
+  return response.blob();
+}
+
+export async function getJob(accessToken: string, jobId: string): Promise<JobResponse> {
   return apiFetch<JobResponse>(`/jobs/${jobId}`, accessToken);
-}
-
-export async function retryJob(
-  accessToken: string,
-  jobId: string,
-  fromStage?: string,
-): Promise<JobEnqueueResponse> {
-  const query = fromStage ? `?from_stage=${fromStage}` : "";
-  return apiFetch<JobEnqueueResponse>(`/jobs/${jobId}/retry${query}`, accessToken, {
-    method: "POST",
-  });
-}
-
-export interface JobEnqueueResponse {
-  job_id: string;
-  status: string;
-  is_existing_job?: boolean;
 }
 
 export async function getActiveJob(
@@ -181,37 +132,24 @@ export async function getActiveJob(
   const query = stageGroup ? `?stage_group=${stageGroup}` : "";
   try {
     return await apiFetch<ActiveJobResponse>(
-      `/opportunities/${opportunityId}/jobs/active${query}`,
+      `/opportunities/${resolveBackendOpportunityId(opportunityId)}/jobs/active${query}`,
       accessToken,
     );
   } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 404) {
-      return null;
-    }
+    if (error instanceof ApiRequestError && error.status === 404) return null;
     throw error;
   }
 }
 
-export async function getLatestOpportunityJob(
-  accessToken: string,
-  opportunityId: string,
-): Promise<JobResponse | null> {
-  return apiFetch<JobResponse | null>(
-    `/opportunities/${opportunityId}/jobs/latest`,
-    accessToken,
-  );
-}
-
-/** Maximum client-side wait for long-running generation jobs (12 minutes). */
-export const FRAMEWORK_JOB_TIMEOUT_MS = 720_000;
-
 export const JOB_POLL_INTERVAL_MS = 500;
+export const JOB_TIMEOUT_MS = 720_000;
 
 export interface WaitForJobOptions {
   timeoutMs?: number;
   pollIntervalMs?: number;
-  /** Called with every polled job, including intermediate stage updates. */
   onProgress?: (job: JobResponse) => void;
+  /** Stops polling when the page that follows the job goes away. */
+  signal?: AbortSignal;
 }
 
 export async function waitForJob(
@@ -219,647 +157,333 @@ export async function waitForJob(
   jobId: string,
   options: number | WaitForJobOptions = {},
 ): Promise<JobResponse> {
-  const { timeoutMs = FRAMEWORK_JOB_TIMEOUT_MS, pollIntervalMs = JOB_POLL_INTERVAL_MS, onProgress } =
-    typeof options === "number" ? { timeoutMs: options } : options;
+  const { timeoutMs = JOB_TIMEOUT_MS, pollIntervalMs = JOB_POLL_INTERVAL_MS, onProgress, signal } =
+    typeof options === "number" ? { timeoutMs: options, signal: undefined } : options;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    signal?.throwIfAborted();
     const job = await getJob(accessToken, jobId);
+    signal?.throwIfAborted();
     onProgress?.(job);
-    if (job.status === "COMPLETED") {
-      return job;
-    }
+    if (job.status === "COMPLETED") return job;
     if (job.status === "FAILED") {
-      throw new ApiRequestError(
-        formatJobFailureMessage(job.error),
-        422,
-        job.error?.code,
-        {
-          retryable: Boolean(job.error?.retryable),
-          jobId: job.job_id,
-          stage: job.error?.stage,
-        },
-      );
+      throw new ApiRequestError(job.error?.message || "Generation failed.", 422, job.error?.code, {
+        retryable: Boolean(job.error?.retryable),
+        jobId: job.job_id,
+        stage: job.error?.stage,
+      });
     }
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
-  // A client-side timeout says nothing about the backend job, which keeps running.
   throw new ApiRequestError("Generation job timed out", 408, "JOB_TIMEOUT", { jobId });
 }
 
-export async function apiFetchBlob(
-  path: string,
-  accessToken: string,
-  init: RequestInit = {},
-): Promise<Blob> {
-  const token = await resolveAccessToken(accessToken);
-  const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers,
-  });
-
-  if (!response.ok) {
-    throw await parseError(response);
-  }
-
-  return response.blob();
-}
-
-export interface Stage1Intake {
-  client_web_page?: string | null;
-  poc_name?: string | null;
-  poc_position?: string | null;
-  sales_topic_description?: string | null;
-  about_company?: string | null;
-}
-
-export interface Stage1VoiceResponse {
-  status: "not_provided" | "transcribed";
-  transcript: string | null;
-}
-
-export interface OpportunityCreatePayload {
-  client_name: string;
-  opportunity_name: string;
-  department: string;
-  language: string;
-  pii_redaction_enabled?: boolean;
-  pitch_description?: string;
-  team_members_text?: string;
-  additional_client_information?: AdditionalClientInformation;
-  followup_statics?: FollowupProjectStatics;
-  stage1_intake?: Stage1Intake | null;
-}
-
-export interface ClientContact {
-  name: string;
-  role?: string | null;
-  email?: string | null;
-  phone?: string | null;
-}
-
-export interface AdditionalClientInformation {
-  location_requirements: string[];
-  constraints: string[];
-  contacts: ClientContact[];
-  priorities: string[];
-  notes?: string | null;
-}
-
-export interface ClientLogoMetadata {
-  id: string;
-  opportunity_id: string;
-  file_name: string;
-  mime_type: string;
-  size_bytes: number;
-  width_px: number | null;
-  height_px: number | null;
-  demo_marker?: string | null;
-  uploaded_at: string;
-}
-
-export interface OpportunityResponse {
-  id: string;
-  client_name: string;
-  opportunity_name: string;
-  department: string;
-  language: string;
+export interface Stage1PresentationRef {
   status: string;
-  pii_redaction_enabled?: boolean;
-  additional_client_information?: AdditionalClientInformation | null;
-  followup_statics?: FollowupProjectStatics | null;
-  stage1_intake?: Stage1Intake | null;
-  demo_marker?: string | null;
+  presentation_id: string | null;
+  code?: string | null;
 }
 
-export interface ListedOpportunityResponse extends OpportunityResponse {
-  pii_redaction_enabled: boolean;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
+export interface Stage1OutputsEnvelope {
+  outputs?: {
+    presentation?: Stage1PresentationRef;
+  };
 }
 
-export interface TranscriptResponse {
-  id: string;
-  file_name: string;
-  processing_status: string;
-  created_at: string;
-}
-
-export interface TranscriptUploadResponse {
-  transcript: TranscriptResponse;
-  processing_status: string;
-}
-
-export interface OpportunityUpdatePayload {
-  additional_client_information?: AdditionalClientInformation | null;
-  followup_statics?: FollowupProjectStatics | null;
-  stage1_intake?: Stage1Intake | null;
-}
-
-export async function createOpportunity(
-  accessToken: string,
-  payload: OpportunityCreatePayload,
-): Promise<OpportunityResponse> {
-  return apiFetch<OpportunityResponse>("/opportunities", accessToken, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function updateOpportunity(
-  accessToken: string,
-  opportunityId: string,
-  payload: OpportunityUpdatePayload,
-): Promise<OpportunityResponse> {
-  return apiFetch<OpportunityResponse>(`/opportunities/${opportunityId}`, accessToken, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function getOpportunity(
-  accessToken: string,
-  opportunityId: string,
-): Promise<OpportunityResponse> {
-  return apiFetch<OpportunityResponse>(`/opportunities/${opportunityId}`, accessToken);
-}
-
-export async function generateStage1Research(
-  accessToken: string,
-  opportunityId: string,
-): Promise<import("./stage1Contracts").Stage1Research> {
-  return apiFetch<import("./stage1Contracts").Stage1Research>(
-    `/opportunities/${opportunityId}/stage1-research`,
-    accessToken,
-    { method: "POST" },
-  );
-}
-
-export async function uploadClientLogo(
-  accessToken: string,
-  opportunityId: string,
-  file: File,
-): Promise<ClientLogoMetadata> {
-  const formData = new FormData();
-  formData.append("file", file, file.name);
-  return apiFetch<ClientLogoMetadata>(
-    `/opportunities/${opportunityId}/client-logo`,
-    accessToken,
-    { method: "PUT", body: formData },
-  );
-}
-
-export async function uploadStage1Voice(
-  accessToken: string,
-  opportunityId: string,
-  file: File,
-): Promise<Stage1VoiceResponse> {
-  const formData = new FormData();
-  formData.append("file", file, file.name);
-  return apiFetch<Stage1VoiceResponse>(
-    `/opportunities/${opportunityId}/stage1-voice`,
-    accessToken,
-    { method: "POST", body: formData },
-  );
-}
-
-export interface ClientDocument {
-  id: string;
-  opportunity_id: string;
-  file_name: string;
-  mime_type: string;
-  document_key: string;
-  processing_status: string;
-  section_count: number;
-  created_at: string;
-}
-
-export interface ClientDocumentUploadResponse {
-  document: ClientDocument;
-  processing_status: string;
-}
-
-export async function uploadClientDocument(
-  accessToken: string,
-  opportunityId: string,
-  file: File,
-): Promise<ClientDocumentUploadResponse> {
-  const formData = new FormData();
-  formData.append("file", file, file.name);
-  return apiFetch<ClientDocumentUploadResponse>(
-    `/opportunities/${opportunityId}/client-documents`,
-    accessToken,
-    { method: "POST", body: formData },
-  );
-}
-
-export async function listClientDocuments(
-  accessToken: string,
-  opportunityId: string,
-): Promise<ClientDocument[]> {
-  return apiFetch<ClientDocument[]>(
-    `/opportunities/${opportunityId}/client-documents`,
-    accessToken,
-  );
-}
-
-export async function getClientDocument(
-  accessToken: string,
-  opportunityId: string,
-  documentId: string,
-): Promise<ClientDocument> {
-  return apiFetch<ClientDocument>(
-    `/opportunities/${opportunityId}/client-documents/${documentId}`,
-    accessToken,
-  );
-}
-
-export async function deleteClientDocument(
-  accessToken: string,
-  opportunityId: string,
-  documentId: string,
-): Promise<void> {
-  await apiFetch<void>(
-    `/opportunities/${opportunityId}/client-documents/${documentId}`,
-    accessToken,
-    { method: "DELETE" },
-  );
-}
-
-export async function getClientLogoMetadata(
-  accessToken: string,
-  opportunityId: string,
-): Promise<ClientLogoMetadata> {
-  return apiFetch<ClientLogoMetadata>(
-    `/opportunities/${opportunityId}/client-logo`,
-    accessToken,
-  );
-}
-
-export async function fetchClientLogoContent(
-  accessToken: string,
-  opportunityId: string,
-): Promise<Blob> {
-  return apiFetchBlob(
-    `/opportunities/${opportunityId}/client-logo/content`,
-    accessToken,
-  );
-}
-
-export async function deleteClientLogo(
-  accessToken: string,
-  opportunityId: string,
-): Promise<void> {
-  return apiFetch<void>(`/opportunities/${opportunityId}/client-logo`, accessToken, {
-    method: "DELETE",
-  });
-}
-
-export async function listOpportunities(
-  accessToken: string,
-): Promise<ListedOpportunityResponse[]> {
-  return apiFetch<ListedOpportunityResponse[]>("/opportunities", accessToken);
-}
-
-export interface RecentWorkApiSnapshot {
-  opportunity: ListedOpportunityResponse;
-  transcript_count: number;
-  framework_status?: string | null;
-  has_plan: boolean;
-  presentation_id?: string | null;
-  presentation_name?: string | null;
-  deck?: { pptx_download_url: string } | null;
-  resource_load_failed?: boolean;
-  activity_at?: string | null;
-  job?: {
-    job_type: string;
-    status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
-    current_stage: string;
-    auto_continue?: boolean;
-  } | null;
-}
-
-export async function listRecentWork(
-  accessToken: string,
-): Promise<RecentWorkApiSnapshot[]> {
-  return apiFetch<RecentWorkApiSnapshot[]>("/opportunities/recent-work", accessToken);
-}
-
-export interface ArchiveArtifactResponse {
-  id: string;
-  opportunity_id: string;
+export interface WorkflowDeckLine {
   presentation_id: string;
-  presentation_version_id: string;
-  artifact_kind: string;
-  content_type: string;
-  file_name: string;
-  size_bytes: number;
-  sha256: string;
+  latest_ready_version_id: string | null;
+  journey_stage: string;
   status: string;
-  client_name: string;
-  opportunity_name: string;
-  approved_by: string;
-  approved_at: string;
-  filed_at: string | null;
-  journey_stage: string | null;
-  prior_stage_presentation_version_id: string | null;
-  demo_marker: string | null;
-  download_url: string | null;
+  /** Set for a Master Presentation: "V1" (pre-meeting) or "V2" (post-meeting), versions of one presentation. */
+  product_version?: "V1" | "V2";
 }
 
-export interface ArchiveListQuery {
-  search?: string;
-  fromDate?: string;
-  toDate?: string;
+export interface WorkflowStatusResponse {
+  current_status?: string;
+  documents?: {
+    ppt1: WorkflowDeckLine | null;
+    ppt2: WorkflowDeckLine | null;
+  };
 }
 
-export async function listArchiveArtifacts(
-  accessToken: string,
-  query: ArchiveListQuery = {},
-): Promise<ArchiveArtifactResponse[]> {
-  return apiFetch<ArchiveArtifactResponse[]>(buildArchiveListPath(query), accessToken);
+export interface Ppt2GenerateResponse {
+  job_id: string;
+  status: string;
+  presentation_id: string;
+  presentation_version_id: string | null;
+  journey_stage: "post_meeting";
+  is_existing_job?: boolean;
 }
 
-export async function listTranscripts(
+export interface TranscriptUploadResult {
+  transcript: { id: string };
+}
+
+export interface AvailableUseCase {
+  fact_id: string;
+  statement: string | null;
+}
+
+function opportunityPath(opportunityId: string): string {
+  return `/opportunities/${resolveBackendOpportunityId(opportunityId)}`;
+}
+
+export interface PreviewClientSeed {
+  company_name: string;
+  contact_person?: string;
+  website_url?: string;
+  meeting_purpose?: string;
+  additional_information?: string;
+}
+
+const UUID_RE = BACKEND_UUID;
+
+function readBackendOpportunityMap(): Record<string, string> {
+  const owner = getAuthOwnerId();
+  if (typeof window === "undefined" || !owner) return {};
+  try {
+    return readScopedBackendMap(window.localStorage, owner, getApiBaseUrl());
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The web app creates local preview opportunities with ids like "opp-acme-1a2b3c4d".
+ * The API only knows UUID opportunities, so create the backend row once and remember it.
+ */
+export async function ensureBackendOpportunityId(
   accessToken: string,
   opportunityId: string,
-): Promise<TranscriptResponse[]> {
-  return apiFetch<TranscriptResponse[]>(
-    `/opportunities/${opportunityId}/transcripts`,
-    accessToken,
-  );
+  seed?: PreviewClientSeed | null,
+): Promise<string> {
+  if (UUID_RE.test(opportunityId)) return opportunityId;
+  const owner = getAuthOwnerId();
+  if (!owner) throw new ApiRequestError("Sign in before synchronizing this opportunity.", 401, "AUTH_OWNER_REQUIRED");
+  const map = readBackendOpportunityMap();
+  if (map[opportunityId]) return map[opportunityId];
+  // The company name is optional; only a missing record (nothing to send at all) blocks the sync.
+  if (!seed) {
+    throw new ApiRequestError(
+      "This opportunity exists only in the local preview and has no client information to send to the API.",
+      422,
+      "PREVIEW_OPPORTUNITY_NOT_SYNCED",
+    );
+  }
+  const website = (seed.website_url ?? "").trim();
+  const validWebsite = /^https?:\/\//i.test(website) ? website : null;
+  const created = await apiFetch<{ id: string }>("/opportunities", accessToken, {
+    method: "POST",
+    body: JSON.stringify({
+      client_name: seed.company_name,
+      opportunity_name: seed.meeting_purpose?.trim() || seed.company_name,
+      department: "Sales",
+      stage1_intake: {
+        client_web_page: validWebsite,
+        poc_name: seed.contact_person?.trim() || null,
+        sales_topic_description: seed.meeting_purpose?.trim() || null,
+        about_company: seed.additional_information?.trim() || null,
+      },
+    }),
+  });
+  if (!UUID_RE.test(created.id)) throw new ApiRequestError("The API returned an invalid opportunity ID.", 502);
+  if (owner !== getAuthOwnerId()) throw new ApiRequestError("The signed-in owner changed during synchronization.", 401);
+  map[opportunityId] = created.id;
+  window.localStorage.setItem(backendOpportunityMapKey(owner, getApiBaseUrl()), JSON.stringify(map));
+  return created.id;
+}
+
+/** The local preview id this browser created for a backend opportunity, if it created it. */
+export function previewAliasForBackendId(backendId: string): string | null {
+  const entry = Object.entries(readBackendOpportunityMap()).find(([, value]) => value === backendId);
+  return entry ? entry[0] : null;
+}
+
+/**
+ * The path with the backend opportunity id in it, or null when it already has one (or the
+ * opportunity does not exist on the server yet). A path with a local preview id only works in the
+ * browser that created it; the backend id works for every signed-in user who may open it.
+ */
+export function canonicalOpportunityPath(pathname: string, opportunityId: string): string | null {
+  if (UUID_RE.test(opportunityId)) return null;
+  const backendId = resolveBackendOpportunityId(opportunityId);
+  const prefix = `/opportunities/${opportunityId}`;
+  if (!UUID_RE.test(backendId) || !(pathname === prefix || pathname.startsWith(`${prefix}/`))) return null;
+  return `/opportunities/${backendId}${pathname.slice(prefix.length)}`;
+}
+
+/** Map a local preview id to its backend UUID (created during Discovery generation). */
+export function resolveBackendOpportunityId(opportunityId: string): string {
+  if (UUID_RE.test(opportunityId)) return opportunityId;
+  return readBackendOpportunityMap()[opportunityId] ?? opportunityId;
+}
+
+export async function generateDiscoveryPaper(
+  accessToken: string,
+  opportunityId: string,
+  seed?: PreviewClientSeed | null,
+): Promise<Record<string, unknown>> {
+  const backendId = await ensureBackendOpportunityId(accessToken, opportunityId, seed);
+  return apiFetch(`${opportunityPath(backendId)}/discovery-paper/generate`, accessToken, {
+    method: "POST",
+  });
+}
+
+export async function approveDiscoveryPaper(
+  accessToken: string,
+  opportunityId: string,
+  seed?: PreviewClientSeed | null,
+): Promise<Record<string, unknown>> {
+  const backendId = await ensureBackendOpportunityId(accessToken, opportunityId, seed);
+  return apiFetch(`${opportunityPath(backendId)}/discovery-paper/approve`, accessToken, {
+    method: "POST",
+  });
+}
+
+export async function getStage1Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch(`${opportunityPath(opportunityId)}/stage1-outputs`, accessToken);
+}
+
+/** Explicitly build a new presentation version from the latest approved Discovery. */
+export async function regenerateStage1Presentation(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch(`${opportunityPath(opportunityId)}/stage1-outputs/presentation/regenerate`, accessToken, {
+    method: "POST",
+  });
+}
+
+export async function generateStage1Outputs(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Stage1OutputsEnvelope> {
+  return apiFetch(`${opportunityPath(opportunityId)}/stage1-outputs/generate`, accessToken, {
+    method: "POST",
+  });
+}
+
+export async function getWorkflowStatus(
+  accessToken: string,
+  opportunityId: string,
+): Promise<WorkflowStatusResponse> {
+  return apiFetch(`${opportunityPath(opportunityId)}/workflow-status`, accessToken);
+}
+
+export async function markFirstMeetingCompleted(
+  accessToken: string,
+  opportunityId: string,
+): Promise<WorkflowStatusResponse> {
+  return apiFetch(`${opportunityPath(opportunityId)}/workflow/first-meeting-completed`, accessToken, {
+    method: "POST",
+  });
 }
 
 export async function uploadTranscript(
   accessToken: string,
   opportunityId: string,
   file: File,
-): Promise<TranscriptUploadResponse> {
-  const formData = new FormData();
-  formData.append("file", file, file.name);
-  return apiFetch<TranscriptUploadResponse>(
-    `/opportunities/${opportunityId}/transcripts`,
-    accessToken,
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
+): Promise<TranscriptUploadResult> {
+  const body = new FormData();
+  body.set("file", file);
+  return apiFetch(`${opportunityPath(opportunityId)}/transcripts`, accessToken, {
+    method: "POST",
+    body,
+  });
 }
 
-export interface FrameworkGenerateResponse {
-  job_id: string;
-  status: string;
-  framework_version_id: string | null;
-  is_existing_job?: boolean;
-}
-
-export type { FrameworkVersionResponse };
-
-export async function getLatestFramework(
+export async function savePersonalNotes(
   accessToken: string,
   opportunityId: string,
-): Promise<FrameworkVersionResponse> {
-  return apiFetch<FrameworkVersionResponse>(
-    `/opportunities/${opportunityId}/framework`,
-    accessToken,
-  );
+  text: string,
+): Promise<{ text: string | null }> {
+  return apiFetch(`${opportunityPath(opportunityId)}/personal-notes`, accessToken, {
+    method: "PUT",
+    body: JSON.stringify({ text }),
+  });
 }
 
-export async function getFrameworkReview(
+export async function generateMeetingExtraction(
   accessToken: string,
   opportunityId: string,
-): Promise<FrameworkReviewPayload> {
-  return apiFetch<FrameworkReviewPayload>(
-    `/opportunities/${opportunityId}/framework/review`,
-    accessToken,
-  );
+  transcriptId: string,
+): Promise<Record<string, unknown>> {
+  return apiFetch(`${opportunityPath(opportunityId)}/meeting-extraction/generate`, accessToken, {
+    method: "POST",
+    body: JSON.stringify({ transcript_id: transcriptId }),
+  });
 }
 
-export async function generateFramework(
+export async function listAvailableUseCases(
   accessToken: string,
   opportunityId: string,
-): Promise<FrameworkGenerateResponse> {
-  return apiFetch<FrameworkGenerateResponse>(
-    `/opportunities/${opportunityId}/framework/generate`,
+): Promise<{ use_cases: AvailableUseCase[] }> {
+  return apiFetch(`${opportunityPath(opportunityId)}/available-use-cases`, accessToken);
+}
+
+export async function saveSelectedUseCases(
+  accessToken: string,
+  opportunityId: string,
+  useCaseIds: string[],
+): Promise<Record<string, unknown>> {
+  return apiFetch(`${opportunityPath(opportunityId)}/selected-use-cases`, accessToken, {
+    method: "PUT",
+    body: JSON.stringify({ use_case_ids: useCaseIds }),
+  });
+}
+
+export async function generatePpt2(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Ppt2GenerateResponse> {
+  return apiFetch(`${opportunityPath(opportunityId)}/ppt2/generate`, accessToken, { method: "POST" });
+}
+
+export async function regeneratePpt2(
+  accessToken: string,
+  opportunityId: string,
+  presentationId: string,
+): Promise<Ppt2GenerateResponse> {
+  return apiFetch(
+    `${opportunityPath(opportunityId)}/ppt2/${presentationId}/regenerate`,
     accessToken,
     { method: "POST" },
   );
 }
 
-export interface FrameworkJobEnqueueResponse {
-  job_id: string;
-  status: string;
-  is_existing_job?: boolean;
-}
-
-export async function regenerateFrameworkChapter(
+export async function markOwnerReviewed(
   accessToken: string,
   opportunityId: string,
-  chapterId: string,
-): Promise<FrameworkJobEnqueueResponse> {
-  return apiFetch<FrameworkJobEnqueueResponse>(
-    `/opportunities/${opportunityId}/framework/regenerate-chapter`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify({ chapter_id: chapterId }),
-    },
-  );
+): Promise<WorkflowStatusResponse> {
+  return apiFetch(`${opportunityPath(opportunityId)}/workflow/owner-reviewed`, accessToken, {
+    method: "POST",
+  });
 }
 
-export async function updateFramework(
+export async function finalizeWorkflow(
   accessToken: string,
   opportunityId: string,
-  frameworkJson: FrameworkObject,
-): Promise<FrameworkVersionResponse> {
-  return apiFetch<FrameworkVersionResponse>(
-    `/opportunities/${opportunityId}/framework`,
-    accessToken,
-    {
-      method: "PATCH",
-      body: JSON.stringify({ framework_json: frameworkJson }),
-    },
-  );
+): Promise<WorkflowStatusResponse> {
+  return apiFetch(`${opportunityPath(opportunityId)}/workflow/finalize`, accessToken, {
+    method: "POST",
+  });
 }
 
-export async function reopenFrameworkForCorrection(
+export type OwnerEmailStage = "first_contact" | "deepening";
+
+export async function generateEmailDraft(
   accessToken: string,
   opportunityId: string,
-): Promise<FrameworkVersionResponse> {
-  return apiFetch<FrameworkVersionResponse>(
-    `/opportunities/${opportunityId}/framework/reopen-for-correction`,
-    accessToken,
-    { method: "POST" },
-  );
-}
-
-export async function confirmFramework(
-  accessToken: string,
-  opportunityId: string,
-  frameworkVersionId?: string,
-): Promise<FrameworkVersionResponse> {
-  return apiFetch<FrameworkVersionResponse>(
-    `/opportunities/${opportunityId}/framework/confirm`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify(
-        frameworkVersionId ? { framework_version_id: frameworkVersionId } : {},
-      ),
-    },
-  );
-}
-
-export type { PresentationPlanResponse, PresentationPlanGenerateResponse };
-
-export async function getLatestPresentationPlan(
-  accessToken: string,
-  opportunityId: string,
-): Promise<PresentationPlanResponse> {
-  return apiFetch<PresentationPlanResponse>(
-    `/opportunities/${opportunityId}/presentation-plan`,
-    accessToken,
-  );
-}
-
-export type JourneyStageName = "first_contact" | "deepening" | "concretisation";
-
-export interface JourneyStageEligibilityItem {
-  journey_stage: JourneyStageName;
-  startable: boolean;
-  prerequisite_stage: "first_contact" | "deepening" | null;
-  prior_stage_presentation_version_id: string | null;
-  reason:
-    | "NO_COMPLETED_PREREQUISITE"
-    | "PREREQUISITE_INCOMPLETE"
-    | "PREREQUISITE_SUPERSEDED"
-    | "PRIOR_FRAMEWORK_UNAVAILABLE"
-    | "JOURNEY_STAGE_UNKNOWN"
-    | null;
-  next_action:
-    | "complete_first_contact"
-    | "complete_deepening"
-    | "regenerate_prior_stage"
-    | "select_journey_stage"
-    | null;
-}
-
-export interface JourneyStageEligibilityResponse {
-  schema_version: "1.0";
-  opportunity_id: string;
-  requested_journey_stage: JourneyStageName | null;
-  startable: boolean;
-  prerequisite_stage: "first_contact" | "deepening" | null;
-  prior_stage_presentation_version_id: string | null;
-  reason: JourneyStageEligibilityItem["reason"];
-  next_action: JourneyStageEligibilityItem["next_action"];
-  stages: JourneyStageEligibilityItem[];
-}
-
-export async function getJourneyStageEligibility(
-  accessToken: string,
-  opportunityId: string,
-  journeyStage?: JourneyStageName,
-): Promise<JourneyStageEligibilityResponse> {
-  const query = journeyStage ? `?journey_stage=${encodeURIComponent(journeyStage)}` : "";
-  return apiFetch<JourneyStageEligibilityResponse>(
-    `/opportunities/${opportunityId}/journey-stage-eligibility${query}`,
-    accessToken,
-  );
-}
-
-export async function generatePresentationPlan(
-  accessToken: string,
-  opportunityId: string,
-  frameworkVersionId?: string,
-  autoContinue = false,
-  journeyStage?: JourneyStageName,
-): Promise<PresentationPlanGenerateResponse> {
-  return apiFetch<PresentationPlanGenerateResponse>(
-    `/opportunities/${opportunityId}/presentation-plan/generate`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        ...(frameworkVersionId ? { framework_version_id: frameworkVersionId } : {}),
-        ...(autoContinue ? { auto_continue: true } : {}),
-        ...(journeyStage ? { journey_stage: journeyStage } : {}),
-      }),
-    },
-  );
-}
-
-export type {
-  DeckCenterResponse,
-  PresentationGenerateResponse,
-  PresentationResponse,
-};
-
-export async function getLatestPresentation(
-  accessToken: string,
-  opportunityId: string,
-): Promise<PresentationResponse> {
-  return apiFetch<PresentationResponse>(
-    `/opportunities/${opportunityId}/presentation`,
-    accessToken,
-  );
-}
-
-export async function getPresentationPlan(
-  accessToken: string,
-  presentationPlanId: string,
-): Promise<PresentationPlanResponse> {
-  return apiFetch<PresentationPlanResponse>(
-    `/presentation-plans/${presentationPlanId}`,
-    accessToken,
-  );
-}
-
-export async function getPresentation(
-  accessToken: string,
-  presentationId: string,
-): Promise<PresentationResponse> {
-  return apiFetch<PresentationResponse>(
-    `/presentations/${presentationId}`,
-    accessToken,
-  );
-}
-
-export async function generatePresentation(
-  accessToken: string,
-  opportunityId: string,
-  presentationPlanId?: string,
-  journeyStage?: JourneyStageName,
-): Promise<PresentationGenerateResponse> {
-  return apiFetch<PresentationGenerateResponse>(
-    `/opportunities/${opportunityId}/presentation/generate`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        ...(presentationPlanId ? { presentation_plan_id: presentationPlanId } : {}),
-        ...(journeyStage ? { journey_stage: journeyStage } : {}),
-      }),
-    },
-  );
-}
-
-export async function getDeckCenter(
-  accessToken: string,
-  presentationId: string,
-): Promise<DeckCenterResponse> {
-  return apiFetch<DeckCenterResponse>(`/presentations/${presentationId}/deck`, accessToken);
-}
-
-export async function fetchSlidePreviewBlob(
-  accessToken: string,
-  previewPath: string,
-): Promise<Blob> {
-  return apiFetchBlob(previewPath, accessToken);
+  journeyStage: OwnerEmailStage,
+): Promise<Record<string, unknown>> {
+  return apiFetch(`${opportunityPath(opportunityId)}/email-drafts/generate`, accessToken, {
+    method: "POST",
+    body: JSON.stringify({ journey_stage: journeyStage }),
+  });
 }
 
 export async function downloadPresentationFile(
@@ -869,272 +493,29 @@ export async function downloadPresentationFile(
   return apiFetchBlob(downloadPath, accessToken);
 }
 
-export async function downloadFrameworkRender(
+export async function fetchSlidePreviewBlob(
   accessToken: string,
-  renderPath: string,
+  previewPath: string,
 ): Promise<Blob> {
-  return apiFetchBlob(renderPath, accessToken);
+  return apiFetchBlob(previewPath, accessToken);
 }
 
-export async function regeneratePresentationSlide(
-  accessToken: string,
-  presentationId: string,
-  slideId: string,
-): Promise<JobEnqueueResponse> {
-  return apiFetch<JobEnqueueResponse>(
-    `/presentations/${presentationId}/slides/${slideId}/regenerate`,
-    accessToken,
-    { method: "POST" },
-  );
-}
-
-export async function changePresentationSlideLayout(
-  accessToken: string,
-  presentationId: string,
-  slideId: string,
-  layoutId: string,
-): Promise<JobEnqueueResponse> {
-  return apiFetch<JobEnqueueResponse>(
-    `/presentations/${presentationId}/slides/${slideId}/change-layout`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify({ layout_id: layoutId }),
+async function employeeRequest(path: string, token: string, method = "GET"): Promise<EmployeeMe> {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    method,
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${await resolveAccessToken(token)}`,
     },
-  );
-}
-
-export async function getEmployeeMe(accessToken: string): Promise<EmployeeMe> {
-  return apiFetch("/employees/me", accessToken);
-}
-
-export async function recordEmployeeSession(accessToken: string): Promise<EmployeeMe> {
-  return apiFetch("/employees/session", accessToken, { method: "POST" });
-}
-
-export async function listActivityLog(
-  accessToken: string,
-  filters?: { objectId?: string; documentId?: string },
-): Promise<ActivityLogEntry[]> {
-  const params = new URLSearchParams();
-  if (filters?.objectId) {
-    params.set("object_id", filters.objectId);
-  }
-  if (filters?.documentId) {
-    params.set("document_id", filters.documentId);
-  }
-  const query = params.toString();
-  return apiFetch(`/employees/activity${query ? `?${query}` : ""}`, accessToken);
-}
-
-export async function listEmployees(accessToken: string): Promise<EmployeeRoleRow[]> {
-  return apiFetch("/employees", accessToken);
-}
-
-export async function assignEmployeeRole(
-  accessToken: string,
-  userId: string,
-  role: EmployeeRole,
-  email?: string,
-): Promise<EmployeeRoleRow> {
-  return apiFetch(`/employees/${userId}/role`, accessToken, {
-    method: "PATCH",
-    body: JSON.stringify({ role, email }),
   });
+  if (!response.ok) throw await parseError(response);
+  return response.json() as Promise<EmployeeMe>;
 }
 
-export type {
-  EmailDraftConfirmRequest,
-  EmailDraftEnvelope,
-  EmailDraftGenerateRequest,
-  EmailDraftLength,
-  EmailDraftRecord,
-  EmailLengthBody,
-  JourneyOutputsErrorCode,
-  MeetingFeedbackResponse,
-  MeetingFeedbackUpdateRequest,
-  Stage1OutputsEnvelope,
-  Stage2OutputsEnvelope,
-} from "./journeyOutputsContracts";
-
-function opportunityPath(opportunityId: string): string {
-  return `/opportunities/${opportunityId}`;
+export function getEmployeeMe(token: string): Promise<EmployeeMe> {
+  return employeeRequest("/employees/me", token);
 }
 
-export async function getStage1Outputs(
-  accessToken: string,
-  opportunityId: string,
-): Promise<Stage1OutputsEnvelope> {
-  return apiFetch<Stage1OutputsEnvelope>(
-    `${opportunityPath(opportunityId)}/stage1-outputs`,
-    accessToken,
-  );
-}
-
-export async function generateStage1Outputs(
-  accessToken: string,
-  opportunityId: string,
-): Promise<Stage1OutputsEnvelope> {
-  return apiFetch<Stage1OutputsEnvelope>(
-    `${opportunityPath(opportunityId)}/stage1-outputs/generate`,
-    accessToken,
-    { method: "POST" },
-  );
-}
-
-export async function getStage2Outputs(
-  accessToken: string,
-  opportunityId: string,
-): Promise<Stage2OutputsEnvelope> {
-  return apiFetch<Stage2OutputsEnvelope>(
-    `${opportunityPath(opportunityId)}/stage2-outputs`,
-    accessToken,
-  );
-}
-
-export async function generateStage2Outputs(
-  accessToken: string,
-  opportunityId: string,
-): Promise<Stage2OutputsEnvelope> {
-  return apiFetch<Stage2OutputsEnvelope>(
-    `${opportunityPath(opportunityId)}/stage2-outputs/generate`,
-    accessToken,
-    { method: "POST" },
-  );
-}
-
-export async function getMeetingFeedback(
-  accessToken: string,
-  opportunityId: string,
-): Promise<MeetingFeedbackResponse> {
-  return apiFetch<MeetingFeedbackResponse>(
-    `${opportunityPath(opportunityId)}/meeting-feedback`,
-    accessToken,
-  );
-}
-
-export async function updateMeetingFeedback(
-  accessToken: string,
-  opportunityId: string,
-  payload: MeetingFeedbackUpdateRequest,
-): Promise<MeetingFeedbackResponse> {
-  return apiFetch<MeetingFeedbackResponse>(
-    `${opportunityPath(opportunityId)}/meeting-feedback`,
-    accessToken,
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
-export async function getEmailDraft(
-  accessToken: string,
-  opportunityId: string,
-  journeyStage: JourneyStageName,
-): Promise<EmailDraftEnvelope> {
-  const query = `?journey_stage=${encodeURIComponent(journeyStage)}`;
-  return apiFetch<EmailDraftEnvelope>(
-    `${opportunityPath(opportunityId)}/email-drafts${query}`,
-    accessToken,
-  );
-}
-
-export async function generateEmailDraft(
-  accessToken: string,
-  opportunityId: string,
-  payload: EmailDraftGenerateRequest,
-): Promise<EmailDraftEnvelope> {
-  return apiFetch<EmailDraftEnvelope>(
-    `${opportunityPath(opportunityId)}/email-drafts/generate`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
-/** Persist reviewed length only — never sends mail (send endpoint is forbidden). */
-export async function confirmEmailDraft(
-  accessToken: string,
-  opportunityId: string,
-  draftId: string,
-  payload: EmailDraftConfirmRequest,
-): Promise<EmailDraftEnvelope> {
-  return apiFetch<EmailDraftEnvelope>(
-    `${opportunityPath(opportunityId)}/email-drafts/${draftId}/confirm`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
-export type JourneyEmailStage = "first_contact" | "deepening" | "concretisation";
-
-export interface EmailDraftBody {
-  subject: string;
-  body: string;
-  word_count: number;
-}
-
-export interface ClientPreparationEmailEnvelope {
-  schema_version: string;
-  opportunity_id: string;
-  status: "not_generated" | "ready";
-  email: (EmailDraftBody & { generated_at: string }) | null;
-}
-
-export interface TranscriptSummary {
-  schema_version: string;
-  opportunity_id: string;
-  transcript_id: string;
-  participants: string[];
-  decisions: string[];
-  action_items: Array<{ text: string; owner?: string | null; due?: string | null }>;
-  open_questions: string[];
-  client_terms: string[];
-  narrative: string;
-  summary_truncated: boolean;
-}
-
-export type { Stage1Fact } from "./stage1Contracts";
-
-export async function getClientPreparationEmail(
-  accessToken: string,
-  opportunityId: string,
-): Promise<ClientPreparationEmailEnvelope> {
-  return apiFetch<ClientPreparationEmailEnvelope>(
-    `${opportunityPath(opportunityId)}/client-preparation-email`,
-    accessToken,
-  );
-}
-
-export async function generateClientPreparationEmail(
-  accessToken: string,
-  opportunityId: string,
-): Promise<ClientPreparationEmailEnvelope> {
-  return apiFetch<ClientPreparationEmailEnvelope>(
-    `${opportunityPath(opportunityId)}/client-preparation-email/generate`,
-    accessToken,
-    { method: "POST" },
-  );
-}
-
-export async function getEmailDrafts(
-  accessToken: string,
-  opportunityId: string,
-  journeyStage: JourneyEmailStage,
-): Promise<EmailDraftEnvelope> {
-  return getEmailDraft(accessToken, opportunityId, journeyStage);
-}
-
-export async function generateEmailDrafts(
-  accessToken: string,
-  opportunityId: string,
-  journeyStage: JourneyEmailStage,
-): Promise<EmailDraftEnvelope> {
-  return generateEmailDraft(accessToken, opportunityId, { journey_stage: journeyStage });
+export function recordEmployeeSession(token: string): Promise<EmployeeMe> {
+  return employeeRequest("/employees/session", token, "POST");
 }

@@ -247,8 +247,12 @@ def test_supabase_adapter_roundtrip_including_null_and_owner_filter(monkeypatch)
                 updated_at=datetime.now(UTC).isoformat(),
             )
         else:
-            assert params["created_by"] == f"eq.{OWNER}"
-            if method == "PATCH":
+            if method == "GET" and "id" in params:
+                assert params["id"] == f"eq.{db['id']}"
+            elif method == "GET":
+                assert params["created_by"] == f"eq.{OWNER}"
+            elif method == "PATCH":
+                assert params == {"id": f"eq.{db['id']}"}
                 db.update(copy.deepcopy(json_body))
         return httpx.Response(
             201 if method == "POST" else 200, json=[copy.deepcopy(db)]

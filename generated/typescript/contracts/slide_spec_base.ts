@@ -25,7 +25,7 @@ export type LayoutId =
   | "OPEN_QUESTIONS_01"
   | "NEXT_STEPS_01";
 /**
- * FrameworkObject chapter_id (0-13). Used in sourceChapterIds (section 14).
+ * FrameworkObject chapter_id (0-13), a Discovery page, a meeting-extraction section, owner notes, or a selected use case.
  */
 export type ChapterId = string;
 

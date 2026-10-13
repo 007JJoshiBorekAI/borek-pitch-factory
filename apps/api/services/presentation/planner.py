@@ -83,9 +83,26 @@ def plan_presentation(
         "targetSchema": planning_target_schema(),
     }
     client = planner if planner is not None else LlmClient()
+    return run_planning_attempts(planning_input_base, client=client)
+
+
+def run_planning_attempts(
+    planning_input_base: dict[str, Any],
+    *,
+    client: PlanningClient,
+    extra_validator: Any | None = None,
+    retry_validation_errors: bool = False,
+) -> PresentationPlan:
+    """Validate a planner response, retrying duplicate layouts within three attempts.
+
+    PPT #1 passes retry_validation_errors so a too-long or commercial plan is sent
+    back to the planner instead of being stored. Generic framework planning keeps
+    the original duplicate-layout-only retry.
+    """
     last_validation_error: PresentationPlanValidationError | None = None
     duplicate_layout_ids: list[str] = []
     previous_invalid_plan: dict[str, Any] | None = None
+    validation_message: str | None = None
 
     for attempt in range(3):
         planning_input = _planning_input_for_attempt(
@@ -93,6 +110,7 @@ def plan_presentation(
             attempt=attempt,
             duplicate_layout_ids=duplicate_layout_ids,
             previous_invalid_plan=previous_invalid_plan,
+            validation_message=validation_message,
         )
         try:
             raw_plan = client.complete_planning(
@@ -114,13 +132,17 @@ def plan_presentation(
 
         for candidate in candidate_plans:
             try:
-                return _validate_plan_candidate(candidate)
+                return _validate_plan_candidate(
+                    candidate,
+                    extra_validator=extra_validator,
+                )
             except PresentationPlanValidationError as exc:
                 last_validation_error = exc
-                if not _is_duplicate_layout_error(exc):
+                if not _is_duplicate_layout_error(exc) and not retry_validation_errors:
                     raise
                 duplicate_layout_ids = duplicate_layout_ids_from_plan(candidate)
                 previous_invalid_plan = copy.deepcopy(raw_plan)
+                validation_message = str(exc)
                 break
         else:
             continue
@@ -139,33 +161,43 @@ def _planning_input_for_attempt(
     attempt: int,
     duplicate_layout_ids: list[str],
     previous_invalid_plan: dict[str, Any] | None,
+    validation_message: str | None = None,
 ) -> dict[str, Any]:
     planning_input = copy.deepcopy(planning_input_base)
-    if attempt == 0 or not duplicate_layout_ids:
+    if attempt == 0 or (not duplicate_layout_ids and not validation_message):
         return planning_input
 
-    planning_input["retryValidationErrors"] = {
-        "duplicateLayoutIds": duplicate_layout_ids,
-        "message": (
-            "Each layoutId may appear at most once in the PresentationPlan. "
-            "Do not emit additional slides with the listed layoutIds. "
-            "Merge or fold the relevant chapter content into the single intended "
-            "slide for each layout."
-        ),
-    }
-    planning_input["forbiddenDuplicateLayoutIds"] = duplicate_layout_ids
+    if duplicate_layout_ids:
+        planning_input["retryValidationErrors"] = {
+            "duplicateLayoutIds": duplicate_layout_ids,
+            "message": (
+                "Each layoutId may appear at most once in the PresentationPlan. "
+                "Do not emit additional slides with the listed layoutIds. "
+                "Merge or fold the relevant chapter content into the single intended "
+                "slide for each layout."
+            ),
+        }
+        planning_input["forbiddenDuplicateLayoutIds"] = duplicate_layout_ids
+    elif validation_message:
+        planning_input["retryValidationErrors"] = {"message": validation_message}
     if previous_invalid_plan is not None:
         planning_input["previousInvalidPlan"] = copy.deepcopy(previous_invalid_plan)
     return planning_input
 
 
-def _validate_plan_candidate(raw_plan: dict[str, Any]) -> PresentationPlan:
+def _validate_plan_candidate(
+    raw_plan: dict[str, Any],
+    *,
+    extra_validator: Any | None = None,
+) -> PresentationPlan:
     try:
         plan = consume_presentation_plan(copy.deepcopy(raw_plan))
         validated_payload = plan.model_dump(mode="json")
         validate_presentation_plan_business_rules(validated_payload)
         validate_registry_layout_selection(validated_payload)
         _validate_unique_layout_ids(validated_payload)
+        if extra_validator is not None:
+            extra_validator(validated_payload)
         return plan
     except (SchemaVersionMismatchError, ValidationError, ContractValidationError) as exc:
         raise PresentationPlanValidationError(

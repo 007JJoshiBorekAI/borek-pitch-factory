@@ -23,8 +23,6 @@ from app.services.journey_stage import (
     load_prior_stage_context_for_version,
     resolve_prior_framework,
 )
-from services.gamma.payload import build_gamma_content_payload
-
 USER_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 ROOT = Path(__file__).resolve().parents[3]
 ELIGIBILITY_SCHEMA = json.loads(
@@ -163,7 +161,8 @@ def test_eligibility_contract_is_deterministic_and_matches_schema() -> None:
         "reason": "NO_COMPLETED_PREREQUISITE",
         "next_action": "complete_first_contact",
     }
-    assert stages["concretisation"]["next_action"] == "complete_deepening"
+    assert stages["concretisation"]["startable"] is False
+    assert stages["concretisation"]["next_action"] == "owner_stage_removed"
 
 
 def test_first_contact_is_eligible_and_persists_null_prior() -> None:
@@ -258,26 +257,9 @@ def test_deepening_eligible_persists_lineage_and_supplies_jj31_context() -> None
         prior_version=first_version,
         user_id=USER_ID,
     )
-    assert context["slots"]
-    payload = build_gamma_content_payload(
-        opportunity=opportunity,
-        framework={
-            "status": "confirmed",
-            "chapters": [
-                {
-                    "chapter_id": "13",
-                    "title": "Next steps",
-                    "body": "Confirm the pilot scope.",
-                }
-            ],
-        },
-        stage="deepening",
-        prior_stage_context=context,
-    )
-    blob = " ".join(slot["value"] for slot in payload["slots"])
-    assert any(slot["value"] for slot in context["slots"] if slot["value"] and slot["value"] in blob)
-    assert payload["stage"] == "deepening"
-    assert all(item["kind"] != "pricing" for item in payload["grounded_facts"])
+    assert context["framework_version_id"] == str(prior_framework["id"])
+    assert context["prior_presentation_version_id"] == str(first_version["id"])
+    assert context["journey_stage"] == "first_contact"
 
 
 def test_concretisation_locked_without_completed_deepening() -> None:
@@ -294,9 +276,7 @@ def test_concretisation_locked_without_completed_deepening() -> None:
     )
     assert blocked.status_code == 400
     error = blocked.json()["error"]
-    assert error["code"] == "INPUT_REQUIRED"
-    assert error["detail"]["next_action"] == "complete_deepening"
-    assert error["detail"]["reason"] == "NO_COMPLETED_PREREQUISITE"
+    assert error["code"] == "CONCRETISATION_NOT_IN_OWNER_WORKFLOW"
     assert len(store.generation_jobs) == jobs_before
 
 
@@ -307,10 +287,18 @@ def test_concretisation_eligible_uses_deepening_lineage() -> None:
     deepening = _generate_stage(client, opportunity_id, "deepening")
     deepening_version = _latest_version(deepening["presentation_id"])
 
-    generated = _generate_stage(client, opportunity_id, "concretisation")
-    version = _latest_version(generated["presentation_id"])
-    assert version["journey_stage"] == "concretisation"
-    assert version["prior_stage_presentation_version_id"] == deepening_version["id"]
+    store = get_memory_store()
+    presentations_before = len(store.presentations)
+    jobs_before = len(store.generation_jobs)
+    blocked = client.post(
+        f"/opportunities/{opportunity_id}/presentation/generate",
+        headers=_headers(),
+        json={"journey_stage": "concretisation"},
+    )
+    assert blocked.status_code == 400
+    assert blocked.json()["error"]["code"] == "CONCRETISATION_NOT_IN_OWNER_WORKFLOW"
+    assert len(store.presentations) == presentations_before
+    assert len(store.generation_jobs) == jobs_before
 
     store = get_memory_store()
     opportunity = store.get_opportunity(
@@ -329,12 +317,10 @@ def test_concretisation_eligible_uses_deepening_lineage() -> None:
         user_id=USER_ID,
     )
     assert framework["id"]
-    assert context["slots"]
-    prior = store.get_presentation_version(
-        presentation_version_id=version["prior_stage_presentation_version_id"],
-        user_id=USER_ID,
-    )
-    assert prior["journey_stage"] == "deepening"
+    assert context["framework_version_id"] == str(framework["id"])
+    assert context["journey_stage"] == "deepening"
+    assert deepening_version["journey_stage"] == "deepening"
+    assert deepening_version["prior_stage_presentation_version_id"]
 
 
 def test_incomplete_and_foreign_prior_do_not_unlock() -> None:
@@ -422,28 +408,20 @@ def test_missing_prior_version_is_superseded_input_required() -> None:
     assert first_version["id"]
 
 
-def test_eligibility_is_independent_of_presentation_engine(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_eligibility_does_not_depend_on_a_presentation_engine() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
-    payloads = []
-    for engine in ("internal", "gamma"):
-        monkeypatch.setattr(settings, "PRESENTATION_ENGINE", engine)
-        payloads.append(_eligibility(client, opportunity_id, "deepening"))
-    assert payloads[0] == payloads[1]
-    assert payloads[0]["startable"] is False
-    assert payloads[0]["next_action"] == "complete_first_contact"
+    locked = _eligibility(client, opportunity_id, "deepening")
+    assert locked == _eligibility(client, opportunity_id, "deepening")
+    assert locked["startable"] is False
+    assert locked["next_action"] == "complete_first_contact"
 
     _generate_stage(client, opportunity_id, "first_contact")
-    unlocked = []
-    for engine in ("internal", "gamma"):
-        monkeypatch.setattr(settings, "PRESENTATION_ENGINE", engine)
-        unlocked.append(_eligibility(client, opportunity_id, "deepening"))
-    assert unlocked[0]["startable"] is True
-    assert unlocked[0]["prior_stage_presentation_version_id"] == unlocked[1][
-        "prior_stage_presentation_version_id"
-    ]
+    unlocked = _eligibility(client, opportunity_id, "deepening")
+    assert unlocked["startable"] is True
+    assert unlocked["prior_stage_presentation_version_id"] == _eligibility(
+        client, opportunity_id, "deepening"
+    )["prior_stage_presentation_version_id"]
 
 
 def test_at56_reconnect_does_not_duplicate_jobs() -> None:

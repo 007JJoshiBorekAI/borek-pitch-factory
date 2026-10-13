@@ -1,4 +1,4 @@
-﻿"""Focused regression coverage for the post-PR-35 BT Stage B integration."""
+"""Focused regression coverage for the post-PR-35 BT Stage B integration."""
 
 from __future__ import annotations
 
@@ -139,6 +139,7 @@ def test_unpatched_slide_providers_resolve_from_execution_mode(
 
     monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "live")
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "")
+    monkeypatch.setattr(settings, "STAGE_B_LLM_PROVIDER", "openai")
     with pytest.raises(OpenAIProviderConfigurationError, match="OPENAI_API_KEY"):
         _UNPATCHED_LIVE_STRUCTURED()
     with pytest.raises(OpenAIProviderConfigurationError, match="OPENAI_API_KEY"):

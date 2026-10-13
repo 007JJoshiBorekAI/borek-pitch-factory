@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -16,12 +17,16 @@ from app.services.api_errors import bad_request, conflict, not_found
 from app.services.deck_assets import materialize_fixture_deck_assets
 from app.services.framework_status import require_reviewable_framework
 from app.services.framework_stub_template import load_framework_stub_template
+from services.framework.stage1_intake import apply_persisted_intake_to_framework
 from app.services.stage_b_orchestration import (
     build_slide_spec_for_planned_slide,
     plan_json_from_confirmed_framework,
     planned_slides_with_generators,
 )
-from app.services.journey_outputs_store import JOURNEY_OUTPUT_DB_COLUMNS
+from app.services.journey_outputs_store import (
+    JOURNEY_OUTPUT_DB_COLUMNS,
+    reject_finalization_snapshot_change,
+)
 from app.services.stage1_intake_store import (
     STAGE1_DB_COLUMNS,
     apply_intake_columns,
@@ -54,6 +59,11 @@ _RICH_FIXTURE_PATH = (
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+_GENERATION_LOCK_GUARD = threading.Lock()
+# One email draft write at a time: the revision check and the write are one step.
+_EMAIL_DRAFT_GUARD = threading.Lock()
 
 
 def _version_lineage_sort(row: dict[str, Any]) -> tuple:
@@ -123,6 +133,7 @@ class MemoryDataStore:
     client_documents: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     client_logos: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     framework_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    discovery_paper_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentation_plans: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentations: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentation_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
@@ -269,7 +280,19 @@ class MemoryDataStore:
         row = copy.deepcopy(payload)
         row.setdefault("id", uuid.uuid4())
         row.setdefault("created_at", _now())
-        self.generation_jobs[row["id"]] = row
+        # Same rule as the database index generation_jobs_one_active_locked_generation.
+        with _GENERATION_LOCK_GUARD:
+            lock_key = row.get("generation_lock_key")
+            if lock_key and any(
+                other.get("generation_lock_key") == lock_key
+                and other.get("opportunity_id") == row.get("opportunity_id")
+                and str(getattr(other.get("status"), "value", other.get("status"))) in {"QUEUED", "RUNNING"}
+                for other in self.generation_jobs.values()
+            ):
+                from app.services.job_service import GenerationLockConflict
+
+                raise GenerationLockConflict(str(lock_key))
+            self.generation_jobs[row["id"]] = row
         return copy.deepcopy(row)
 
     def get_generation_job(self, job_id: UUID) -> dict[str, Any] | None:
@@ -290,6 +313,18 @@ class MemoryDataStore:
         return copy.deepcopy(
             max(rows, key=lambda row: (row["created_at"], str(row["id"])))
         )
+
+    def list_generation_jobs_for_opportunity(
+        self,
+        opportunity_id: UUID,
+    ) -> list[dict[str, Any]]:
+        target = UUID(str(opportunity_id))
+        rows = [
+            copy.deepcopy(row)
+            for row in self.generation_jobs.values()
+            if row.get("opportunity_id") == target
+        ]
+        return sorted(rows, key=lambda row: (str(row.get("created_at") or ""), str(row.get("id") or "")))
 
     def update_generation_job(
         self,
@@ -360,6 +395,7 @@ class MemoryDataStore:
             **{key: None for key in JOURNEY_OUTPUT_DB_COLUMNS},
         }
         apply_intake_columns(row, stage1_intake)
+        row["selected_use_case_ids"] = []
         self.opportunities[opportunity_id] = row
         return present_opportunity(row)
 
@@ -472,6 +508,7 @@ class MemoryDataStore:
         if row is None or not user_can_access_opportunity(row, user_id):
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
         expanded = expand_opportunity_updates(dict(updates))
+        reject_finalization_snapshot_change(row, expanded)
         for key, value in expanded.items():
             if value is not None or key in {
                 "additional_client_information",
@@ -800,6 +837,165 @@ class MemoryDataStore:
             "created_at": row["created_at"],
         }
 
+    def create_discovery_paper_version(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        document_id: UUID,
+        paper_json: dict[str, Any],
+        version_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        existing = [
+            row
+            for row in self.discovery_paper_versions.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+        version_number = max((row["version_number"] for row in existing), default=0) + 1
+        now = _now()
+        row = {
+            "id": version_id or uuid.uuid4(),
+            "opportunity_id": opportunity_id,
+            "version_number": version_number,
+            "document_id": document_id,
+            "status": "draft",
+            "paper_json": copy.deepcopy(paper_json),
+            "created_by": user_id,
+            "created_at": now,
+            "updated_at": now,
+            "approved_at": None,
+        }
+        self.discovery_paper_versions[row["id"]] = row
+        return copy.deepcopy(row)
+
+    def get_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        row = self.discovery_paper_versions.get(version_id)
+        if row is None:
+            raise not_found(
+                "DISCOVERY_PAPER_VERSION_NOT_FOUND",
+                f"Discovery Paper version {version_id} was not found",
+            )
+        self.get_opportunity(opportunity_id=row["opportunity_id"], user_id=user_id)
+        return copy.deepcopy(row)
+
+    def list_discovery_paper_versions(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        rows = [
+            row
+            for row in self.discovery_paper_versions.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+        return [copy.deepcopy(row) for row in sorted(rows, key=lambda item: item["version_number"])]
+
+    def get_latest_approved_discovery_paper(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any] | None:
+        rows = [
+            row
+            for row in self.list_discovery_paper_versions(
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+            )
+            if row["status"] == "approved"
+        ]
+        if not rows:
+            return None
+        return max(rows, key=lambda row: (row["approved_at"] or row["created_at"], row["version_number"]))
+
+    def get_draft_discovery_paper_version(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        document_id: UUID,
+    ) -> dict[str, Any] | None:
+        rows = [
+            row
+            for row in self.list_discovery_paper_versions(
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+            )
+            if row["status"] == "draft" and row["document_id"] == document_id
+        ]
+        if not rows:
+            return None
+        return max(rows, key=lambda row: row["version_number"])
+
+    def update_discovery_paper_draft(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._write_discovery_paper_version(
+            version_id=version_id,
+            user_id=user_id,
+            paper_json=paper_json,
+            status="draft",
+        )
+
+    def approve_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._write_discovery_paper_version(
+            version_id=version_id,
+            user_id=user_id,
+            paper_json=paper_json,
+            status="approved",
+        )
+
+    def _write_discovery_paper_version(
+        self,
+        *,
+        version_id: UUID,
+        user_id: UUID,
+        paper_json: dict[str, Any],
+        status: str,
+    ) -> dict[str, Any]:
+        row = self.discovery_paper_versions.get(version_id)
+        if row is None:
+            raise not_found(
+                "DISCOVERY_PAPER_VERSION_NOT_FOUND",
+                f"Discovery Paper version {version_id} was not found",
+            )
+        self.get_opportunity(opportunity_id=row["opportunity_id"], user_id=user_id)
+        if row["status"] == "approved":
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions are immutable",
+            )
+        if status not in {"draft", "approved"} or row["status"] != "draft":
+            raise conflict(
+                "DISCOVERY_PAPER_VERSION_IMMUTABLE",
+                "Approved Discovery Paper versions cannot return to draft",
+            )
+        now = _now()
+        row["paper_json"] = copy.deepcopy(paper_json)
+        row["status"] = status
+        row["updated_at"] = now
+        if status == "approved":
+            row["approved_at"] = now
+        return copy.deepcopy(row)
+
     def create_framework_version(
         self,
         *,
@@ -1042,6 +1238,10 @@ class MemoryDataStore:
         user_id: UUID,
     ) -> dict[str, Any]:
         framework_json = load_framework_stub_template(opportunity_id)
+        apply_persisted_intake_to_framework(
+            framework_json,
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id),
+        )
         return self.create_framework_version(
             opportunity_id=opportunity_id,
             user_id=user_id,
@@ -1170,6 +1370,24 @@ class MemoryDataStore:
         _ = plan
         return row
 
+    def retarget_presentation_plan(
+        self,
+        *,
+        presentation_id: UUID,
+        presentation_plan_id: UUID,
+        user_id: UUID,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        row = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        self.get_presentation_plan(
+            presentation_plan_id=presentation_plan_id,
+            user_id=user_id,
+        )
+        row["presentation_plan_id"] = presentation_plan_id
+        if name:
+            row["name"] = name
+        return row
+
     def list_presentations(self, *, user_id: UUID) -> list[dict[str, Any]]:
         accessible_plan_ids = {
             plan_id
@@ -1226,6 +1444,9 @@ class MemoryDataStore:
         plan_json: dict[str, Any],
         journey_stage: str | None = None,
         prior_stage_presentation_version_id: UUID | None = None,
+        discovery_pages: list[dict[str, Any]] | None = None,
+        generation_source_manifest: dict[str, Any] | None = None,
+        ppt2_generation_input: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         presentation = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
         plan = self.get_presentation_plan(
@@ -1249,26 +1470,51 @@ class MemoryDataStore:
             "status": "generating",
             "journey_stage": journey_stage,
             "prior_stage_presentation_version_id": prior_stage_presentation_version_id,
+            "generation_source_manifest": (
+                copy.deepcopy(generation_source_manifest)
+                if generation_source_manifest is not None
+                else None
+            ),
             "created_at": _now(),
         }
         self.presentation_versions[presentation_version_id] = version_row
 
-        framework = self.get_framework_version(
-            framework_version_id=plan["framework_version_id"],
-            user_id=user_id,
-        )
-        slide_specs: list[dict[str, Any]] = []
-        for planned in planned_slides_with_generators(plan_json):
-            slide_spec = build_slide_spec_for_planned_slide(
-                planned=planned,
-                framework_json=framework["framework_json"],
+        if ppt2_generation_input is not None:
+            from services.presentation.post_meeting_slide_content import (
+                build_post_meeting_slide_specs,
             )
+
+            generated_specs = build_post_meeting_slide_specs(
+                plan_json,
+                ppt2_generation_input,
+            )
+        elif discovery_pages is not None:
+            from services.presentation.discovery_slide_content import (
+                build_discovery_slide_specs,
+            )
+
+            generated_specs = build_discovery_slide_specs(plan_json, discovery_pages)
+        else:
+            framework = self.get_framework_version(
+                framework_version_id=plan["framework_version_id"],
+                user_id=user_id,
+            )
+            generated_specs = [
+                build_slide_spec_for_planned_slide(
+                    planned=planned,
+                    framework_json=framework["framework_json"],
+                )
+                for planned in planned_slides_with_generators(plan_json)
+            ]
+        slide_specs: list[dict[str, Any]] = []
+        for index, slide_spec in enumerate(generated_specs, start=1):
             persisted_slide_spec = copy.deepcopy(slide_spec)
+            persisted_slide_spec["slideId"] = f"slide_{index:02d}"
             slide_id = uuid.uuid4()
             slide_row = {
                 "id": slide_id,
                 "presentation_version_id": presentation_version_id,
-                "slide_index": int(planned["order"]) - 1,
+                "slide_index": index - 1,
                 "layout_id": persisted_slide_spec["layoutId"],
                 "slide_spec": persisted_slide_spec,
                 "source_chapter_ids": copy.deepcopy(
@@ -1280,7 +1526,9 @@ class MemoryDataStore:
             slide_specs.append(copy.deepcopy(persisted_slide_spec))
 
         version_row["slides_json"] = slide_specs
-        if settings.RENDERER_EXECUTION_MODE == "fixture":
+        # A Master Presentation is never stood in for by the fixture deck: it becomes ready only
+        # once its real PPTX, PDF and previews exist.
+        if settings.RENDERER_EXECUTION_MODE == "fixture" and plan_json.get("deck_kind") not in ("master_v1", "master_v2"):
             assets = materialize_fixture_deck_assets(
                 version_id=presentation_version_id,
                 slide_count=len(slide_specs),
@@ -1420,6 +1668,9 @@ class MemoryDataStore:
             "prior_stage_presentation_version_id": previous.get(
                 "prior_stage_presentation_version_id"
             ),
+            "generation_source_manifest": copy.deepcopy(
+                previous.get("generation_source_manifest")
+            ),
             "created_at": _now(),
         }
         self.presentation_versions[version_id] = version
@@ -1477,9 +1728,11 @@ class MemoryDataStore:
         *,
         presentation_id: UUID,
         user_id: UUID,
+        presentation_version_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
-        version = self.get_latest_presentation_version(
+        version = self._presentation_version(
             presentation_id=presentation_id,
+            presentation_version_id=presentation_version_id,
             user_id=user_id,
         )
         rows = [
@@ -1561,14 +1814,41 @@ class MemoryDataStore:
         ]
         return sorted(rows, key=_version_lineage_sort, reverse=True)
 
+    def _presentation_version(
+        self,
+        *,
+        presentation_id: UUID,
+        presentation_version_id: UUID | None,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        """The latest version, or the given one if it belongs to this presentation."""
+        if presentation_version_id is None:
+            return self.get_latest_presentation_version(
+                presentation_id=presentation_id,
+                user_id=user_id,
+            )
+        self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        version = self.get_presentation_version(
+            presentation_version_id=presentation_version_id,
+            user_id=user_id,
+        )
+        if str(version["presentation_id"]) != str(presentation_id):
+            raise not_found(
+                "PRESENTATION_VERSION_NOT_FOUND",
+                f"Presentation version {presentation_version_id} was not found",
+            )
+        return version
+
     def get_presentation_version_assets(
         self,
         *,
         presentation_id: UUID,
         user_id: UUID,
+        presentation_version_id: UUID | None = None,
     ) -> dict[str, Any]:
-        version = self.get_latest_presentation_version(
+        version = self._presentation_version(
             presentation_id=presentation_id,
+            presentation_version_id=presentation_version_id,
             user_id=user_id,
         )
         if version.get("status") != "ready":
@@ -1870,39 +2150,45 @@ class MemoryDataStore:
         rows = [row for row in self.llm_calls.values() if row.get("job_id") == target]
         return [copy.deepcopy(row) for row in sorted(rows, key=lambda item: item["created_at"])]
 
-    def upsert_email_draft(
+    def save_email_draft(
         self,
         *,
         opportunity_id: UUID,
         user_id: UUID,
         journey_stage: str,
-        payload: dict[str, Any],
-        opportunity: dict[str, Any] | None = None,
+        draft: dict[str, Any],
+        expected_revision: int | None,
     ) -> dict[str, Any]:
+        """Write one stage's draft only if it is still at ``expected_revision`` (None: no draft yet).
+
+        Check and write are one step under the guard, and only this stage's entry is replaced in
+        the current row - the same guarantee the database function gives the Supabase store.
+        """
         from app.services.pitch_owner import user_can_access_opportunity
 
-        row = self.opportunities.get(opportunity_id)
-        if row is None or not user_can_access_opportunity(row, user_id):
-            raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
-        drafts = copy.deepcopy(row.get("email_drafts") or {})
-        existing = drafts.get(journey_stage)
-        now = _now()
-        stored = {
-            "id": UUID(str(existing["id"])) if existing else uuid.uuid4(),
-            "opportunity_id": opportunity_id,
-            "journey_stage": journey_stage,
-            "status": payload["status"],
-            "send_status": "not_sent",
-            "selected_length": payload.get("selected_length"),
-            "lengths": copy.deepcopy(payload["lengths"]),
-            "confirmed_at": payload.get("confirmed_at"),
-            "created_at": existing["created_at"] if existing else now,
-            "updated_at": now,
-        }
-        drafts[journey_stage] = stored
-        row["email_drafts"] = drafts
-        row["updated_at"] = now
-        return copy.deepcopy(stored)
+        with _EMAIL_DRAFT_GUARD:
+            row = self.opportunities.get(opportunity_id)
+            if row is None or not user_can_access_opportunity(row, user_id):
+                raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
+            drafts = row.get("email_drafts") if isinstance(row.get("email_drafts"), dict) else {}
+            existing = drafts.get(journey_stage)
+            current = None if existing is None else int(existing.get("revision") or 1)
+            if current != expected_revision:
+                raise conflict("EMAIL_DRAFT_CONFLICT", "The email draft was changed in the meantime. Reload it before saving.")
+            now = _now()
+            stored = {
+                **copy.deepcopy(draft),
+                "id": UUID(str(existing["id"])) if existing else uuid.uuid4(),
+                "opportunity_id": opportunity_id,
+                "journey_stage": journey_stage,
+                "send_status": "not_sent",
+                "revision": (current or 0) + 1,
+                "created_at": existing["created_at"] if existing else now,
+                "updated_at": now,
+            }
+            row["email_drafts"] = {**drafts, journey_stage: stored}
+            row["updated_at"] = now
+            return copy.deepcopy(stored)
 
     def get_email_draft(
         self,

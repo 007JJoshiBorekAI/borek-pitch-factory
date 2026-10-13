@@ -1,0 +1,54 @@
+{
+  "schema_version": "ms-ui-1.0",
+  "opportunity_id": "fixture-opportunity",
+  "source": "fixture",
+  "client_information": {
+    "company_name": "Acme GmbH",
+    "contact_person": "Jordan Meyer",
+    "website_url": "https://example.com",
+    "meeting_purpose": "Prepare the first discovery meeting",
+    "additional_information": "Fixture content for UI development only."
+  },
+  "workflow": {
+    "revision": 1,
+    "current_status": "client_information",
+    "completed_statuses": [],
+    "blocked_reason": "BT-40 persistence and BT-47 workflow contracts are not connected yet.",
+    "available_actions": []
+  },
+  "discovery": {
+    "version_id": null,
+    "revision": 0,
+    "pages": [
+      { "id": "cover", "label": "Cover", "state": "waiting" },
+      { "id": "client_context", "label": "Client context", "state": "waiting" },
+      { "id": "opportunity", "label": "Opportunity", "state": "waiting" },
+      { "id": "borek_approach", "label": "Borek approach", "state": "waiting" },
+      { "id": "relevant_use_case", "label": "Relevant use case", "state": "waiting" },
+      { "id": "pilot_proposal", "label": "Pilot proposal", "state": "waiting" },
+      { "id": "next_steps", "label": "Next steps", "state": "waiting" }
+    ]
+  },
+  "presentations": [
+    { "family": "ppt_1", "state": "waiting", "versions": [] },
+    { "family": "ppt_2", "state": "waiting", "versions": [] }
+  ],
+  "meeting_extraction": {
+    "state": "not_started",
+    "requirements": [],
+    "challenges": [],
+    "priorities": [],
+    "opportunities": [],
+    "discussed_solutions": [],
+    "decisions": [],
+    "follow_ups": []
+  },
+  "use_case_selection": {
+    "selected_body_version_ids": [],
+    "confirmed": false
+  },
+  "checkpoints": [
+    { "id": "client_information", "status": "pending", "revision": 1 }
+  ],
+  "email_attachments": []
+}

@@ -9,9 +9,9 @@ from services.security.egress_filter import (
 
 def _policy() -> EgressPolicy:
     return EgressPolicy(
-        approved_providers=frozenset({"openai", "anthropic", "gamma"}),
+        approved_providers=frozenset({"openai", "anthropic", "partner"}),
         client_confidential_allowlist={
-            "gamma": frozenset({"/client/name", "/client/priorities/0"}),
+            "partner": frozenset({"/client/name", "/client/priorities/0"}),
         },
     )
 
@@ -23,7 +23,7 @@ def test_blocks_unclassified_and_restricted_fields() -> None:
             "strategy": "Restricted acquisition plan",
             "unclassified": "must not leak",
         },
-        provider="gamma",
+        provider="partner",
         classifications={
             "/title": Classification.INTERNAL,
             "/strategy": Classification.RESTRICTED,
@@ -53,7 +53,7 @@ def test_client_confidential_fields_require_exact_provider_allowlist() -> None:
 
     decision = filter_external_payload(
         payload,
-        provider="gamma",
+        provider="partner",
         classifications=classifications,
         policy=_policy(),
     )
@@ -110,7 +110,7 @@ def test_originally_empty_allowed_containers_are_kept() -> None:
 def test_empty_containers_do_not_reveal_blocked_structure() -> None:
     decision = filter_external_payload(
         {"client": {"restricted_notes": "secret"}},
-        provider="gamma",
+        provider="partner",
         classifications={"/client/restricted_notes": "restricted"},
         policy=_policy(),
     )
