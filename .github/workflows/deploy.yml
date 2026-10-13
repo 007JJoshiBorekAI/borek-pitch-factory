@@ -1,5 +1,23 @@
 name: Deploy
 
+# Deploys main to the Azure Container Apps behind
+#   https://web.gentletree-93d291c0.germanywestcentral.azurecontainerapps.io
+#
+# That deployment is the internal development and PM test environment
+# (infra/azure-test-environment/README.md), and this workflow deploys it as one:
+#
+#   web   built with the development sign-in for that hostname: "Continue with Microsoft"
+#         starts a development session, no Microsoft OAuth
+#   api   in-memory data, development authentication, fixture AI, exactly one replica
+#
+# The API settings are applied here on every run, together with the new image, so a deployment
+# never leaves the page in one mode and the API in the other. The bypass cannot be pointed at
+# Supabase from here or anywhere else: the API refuses to start with AUTH_BYPASS unless its data
+# backend is memory.
+#
+# The development sign-in asks for no password. The run therefore stops before it builds anything
+# unless web and api are both restricted to an IP allow-list.
+
 on:
   push:
     branches:
@@ -10,15 +28,58 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
 env:
   REGISTRY: acrborekpitchfactory
   RESOURCE_GROUP: rg-borek-pitch-prod
+  WEB_HOST: web.gentletree-93d291c0.germanywestcentral.azurecontainerapps.io
   API_URL: https://api.gentletree-93d291c0.germanywestcentral.azurecontainerapps.io
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
+  preflight:
+    name: Check that the environment is restricted
+    # A manual run from another branch deploys nothing.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Require an IP allow-list on web and api
+        shell: bash
+        run: |
+          set -euo pipefail
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          for app in web api; do
+            allowed="$(az containerapp ingress access-restriction list --name "$app" --resource-group "$RESOURCE_GROUP" --query "length([?action=='Allow'])" -o tsv)"
+            if [ "${allowed:-0}" -lt 1 ]; then
+              echo "::error::'$app' has no IP allow-list. The development sign-in asks for no password, so this environment is not deployed open to the internet. Run infra/azure-test-environment/configure.sh first."
+              exit 1
+            fi
+            echo "$app: $allowed allowed address range(s)"
+          done
+
+      - name: Check the development sign-in host
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The web app offers the development sign-in on the one host fixed in its code.
+          grep -q "DEPLOYED_DEV_PREVIEW_HOST = \"$WEB_HOST\"" apps/web/src/lib/authMode.ts \
+            || { echo "::error::apps/web/src/lib/authMode.ts does not name $WEB_HOST as the development sign-in host."; exit 1; }
+
   build:
     name: Build ${{ matrix.image }}
+    needs: preflight
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -53,10 +114,16 @@ jobs:
           image="$REGISTRY.azurecr.io/${{ matrix.image }}"
           args=(-f "${{ matrix.file }}" -t "$image:$IMAGE_TAG" -t "$image:prod")
           if [ "${{ matrix.image }}" = "borek-web" ]; then
+            # Development sign-in, on this hostname only. No Supabase project is built into the
+            # page: the test environment does not use one.
             args+=(
               --build-arg "NEXT_PUBLIC_API_URL=$API_URL"
-              --build-arg "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
-              --build-arg "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}"
+              --build-arg "NEXT_PUBLIC_RUNTIME_PROFILE=development"
+              --build-arg "NEXT_PUBLIC_BYPASS_LOGIN=true"
+              --build-arg "NEXT_PUBLIC_DEPLOYED_DEV_BYPASS=true"
+              --build-arg "NEXT_PUBLIC_DEPLOYED_DEV_HOST=$WEB_HOST"
+              --build-arg "NEXT_PUBLIC_SUPABASE_URL="
+              --build-arg "NEXT_PUBLIC_SUPABASE_ANON_KEY="
             )
           fi
           docker build "${args[@]}" .
@@ -75,11 +142,26 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Record the revisions that are running now
+        shell: bash
+        run: |
+          set -euo pipefail
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          {
+            echo "### Revisions before this deployment (for rollback)"
+            for app in renderer api worker web; do
+              revision="$(az containerapp show --name "$app" --resource-group "$RESOURCE_GROUP" --query properties.latestReadyRevisionName -o tsv)"
+              echo "- \`$app\`: \`$revision\`"
+            done
+            echo
+            echo "Roll one back with \`az containerapp revision copy --name <app> --resource-group $RESOURCE_GROUP --from-revision <revision>\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Point the running apps at the new images
         shell: bash
         run: |
           set -euo pipefail
-          for app in renderer api worker web; do
+          for app in renderer worker; do
             az containerapp update \
               --name "$app" \
               --resource-group "$RESOURCE_GROUP" \
@@ -87,3 +169,51 @@ jobs:
               --query "properties.template.containers[0].image" \
               -o tsv
           done
+
+          # The API gets its image and its test settings in one revision. One replica, always:
+          # the data lives in the memory of this one process and generation jobs run inside it;
+          # the worker receives no work in this mode. The Supabase settings are required by the
+          # API at start-up but never used with the memory backend; they are set to stand-ins so
+          # that this revision holds no database credentials.
+          az containerapp update \
+            --name api \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$REGISTRY.azurecr.io/borek-api:$IMAGE_TAG" \
+            --min-replicas 1 \
+            --max-replicas 1 \
+            --set-env-vars \
+              RUNTIME_PROFILE=development \
+              API_DATA_BACKEND=memory \
+              AUTH_BYPASS=true \
+              DEV_AUTH_USER_ID=00000000-0000-4000-8000-0000000000d1 \
+              DEV_AUTH_EMAIL=pm-tester@test.borek.example \
+              AI_EXECUTION_MODE=fixture \
+              FOLLOWUP_AI_WRITER_ENABLED=false \
+              SUPABASE_URL=https://not-used.invalid \
+              SUPABASE_ANON_KEY=not-used-in-the-test-environment \
+              SUPABASE_SERVICE_ROLE_KEY=not-used-in-the-test-environment \
+            --query "properties.template.containers[0].image" \
+            -o tsv
+
+          az containerapp update \
+            --name web \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$REGISTRY.azurecr.io/borek-web:$IMAGE_TAG" \
+            --query "properties.template.containers[0].image" \
+            -o tsv
+
+      - name: Confirm the running configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          setting() { az containerapp show --name api --resource-group "$RESOURCE_GROUP" --query "properties.template.containers[0].env[?name=='$1'].value | [0]" -o tsv; }
+          for expected in API_DATA_BACKEND=memory AUTH_BYPASS=true RUNTIME_PROFILE=development AI_EXECUTION_MODE=fixture FOLLOWUP_AI_WRITER_ENABLED=false; do
+            [ "$(setting "${expected%%=*}")" = "${expected#*=}" ] || { echo "::error::api is not running with $expected."; exit 1; }
+          done
+          [ "$(az containerapp show --name api --resource-group "$RESOURCE_GROUP" --query properties.template.scale.maxReplicas -o tsv)" = "1" ] \
+            || { echo "::error::api must run exactly one replica."; exit 1; }
+          {
+            echo "### Test environment"
+            echo "https://$WEB_HOST - \"Continue with Microsoft\" starts the development session."
+            echo "Data is held in memory and starts empty after every deployment."
+          } >> "$GITHUB_STEP_SUMMARY"
