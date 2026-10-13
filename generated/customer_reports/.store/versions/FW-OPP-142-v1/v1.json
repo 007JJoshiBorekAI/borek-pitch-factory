@@ -10,11 +10,11 @@
   "quality_scores": {
     "opportunity_rating": 68,
     "conversation_quality": 82,
-    "build_readiness": 94,
+    "build_readiness": 90,
     "rationale": {
       "opportunity_rating": "Opportunity rating 68/100 from 73 hours/month and a 3-week path.",
       "conversation_quality": "Conversation quality 82/100 (strong).",
-      "build_readiness": "Build-readiness 94/100 (ready to build)."
+      "build_readiness": "Build-readiness 90/100 (ready to build)."
     }
   },
   "kpis": [
@@ -55,7 +55,7 @@
     {
       "name": "ERP read REST API for purchase orders, goods",
       "role": "Posting / write-back",
-      "direction": "read_write",
+      "direction": "write",
       "access_path": "ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements. ERP write posting of payment documents pending formal approval.",
       "data_classification": "as reported",
       "status": "open_dependency"
@@ -205,12 +205,6 @@
       "item_type": "assumption",
       "owner": "Business",
       "consequence_if_different": "Missing information is never guessed. Confirm the figure before it is used."
-    },
-    {
-      "description": "Number 2026.09 was not named in the conversations. Recorded as an open item rather than guessed.",
-      "item_type": "assumption",
-      "owner": "Business",
-      "consequence_if_different": "Missing information is never guessed. Confirm the figure before it is used."
     }
   ],
   "chapters": [
@@ -220,17 +214,11 @@
       "body": [
         {
           "block": "prose",
-          "text": "For every automation opportunity it identifies, the Borek AI Suite generates exactly one framework report like this. It is generated from the conversations with your team and is human-confirmed before it is the signed customer report. No consultant writes it. Every number in this report is traceable to its source. Estimates are shown as ranges with a confidence level, never as false precision.",
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:3"
-            }
-          ]
+          "text": "For every automation opportunity it identifies, the Borek AI Suite generates exactly one framework report like this. It is generated from the conversations with your team and is human-confirmed before it is the signed customer report. No consultant writes it. Every number in this report is traceable to its source. Estimates are shown as ranges with a confidence level, never as false precision."
         },
         {
           "block": "bullets",
+          "kind": "decision_questions",
           "items": [
             "What is it? — the task today (chapters 1-2)",
             "Why do it? — aim, benefit and measurable success (chapter 3)",
@@ -240,13 +228,6 @@
             "Is it safe? — data protection, compliance, human control (chapter 8)",
             "Does it pay? — business case, ROI, complexity (chapters 9-10)",
             "Can we trust the numbers? — quality gates, open points, evolution (chapters 11-12)"
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C7",
-              "speaker_role": "IT",
-              "excerpt_pointer": "turn:7"
-            }
           ]
         }
       ],
@@ -314,14 +295,7 @@
       "body": [
         {
           "block": "prose",
-          "text": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts.",
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:1"
-            }
-          ]
+          "text": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts."
         },
         {
           "block": "kv_rows",
@@ -357,14 +331,7 @@
             },
             {
               "label": "Data basis",
-              "value": "Opportunity rating 68/100 · conversation quality 82/100 · build-readiness 94/100"
-            }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C7",
-              "speaker_role": "IT",
-              "excerpt_pointer": "turn:7"
+              "value": "Opportunity rating 68/100 · conversation quality 82/100 · build-readiness 90/100"
             }
           ]
         },
@@ -375,14 +342,7 @@
         {
           "block": "callout",
           "kind": "recommendation",
-          "text": "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:8"
-            }
-          ]
+          "text": "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13."
         }
       ],
       "source_refs": [
@@ -526,13 +486,6 @@
               "label": "Quality risk",
               "value": "Not named in the conversations. Recorded as an open item rather than guessed."
             }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:1"
-            }
           ]
         }
       ],
@@ -636,13 +589,6 @@
               "Not named in the conversations. Recorded as an open item rather than guessed.",
               "process timestamps / month-end tracking"
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:5"
-            }
           ]
         }
       ],
@@ -753,17 +699,11 @@
               "to": "n3",
               "label": ""
             }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:5"
-            }
           ]
         },
         {
           "block": "table",
+          "kind": "today_vs_agent",
           "caption": "Today vs with the agent",
           "columns": [
             "Today",
@@ -786,13 +726,6 @@
               "Post or clarify",
               "Post or queue"
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:5"
-            }
           ]
         },
         {
@@ -807,13 +740,6 @@
             {
               "label": "Borek reference",
               "value": "Invoice 3-way Match is typically delivered as a structured finance-operations engagement with a named delivery lead. (corpus 2026.09.03, REF-INV3WAY-v1, reference.invoice-3way.delivery-pattern)"
-            }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:1"
             }
           ]
         }
@@ -900,13 +826,6 @@
               "label": "Result",
               "value": "Not named in the conversations. Recorded as an open item rather than guessed."
             }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:1"
-            }
           ]
         },
         {
@@ -941,13 +860,6 @@
               "Postings above EUR 5,000 always need human",
               "Postings above EUR 5,000 always need human one-click approval."
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:3"
-            }
           ]
         },
         {
@@ -979,13 +891,6 @@
               "5 %",
               "Credit notes about 5 percent stay in today's manual process until stage 3."
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:4"
-            }
           ]
         },
         {
@@ -1058,14 +963,7 @@
       "body": [
         {
           "block": "prose",
-          "text": "This chapter gives IT and the system owner the technical picture at the depth needed to say yes — without implementation detail.",
-          "source_refs": [
-            {
-              "conversation_id": "C7",
-              "speaker_role": "IT",
-              "excerpt_pointer": "turn:6"
-            }
-          ]
+          "text": "This chapter gives IT and the system owner the technical picture at the depth needed to say yes — without implementation detail."
         },
         {
           "block": "table",
@@ -1088,21 +986,15 @@
             [
               "ERP read REST API for purchase orders, goods",
               "Posting / write-back",
-              "read_write",
+              "write",
               "ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements. ERP write posting of payment documents pending formal approval.",
               "as reported"
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:6"
-            }
           ]
         },
         {
           "block": "table",
+          "kind": "building_blocks",
           "caption": "Building blocks",
           "columns": [
             "Building block",
@@ -1120,13 +1012,6 @@
               "Posting / write-back",
               "Protected by least-privilege access: ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements. ERP write posting of payment documents pending formal approval."
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:6"
-            }
           ]
         },
         {
@@ -1138,13 +1023,6 @@
             "Deciding whether a case matches",
             "Evaluating tolerances or thresholds",
             "Assessing any employee"
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:1"
-            }
           ]
         }
       ],
@@ -1212,14 +1090,7 @@
       "body": [
         {
           "block": "prose",
-          "text": "To deliver we need the following access, data and people on your side. Nothing here is invented.",
-          "source_refs": [
-            {
-              "conversation_id": "C7",
-              "speaker_role": "IT",
-              "excerpt_pointer": "turn:7"
-            }
-          ]
+          "text": "To deliver we need the following access, data and people on your side. Nothing here is invented."
         },
         {
           "block": "table",
@@ -1281,13 +1152,6 @@
               "Business",
               "Not named in the conversations. Recorded as an open item rather than guessed."
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C7",
-              "speaker_role": "IT",
-              "excerpt_pointer": "turn:6"
-            }
           ]
         }
       ],
@@ -1392,13 +1256,6 @@
             {
               "label": "Breach",
               "value": "A breach of these guardrails is a failed acceptance test."
-            }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C7",
-              "speaker_role": "IT",
-              "excerpt_pointer": "turn:7"
             }
           ]
         }
@@ -1523,13 +1380,6 @@
               "(36 * net_eur_mo - build_cost_eur) / build_cost_eur",
               "~476 %"
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:5"
-            }
           ]
         },
         {
@@ -1538,13 +1388,6 @@
             "Fewer wrong and duplicate payments",
             "Month-end relief exactly at peak",
             "Capacity moves to clarification cases that need judgement"
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:1"
-            }
           ]
         },
         {
@@ -1562,13 +1405,6 @@
               "label": "Optimistic",
               "detail": "Auto-match 92 % · net ~EUR 2600/month · payback ~5.8 months"
             }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:5"
-            }
           ]
         },
         {
@@ -1579,13 +1415,6 @@
             {
               "label": "Borek rate card",
               "value": "EUR 1250.00 / day (indicative). (corpus 2026.09.03, RC-2026-Q3, price.invoice-3way.senior-consultant.day-rate)"
-            }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:5"
             }
           ]
         }
@@ -1654,14 +1483,7 @@
       "body": [
         {
           "block": "prose",
-          "text": "The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope.",
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:4"
-            }
-          ]
+          "text": "The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope."
         },
         {
           "block": "kv_rows",
@@ -1687,13 +1509,6 @@
               "label": "Build cost",
               "value": "~EUR 15000"
             }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:8"
-            }
           ]
         },
         {
@@ -1717,13 +1532,6 @@
                 "Weeks 3–3: gated writes, audit, acceptance, go-live approval (chapter 12 stage 2)"
               ]
             }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:5"
-            }
           ]
         },
         {
@@ -1734,13 +1542,6 @@
             {
               "label": "Borek staffing",
               "value": "4 people / 2.6 FTE. (corpus 2026.09.03, STAFF-INV3WAY-v1, staff.invoice-3way.core-team)"
-            }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:1"
             }
           ]
         }
@@ -1830,17 +1631,10 @@
             },
             {
               "name": "Build-readiness",
-              "score": 94,
+              "score": 90,
               "max": 100,
               "band": "Is the concept buildable?",
-              "explanation": "Build-readiness 94/100 (ready to build)."
-            }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:1"
+              "explanation": "Build-readiness 90/100 (ready to build)."
             }
           ]
         },
@@ -1871,20 +1665,7 @@
               "assumption",
               "Business",
               "Missing information is never guessed. Confirm the figure before it is used."
-            ],
-            [
-              "Number 2026.09 was not named in the conversations. Recorded as an open item rather than guessed.",
-              "assumption",
-              "Business",
-              "Missing information is never guessed. Confirm the figure before it is used."
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:5"
-            }
           ]
         },
         {
@@ -1957,14 +1738,7 @@
       "body": [
         {
           "block": "prose",
-          "text": "Every automation is designed as a path, not an end state. You decide anew at each stage.",
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:4"
-            }
-          ]
+          "text": "Every automation is designed as a path, not an end state. You decide anew at each stage."
         },
         {
           "block": "table",
@@ -2005,13 +1779,6 @@
               "Exception effort down; cycle time days to hours. Proposal only — not in the committed business case.",
               "Proposal only; own estimate and business case only after the stated stable-metrics period."
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:4"
-            }
           ]
         },
         {
@@ -2110,13 +1877,6 @@
               "Borek delivery + business",
               "3.0 weeks"
             ]
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:8"
-            }
           ]
         },
         {
@@ -2198,13 +1958,6 @@
               "term": "A supplier invoice PDF arrives in the shared AP",
               "meaning": "As named in the conversations: A supplier invoice PDF arrives in the shared AP mailbox.."
             }
-          ],
-          "source_refs": [
-            {
-              "conversation_id": "C6",
-              "speaker_role": "Sandra",
-              "excerpt_pointer": "turn:1"
-            }
           ]
         }
       ],
@@ -2275,8 +2028,8 @@
   "change_log": [
     "Initial customer-report generation"
   ],
-  "created_at": "2026-09-21T10:34:00Z",
-  "updated_at": "2026-09-21T10:34:00Z",
+  "created_at": "2026-10-06T09:51:14Z",
+  "updated_at": "2026-10-06T09:51:14Z",
   "language_master": "en",
   "render_languages": [
     "de",
@@ -2315,6 +2068,7 @@
     }
   },
   "business_case": {
+    "grounded": true,
     "hours_saved_mo": 62,
     "gross_eur_mo": 2800,
     "run_cost_eur_mo": 400,
@@ -2429,7 +2183,7 @@
       }
     },
     "build_readiness": {
-      "score": 94,
+      "score": 90,
       "blocks": {
         "aim_metric": 12,
         "functional_spec": 20,
@@ -2439,7 +2193,7 @@
         "estimate": 10,
         "business_case": 8,
         "acceptance": 8,
-        "open_questions": 4
+        "open_questions": 0
       },
       "band": "ready_to_build",
       "evidence": [
@@ -2451,7 +2205,7 @@
         "estimate=10/10",
         "business_case=8/8",
         "acceptance=8/8",
-        "open_questions=4/4"
+        "open_questions=0/4"
       ],
       "inputs": {
         "has_aim_metric": true,
@@ -2464,7 +2218,7 @@
         "estimate_complete": true,
         "business_case_complete": true,
         "acceptance_complete": true,
-        "blocker_open_questions": 0
+        "blocker_open_questions": 4
       }
     }
   },
@@ -2554,6 +2308,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-77ae1bb88fbd74ed933d0c32",
       "bucket": "facts"
     },
     {
@@ -2567,6 +2322,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-024ff223905d83958bccd8df",
       "bucket": "facts"
     },
     {
@@ -2580,6 +2336,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-ddcad6e69fab9acb9446596c",
       "bucket": "facts"
     },
     {
@@ -2593,6 +2350,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-77d787fdc1f54469354989a6",
       "bucket": "facts"
     },
     {
@@ -2606,6 +2364,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-a3c6e685fb4ac000d28e2288",
       "bucket": "facts"
     },
     {
@@ -2619,6 +2378,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-31b2ed477c4a0bf82ba31360",
       "bucket": "facts"
     },
     {
@@ -2632,6 +2392,7 @@
       ],
       "origin": "USER_INPUT",
       "confidence": "high",
+      "entry_id": "KE-3eaeb2ad1a1c74f68c816987",
       "bucket": "stated_requirements"
     },
     {
@@ -2645,6 +2406,7 @@
       ],
       "origin": "USER_INPUT",
       "confidence": "high",
+      "entry_id": "KE-733d8db0403fb2d19698614e",
       "bucket": "stated_requirements"
     },
     {
@@ -2658,6 +2420,7 @@
       ],
       "origin": "USER_INPUT",
       "confidence": "high",
+      "entry_id": "KE-366eecec666202259f9d7045",
       "bucket": "stated_requirements"
     },
     {
@@ -2671,6 +2434,7 @@
       ],
       "origin": "USER_INPUT",
       "confidence": "high",
+      "entry_id": "KE-e38b533306b7dd4c9863cb90",
       "bucket": "stated_requirements"
     },
     {
@@ -2684,6 +2448,7 @@
       ],
       "origin": "USER_INPUT",
       "confidence": "high",
+      "entry_id": "KE-497d27e9f9c877626361d29b",
       "bucket": "constraints"
     },
     {
@@ -2697,6 +2462,7 @@
       ],
       "origin": "USER_INPUT",
       "confidence": "high",
+      "entry_id": "KE-86322048cdd9ed3b7c4016a7",
       "bucket": "constraints"
     },
     {
@@ -2710,6 +2476,7 @@
       ],
       "origin": "USER_INPUT",
       "confidence": "high",
+      "entry_id": "KE-68cfb97207c190c70cfd091d",
       "bucket": "constraints"
     },
     {
@@ -2723,6 +2490,7 @@
       ],
       "origin": "USER_INPUT",
       "confidence": "high",
+      "entry_id": "KE-cd1c566fe5657eff2c67f382",
       "bucket": "constraints"
     },
     {
@@ -2736,6 +2504,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-0c17020559a66d972b25f826",
       "bucket": "named_systems"
     },
     {
@@ -2749,6 +2518,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-6cfdc5a38b6d751ee4d7279b",
       "bucket": "named_systems"
     },
     {
@@ -2762,6 +2532,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-14bbbaed5f03c99cef88c629",
       "bucket": "named_systems"
     },
     {
@@ -2775,6 +2546,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-3235b066cd3c47ff44057657",
       "bucket": "named_rules"
     },
     {
@@ -2788,6 +2560,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-ae82ac85d6a5b8f3d59e0bbe",
       "bucket": "named_rules"
     },
     {
@@ -2801,6 +2574,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-5b58ce1dd92896e18ee1c82c",
       "bucket": "named_rules"
     },
     {
@@ -2814,6 +2588,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-007690cb3d29fb5b014d096b",
       "bucket": "named_rules"
     },
     {
@@ -2827,6 +2602,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-c5371d04ddcb465821113110",
       "bucket": "named_rules"
     },
     {
@@ -2840,6 +2616,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-e27731c1c895f959e8477b32",
       "bucket": "named_rules"
     },
     {
@@ -2853,6 +2630,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-33f1c212a42d64ad7ce55d66",
       "bucket": "named_exceptions"
     },
     {
@@ -2866,6 +2644,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-b67f2a8abfa777f12c1f7e72",
       "bucket": "named_exceptions"
     },
     {
@@ -2879,6 +2658,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-f60552e8b94b47e983c9e9f7",
       "bucket": "named_exceptions"
     },
     {
@@ -2892,6 +2672,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-0215f49e9e8f4356ec9d253f",
       "bucket": "named_exceptions"
     },
     {
@@ -2905,6 +2686,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-c9ef90ead853e95cc7a69045",
       "bucket": "people_and_roles"
     },
     {
@@ -2918,6 +2700,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "high",
+      "entry_id": "KE-3fc79b145265868e0c8758c0",
       "bucket": "people_and_roles"
     },
     {
@@ -2931,6 +2714,7 @@
       ],
       "origin": "AI_INFERENCE",
       "confidence": "medium",
+      "entry_id": "KE-cef945b6f2a35f540e2e869c",
       "bucket": "timeline_mentions"
     },
     {
@@ -2944,6 +2728,7 @@
       ],
       "origin": "SOURCE_FACT",
       "confidence": "medium",
+      "entry_id": "KE-90d66f4e85b7a3b007c933bd",
       "bucket": "risks"
     },
     {
@@ -2957,6 +2742,7 @@
           "excerpt_pointer": "turn:6"
         }
       ],
+      "entry_id": "KE-c9ce2723acfb653b797971d8",
       "bucket": "unknowns"
     }
   ],
@@ -2965,9 +2751,9 @@
     "ruleset_version": "scoring.config.json",
     "config_version": "estimation.config.json+business_case.config.json",
     "llm_model": "deterministic-builder",
-    "prompt_version": "framework-synthesis:v1",
+    "prompt_version": "framework-synthesis:v2",
     "llm_used": false,
-    "generated_at": "2026-09-21T10:34:00Z",
+    "generated_at": "2026-10-06T09:51:14Z",
     "llm_job_log": [],
     "process_scope": null,
     "client_pack": {
@@ -3297,7 +3083,7 @@
     "prompt_observability": {
       "llm_used": false,
       "llm_model": "deterministic-builder",
-      "prompt_version": "framework-synthesis:v1",
+      "prompt_version": "framework-synthesis:v2",
       "job_count": 0,
       "stages": [],
       "models": [],
@@ -3324,11 +3110,11 @@
     "quality_scores": {
       "opportunity_rating": 68,
       "conversation_quality": 82,
-      "build_readiness": 94,
+      "build_readiness": 90,
       "rationale": {
         "opportunity_rating": "Opportunity rating 68/100 from 73 hours/month and a 3-week path.",
         "conversation_quality": "Conversation quality 82/100 (strong).",
-        "build_readiness": "Build-readiness 94/100 (ready to build)."
+        "build_readiness": "Build-readiness 90/100 (ready to build)."
       }
     },
     "kpis": [
@@ -3369,7 +3155,7 @@
       {
         "name": "ERP read REST API for purchase orders, goods",
         "role": "Posting / write-back",
-        "direction": "read_write",
+        "direction": "write",
         "access_path": "ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements. ERP write posting of payment documents pending formal approval.",
         "data_classification": "as reported",
         "status": "open_dependency"
@@ -3519,12 +3305,6 @@
         "item_type": "assumption",
         "owner": "Business",
         "consequence_if_different": "Missing information is never guessed. Confirm the figure before it is used."
-      },
-      {
-        "description": "Number 2026.09 was not named in the conversations. Recorded as an open item rather than guessed.",
-        "item_type": "assumption",
-        "owner": "Business",
-        "consequence_if_different": "Missing information is never guessed. Confirm the figure before it is used."
       }
     ],
     "chapters": [
@@ -3538,6 +3318,7 @@
           },
           {
             "block": "bullets",
+            "kind": "decision_questions",
             "items": [
               "What is it? — the task today (chapters 1-2)",
               "Why do it? — aim, benefit and measurable success (chapter 3)",
@@ -3593,7 +3374,7 @@
               },
               {
                 "label": "Data basis",
-                "value": "Opportunity rating 68/100 · conversation quality 82/100 · build-readiness 94/100"
+                "value": "Opportunity rating 68/100 · conversation quality 82/100 · build-readiness 90/100"
               }
             ]
           },
@@ -3794,6 +3575,7 @@
           },
           {
             "block": "table",
+            "kind": "today_vs_agent",
             "caption": "Today vs with the agent",
             "columns": [
               "Today",
@@ -3962,7 +3744,7 @@
               [
                 "ERP read REST API for purchase orders, goods",
                 "Posting / write-back",
-                "read_write",
+                "write",
                 "ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements. ERP write posting of payment documents pending formal approval.",
                 "as reported"
               ]
@@ -3970,6 +3752,7 @@
           },
           {
             "block": "table",
+            "kind": "building_blocks",
             "caption": "Building blocks",
             "columns": [
               "Building block",
@@ -4321,10 +4104,10 @@
               },
               {
                 "name": "Build-readiness",
-                "score": 94,
+                "score": 90,
                 "max": 100,
                 "band": "Is the concept buildable?",
-                "explanation": "Build-readiness 94/100 (ready to build)."
+                "explanation": "Build-readiness 90/100 (ready to build)."
               }
             ]
           },
@@ -4352,12 +4135,6 @@
               ],
               [
                 "Number 13,770 was not named in the conversations. Recorded as an open item rather than guessed.",
-                "assumption",
-                "Business",
-                "Missing information is never guessed. Confirm the figure before it is used."
-              ],
-              [
-                "Number 2026.09 was not named in the conversations. Recorded as an open item rather than guessed.",
                 "assumption",
                 "Business",
                 "Missing information is never guessed. Confirm the figure before it is used."
@@ -4553,8 +4330,8 @@
     "change_log": [
       "Initial customer-report generation"
     ],
-    "created_at": "2026-09-21T10:34:00Z",
-    "updated_at": "2026-09-21T10:34:00Z",
+    "created_at": "2026-10-06T09:51:14Z",
+    "updated_at": "2026-10-06T09:51:14Z",
     "language_master": "en",
     "render_languages": [
       "de",
@@ -4593,6 +4370,7 @@
       }
     },
     "business_case": {
+      "grounded": true,
       "hours_saved_mo": 62,
       "gross_eur_mo": 2800,
       "run_cost_eur_mo": 400,
@@ -4707,7 +4485,7 @@
         }
       },
       "build_readiness": {
-        "score": 94,
+        "score": 90,
         "blocks": {
           "aim_metric": 12,
           "functional_spec": 20,
@@ -4717,7 +4495,7 @@
           "estimate": 10,
           "business_case": 8,
           "acceptance": 8,
-          "open_questions": 4
+          "open_questions": 0
         },
         "band": "ready_to_build",
         "evidence": [
@@ -4729,7 +4507,7 @@
           "estimate=10/10",
           "business_case=8/8",
           "acceptance=8/8",
-          "open_questions=4/4"
+          "open_questions=0/4"
         ],
         "inputs": {
           "has_aim_metric": true,
@@ -4742,7 +4520,7 @@
           "estimate_complete": true,
           "business_case_complete": true,
           "acceptance_complete": true,
-          "blocker_open_questions": 0
+          "blocker_open_questions": 4
         }
       }
     },
@@ -4777,9 +4555,9 @@
       "ruleset_version": "scoring.config.json",
       "config_version": "estimation.config.json+business_case.config.json",
       "llm_model": "deterministic-builder",
-      "prompt_version": "framework-synthesis:v1",
+      "prompt_version": "framework-synthesis:v2",
       "llm_used": false,
-      "generated_at": "2026-09-21T10:34:00Z",
+      "generated_at": "2026-10-06T09:51:14Z",
       "llm_job_log": [],
       "process_scope": null,
       "client_pack": {
@@ -5160,13 +4938,6 @@
         "owner": "Business",
         "status": null,
         "chapter_id": null
-      },
-      {
-        "item_type": "assumption",
-        "description": "Number 2026.09 was not named in the conversations. Recorded as an open item rather than guessed.",
-        "owner": "Business",
-        "status": null,
-        "chapter_id": null
       }
     ],
     "open_questions": [],
@@ -5175,7 +4946,7 @@
     "readiness": {
       "band": "ready_to_build",
       "status_label": "READY TO BUILD",
-      "build_readiness": 94,
+      "build_readiness": 90,
       "conversation_quality": 82,
       "opportunity_rating": 68,
       "render_allowed": true,
@@ -5185,7 +4956,7 @@
     "score_rationale": {
       "opportunity_rating": "Opportunity rating 68/100 from 73 hours/month and a 3-week path.",
       "conversation_quality": "Conversation quality 82/100 (strong).",
-      "build_readiness": "Build-readiness 94/100 (ready to build)."
+      "build_readiness": "Build-readiness 90/100 (ready to build)."
     },
     "source_coverage": {
       "chapters_with_refs": 14,
@@ -5201,10 +4972,10 @@
       {
         "id": "REVIEW_RECOMMENDED",
         "severity": "warning",
-        "message": "Build-readiness is 94/100 with documented assumptions.",
+        "message": "Build-readiness is 90/100 with documented assumptions.",
         "action": "Review assumptions in chapter 11 before approval.",
         "chapter_id": "11",
-        "count": 4
+        "count": 3
       }
     ]
   },
@@ -5212,10 +4983,10 @@
     {
       "id": "REVIEW_RECOMMENDED",
       "severity": "warning",
-      "message": "Build-readiness is 94/100 with documented assumptions.",
+      "message": "Build-readiness is 90/100 with documented assumptions.",
       "action": "Review assumptions in chapter 11 before approval.",
       "chapter_id": "11",
-      "count": 4
+      "count": 3
     }
   ]
 }

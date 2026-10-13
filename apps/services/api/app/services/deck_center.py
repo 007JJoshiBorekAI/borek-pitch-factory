@@ -21,15 +21,24 @@ def build_deck_center_payload(
     *,
     presentation_id: UUID,
     user_id: UUID,
+    presentation_version_id: UUID | None = None,
 ) -> dict[str, object]:
+    """The latest ready deck, or one specific ready version of the presentation."""
     presentation = store.get_presentation(presentation_id=presentation_id, user_id=user_id)
-    version = store.get_presentation_version_assets(
+    version = _version_assets(
+        store,
         presentation_id=presentation_id,
         user_id=user_id,
+        presentation_version_id=presentation_version_id,
     )
     _require_ready(version)
-    slides = store.list_slides(presentation_id=presentation_id, user_id=user_id)
-    presentation_id_str = str(presentation_id)
+    slides = _version_slides(
+        store,
+        presentation_id=presentation_id,
+        user_id=user_id,
+        presentation_version_id=presentation_version_id,
+    )
+    presentation_id_str = _url_prefix(presentation_id, presentation_version_id)
     preview_paths = list_preview_image_paths(
         version_id=version["id"],
         stored_paths=list(version.get("preview_image_paths") or []),
@@ -63,7 +72,7 @@ def build_deck_center_payload(
                 }
             )
 
-    return {
+    payload: dict[str, object] = {
         "presentation_id": presentation_id,
         "presentation_name": presentation["name"],
         "version_number": version["version_number"],
@@ -71,6 +80,130 @@ def build_deck_center_payload(
         "slides": slide_items,
         "pptx_download_url": f"/presentations/{presentation_id_str}/download/pptx",
         "pdf_download_url": f"/presentations/{presentation_id_str}/download/pdf",
+    }
+    if presentation_version_id is not None:
+        payload["presentation_version_id"] = version["id"]
+    source = _deck_source(version, slide_count=len(slides))
+    if source is not None:
+        payload["source"] = source
+    return payload
+
+
+def list_ready_versions(
+    store: DataStore,
+    *,
+    presentation_id: UUID,
+    user_id: UUID,
+) -> list[dict[str, object]]:
+    """Every ready version of one presentation, newest first, with its own URLs."""
+    opportunity_id = store.get_presentation_opportunity_id(presentation_id=presentation_id, user_id=user_id)
+    rows = [
+        row
+        for row in store.list_presentation_versions_for_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        if str(row["presentation_id"]) == str(presentation_id) and row.get("status") == "ready"
+    ]
+    rows.sort(key=lambda row: int(row["version_number"]), reverse=True)
+    latest = store.get_latest_presentation_version(presentation_id=presentation_id, user_id=user_id)["id"]
+    items: list[dict[str, object]] = []
+    for row in rows:
+        prefix = f"/presentations/{_url_prefix(presentation_id, row['id'])}"
+        item: dict[str, object] = {
+            "presentation_version_id": row["id"],
+            "version_number": row["version_number"],
+            "status": row["status"],
+            "journey_stage": row.get("journey_stage"),
+            "created_at": row.get("created_at"),
+            "is_latest": str(row["id"]) == str(latest),
+            "deck_url": f"{prefix}/deck",
+            "pptx_download_url": f"{prefix}/download/pptx",
+            "pdf_download_url": f"{prefix}/download/pdf",
+        }
+        source = _deck_source(row, slide_count=len(row.get("slides_json") or []))
+        if source is not None:
+            item["source"] = source
+        items.append(item)
+    return items
+
+
+def list_version_slides(
+    store: DataStore,
+    *,
+    presentation_id: UUID,
+    user_id: UUID,
+    presentation_version_id: UUID,
+) -> list[dict]:
+    """Slide rows of one specific version; the latest-version route keeps its own behaviour."""
+    return _version_slides(
+        store,
+        presentation_id=presentation_id,
+        user_id=user_id,
+        presentation_version_id=presentation_version_id,
+    )
+
+
+def _url_prefix(presentation_id: UUID, presentation_version_id: object | None) -> str:
+    if presentation_version_id is None:
+        return str(presentation_id)
+    return f"{presentation_id}/versions/{presentation_version_id}"
+
+
+def _version_assets(
+    store: DataStore,
+    *,
+    presentation_id: UUID,
+    user_id: UUID,
+    presentation_version_id: UUID | None,
+) -> dict:
+    # The latest-version call stays exactly as it was; a version is only named when requested.
+    if presentation_version_id is None:
+        return store.get_presentation_version_assets(presentation_id=presentation_id, user_id=user_id)
+    return store.get_presentation_version_assets(
+        presentation_id=presentation_id,
+        user_id=user_id,
+        presentation_version_id=presentation_version_id,
+    )
+
+
+def _version_slides(
+    store: DataStore,
+    *,
+    presentation_id: UUID,
+    user_id: UUID,
+    presentation_version_id: UUID | None,
+) -> list[dict]:
+    if presentation_version_id is None:
+        return store.list_slides(presentation_id=presentation_id, user_id=user_id)
+    return store.list_slides(
+        presentation_id=presentation_id,
+        user_id=user_id,
+        presentation_version_id=presentation_version_id,
+    )
+
+
+def _deck_source(version: dict[str, object], *, slide_count: int) -> dict[str, object] | None:
+    """Master and approved Discovery version of a Master Presentation (V1 or V2); None for other decks."""
+    manifest = version.get("generation_source_manifest")
+    if not isinstance(manifest, dict) or manifest.get("kind") not in ("master_presentation_v1", "master_presentation_v2"):
+        return None
+    canonical = int(manifest.get("master_slide_count") or 0)
+    lineage = (
+        # V2 names the V1 version it follows; the product version is never derived from the revision number.
+        {"base_presentation_version_id": manifest["base_presentation_version_id"]}
+        if manifest["kind"] == "master_presentation_v2"
+        else {}
+    )
+    return {
+        **lineage,
+        "kind": manifest["kind"],
+        "product_version": str(manifest.get("product_version") or "V1"),
+        "product_stage": str(manifest.get("product_stage") or "pre_meeting"),
+        "revision": int(version["version_number"]),
+        "master_id": manifest["master_id"],
+        "master_version": manifest["master_version"],
+        "canonical_slide_count": canonical,
+        "appendix_slide_count": max(slide_count - canonical, 0),
+        "approved_discovery_version_id": manifest["approved_discovery_version_id"],
+        "discovery_schema_version": manifest["discovery_schema_version"],
     }
 
 
@@ -80,39 +213,43 @@ def resolve_deck_file_path(
     presentation_id: UUID,
     user_id: UUID,
     kind: str,
+    presentation_version_id: UUID | None = None,
 ) -> Path:
-    version = store.get_presentation_version_assets(
+    version = _version_assets(
+        store,
         presentation_id=presentation_id,
         user_id=user_id,
+        presentation_version_id=presentation_version_id,
     )
     _require_ready(version)
     version_id = version["id"]
     if kind not in ("pptx", "pdf"):
         raise not_found("DECK_FILE_NOT_FOUND", f"Unknown deck file type: {kind}")
 
-    # JJ-28: whichever engine produced the deck, it is downloaded from the same
-    # URL. A Gamma export supersedes the internal render for this version.
-    gamma_path = _resolve_gamma_deck_file(
+    if kind == "pptx":
+        path = Path(version["pptx_storage_path"]) if version.get("pptx_storage_path") else resolve_pptx_path(version_id=version_id)
+    else:
+        path = Path(version["pdf_storage_path"]) if version.get("pdf_storage_path") else resolve_pdf_path(version_id=version_id)
+
+    if path.is_file():
+        return path
+
+    # Historical decks filed before the internal renderer was the only engine.
+    # Read-only: new renders do not write these files.
+    legacy_path = _resolve_legacy_gamma_deck_file(
         store,
         presentation_id=presentation_id,
         user_id=user_id,
         version_id=version_id,
         kind=kind,
     )
-    if gamma_path is not None:
-        return gamma_path
+    if legacy_path is not None:
+        return legacy_path
 
-    if kind == "pptx":
-        path = Path(version["pptx_storage_path"]) if version.get("pptx_storage_path") else resolve_pptx_path(version_id=version_id)
-    else:
-        path = Path(version["pdf_storage_path"]) if version.get("pdf_storage_path") else resolve_pdf_path(version_id=version_id)
-
-    if not path.is_file():
-        raise not_found("DECK_FILE_NOT_FOUND", f"Deck {kind} file is not available")
-    return path
+    raise not_found("DECK_FILE_NOT_FOUND", f"Deck {kind} file is not available")
 
 
-def _resolve_gamma_deck_file(
+def _resolve_legacy_gamma_deck_file(
     store: DataStore,
     *,
     presentation_id: UUID,
@@ -140,10 +277,13 @@ def resolve_deck_preview_image_path(
     presentation_id: UUID,
     user_id: UUID,
     slide_index: int,
+    presentation_version_id: UUID | None = None,
 ) -> Path:
-    version = store.get_presentation_version_assets(
+    version = _version_assets(
+        store,
         presentation_id=presentation_id,
         user_id=user_id,
+        presentation_version_id=presentation_version_id,
     )
     _require_ready(version)
     preview_paths = list_preview_image_paths(

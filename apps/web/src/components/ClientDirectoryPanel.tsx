@@ -1,191 +1,121 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useDeferredValue, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-import { initialsFromName, SiteHeader } from "@/components/SiteHeader";
-import { useRecentWork } from "@/components/useRecentWork";
-import { formatRecentDate, type RecentLifecycle, type RecentWorkItem } from "@/lib/recentPresentations";
+import { SiteHeader } from "@/components/SiteHeader";
+import { useLanguage } from "@/components/LanguageProvider";
+import { usePreviewJourney } from "@/components/PreviewJourneyProvider";
+import { useAuth } from "@/components/AuthProvider";
+import { isLocalUiPreviewAvailable } from "@/lib/uiPreview";
+import { displayClientName } from "@/lib/clientInformation";
+import {
+  clientOpportunityHref,
+  loadLiveClientDirectory,
+  type ClientDirectoryItem,
+  type ClientPhase,
+} from "@/lib/clientDirectory";
 
-const PAGE_SIZE = 6;
-
-function statusColor(lifecycle: RecentLifecycle): string {
-  if (lifecycle === "needs_attention") return "var(--pitch-red)";
-  if (lifecycle === "needs_review") return "var(--pitch-navy)";
-  if (lifecycle === "ready") return "var(--pitch-teal)";
-  if (lifecycle === "analyzing" || lifecycle === "building_presentation") return "var(--pitch-orange)";
-  return "var(--pitch-gray-400)";
-}
+type PhaseFilter = "all" | ClientPhase;
 
 export function ClientDirectoryPanel() {
-  const router = useRouter();
-  const { items, loading, error, reload, email } = useRecentWork();
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
-  const [page, setPage] = useState(1);
-
-  const statuses = useMemo(
-    () => Array.from(new Set(items.map((item) => item.statusLabel))).sort(),
-    [items],
-  );
-
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return items.filter((item) => {
-      const matchesQuery =
-        needle.length === 0 ||
-        item.clientName.toLowerCase().includes(needle) ||
-        item.opportunityName.toLowerCase().includes(needle);
-      const matchesStatus = status === "all" || item.statusLabel === status;
-      return matchesQuery && matchesStatus;
+  const searchParams = useSearchParams();
+  const { copy, language } = useLanguage();
+  const { accessToken, ownerId, previewMode, loading } = useAuth();
+  const { directoryItems, hydrated } = usePreviewJourney();
+  const [retry, setRetry] = useState(0);
+  const scope = `${ownerId}:${previewMode}:${language}:${retry}`;
+  const [result, setResult] = useState<{ scope: string; items: ClientDirectoryItem[]; failed: boolean } | null>(null);
+  const localPreview = previewMode && isLocalUiPreviewAvailable();
+  useEffect(() => {
+    if (loading || previewMode || !accessToken || !ownerId) return;
+    const controller = new AbortController();
+    void loadLiveClientDirectory(accessToken, language, controller.signal).then((items) => {
+      if (!controller.signal.aborted) setResult({ scope, items, failed: false });
+    }).catch(() => {
+      if (!controller.signal.aborted) setResult({ scope, items: [], failed: true });
     });
-  }, [items, query, status]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const start = (currentPage - 1) * PAGE_SIZE;
-  const visible = filtered.slice(start, start + PAGE_SIZE);
-
-  function openNewClient() {
-    router.push("/");
-  }
+    return () => controller.abort();
+  }, [loading, previewMode, accessToken, ownerId, language, scope]);
+  const pending = loading || (localPreview ? !hydrated : Boolean(accessToken && ownerId) && result?.scope !== scope);
+  const failed = !pending && !localPreview && (!accessToken || !ownerId || result?.scope !== scope || result.failed);
+  const items = localPreview ? directoryItems
+    : !pending && !failed && result?.scope === scope ? result.items : [];
+  const [query, setQuery] = useState("");
+  const requestedPhase = searchParams.get("phase");
+  const phase: PhaseFilter = requestedPhase === "pre_meeting" || requestedPhase === "post_meeting"
+    ? requestedPhase
+    : "all";
+  const deferredQuery = useDeferredValue(query.trim().toLowerCase());
+  const filtered = items.filter((item) => {
+    const matchesPhase = phase === "all" || item.phase === phase;
+    const matchesQuery = !deferredQuery ||
+      item.company_name.toLowerCase().includes(deferredQuery) ||
+      item.contact_person.toLowerCase().includes(deferredQuery) ||
+      item.engagement_name.toLowerCase().includes(deferredQuery);
+    return matchesPhase && matchesQuery;
+  });
 
   return (
-    <div className="app-workspace">
-      <SiteHeader signedInEmail={email} />
-      <main className="app-shell app-workspace-body">
-        <div className="pitch-greet-row">
+    <div className="app-workspace clients-workspace">
+      <SiteHeader activeSection={phase === "all" ? "clients" : phase} />
+      <main className="clients-main">
+        <header className="clients-heading">
           <div>
-            <h2 className="pitch-greet">Clients</h2>
-            <p className="pitch-subtle">
-              View and manage every client relationship and active engagement in one place.
-            </p>
+            <p>{copy.clients.kicker}</p>
+            <h2>{copy.clients.title}</h2>
+            {!pending && !failed && <span>{items.length} {copy.clients.title.toLowerCase()} · {items.filter((item) => item.workflow_status !== "finalized").length} {copy.clients.activePitches}</span>}
           </div>
-          <button type="button" className="btn btn-primary" onClick={openNewClient}>
-            Add New Client
-          </button>
-        </div>
+          <Link href="/opportunities/new/client-information" className="btn btn-primary">{copy.clients.add}</Link>
+        </header>
 
-        {error ? (
-          <div className="alert alert-error recent-error" role="alert">
-            <span>{error}</span>
-            <button type="button" className="btn btn-secondary" onClick={() => void reload()}>
-              Try again
-            </button>
-          </div>
-        ) : null}
-
-        <div className="pitch-eyebrow">Client directory</div>
-        <div className="pitch-section-head">
-          <h2 className="pitch-section-title">All clients</h2>
-          <span className="pitch-count">{filtered.length} clients</span>
-        </div>
-
-        <div className="pitch-toolbar">
-          <input
-            className="pitch-search"
-            type="search"
-            value={query}
-            placeholder="Search by client or opportunity"
-            aria-label="Search clients"
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-          />
-          <select
-            className="pitch-select"
-            aria-label="Filter by status"
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="all">All statuses</option>
-            {statuses.map((label) => (
-              <option key={label} value={label}>
-                {label}
-              </option>
+        <div className="clients-controls">
+          <label className="clients-search">
+            <span className="sr-only">{copy.clients.search}</span>
+            <input type="search" value={query} placeholder={copy.clients.search} onChange={(event) => setQuery(event.target.value)} />
+          </label>
+          <div className="clients-phase-filter" role="group" aria-label="Filter clients by meeting phase">
+            {([
+              ["all", copy.clients.all, "/clients"],
+              ["pre_meeting", copy.clients.preMeeting, "/clients?phase=pre_meeting"],
+              ["post_meeting", copy.clients.postMeeting, "/clients?phase=post_meeting"],
+            ] as const).map(([value, label, href]) => (
+              <Link key={value} href={href} className={phase === value ? "is-active" : undefined} aria-current={phase === value ? "page" : undefined}>{label}</Link>
             ))}
-          </select>
+          </div>
         </div>
 
-        {loading ? (
-          <section className="recent-state-card" aria-live="polite">
-            <p>Loading your recent work...</p>
+        {pending ? (
+          <section className="clients-empty" role="status">{language === "de" ? "Kunden werden geladen..." : "Loading clients..."}</section>
+        ) : failed ? (
+          <section className="clients-empty" role="alert">
+            <p>{language === "de" ? "Kunden konnten nicht geladen werden." : "Clients could not be loaded."}</p>
+            <button type="button" className="btn btn-secondary" onClick={() => setRetry((value) => value + 1)}>{language === "de" ? "Erneut versuchen" : "Retry loading"}</button>
           </section>
-        ) : null}
-
-        {!loading && visible.length === 0 && !error ? (
-          <section className="recent-empty">
-            <h2>{items.length === 0 ? "No clients yet" : "No clients match"}</h2>
-            <p>
-              {items.length === 0
-                ? "Add a client to start a presentation."
-                : "Try a different name or status."}
-            </p>
-          </section>
-        ) : null}
-
-        {!loading && visible.length > 0 ? (
-          <table className="pitch-table">
-            <thead>
-              <tr>
-                <th>Client</th>
-                <th>Opportunity</th>
-                <th>Status</th>
-                <th>Last activity</th>
-                <th>Open</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((item: RecentWorkItem) => (
-                <tr key={item.opportunityId}>
-                  <td>
-                    <div className="pitch-client-cell">
-                      <div className="pitch-initials">{initialsFromName(item.clientName)}</div>
-                      <div className="pitch-client-name">{item.clientName}</div>
-                    </div>
-                  </td>
-                  <td>{item.opportunityName}</td>
-                  <td>
-                    <span className="pitch-status">
-                      <span className="pitch-status-dot" style={{ background: statusColor(item.lifecycle) }} />
-                      {item.statusLabel}
-                    </span>
-                  </td>
-                  <td>{formatRecentDate(item.updatedAt)}</td>
-                  <td>
-                    <Link href={`/first-contact?opportunityId=${encodeURIComponent(item.opportunityId)}`}>Open →</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : null}
-
-        {!loading && filtered.length > PAGE_SIZE ? (
-          <div className="pitch-footer-row">
-            <span className="pitch-footnote">
-              Showing {start + 1}–{Math.min(start + PAGE_SIZE, filtered.length)} of {filtered.length} clients
-            </span>
-            <div className="pitch-pagination">
-              <button type="button" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
-                Previous
-              </button>
-              <span className="active">{currentPage}</span>
-              <button
-                type="button"
-                disabled={currentPage === pageCount}
-                onClick={() => setPage(currentPage + 1)}
-              >
-                Next
-              </button>
-            </div>
+        ) : items.length === 0 ? (
+          <section className="clients-empty"><h3>{language === "de" ? "Noch keine Kunden" : "No clients yet"}</h3><p>{language === "de" ? "Erstellen Sie einen neuen Kunden, um zu beginnen." : "Add a new client to get started."}</p></section>
+        ) : filtered.length > 0 ? (
+          <div className="clients-table-wrap">
+            <table className="clients-table">
+              <thead><tr><th>{copy.clients.client}</th><th>{copy.clients.contact}</th><th>{copy.clients.workflow}</th><th>{copy.clients.activity}</th><th><span className="sr-only">Action</span></th></tr></thead>
+              <tbody>
+                {filtered.map((item) => (
+                  <tr key={item.opportunity_id}>
+                    <td data-label={copy.clients.client}><strong>{displayClientName(item.company_name, copy.clients.unnamed)}</strong><span>{item.engagement_name}</span></td>
+                    <td data-label={copy.clients.contact}><strong>{item.contact_person}</strong><span>{item.contact_role}</span></td>
+                    <td data-label={copy.clients.workflow}><span className={`clients-status is-${item.phase}`}><i aria-hidden="true" />{copy.workflow.statuses[item.workflow_status]}</span></td>
+                    <td data-label={copy.clients.activity}><span>{item.last_activity === "Today" ? copy.clients.today : item.last_activity === "Yesterday" ? copy.clients.yesterday : item.last_activity}</span></td>
+                    <td><Link href={clientOpportunityHref(item)} className="clients-open">{copy.clients.open}</Link></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : null}
+        ) : (
+          <section className="clients-empty"><h3>{copy.clients.noMatch}</h3><p>{copy.clients.noMatchHelp}</p></section>
+        )}
+        {!pending && !failed && <p className="clients-count">{copy.clients.showing} {filtered.length} {copy.clients.of} {items.length} {copy.clients.title.toLowerCase()}</p>}
       </main>
     </div>
   );

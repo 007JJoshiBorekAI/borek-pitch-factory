@@ -103,12 +103,53 @@ _FIXTURE_PLAN = {
 
 
 class FixturePlanningClient:
-    def complete_planning(self, **_kwargs: Any) -> dict[str, Any]:
+    # The Borek deck planner (PPT #1 / PPT #2) builds its deterministic deck itself instead
+    # of sending a request to this client.
+    deterministic = True
+
+    def complete_planning(self, **kwargs: Any) -> dict[str, Any]:
+        planning_input = kwargs.get("planning_input") or {}
+        ppt2_context = (
+            planning_input.get("ppt2Context")
+            if isinstance(planning_input, dict)
+            else None
+        )
+        if isinstance(ppt2_context, dict):
+            from services.presentation.post_meeting import deterministic_post_meeting_plan
+
+            return deterministic_post_meeting_plan(ppt2_context)
+        approved = (
+            planning_input.get("approvedDiscovery")
+            if isinstance(planning_input, dict)
+            else None
+        )
+        if isinstance(approved, dict):
+            from services.presentation.first_pitch import deterministic_discovery_plan
+
+            return deterministic_discovery_plan(approved)
         return copy.deepcopy(_FIXTURE_PLAN)
 
 
 def _live_llm_client() -> LlmClient:
-    """Build the shared OpenAI-backed client without affecting fixture execution."""
+    """Build the shared live LLM client (Claude by default) without affecting fixture execution."""
+    if settings.STAGE_B_LLM_PROVIDER == "anthropic":
+        from llm.claude_executor import ClaudeStageBExecutor
+        from llm.claude.client import sonnet_model
+
+        api_key = settings.ANTHROPIC_API_KEY.strip()
+        if not api_key:
+            from llm.openai_executor import OpenAIProviderConfigurationError
+
+            raise OpenAIProviderConfigurationError(
+                "ANTHROPIC_API_KEY is required when AI_EXECUTION_MODE=live"
+            )
+        model = sonnet_model()
+        return LlmClient(
+            model=model,
+            executor=ClaudeStageBExecutor(api_key=api_key, model=model),
+            external_provider="anthropic",
+        )
+
     from llm.openai_executor import OpenAIResponsesExecutor
 
     api_key = settings.OPENAI_API_KEY.strip()

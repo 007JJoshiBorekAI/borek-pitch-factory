@@ -8,18 +8,9 @@ from app.services.job_retry import is_transient_failure
 from app.services.planning_job_errors import format_presentation_planning_failure
 from llm.client import LlmClient, LlmUsageResult
 from llm.openai_executor import OpenAIProviderError, OpenAIResponsesExecutor
-from services.gamma.contract import (
-    LOCKED_BOREK_TEMPLATE_ID,
-    LOCKED_BOREK_TEMPLATE_VERSION,
-    GammaContentSlot,
-    GammaGenerateRequest,
-    GammaPayloadError,
-)
-from services.gamma.live_client import LiveGammaClient
 from services.observability.llm_logger import LlmStage
 from services.presentation.planner import PresentationPlanningCallError
 from services.security.egress_audit import list_egress_decisions, reset_egress_decisions
-from services.security import egress_policy as egress_policy_module
 from services.security.egress_policy import (
     EgressBlockedError,
     enforce_external_egress,
@@ -38,9 +29,9 @@ def _reset_egress_audit() -> None:
     reset_egress_policy_cache()
 
 
-def test_policy_approves_openai_anthropic_and_gamma() -> None:
+def test_policy_approves_openai_and_anthropic() -> None:
     policy = load_runtime_egress_policy()
-    assert policy.approved_providers == frozenset({"openai", "anthropic", "gamma"})
+    assert policy.approved_providers == frozenset({"openai", "anthropic"})
 
 
 def test_enforce_allows_working_default_openai_planning_payload() -> None:
@@ -202,49 +193,10 @@ def test_anthropic_blocks_restricted_before_http(monkeypatch: pytest.MonkeyPatch
     assert raised.value.retryable is False
 
 
-def test_gamma_slot_policy_classifies_provisional_slots() -> None:
+def test_slot_policy_classifies_provisional_slots() -> None:
     classified = slot_classifications_from_policy(
         ("cover.title", "cover.client_name", "context.summary")
     )
     assert classified["cover.title"] == "internal"
     assert classified["cover.client_name"] == "client_confidential"
     assert "unknown.slot" not in slot_classifications_from_policy(("unknown.slot",))
-
-
-def test_live_gamma_client_blocks_unclassified_before_http(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    raw = dict(egress_policy_module._raw_policy())
-    fields = dict(raw.get("field_classifications") or {})
-    fields.pop("/slots/cover.client_name", None)
-    raw["field_classifications"] = fields
-    reset_egress_policy_cache()
-    monkeypatch.setattr(egress_policy_module, "_raw_policy", lambda: raw)
-
-    class FakeHttp:
-        def request(self, *_args, **_kwargs):
-            raise AssertionError("Gamma HTTP must not run for a blocked slot")
-
-        def close(self) -> None:
-            return None
-
-    client = LiveGammaClient(
-        api_key="sk-gamma-test",
-        theme_id="theme-1",
-        http_client=FakeHttp(),  # type: ignore[arg-type]
-    )
-    with pytest.raises(GammaPayloadError, match="cover.client_name"):
-        client.generate(
-            GammaGenerateRequest(
-                template_id=LOCKED_BOREK_TEMPLATE_ID,
-                template_version=LOCKED_BOREK_TEMPLATE_VERSION,
-                opportunity_id="opp-1",
-                presentation_version_id="version-1",
-                output_formats=("pptx",),
-                slots=(
-                    GammaContentSlot("cover.title", "Invoice match"),
-                    GammaContentSlot("cover.client_name", "must not leave"),
-                ),
-            )
-        )
-    assert "/slots/cover.client_name" in list_egress_decisions()[0].blocked_paths

@@ -190,8 +190,7 @@ def test_llm_client_covers_all_required_pipeline_stages() -> None:
     client.compression_fields_fn()({"title": "Long title value"}, [])
 
     recorded_stages = {entry.stage for entry in get_llm_call_logs()}
-    llm_client_stages = CANONICAL_STAGES - {LlmStage.GAMMA.value}
-    assert recorded_stages == llm_client_stages
+    assert recorded_stages == CANONICAL_STAGES
 
 
 def test_llm_client_executor_can_supply_token_counts() -> None:

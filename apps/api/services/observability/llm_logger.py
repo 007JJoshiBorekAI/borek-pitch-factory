@@ -54,7 +54,6 @@ class LlmStage(StrEnum):
     PLANNING = "planning"
     SLIDE_GENERATION = "slide_generation"
     COMPRESSION = "compression"
-    GAMMA = "gamma_rendering"
 
 
 STAGE_EXTRACTION = "knowledge_extraction"
@@ -152,8 +151,6 @@ def infer_provider(model: str) -> str:
         return "anthropic"
     if any(token in name for token in ("gpt", "o1", "o3", "o4", "openai")):
         return "openai"
-    if "gamma" in name:
-        return "gamma"
     return "unknown"
 
 

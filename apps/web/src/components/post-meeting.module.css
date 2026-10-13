@@ -1,0 +1,230 @@
+.root { color: var(--pitch-navy); }
+.root *, .root *::before, .root *::after { box-sizing: border-box; }
+.root h1 { margin: 6px 0; font-size: var(--pitch-text-title); font-weight: var(--pitch-weight-regular); line-height: 1.3; }
+.root h2 { margin: 6px 0 16px; font-size: var(--pitch-text-section); font-weight: var(--pitch-weight-medium); }
+.root h3 { font-size: var(--pitch-text-body); font-weight: var(--pitch-weight-semibold); }
+.root p, .root label, .root input, .root textarea, .root select { font-size: var(--pitch-text-body); }
+.root p { line-height: 1.6; }
+.root small { font-size: var(--pitch-text-label); color: var(--pitch-gray-500); }
+.root input:not([type="checkbox"]), .root textarea, .root select { width: 100%; min-width: 0; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); padding: 12px; background: white; color: var(--pitch-navy); font-family: inherit; }
+.root textarea { resize: vertical; min-height: 132px; line-height: 1.6; }
+.root label { display: grid; gap: 8px; }
+.root :focus-visible { outline: 2px solid var(--pitch-blue); outline-offset: 3px; }
+.root :global(.btn) { white-space: normal; }
+.heading { margin: 24px 0; }
+.heading p { color: var(--pitch-gray-500); margin: 6px 0; }
+.eyebrow { display: block; color: var(--pitch-blue); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-semibold); letter-spacing: .05em; text-transform: uppercase; }
+.phaseNav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-width: 720px; margin-bottom: 24px; border: 1px solid var(--pitch-gray-200); padding: 8px; border-radius: var(--pitch-panel-radius); }
+.phaseNav a { display: flex; gap: 10px; align-items: center; padding: 10px; color: inherit; text-decoration: none; border-radius: var(--pitch-control-radius); }
+.phaseNav a[aria-current] { background: var(--pitch-gray-50); }
+.phaseNav a > span { display: grid; place-items: center; flex: 0 0 26px; height: 26px; background: var(--pitch-gray-50); border-radius: 50%; font-size: var(--pitch-text-label); }
+.phaseNav a[aria-current] > span { background: var(--pitch-blue); color: white; }
+.phaseNav div { display: grid; gap: 2px; min-width: 0; }
+.phaseNav strong { font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-semibold); }
+.columns { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(250px, 1fr); gap: 20px; align-items: start; }
+.columns > *, .stack > * { min-width: 0; overflow-wrap: anywhere; }
+.stack { display: grid; gap: 20px; }
+.card, .summary { border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-panel-radius); padding: 24px; background: white; }
+.summary { background: var(--pitch-gray-50); }
+.summary ul { list-style: none; margin: 20px 0; padding: 0; }
+.summary li { display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--pitch-gray-200); font-size: var(--pitch-text-label); }
+.summary :global(.btn-primary) { width: 100%; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
+.source { margin: 16px 0; padding: 16px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); display: grid; gap: 6px; }
+.source strong { font-size: var(--pitch-text-body); }
+.source p { margin: 0; white-space: pre-wrap; }
+.payload { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--pitch-text-label); line-height: 1.6; }
+.notice, .error { padding: 12px 16px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); font-size: var(--pitch-text-label); line-height: 1.6; }
+.notice { background: var(--pitch-gray-50); }
+.error { color: var(--pitch-red); }
+.check { display: flex !important; flex-direction: row; gap: 10px; align-items: flex-start; margin: 14px 0; }
+.check input { flex-shrink: 0; margin-top: 4px; accent-color: var(--pitch-blue); }
+.check span { min-width: 0; }
+.check small { display: block; margin-top: 4px; }
+.extraction { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.extraction ul { padding-left: 18px; font-size: var(--pitch-text-body); line-height: 1.6; }
+.workflow { margin-top: 28px; padding: 16px 0; border-top: 1px solid var(--pitch-gray-200); }
+.workflow summary { cursor: pointer; font-size: var(--pitch-text-label); }
+.workflow ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; list-style-position: inside; padding: 0; }
+.workflow li { padding: 12px; border: 1px solid var(--pitch-gray-200); font-size: var(--pitch-text-label); overflow-wrap: anywhere; }
+.workflow li small, .workflow li a { display: block; margin-top: 8px; }
+.email textarea { min-height: 420px; }
+.email { display: grid; gap: 20px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.tabs a { padding: 12px 16px; color: inherit; text-decoration: none; border-bottom: 2px solid transparent; font-size: var(--pitch-text-label); }
+.tabs a[aria-current] { background: var(--pitch-gray-50); border-color: var(--pitch-blue); font-weight: var(--pitch-weight-semibold); }
+.meetingColumns { align-items: stretch; }
+.meetingCard { min-height: 340px; }
+.meetingCard .eyebrow, .meetingSummary .eyebrow { color: var(--pitch-teal); }
+.meetingIntro { color: var(--pitch-gray-500); margin: 0 0 24px; }
+.meetingSummary { border: 0; }
+.transcriptCard { display: flex; gap: 12px; align-items: center; margin: 20px 0 28px; padding: 18px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); }
+.transcriptCard > div { flex: 1; min-width: 0; }
+.transcriptCard strong { display: block; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); overflow-wrap: anywhere; }
+.transcriptCard small { display: block; margin-top: 6px; }
+.transcriptIcon { display: grid; place-items: center; width: 32px; height: 36px; flex-shrink: 0; background: white; border-radius: var(--pitch-control-radius); color: var(--pitch-teal); }
+.transcriptIcon svg { width: 20px; height: 20px; }
+.transcriptBadge { color: var(--pitch-teal); font-size: var(--pitch-text-caption); text-transform: uppercase; }
+.root .notesField { display: block; margin-bottom: 8px; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
+.notesField > span { font-weight: var(--pitch-weight-regular); color: var(--pitch-gray-500); }
+.root .notesField textarea { display: block; margin-top: 12px; min-height: 96px; }
+.transcriptList, .findings { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 4px; }
+.transcriptList li { padding: 4px 12px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); }
+/* The shared text-input rule (full width, padding, border) must not apply to the transcript radio. */
+.root .check input[type="radio"] { width: auto; padding: 0; border: 0; }
+.transcriptList strong { display: block; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
+.root .extraction .findings { padding-left: 0; }
+.findings .check { margin: 6px 0; }
+.findingExcluded span { color: var(--pitch-gray-500); text-decoration: line-through; }
+.findingExcluded small { text-decoration: none; }
+.meetingSummary ul ul { margin: 8px 0 16px; }
+.meetingSummary details { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--pitch-gray-200); }
+.followUpColumns { grid-template-columns: minmax(0, 2.2fr) minmax(240px, 1fr); align-items: stretch; }
+.packageSidebar { display: flex; flex-direction: column; padding: 20px; }
+.root .packageLabel { display: block; margin: 0 0 12px; color: var(--pitch-gray-500); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-medium); line-height: 1.5; text-transform: uppercase; }
+.packageSidebar > header .packageLabel, .packageExport .packageLabel { color: var(--pitch-blue); }
+.packageDocument { display: grid; gap: 8px; padding: 16px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); }
+.packageDocument strong { font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
+.packageDocumentActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.root .packageDocumentActions :global(.btn) { padding: 6px 12px; min-height: 28px; border-radius: 999px; font-size: var(--pitch-text-caption); line-height: 1.4; text-transform: uppercase; }
+.root .packageSidebar p { margin: 0; font-size: var(--pitch-text-label); line-height: 1.6; }
+.packageChanges { padding: 24px 0; border-bottom: 1px solid var(--pitch-gray-200); }
+.packageAttachments { flex: 1; padding: 24px 0; min-height: 160px; }
+.packageAttachments ul { list-style: none; margin: 0; padding: 0; }
+.packageAttachments li { padding: 12px 0; font-size: var(--pitch-text-label); color: var(--pitch-gray-500); }
+.packageExport { margin-top: auto; padding-top: 24px; border-top: 1px solid var(--pitch-gray-200); }
+.root .packageExport h2 { margin: 0 0 8px; font-weight: var(--pitch-weight-semibold); }
+.root .packageSidebar .packageExport :global(.btn-primary) { width: 100%; margin-top: 18px; background: var(--pitch-blue); border-color: var(--pitch-blue); }
+.packageExport > small { display: block; margin-top: 10px; line-height: 1.5; }
+.packageError { color: var(--pitch-red); }
+/* Post-meeting page (Figma 259:5): one meeting-input card, grouped findings, compact readiness card. */
+.meetingPage .heading h1 { font-weight: var(--pitch-weight-semibold); }
+.meetingCard .eyebrow, .meetingSummary .eyebrow, .findingsHead .eyebrow { color: var(--pitch-teal); }
+.inputTabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 20px; }
+.inputTabs button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 168px; min-height: 40px; padding: 8px 20px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); background: white; color: var(--pitch-gray-500); font: inherit; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); text-align: center; cursor: pointer; }
+.inputTabs button small { padding: 1px 8px; border-radius: 999px; background: var(--pitch-gray-50); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-regular); }
+.inputTabs .inputTabActive small { background: white; }
+.inputTabs button small[data-attention] { color: var(--pitch-red); }
+.inputPanel:focus-visible { outline-offset: 6px; }
+.transcriptList .check > .transcriptIcon { flex: 0 0 32px; font-weight: var(--pitch-weight-semibold); }
+.inputTabs .inputTabActive { border-color: var(--pitch-navy); background: var(--pitch-gray-50); color: var(--pitch-navy); }
+.inputPanel { display: grid; gap: 4px; }
+.inputPanel[hidden] { display: none; }
+.root .inputPanel .actions { margin-top: 0; }
+.root .transcriptList { gap: 8px; }
+.root .transcriptList li { padding: 12px 16px; border: 1px solid transparent; }
+.root .transcriptList .transcriptSelected { border-color: var(--pitch-gray-200); }
+.transcriptList .check { align-items: center; margin: 0; }
+.transcriptList .check > span { flex: 1; }
+.transcriptBadge { margin-left: auto; font-style: normal; font-weight: var(--pitch-weight-semibold); letter-spacing: .05em; white-space: nowrap; }
+.transcriptIconEmpty { color: var(--pitch-gray-500); }
+.sourceMeta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--pitch-gray-200); }
+.sourceMeta dt { color: var(--pitch-gray-500); font-size: var(--pitch-text-caption); letter-spacing: .05em; text-transform: uppercase; }
+.sourceMeta dd { margin: 4px 0 0; font-size: var(--pitch-text-label); overflow-wrap: anywhere; }
+.findingsHead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.statePill { padding: 4px 14px; border-radius: 999px; background: var(--pitch-gray-50); color: var(--pitch-blue); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-semibold); letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.statePillDone { background: color-mix(in srgb, var(--pitch-teal) 12%, white); color: var(--pitch-teal); }
+.statePillWarn { color: var(--pitch-red); }
+.findingTotals { margin-left: auto; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); }
+.root .extraction { margin-top: 20px; align-items: start; }
+.findingGroup { padding: 12px 16px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); min-width: 0; }
+.findingGroup summary { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.findingGroup summary h3 { margin: 0; }
+.findingGroup summary small { margin-left: auto; }
+.findingCount { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--pitch-gray-50); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-semibold); }
+.findingGroup p { margin: 8px 0 0; }
+.sourceBadge { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--pitch-blue) 10%, white); color: var(--pitch-blue); font-style: normal; font-size: var(--pitch-text-caption); }
+.sourceBadgeNotes { background: var(--pitch-gray-50); color: var(--pitch-gray-500); }
+.sourceBadgeBoth { background: color-mix(in srgb, var(--pitch-teal) 12%, white); color: var(--pitch-teal); }
+.findingText { font-weight: inherit; }
+.root .findingExcluded .check > span { text-decoration: none; }
+.findingExcluded .findingText { text-decoration: line-through; }
+/* The readiness card keeps the height of its content (Figma 259:5) and stays in view beside a long findings column. */
+.meetingColumns { align-items: start; }
+.root .meetingSummary { padding: 22px; }
+/* Sticky only where the whole card, including its action at the bottom, fits the window. */
+@media (min-width: 961px) and (min-height: 920px) { .meetingSummary { position: sticky; top: 24px; } }
+.root .meetingSummary h2 { margin: 8px 0 4px; font-size: 22px; font-weight: var(--pitch-weight-medium); line-height: 1.3; }
+.root .summary .readiness { margin: 18px 0 16px; border-top: 1px solid var(--pitch-gray-200); }
+.root .summary .readiness li { align-items: center; justify-content: flex-start; gap: 12px; padding: 12px 0; }
+.readiness li span { flex: 1; min-width: 0; }
+.readiness li strong { font-weight: var(--pitch-weight-medium); text-align: right; }
+.readinessMark { display: grid; place-items: center; flex: 0 0 22px; height: 22px; border: 1px solid var(--pitch-gray-200); border-radius: 50%; background: white; color: var(--pitch-teal); font-style: normal; font-size: 12px; font-weight: var(--pitch-weight-semibold); }
+.readiness li[data-mark="done"] strong { color: var(--pitch-teal); }
+.readiness li[data-mark="optional"] .readinessMark, .readiness li[data-mark="optional"] strong { color: var(--pitch-gray-500); }
+.readiness li[data-mark="optional"] .readinessMark { border-style: dashed; }
+.readiness li[data-mark="attention"] .readinessMark, .readiness li[data-mark="attention"] strong { color: var(--pitch-red); }
+.blockers ul { margin: 8px 0 0; }
+.root .summary .blockers li { padding: 6px 0; border: 0; }
+.progressLine { margin: 0 0 12px; font-size: var(--pitch-text-label); }
+.primaryAction { margin: 16px 0 12px; }
+.primaryAction :global(.btn) { display: flex; justify-content: center; width: 100%; min-height: 44px; text-decoration: none; }
+.primaryAction:empty { display: none; }
+/* Figma's action colour (#0d1240) for the one primary action of this card; the shared button is a darker navy. */
+.root .meetingSummary .primaryAction :global(.btn-primary):not(:disabled) { background: var(--pitch-navy); border-color: var(--pitch-navy); }
+@media (max-width: 480px) { .inputTabs { flex-direction: column; } .inputTabs button { width: 100%; justify-content: space-between; } }
+/* Desktop: the checklist is always open and the toggle does not exist. */
+.readinessSummary { display: none; }
+.readinessToggle { padding: 4px 0; border: 0; background: none; color: var(--pitch-blue); font: inherit; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-medium); text-decoration: underline; cursor: pointer; }
+/* 960px and below: a compact summary first - status, progress, the one action - with the
+   eight-row checklist and the explanations behind "Show details". */
+@media (max-width: 960px) {
+  .meetingSummary { order: -1; display: flex; flex-direction: column; }
+  .root .meetingSummary { padding: 16px 20px; }
+  .root .readinessSummary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 0; font-size: var(--pitch-text-label); }
+  .readinessToggle { min-height: 32px; }
+  .readinessDetails[data-collapsed="true"] { display: none; }
+  .meetingSummary .primaryAction { order: 1; margin: 12px 0 4px; }
+  .meetingSummary [data-testid="v2-ready"] { order: 0; }
+  .meetingSummary .readinessDetails { order: 2; }
+  .root .summary .readiness { margin: 12px 0 8px; }
+}
+@media (max-width: 640px) { .inputTabs button { flex: 1; min-width: 0; } .sourceMeta { grid-template-columns: minmax(0, 1fr); } .findingsHead { flex-direction: column; } .findingTotals { margin-left: 0; } }
+.nextStep { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; margin-top: 16px; padding: 16px; border-radius: var(--pitch-control-radius); background: color-mix(in srgb, var(--pitch-teal) 10%, white); }
+.nextStep p { margin: 4px 0 0; font-size: var(--pitch-text-label); }
+.nextStep :global(.btn-primary) { background: var(--pitch-teal); border-color: var(--pitch-teal); text-decoration: none; }
+.phaseNavThree { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1080px; }
+/* Follow-up email (Figma 416:877): label rows, length selector, saved state, review and package. */
+.emailHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.emailHeader .eyebrow { color: var(--pitch-teal); }
+.emailPill { padding: 4px 14px; border-radius: 999px; background: var(--pitch-gray-50); color: var(--pitch-blue); font-size: var(--pitch-text-caption); font-weight: var(--pitch-weight-semibold); letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.emailPillDone { background: color-mix(in srgb, var(--pitch-teal) 12%, white); color: var(--pitch-teal); }
+.emailPillWarn { color: var(--pitch-red); }
+.emailFields { display: grid; gap: 0; margin: 0; }
+.emailFields > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--pitch-gray-200); }
+.emailFields dt { color: var(--pitch-gray-500); font-size: var(--pitch-text-caption); letter-spacing: .05em; text-transform: uppercase; }
+.emailFields dd { margin: 0; font-size: var(--pitch-text-body); font-weight: var(--pitch-weight-medium); overflow-wrap: anywhere; }
+.emailLink { margin-left: 12px; padding: 0; border: 0; background: none; color: var(--pitch-blue); font: inherit; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-regular); text-decoration: underline; cursor: pointer; }
+.emailStatics, .emailChecklist { margin: 0; padding: 16px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-control-radius); min-width: 0; }
+.emailStatics legend, .emailChecklist legend { padding: 0 8px; font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-semibold); }
+.emailStatics p { margin: 0 0 12px; }
+.emailStaticsGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.emailStaticsGrid label { font-size: var(--pitch-text-label); }
+.emailLengths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 6px; border: 1px solid var(--pitch-gray-200); border-radius: var(--pitch-panel-radius); }
+.emailLengths button { display: grid; gap: 2px; padding: 10px 12px; border: 0; border-radius: var(--pitch-control-radius); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.emailLengths button strong { font-size: var(--pitch-text-label); font-weight: var(--pitch-weight-semibold); }
+.emailLengths .emailLengthActive { background: color-mix(in srgb, var(--pitch-teal) 12%, white); }
+.root .emailSubject { grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 12px; }
+.emailSubject > span { color: var(--pitch-gray-500); font-size: var(--pitch-text-caption); letter-spacing: .05em; text-transform: uppercase; }
+.root .emailSubject input { font-weight: var(--pitch-weight-medium); }
+.emailFooter { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: center; }
+.emailSaved, .emailUnsaved { font-size: var(--pitch-text-label); }
+.emailSaved { color: var(--pitch-teal); }
+.emailUnsaved { color: var(--pitch-red); }
+.emailEmpty { display: grid; gap: 12px; }
+.emailEmpty p { margin: 0; color: var(--pitch-gray-500); }
+.emailDecision { display: grid; gap: 6px; margin-bottom: 20px; }
+.emailDecision p { margin: 0; }
+.emailFlags { margin: 8px 0 16px; padding-left: 18px; font-size: var(--pitch-text-label); line-height: 1.6; }
+.emailChecklist { margin-top: 16px; }
+.emailChecklist > small { display: block; margin-top: 8px; }
+.emailChecklist .check { margin: 8px 0; }
+.root .packageAttachments .emailAttachment { padding: 4px 12px; margin-bottom: 8px; background: var(--pitch-gray-50); border-radius: var(--pitch-control-radius); color: var(--pitch-navy); }
+.emailAttachment .check { margin: 8px 0; }
+.emailAttachment span { font-weight: var(--pitch-weight-medium); overflow-wrap: anywhere; }
+.packageDocument { background: color-mix(in srgb, var(--pitch-teal) 10%, white); }
+.root .packageSidebar .packageExport :global(.btn-primary) { background: var(--pitch-teal); border-color: var(--pitch-teal); }
+.root .packageSidebar .packageExport :global(.btn-secondary) { width: 100%; margin-top: 10px; }
+.root .packageSidebar .packageExport :global(.btn:disabled) { opacity: .5; }
+@media (max-width: 960px) { .columns, .followUpColumns { grid-template-columns: minmax(0, 1fr); } .workflow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .phaseNav, .extraction, .workflow ol { grid-template-columns: minmax(0, 1fr); } .emailStaticsGrid, .emailLengths { grid-template-columns: minmax(0, 1fr); } .emailFields > div, .root .emailSubject { grid-template-columns: minmax(0, 1fr); gap: 4px; } .emailLink { display: block; margin: 6px 0 0; } .card, .summary { padding: 16px; } .actions { align-items: stretch; flex-direction: column; } .actions > * { width: 100%; } }

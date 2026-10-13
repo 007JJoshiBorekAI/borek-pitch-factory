@@ -1,0 +1,109 @@
+SYNTHETIC TEST TRANSCRIPT — FACEBOOK (META) × BOREK
+First Client Meeting | 10 October 2026 | Approx. 28 minutes
+For BOREK Pitch Factory manual testing only. This is fictional; no meeting with Meta/Facebook is claimed.
+
+Participants:
+- Maya Chen — Fictional Facebook Business Operations Lead
+- Daniel Reed — Fictional Facebook Support Operations Manager
+- Alex Weber — Fictional BOREK AI Solutions Lead
+- Sara Malik — Fictional BOREK Delivery Consultant
+
+[00:00] Alex: Thank you for joining. The goal today is to understand where a practical AI pilot could reduce repetitive work, improve response quality, and preserve the review controls your teams need. We will not assume that any internal data can be shared.
+
+[00:44] Maya: Thanks, Alex. For this hypothetical scenario, think about a business-support organization that handles advertiser questions, billing inquiries, account configuration requests, and internal escalations. We want to see whether BOREK can propose a controlled, measurable approach rather than a broad automation promise.
+
+[01:38] Sara: Which parts of that process currently consume the most specialist time?
+
+[01:52] Daniel: Challenge: Incoming advertiser support cases are spread across multiple queues, and agents spend time reading long histories before deciding who owns the next step.
+
+[02:33] Daniel: Challenge: Similar questions are answered differently by different teams because knowledge articles and policy updates are difficult to find during a live support interaction.
+
+[03:10] Maya: Priority: The first pilot should focus on support-agent assistance, not autonomous decisions about advertiser accounts or policy enforcement.
+
+[03:42] Alex: Understood. We would recommend a human-in-the-loop workflow where the assistant proposes a summary, suggested routing, and supporting knowledge references, while a qualified agent retains control.
+
+[04:22] Maya: Requirement: The assistant must produce a short case summary, identify the customer issue, and recommend the appropriate internal queue with an explanation.
+
+[05:04] Daniel: Requirement: Every suggested answer must link back to an approved knowledge source or policy reference so an agent can verify it before use.
+
+[05:45] Maya: Requirement: Personal or sensitive information must be redacted or excluded from the pilot dataset, and access must be restricted by role.
+
+[06:27] Sara: What is the minimum dataset we could use without exposing operationally sensitive information?
+
+[06:43] Daniel: We could begin with anonymized, manually reviewed example tickets and a limited set of approved support articles. We would need the relevant internal teams to authorize access before any data transfer.
+
+[07:29] Maya: Priority: Security review and data governance approval must come before connecting the pilot to production systems.
+
+[08:05] Alex: That fits our approach. We can demonstrate the workflow first with synthetic tickets. Later, if approved, we can benchmark on an anonymized evaluation set.
+
+[08:44] Daniel: Opportunity: Automated first-pass summarization could reduce the time agents spend reconstructing a case history before taking action.
+
+[09:19] Daniel: Opportunity: A retrieval-based assistant could help agents find the latest approved procedures and draft more consistent responses.
+
+[09:58] Sara: What about identifying urgent escalations without automatically making decisions?
+
+[10:08] Maya: Opportunity: Classification could flag possible high-priority cases for human review, especially when several handoffs or unresolved customer contacts appear in the ticket history.
+
+[10:48] Alex: Discussed solution: BOREK proposes a support copilot that ingests an authorized case summary, retrieves approved articles, and returns a cited response draft for an agent to edit.
+
+[11:28] Sara: Discussed solution: A separate routing module could suggest a queue and confidence level, while logging the model's suggestion and the agent's final choice for later evaluation.
+
+[12:11] Daniel: That would help. We would want an explicit way to mark a suggestion as incorrect, with the correction feeding into a controlled review process rather than immediately changing the model.
+
+[12:43] Maya: Requirement: The pilot must keep an audit trail of the source documents used, the generated suggestions, the human corrections, and the final approved action.
+
+[13:24] Alex: We can propose simple acceptance metrics: summary usefulness, citation accuracy, routing agreement with trained reviewers, response drafting time, and agent-reported usefulness.
+
+[14:02] Daniel: Priority: Citation accuracy and safe handling of uncertain cases matter more than maximizing the number of replies the assistant generates.
+
+[14:40] Sara: Are there existing quantitative targets we should treat as binding?
+
+[14:52] Maya: Not yet. We should define the baseline with the support operations team. Please avoid claiming a fixed percentage of time savings before a measured pilot.
+
+[15:36] Alex: Absolutely. We will separate hypotheses from verified measurements, and the proposal will state assumptions clearly.
+
+[16:14] Daniel: Challenge: Policy articles may be updated frequently, so an answer that looked acceptable last month can become outdated if it cites an older version.
+
+[16:51] Alex: Discussed solution: The retrieval layer should only search a versioned, approved knowledge collection, show the article date or version, and decline to answer when the evidence is missing.
+
+[17:31] Maya: Requirement: The tool must clearly indicate when it is uncertain and route the case back to a human rather than invent policy guidance.
+
+[18:03] Sara: Shall we limit the initial pilot to a small group of users and workflows?
+
+[18:17] Maya: Decision: We will scope the fictional pilot to three activities: case summarization, knowledge-grounded response drafting, and queue recommendation.
+
+[18:54] Daniel: Decision: No autonomous account changes, policy enforcement actions, or outbound customer messages are permitted in the pilot.
+
+[19:28] Alex: That gives us a clear boundary. We'd propose an internal prototype first, followed by an evaluation workshop before deciding whether to expand.
+
+[20:04] Maya: Decision: The first demonstration will use only synthetic or specifically approved anonymized data, subject to a security review before any integration.
+
+[20:43] Sara: To prepare the next session, what should each team supply?
+
+[20:54] Daniel: Follow-up: Facebook's fictional support operations representative will prepare a list of ten representative case types and five common escalation scenarios for the evaluation workshop.
+
+[21:31] Maya: Follow-up: The fictional security and privacy contacts will document the pilot's data-handling restrictions and the approval steps for any future internal system access.
+
+[22:08] Alex: Follow-up: BOREK will draft a two-stage pilot plan, architecture overview, risk register, and measurable evaluation framework, clearly distinguishing assumptions from validated facts.
+
+[22:49] Sara: Follow-up: BOREK will prepare a clickable demonstration using synthetic tickets and approved sample knowledge articles, including visible citations and human review controls.
+
+[23:33] Daniel: How will incorrect classifications be handled in the demo?
+
+[23:47] Alex: An agent can reject a routing suggestion, choose the correct queue, and leave a reason. We would capture this as evaluation feedback; it would not trigger an automatic system change.
+
+[24:30] Maya: Good. The next presentation should include an example of a correct answer with citations, an uncertain case that gets escalated, and an outdated-policy case where the assistant refuses to overstate confidence.
+
+[25:08] Sara: We can show those three scenarios side by side and map each one to the proposed acceptance metrics.
+
+[25:40] Maya: Priority: The next meeting should result in a go/no-go decision on the pilot scope and evaluation approach, not a commitment to production deployment.
+
+[26:14] Alex: Let me summarize: the opportunity is agent assistance with citations and human control. Data access, baselines, and integration permissions remain open. We will reflect exactly that in the revised presentation.
+
+[26:50] Daniel: Agreed. Please keep the architecture vendor-neutral at this stage and make the limitations prominent.
+
+[27:14] Maya: Decision: We will review BOREK's proposal and demo at a follow-up workshop before deciding whether to authorize any next phase.
+
+[27:42] Alex: Thank you. We'll send the written summary and proposed agenda for the next discussion.
+
+END OF SYNTHETIC TEST TRANSCRIPT

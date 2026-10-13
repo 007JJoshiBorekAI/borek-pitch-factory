@@ -26,8 +26,7 @@
     },
     "client_name": {
       "type": "string",
-      "minLength": 1,
-      "pattern": "\\S"
+      "description": "Company name as entered by the user; an empty string means it was not provided."
     },
     "company_facts": {
       "type": "object",

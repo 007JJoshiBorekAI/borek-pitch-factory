@@ -15,7 +15,6 @@ from app.services.artifact_filing import (
     filing_idempotency_key,
 )
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
-from app.services.deck_assets import deck_assets_root
 from app.services.enterprise_repository import build_enterprise_destination
 from app.services.knowledge_access import describe_active_corpus
 
@@ -64,7 +63,7 @@ def corpus_version_labels(store: Any) -> tuple[str, ...]:
 
 def collect_artifact_candidates(
     version: dict[str, Any],
-    gamma_result: dict[str, Any] | None,
+    render_result: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     pptx_path = _as_path(version.get("pptx_storage_path"))
@@ -87,33 +86,12 @@ def collect_artifact_candidates(
                 "provider": "internal",
             }
         )
-    for artifact in (gamma_result or {}).get("artifacts") or []:
-        storage_key = str(artifact.get("storage_key") or "").strip()
-        if not storage_key:
-            continue
-        fmt = str(artifact.get("format") or "pptx").strip().lower()
-        configured = Path(settings.ARTIFACT_ROOT).joinpath(*Path(storage_key).parts)
-        owned = deck_assets_root().joinpath(*Path(storage_key).parts)
-        candidates.append(
-            {
-                "kind": fmt,
-                "path": configured if configured.is_file() or configured.is_absolute() else owned,
-                "content_type": str(artifact.get("content_type") or _PPTX_TYPE),
-                "provider": "gamma",
-            }
-        )
-    canonical: dict[str, dict[str, Any]] = {}
-    for candidate in candidates:
-        kind = str(candidate["kind"])
-        current = canonical.get(kind)
-        if current is None or candidate["provider"] == "gamma":
-            canonical[kind] = candidate
-    return list(canonical.values())
+    del render_result
+    return candidates
 
 
 def _expected_artifacts_missing(
     version: dict[str, Any],
-    gamma_result: dict[str, Any] | None,
     candidates: list[dict[str, Any]],
 ) -> bool:
     if settings.RENDERER_EXECUTION_MODE == "live" and (
@@ -121,9 +99,6 @@ def _expected_artifacts_missing(
     ):
         internal = [item for item in candidates if item["provider"] == "internal"]
         return bool(internal) and not all(item["path"].is_file() for item in internal)
-    if gamma_result and not gamma_result.get("skipped") and gamma_result.get("artifacts"):
-        gamma = [item for item in candidates if item["provider"] == "gamma"]
-        return bool(gamma) and not all(item["path"].is_file() for item in gamma)
     return False
 
 
@@ -133,13 +108,13 @@ def run_artifact_filing_for_presentation(
     presentation_id: UUID | str,
     user_id: UUID | str,
     version: dict[str, Any],
-    gamma_result: dict[str, Any] | None = None,
+    render_result: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """File produced PPTX/PDF/Gamma bytes. No-ops when fixture generate produced no files."""
-    candidates = collect_artifact_candidates(version, gamma_result)
+    """File produced PPTX/PDF bytes. No-ops when fixture generate produced no files."""
+    candidates = collect_artifact_candidates(version, render_result)
     existing = [item for item in candidates if item["path"].is_file()]
     if not existing:
-        if _expected_artifacts_missing(version, gamma_result, candidates):
+        if _expected_artifacts_missing(version, candidates):
             raise ArtifactFilingError(
                 "ARTIFACT_NOT_FOUND",
                 "Generated artifacts were expected but are not on disk",

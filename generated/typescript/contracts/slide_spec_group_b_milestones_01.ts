@@ -42,7 +42,7 @@ export type Milestones01SlideSpec = SlideSpecBase & {
  *
  * @minItems 1
  *
- * Items: FrameworkObject chapter_id (0-13). Used in sourceChapterIds (section 14).
+ * Items: FrameworkObject chapter_id (0-13), a Discovery page, a meeting-extraction section, owner notes, or a selected use case.
  */
 export type SourceChapterIds = [string, ...string[]];
 /**
@@ -109,7 +109,7 @@ export interface FieldProvenanceEntry {
    *
    * @minItems 1
    *
-   * Items: FrameworkObject chapter_id (0-13). Used in sourceChapterIds (section 14).
+   * Items: FrameworkObject chapter_id (0-13), a Discovery page, a meeting-extraction section, owner notes, or a selected use case.
    */
   sourceChapterIds: [string, ...string[]];
 }

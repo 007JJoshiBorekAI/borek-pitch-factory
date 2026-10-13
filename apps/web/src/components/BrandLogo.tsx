@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import borekLogo from "../../../../static images/logo.svg";
+
 interface BrandLogoProps {
   href?: string;
   /** Show the product name beside the corporate logo (header only). */
@@ -9,14 +11,14 @@ interface BrandLogoProps {
 }
 
 export function BrandLogo({
-  href = "/upload",
+  href = "/clients",
   showProductName = false,
   className = "",
 }: BrandLogoProps) {
   const logo = (
     <>
       <Image
-        src="/logo.png"
+        src={borekLogo}
         alt="Borek Solutions Group"
         width={220}
         height={48}

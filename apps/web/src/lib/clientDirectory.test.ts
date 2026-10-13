@@ -1,247 +1,106 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
-import type { ListedOpportunityResponse, RecentWorkApiSnapshot } from "./api.js";
 import {
-  buildClientDirectory,
-  filterClientDirectoryRows,
-  formatClientLastActivity,
-  mapClientAction,
-  mapClientProgress,
-  resolveClientContact,
-  summarizeClientDirectory,
+  CLIENT_DIRECTORY_FIXTURE,
+  CLIENT_STATUS_LABELS,
+  clientOpportunityHref,
+  loadLiveClientDirectory,
 } from "./clientDirectory.js";
-import { lifecycleFor, type RecentWorkSnapshot } from "./recentPresentations.js";
 
-function listedOpportunity(
-  overrides: Partial<ListedOpportunityResponse> = {},
-): ListedOpportunityResponse {
-  return {
-    id: "opp-1",
-    client_name: "Nova Retail",
-    opportunity_name: "Q1 expansion",
-    department: "Sales",
-    language: "en",
-    status: "active",
-    pii_redaction_enabled: false,
-    created_by: "user-1",
-    created_at: "2026-09-01T10:00:00.000Z",
-    updated_at: "2026-09-20T10:00:00.000Z",
-    ...overrides,
-  };
+assert.equal(CLIENT_DIRECTORY_FIXTURE.length, 6);
+assert.equal(CLIENT_STATUS_LABELS.client_information, "Client Information");
+assert.equal(CLIENT_STATUS_LABELS.owner_review, "Owner Review");
+
+for (const item of CLIENT_DIRECTORY_FIXTURE) {
+  assert.equal(item.preview_fixture, true);
+  const href = clientOpportunityHref(item);
+  assert.match(href, new RegExp(`^/opportunities/${item.opportunity_id}/`));
+  assert.doesNotMatch(href, /first-contact|framework-review|plan-preview|deck-center|upload/);
 }
 
-function recentSnapshot(
-  overrides: Partial<RecentWorkApiSnapshot> = {},
-): RecentWorkApiSnapshot {
-  return {
-    opportunity: listedOpportunity(),
-    transcript_count: 0,
-    has_plan: false,
-    activity_at: "2026-09-20T10:00:00.000Z",
-    ...overrides,
+const component = readFileSync("src/components/ClientDirectoryPanel.tsx", "utf8");
+assert.match(component, /copy\.clients\.all/);
+assert.match(component, /copy\.clients\.preMeeting/);
+assert.match(component, /copy\.clients\.postMeeting/);
+assert.match(component, /copy\.clients\.add/);
+assert.match(component, /useDeferredValue/);
+assert.doesNotMatch(component, /Preview fixture|CLIENT_DIRECTORY_FIXTURE|item\.preview_fixture/);
+assert.doesNotMatch(component, /useRecentWork|RecentLifecycle|journey_stage/);
+assert.match(component, /localPreview = previewMode && isLocalUiPreviewAvailable\(\)/);
+assert.match(component, /const items = localPreview \? directoryItems/);
+assert.match(component, /result\?\.scope === scope \? result\.items : \[\]/);
+assert.match(component, /controller\.signal\.aborted/);
+assert.match(component, /return \(\) => controller\.abort\(\)/);
+assert.match(component, /href=\{clientOpportunityHref\(item\)\}/);
+
+async function run() {
+  const originalFetch = globalThis.fetch;
+  const id = "12345678-1234-4234-8234-123456789abc";
+  const row = {
+    id, client_name: "Saved client", opportunity_name: "Saved opportunity", status: "active",
+    stage1_intake: { poc_name: "Saved contact", poc_position: "CTO", sales_topic_description: "Saved topic" },
+    updated_at: "2026-10-07T12:00:00Z",
   };
-}
-
-function snapshotFromRecent(recent: RecentWorkApiSnapshot): RecentWorkSnapshot {
-  return {
-    opportunity: recent.opportunity,
-    transcriptCount: recent.transcript_count,
-    frameworkStatus: recent.framework_status ?? undefined,
-    hasPlan: recent.has_plan,
-    presentationId: recent.presentation_id ?? undefined,
-    presentationName: recent.presentation_name ?? undefined,
-    deck: recent.deck ?? undefined,
-    resourceLoadFailed: recent.resource_load_failed,
-    activityAt: recent.activity_at ?? undefined,
-    job: recent.job ?? undefined,
+  let workflow = {
+    opportunity_id: id, current_status: "ppt2_generated",
+    steps: [{ key: "first_meeting_completed", state: "completed" }],
   };
+  try {
+    const requests: string[] = [];
+    const controller = new AbortController();
+    globalThis.fetch = async (url, init) => {
+      requests.push(String(url));
+      assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer token");
+      assert.equal(init?.signal, controller.signal);
+      assert.equal(init?.cache, "no-store");
+      return Response.json(String(url).endsWith("/workflow-status") ? workflow : [row]);
+    };
+    const [item] = await loadLiveClientDirectory("token", "en", controller.signal);
+    assert.equal(requests.length, 2);
+    assert.ok(requests[0].endsWith("/opportunities"));
+    assert.ok(requests[1].endsWith(`/opportunities/${id}/workflow-status`));
+    assert.equal(item.company_name, "Saved client");
+    assert.equal(item.contact_person, "Saved contact");
+    assert.equal(item.contact_role, "CTO");
+    assert.equal(item.engagement_name, "Saved topic");
+    assert.equal(item.workflow_status, "ppt_2_generated");
+    assert.equal(item.phase, "post_meeting");
+    assert.equal(item.preview_fixture, undefined);
+    assert.match(item.last_activity, /2026/);
+    assert.equal(clientOpportunityHref(item), `/opportunities/${id}/post-meeting-presentation`);
+
+    workflow = { ...workflow, current_status: "first_meeting_completed", steps: [{ key: "first_meeting_completed", state: "current" }] };
+    const [beforeMeeting] = await loadLiveClientDirectory("token", "en", controller.signal);
+    assert.equal(beforeMeeting.phase, "pre_meeting");
+    assert.equal(clientOpportunityHref(beforeMeeting), `/opportunities/${id}/presentations`);
+    workflow = { ...workflow, current_status: "transcript_added", steps: [{ key: "first_meeting_completed", state: "completed" }] };
+    const [afterMeeting] = await loadLiveClientDirectory("token", "en", controller.signal);
+    assert.equal(afterMeeting.phase, "post_meeting");
+    assert.equal(clientOpportunityHref(afterMeeting), `/opportunities/${id}/meeting`);
+    workflow = { ...workflow, current_status: "ppt1_ready", steps: [] };
+    const [firstPitch] = await loadLiveClientDirectory("token", "en", controller.signal);
+    assert.equal(firstPitch.workflow_status, "ppt_1_ready");
+    assert.equal(clientOpportunityHref(firstPitch), `/opportunities/${id}/presentations`);
+
+    workflow = { ...workflow, opportunity_id: "another-opportunity" };
+    await assert.rejects(() => loadLiveClientDirectory("token", "en", controller.signal), /mismatched/);
+    workflow = { ...workflow, opportunity_id: id, current_status: "unknown" };
+    await assert.rejects(() => loadLiveClientDirectory("token", "en", controller.signal), /incomplete/);
+
+    globalThis.fetch = async () => Response.json([]);
+    assert.deepEqual(await loadLiveClientDirectory("token", "en"), []);
+    globalThis.fetch = async () => Response.json({ items: [] });
+    await assert.rejects(() => loadLiveClientDirectory("token", "en"), /incomplete/);
+    globalThis.fetch = async () => Response.json([{ ...row, id: "opp-fixture" }]);
+    await assert.rejects(() => loadLiveClientDirectory("token", "en"), /invalid opportunity/);
+    for (const status of [401, 403, 500]) {
+      globalThis.fetch = async () => new Response("", { status });
+      await assert.rejects(() => loadLiveClientDirectory("token", "en"), new RegExp(String(status)));
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  console.log("Client directory live loading, routing, preview isolation and error tests passed");
 }
-
-assert.equal(
-  resolveClientContact(
-    listedOpportunity({
-      stage1_intake: {
-        client_web_page: null,
-        poc_name: "Alex Morgan",
-        poc_position: "VP Sales",
-        sales_topic_description: null,
-        about_company: null,
-      },
-    }),
-  ),
-  "Alex Morgan · VP Sales",
-);
-
-assert.equal(
-  resolveClientContact(
-    listedOpportunity({
-      additional_client_information: {
-        location_requirements: [],
-        constraints: [],
-        contacts: [{ name: "Jamie Lee", role: "CTO" }],
-        priorities: [],
-      },
-    }),
-  ),
-  "Jamie Lee · CTO",
-);
-
-assert.equal(resolveClientContact(listedOpportunity()), null);
-
-const generatingRecent = recentSnapshot({
-  job: {
-    job_type: "stage1_generation",
-    status: "RUNNING",
-    current_stage: "research",
-  },
-});
-const generatingSnapshot = snapshotFromRecent(generatingRecent);
-assert.deepEqual(mapClientProgress(generatingSnapshot, listedOpportunity()), {
-  progress: "Generating pitch",
-  tone: "generating",
-  filterCategory: "pre-meeting",
-});
-
-const postMeetingRecent = recentSnapshot({
-  transcript_count: 2,
-  framework_status: "draft",
-});
-assert.deepEqual(
-  mapClientProgress(snapshotFromRecent(postMeetingRecent), listedOpportunity()),
-  {
-    progress: "Post-meeting",
-    tone: "post-meeting",
-    filterCategory: "post-meeting",
-  },
-);
-
-const followUpRecent = recentSnapshot({
-  transcript_count: 1,
-  deck: { pptx_download_url: "/deck/1.pptx" },
-});
-assert.deepEqual(
-  mapClientProgress(snapshotFromRecent(followUpRecent), listedOpportunity()),
-  {
-    progress: "Follow-up ready",
-    tone: "follow-up",
-    filterCategory: "post-meeting",
-  },
-);
-
-const idleRecent = recentSnapshot({ activity_at: "2026-09-01T10:00:00.000Z" });
-assert.deepEqual(mapClientProgress(snapshotFromRecent(idleRecent), listedOpportunity()), {
-  progress: "No active pitch",
-  tone: "inactive",
-  filterCategory: "pre-meeting",
-});
-
-const preMeetingRecent = recentSnapshot({
-  framework_status: "draft",
-});
-assert.deepEqual(
-  mapClientProgress(snapshotFromRecent(preMeetingRecent), listedOpportunity()),
-  {
-    progress: "Pre-meeting",
-    tone: "pre-meeting",
-    filterCategory: "pre-meeting",
-  },
-);
-
-const lifecycle = lifecycleFor(generatingSnapshot);
-assert.deepEqual(mapClientAction("Generating pitch", generatingSnapshot, lifecycle), {
-  label: "View",
-  href: "/deck-center?opportunityId=opp-1",
-});
-
-assert.deepEqual(
-  mapClientAction("No active pitch", generatingSnapshot, lifecycle),
-  {
-    label: "Create pitch",
-    href: "/upload?new=1",
-  },
-);
-
-const grouped = buildClientDirectory(
-  [
-    listedOpportunity({ id: "opp-1", opportunity_name: "Older pitch" }),
-    listedOpportunity({
-      id: "opp-2",
-      client_name: "Nova Retail",
-      opportunity_name: "Latest pitch",
-      updated_at: "2026-09-25T10:00:00.000Z",
-    }),
-    listedOpportunity({
-      id: "opp-3",
-      client_name: "  nova retail ",
-      opportunity_name: "Duplicate casing",
-      updated_at: "2026-09-24T10:00:00.000Z",
-    }),
-  ],
-  [
-    recentSnapshot({ opportunity: { ...recentSnapshot().opportunity, id: "opp-1" } }),
-    recentSnapshot({
-      opportunity: {
-        ...recentSnapshot().opportunity,
-        id: "opp-2",
-        updated_at: "2026-09-25T10:00:00.000Z",
-      },
-      activity_at: "2026-09-25T10:00:00.000Z",
-      framework_status: "draft",
-    }),
-    recentSnapshot({
-      opportunity: {
-        ...recentSnapshot().opportunity,
-        id: "opp-3",
-        updated_at: "2026-09-24T10:00:00.000Z",
-      },
-      activity_at: "2026-09-24T10:00:00.000Z",
-    }),
-  ],
-);
-
-assert.equal(grouped.length, 1);
-assert.equal(grouped[0]?.clientName, "Nova Retail");
-assert.equal(grouped[0]?.opportunityContext, "Latest pitch");
-assert.deepEqual(grouped[0]?.opportunityIds.sort(), ["opp-1", "opp-2", "opp-3"]);
-
-const summary = summarizeClientDirectory(grouped);
-assert.equal(summary.clientCount, 1);
-assert.equal(summary.activePitchCount, 1);
-
-const searchableRows = buildClientDirectory(
-  [
-    listedOpportunity({
-      id: "a",
-      client_name: "Alpha Corp",
-      stage1_intake: {
-        client_web_page: null,
-        poc_name: "Sam",
-        poc_position: "CEO",
-        sales_topic_description: null,
-        about_company: null,
-      },
-    }),
-    listedOpportunity({ id: "b", client_name: "Beta Ltd" }),
-  ],
-  [
-    recentSnapshot({
-      opportunity: { ...recentSnapshot().opportunity, id: "a", client_name: "Alpha Corp" },
-      framework_status: "draft",
-    }),
-    recentSnapshot({
-      opportunity: { ...recentSnapshot().opportunity, id: "b", client_name: "Beta Ltd" },
-      transcript_count: 1,
-    }),
-  ],
-);
-
-assert.equal(filterClientDirectoryRows(searchableRows, "sam", "all").length, 1);
-assert.equal(filterClientDirectoryRows(searchableRows, "", "pre-meeting").length, 1);
-assert.equal(filterClientDirectoryRows(searchableRows, "", "post-meeting").length, 1);
-
-assert.equal(formatClientLastActivity("2026-09-25T09:59:30.000Z", Date.parse("2026-09-25T10:00:00.000Z")), "Just now");
-assert.equal(formatClientLastActivity("2026-09-25T09:30:00.000Z", Date.parse("2026-09-25T10:00:00.000Z")), "30 min ago");
-assert.equal(formatClientLastActivity("2026-09-25T08:00:00.000Z", Date.parse("2026-09-25T10:00:00.000Z")), "Today");
-assert.equal(formatClientLastActivity("2026-09-24T10:00:00.000Z", Date.parse("2026-09-25T10:00:00.000Z")), "Yesterday");
-
-console.log("FIGMA-04 client directory tests passed");
+void run().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -1,4 +1,4 @@
-"""JJ-28: the ready screen serves a Gamma deck exactly like an internal one."""
+"""Ready-screen downloads use the internal deck. A historical export is only a fallback."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def _write_gamma_export(
     (directory / f"{generation_id}.pdf").write_bytes(GAMMA_PDF)
 
 
-def test_gamma_deck_is_downloaded_through_the_same_ready_screen(
+def test_internal_deck_is_preferred_over_a_historical_export(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -105,17 +105,33 @@ def test_gamma_deck_is_downloaded_through_the_same_ready_screen(
         headers=_headers(),
     )
     assert pptx.status_code == 200
-    assert pptx.content == GAMMA_PPTX
+    assert pptx.content == internal.content
+    assert pptx.content != GAMMA_PPTX
     assert (
         pptx.headers["content-type"]
         == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     )
     assert f"{presentation_id}.pptx" in pptx.headers["content-disposition"]
 
-    pdf = client.get(f"/presentations/{presentation_id}/download/pdf", headers=_headers())
-    assert pdf.status_code == 200
-    assert pdf.content == GAMMA_PDF
-    assert f"{presentation_id}.pdf" in pdf.headers["content-disposition"]
+    version = get_memory_store().get_presentation_version_assets(
+        presentation_id=uuid.UUID(presentation_id),
+        user_id=USER_ID,
+    )
+    Path(version["pptx_storage_path"]).unlink()
+    Path(version["pdf_storage_path"]).unlink()
+
+    historical_pptx = client.get(
+        f"/presentations/{presentation_id}/download/pptx",
+        headers=_headers(),
+    )
+    historical_pdf = client.get(
+        f"/presentations/{presentation_id}/download/pdf",
+        headers=_headers(),
+    )
+    assert historical_pptx.status_code == 200
+    assert historical_pptx.content == GAMMA_PPTX
+    assert historical_pdf.status_code == 200
+    assert historical_pdf.content == GAMMA_PDF
 
 
 def test_deck_payload_never_names_the_engine(monkeypatch, tmp_path: Path) -> None:

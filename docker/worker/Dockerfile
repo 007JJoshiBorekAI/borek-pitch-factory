@@ -12,11 +12,16 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+# Generated decks live on the artifact volume; the application directory is read-only for appuser.
+ENV ARTIFACT_ROOT=/artifacts
 ENV PYTHONPATH=/app:/app/apps/services/api:/app/apps/api:/app/apps/worker
 ENV PDFTOPPM_PATH=/usr/bin/pdftoppm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl poppler-utils \
+    # LibreOffice + poppler + Inter render the Master Presentation (PDF and slide previews)
+    # from the assembled PPTX. fonts-inter is the Inter family under the SIL Open Font License.
+    && apt-get install -y --no-install-recommends curl poppler-utils libreoffice-impress fontconfig fonts-inter \
+    && fc-cache -f \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 appuser \
     && mkdir -p /artifacts \
@@ -29,6 +34,9 @@ COPY apps/worker ./apps/worker
 COPY generated/python ./generated/python
 COPY config ./config
 COPY packages ./packages
+# Borek deck generator (pre-/post-meeting decks)
+COPY borek_pptx.py deck_text.py llm_planner.py make_ai_tech_deck.py make_master_deck.py preview_pptx.py ./
+COPY borek_assets ./borek_assets
 
 WORKDIR /app/apps/services/api
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://borek.ai/contracts/email_draft.schema.json",
   "title": "EmailDraftEnvelope",
-  "description": "TSK-013: three draft lengths persist in the API. Confirm never sends mail.",
+  "description": "TSK-013: three draft lengths persist in the API. Confirm never sends mail. Edits are saved per length against a draft revision; a confirmation names the reviewed revision; the export is an unsent file.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "opportunity_id", "journey_stage", "draft"],
@@ -68,6 +68,52 @@
         "updated_at": {
           "type": "string",
           "format": "date-time"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Increases with every saved change. A write names the revision it is based on."
+        },
+        "confirmed_revision": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "The revision the owner reviewed and confirmed. Null once the draft is edited again."
+        },
+        "confirmed_by": {
+          "type": ["string", "null"],
+          "format": "uuid"
+        },
+        "source": {
+          "oneOf": [{ "$ref": "#/$defs/FinalizedSource" }, { "type": "null" }],
+          "description": "The finalized Master Presentation V2 package the draft was written from. Null for drafts of other stages and for standalone PPT #2 opportunities."
+        },
+        "source_status": {
+          "type": "string",
+          "enum": ["valid", "changed", "not_applicable"]
+        },
+        "review_flags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "review": {
+          "oneOf": [{ "$ref": "#/$defs/Review" }, { "type": "null" }]
+        },
+        "recipients": {
+          "oneOf": [{ "$ref": "#/$defs/Recipients" }, { "type": "null" }]
+        },
+        "attachments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Attachment" }
+        },
+        "word_limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["short", "medium", "extensive"],
+          "properties": {
+            "short": { "type": "integer", "minimum": 1 },
+            "medium": { "type": "integer", "minimum": 1 },
+            "extensive": { "type": "integer", "minimum": 1 }
+          }
         }
       }
     }
@@ -80,7 +126,102 @@
       "properties": {
         "subject": { "type": "string", "minLength": 1 },
         "body": { "type": "string", "minLength": 1 },
-        "word_count": { "type": "integer", "minimum": 1 }
+        "word_count": { "type": "integer", "minimum": 1 },
+        "edited": { "type": "boolean", "description": "True once the owner saved a change to this length." }
+      }
+    },
+    "FinalizedSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "product_version",
+        "finalized_at",
+        "presentation_id",
+        "presentation_version_id",
+        "version_number",
+        "snapshot_hash"
+      ],
+      "properties": {
+        "kind": { "const": "master_presentation_v2" },
+        "product_version": { "const": "V2" },
+        "finalized_at": { "type": "string", "format": "date-time" },
+        "presentation_id": { "type": "string", "format": "uuid" },
+        "presentation_version_id": { "type": "string", "format": "uuid" },
+        "version_number": { "type": "integer", "minimum": 1 },
+        "snapshot_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "generation_fingerprint": { "type": ["string", "null"] },
+        "approved_discovery_version_id": { "type": ["string", "null"] },
+        "transcript_id": { "type": ["string", "null"] },
+        "transcript_revision": { "type": ["string", "null"] },
+        "meeting_review_confirmed_at": { "type": ["string", "null"] },
+        "extraction_execution_mode": { "type": ["string", "null"] },
+        "confirmed_finding_count": { "type": ["integer", "null"] },
+        "excluded_finding_count": { "type": ["integer", "null"] },
+        "renderer_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "Review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checks", "acknowledged_flags"],
+      "properties": {
+        "checks": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "acknowledged_flags": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "Person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "email"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "email": { "type": "string", "minLength": 3 }
+      }
+    },
+    "Recipients": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["to", "cc", "sender"],
+      "properties": {
+        "to": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Person" } },
+        "cc": { "type": "array", "items": { "$ref": "#/$defs/Person" } },
+        "sender": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "role", "email"],
+          "properties": {
+            "name": { "type": "string" },
+            "role": { "type": ["string", "null"] },
+            "email": { "type": "string", "minLength": 3 }
+          }
+        }
+      }
+    },
+    "Attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "file_name",
+        "selected",
+        "available",
+        "size_bytes",
+        "presentation_id",
+        "presentation_version_id",
+        "version_number",
+        "product_version"
+      ],
+      "properties": {
+        "format": { "type": "string", "enum": ["pptx", "pdf"] },
+        "file_name": { "type": "string", "minLength": 1 },
+        "selected": { "type": "boolean" },
+        "available": { "type": "boolean" },
+        "size_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "presentation_id": { "type": "string", "format": "uuid" },
+        "presentation_version_id": { "type": "string", "format": "uuid" },
+        "version_number": { "type": ["integer", "null"] },
+        "product_version": { "const": "V2" }
       }
     }
   }

@@ -1,13 +1,13 @@
-import { ClientsWorkspacePanel } from "@/components/ClientsWorkspacePanel";
+import { ClientDirectoryPanel } from "@/components/ClientDirectoryPanel";
 import { RequireAuth } from "@/components/RequireAuth";
-import { WorkspaceShell } from "@/components/WorkspaceShell";
 
 export default function ClientsPage() {
   return (
     <RequireAuth>
-      <WorkspaceShell activeSection="clients">
-        <ClientsWorkspacePanel />
-      </WorkspaceShell>
+      <Suspense fallback={null}>
+        <ClientDirectoryPanel />
+      </Suspense>
     </RequireAuth>
   );
 }
+import { Suspense } from "react";

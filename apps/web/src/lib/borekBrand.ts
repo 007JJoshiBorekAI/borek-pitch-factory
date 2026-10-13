@@ -22,6 +22,12 @@ export const BorekBrandColors = {
   text: "#0D1240",
   textOnDark: "#FFFFFF",
   mutedText: "#54595F",
+  slate: "#5C6178",
+  grey: "#8A90A5",
+  panel: "#F3F4F8",
+  signalBlue: "#124F94",
+  signalTeal: "#02A69F",
+  signalRed: "#DD3D00",
   border: "#E4E7EC",
   primarySoft: "#EEF0F7",
   primaryHover: "#090C28",
@@ -29,6 +35,6 @@ export const BorekBrandColors = {
 } as const;
 
 export const BorekBrandFonts = {
-  heading: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-  body: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+  heading: 'Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+  body: 'Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
 } as const;

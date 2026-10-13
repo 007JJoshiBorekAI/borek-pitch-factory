@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/discovery_paper.schema.json",
+  "title": "DiscoveryPaper",
+  "description": "BT-41 structured Discovery Paper. Seven addressable pages. This is not stage1 research, discovery questions, or a presentation. latest_approved_version_id stays null until BT-42 records an approved version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "document_id",
+    "latest_approved_version_id",
+    "status",
+    "generated_at",
+    "intake_context",
+    "pages"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "opportunity_id": { "type": "string", "format": "uuid" },
+    "document_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Identity of this generated Discovery Paper snapshot. This is not the future immutable approved-version id."
+    },
+    "latest_approved_version_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Nullable pointer to the latest approved Discovery Paper version. BT-41 always writes null. BT-42 will populate it."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["not_generated", "generating", "ready", "failed"],
+      "description": "not_generated means no snapshot has been stored. generating means this snapshot is still being filled. ready means every page is ready. failed means at least one page failed."
+    },
+    "generated_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Generation timestamp for this snapshot. Future owner edits do not redefine this field."
+    },
+    "intake_context": { "$ref": "#/$defs/IntakeContext" },
+    "pages": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "prefixItems": [
+        { "$ref": "#/$defs/CoverPage" },
+        { "$ref": "#/$defs/ClientContextPage" },
+        { "$ref": "#/$defs/OpportunityPage" },
+        { "$ref": "#/$defs/BorekApproachPage" },
+        { "$ref": "#/$defs/UseCasePage" },
+        { "$ref": "#/$defs/PilotPage" },
+        { "$ref": "#/$defs/NextStepsPage" }
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "IntakeContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_name",
+        "contact_name",
+        "website_url",
+        "meeting_purpose",
+        "meeting_purpose_source",
+        "additional_information"
+      ],
+      "properties": {
+        "client_name": { "type": "string" },
+        "contact_name": { "type": ["string", "null"] },
+        "website_url": { "type": ["string", "null"] },
+        "meeting_purpose": { "type": "string" },
+        "meeting_purpose_source": {
+          "type": "string",
+          "enum": ["sales_topic_description", "opportunity_name", "unavailable"]
+        },
+        "additional_information": { "type": ["string", "null"] }
+      }
+    },
+    "SourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "locator", "excerpt"],
+      "properties": {
+        "source_id": { "type": "string", "minLength": 1 },
+        "locator": { "type": "string", "minLength": 1 },
+        "excerpt": { "type": "string", "minLength": 1 }
+      }
+    },
+    "KnownFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "value", "origin"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "minLength": 1 },
+        "origin": { "type": "string", "enum": ["USER_INPUT", "SOURCE_FACT"] }
+      }
+    },
+    "CoverContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_name",
+        "document_title",
+        "meeting_purpose",
+        "contact_name",
+        "website_url",
+        "origin"
+      ],
+      "properties": {
+        "client_name": { "type": "string" },
+        "document_title": { "const": "Discovery Paper" },
+        "meeting_purpose": { "type": "string" },
+        "contact_name": { "type": ["string", "null"] },
+        "website_url": { "type": ["string", "null"] },
+        "origin": { "const": "USER_INPUT" }
+      }
+    },
+    "ClientContextContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "known_facts", "unknowns", "additional_information"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1 },
+        "known_facts": { "type": "array", "items": { "$ref": "#/$defs/KnownFact" } },
+        "unknowns": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "additional_information": { "type": ["string", "null"] }
+      }
+    },
+    "OpportunityContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["meeting_purpose", "meeting_purpose_source", "statement", "origin"],
+      "properties": {
+        "meeting_purpose": { "type": "string" },
+        "meeting_purpose_source": {
+          "type": "string",
+          "enum": ["sales_topic_description", "opportunity_name", "unavailable"]
+        },
+        "statement": { "type": "string", "minLength": 1 },
+        "origin": { "const": "USER_INPUT" }
+      }
+    },
+    "GroundedBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "title", "statement", "origin", "source_refs"],
+      "properties": {
+        "availability": { "type": "string", "enum": ["grounded", "unknown"] },
+        "title": { "type": ["string", "null"] },
+        "statement": { "type": ["string", "null"] },
+        "origin": { "type": "string", "enum": ["SOURCE_FACT", "UNKNOWN"] },
+        "source_refs": { "type": "array", "items": { "$ref": "#/$defs/SourceRef" } }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "availability": { "const": "grounded" } },
+            "required": ["availability"]
+          },
+          "then": {
+            "properties": {
+              "statement": { "type": "string", "minLength": 1 },
+              "origin": { "const": "SOURCE_FACT" },
+              "source_refs": { "minItems": 1 }
+            }
+          },
+          "else": {
+            "properties": {
+              "title": { "type": "null" },
+              "statement": { "type": "null" },
+              "origin": { "const": "UNKNOWN" },
+              "source_refs": { "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "PilotContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["concept", "commercial_terms", "origin"],
+      "properties": {
+        "concept": { "type": "string", "minLength": 1 },
+        "commercial_terms": { "const": "not_included" },
+        "origin": { "const": "GROUNDED_TEMPLATE" }
+      }
+    },
+    "NextStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "label", "origin"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "origin": { "const": "GROUNDED_TEMPLATE" }
+      }
+    },
+    "NextStepsContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/NextStep" }
+        }
+      }
+    },
+    "CoverPage": {
+      "allOf": [
+        { "$ref": "#/$defs/PageShell" },
+        {
+          "properties": {
+            "key": { "const": "cover" },
+            "order": { "const": 1 },
+            "title": { "const": "Cover" }
+          }
+        },
+        { "$ref": "#/$defs/ReadyCover" }
+      ]
+    },
+    "ClientContextPage": {
+      "allOf": [
+        { "$ref": "#/$defs/PageShell" },
+        {
+          "properties": {
+            "key": { "const": "client_context" },
+            "order": { "const": 2 },
+            "title": { "const": "Client context" }
+          }
+        },
+        { "$ref": "#/$defs/ReadyClient" }
+      ]
+    },
+    "OpportunityPage": {
+      "allOf": [
+        { "$ref": "#/$defs/PageShell" },
+        {
+          "properties": {
+            "key": { "const": "opportunity" },
+            "order": { "const": 3 },
+            "title": { "const": "Opportunity" }
+          }
+        },
+        { "$ref": "#/$defs/ReadyOpportunity" }
+      ]
+    },
+    "BorekApproachPage": {
+      "allOf": [
+        { "$ref": "#/$defs/PageShell" },
+        {
+          "properties": {
+            "key": { "const": "borek_approach" },
+            "order": { "const": 4 },
+            "title": { "const": "Borek approach" }
+          }
+        },
+        { "$ref": "#/$defs/ReadyGrounded" }
+      ]
+    },
+    "UseCasePage": {
+      "allOf": [
+        { "$ref": "#/$defs/PageShell" },
+        {
+          "properties": {
+            "key": { "const": "relevant_use_case" },
+            "order": { "const": 5 },
+            "title": { "const": "Relevant use case" }
+          }
+        },
+        { "$ref": "#/$defs/ReadyGrounded" }
+      ]
+    },
+    "PilotPage": {
+      "allOf": [
+        { "$ref": "#/$defs/PageShell" },
+        {
+          "properties": {
+            "key": { "const": "pilot_proposal" },
+            "order": { "const": 6 },
+            "title": { "const": "Pilot proposal" }
+          }
+        },
+        { "$ref": "#/$defs/ReadyPilot" }
+      ]
+    },
+    "NextStepsPage": {
+      "allOf": [
+        { "$ref": "#/$defs/PageShell" },
+        {
+          "properties": {
+            "key": { "const": "next_steps" },
+            "order": { "const": 7 },
+            "title": { "const": "Next steps" }
+          }
+        },
+        { "$ref": "#/$defs/ReadyNext" }
+      ]
+    },
+    "PageShell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "order", "title", "status", "content"],
+      "properties": {
+        "key": { "type": "string" },
+        "order": { "type": "integer" },
+        "title": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "generating", "ready", "failed"]
+        },
+        "content": true
+      }
+    },
+    "ReadyCover": {
+      "if": {
+        "properties": { "status": { "const": "ready" } },
+        "required": ["status"]
+      },
+      "then": { "properties": { "content": { "$ref": "#/$defs/CoverContent" } } },
+      "else": { "properties": { "content": { "type": "null" } } }
+    },
+    "ReadyClient": {
+      "if": {
+        "properties": { "status": { "const": "ready" } },
+        "required": ["status"]
+      },
+      "then": { "properties": { "content": { "$ref": "#/$defs/ClientContextContent" } } },
+      "else": { "properties": { "content": { "type": "null" } } }
+    },
+    "ReadyOpportunity": {
+      "if": {
+        "properties": { "status": { "const": "ready" } },
+        "required": ["status"]
+      },
+      "then": { "properties": { "content": { "$ref": "#/$defs/OpportunityContent" } } },
+      "else": { "properties": { "content": { "type": "null" } } }
+    },
+    "ReadyGrounded": {
+      "if": {
+        "properties": { "status": { "const": "ready" } },
+        "required": ["status"]
+      },
+      "then": { "properties": { "content": { "$ref": "#/$defs/GroundedBlock" } } },
+      "else": { "properties": { "content": { "type": "null" } } }
+    },
+    "ReadyPilot": {
+      "if": {
+        "properties": { "status": { "const": "ready" } },
+        "required": ["status"]
+      },
+      "then": { "properties": { "content": { "$ref": "#/$defs/PilotContent" } } },
+      "else": { "properties": { "content": { "type": "null" } } }
+    },
+    "ReadyNext": {
+      "if": {
+        "properties": { "status": { "const": "ready" } },
+        "required": ["status"]
+      },
+      "then": { "properties": { "content": { "$ref": "#/$defs/NextStepsContent" } } },
+      "else": { "properties": { "content": { "type": "null" } } }
+    }
+  }
+}

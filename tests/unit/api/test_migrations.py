@@ -258,6 +258,61 @@ def test_bt35_client_documents_tables_and_storage() -> None:
     assert "users_own_client_document_sections" in rls
 
 
+def test_bt42_discovery_paper_versions() -> None:
+    content = (MIGRATIONS_DIR / "035_bt42_discovery_paper_versions.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS public.discovery_paper_versions" in content
+    assert "REFERENCES public.opportunities(id) ON DELETE CASCADE" in content
+    assert "CHECK (status IN ('draft', 'approved'))" in content
+    assert "CREATE UNIQUE INDEX IF NOT EXISTS discovery_paper_versions_opportunity_version_key" in content
+    assert "ENABLE ROW LEVEL SECURITY" in content
+    assert "users_own_discovery_paper_versions" in content
+    assert "Approved Discovery Paper versions are immutable" in content
+    assert "Approved Discovery Paper versions cannot return to draft" in content
+    assert "discovery_paper_versions_approved_immutable" in content
+
+
+def test_bt48_finalization_snapshot_column() -> None:
+    content = (MIGRATIONS_DIR / "039_bt48_finalization_owner_flow.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS finalization_snapshot JSONB" in content
+    assert "Finalization snapshot is immutable" in content
+    assert "opportunities_finalization_snapshot_immutable" in content
+    assert "CREATE TABLE" not in content
+
+
+def test_bt47_workflow_status_lineage() -> None:
+    content = (MIGRATIONS_DIR / "038_bt47_workflow_status_lineage.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS first_meeting_completed_at TIMESTAMPTZ" in content
+    assert "ADD COLUMN IF NOT EXISTS owner_reviewed_at TIMESTAMPTZ" in content
+    assert "ADD COLUMN IF NOT EXISTS finalized_at TIMESTAMPTZ" in content
+    assert "'first_contact'" in content
+    assert "'deepening'" in content
+    assert "'concretisation'" in content
+    assert "'post_meeting'" in content
+    assert "presentation_versions_journey_stage_check" in content
+    assert "CREATE TABLE" not in content
+
+
+def test_bt45_selected_use_case_ids() -> None:
+    content = (MIGRATIONS_DIR / "037_bt45_selected_use_cases.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS selected_use_case_ids JSONB" in content
+    assert "DEFAULT '[]'::jsonb" in content
+    assert "CREATE TABLE" not in content
+
+
+def test_bt44_meeting_extraction_columns() -> None:
+    content = (MIGRATIONS_DIR / "036_bt44_meeting_extraction.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS personal_notes TEXT" in content
+    assert "ADD COLUMN IF NOT EXISTS personal_notes_updated_at TIMESTAMPTZ" in content
+    assert "ADD COLUMN IF NOT EXISTS meeting_extraction JSONB" in content
+    assert "CREATE TABLE" not in content
+    assert "transcripts" not in content.lower() or "Transcripts stay" in content
+
+
+def test_bt41_discovery_paper_column() -> None:
+    content = (MIGRATIONS_DIR / "034_bt41_discovery_paper.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS discovery_paper JSONB" in content
+
+
 def test_bt36_stage_outputs_columns() -> None:
     content = (MIGRATIONS_DIR / "030_bt36_stage_outputs.sql").read_text(encoding="utf-8")
     assert "ADD COLUMN IF NOT EXISTS meeting_feedback_text" in content
@@ -273,6 +328,15 @@ def test_bt36_transcript_summaries_are_numbered_031() -> None:
     assert "CREATE TABLE IF NOT EXISTS public.transcript_summaries" in content
     assert "ENABLE ROW LEVEL SECURITY" in content
     assert "GRANT ALL ON public.transcript_summaries TO service_role" in content
+
+
+def test_jj34_generation_source_manifest_column() -> None:
+    content = (MIGRATIONS_DIR / "040_jj34_generation_source_manifest.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "ADD COLUMN IF NOT EXISTS generation_source_manifest JSONB" in content
+    assert "presentation_versions" in content
+    assert "CREATE TABLE" not in content
 
 
 def test_d3_employee_roles_and_activity_document_id() -> None:
