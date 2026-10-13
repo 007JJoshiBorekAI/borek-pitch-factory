@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFileSync } from "node:fs";
+import { readFileSync as readFileFromDisk } from "node:fs";
 import { ApiRequestError } from "./api";
 import {
   EMAIL_REVIEW_CHECKS, canPreparePostMeetingEmail, clipboardText, advancedReviewUi, announcesAttachment, approvalFor, writerLabel, attachmentMismatch, confirmPostMeetingEmail, emailReviewWarnings, contentWordCount, downloadEmailAttachment,
@@ -9,6 +9,8 @@ import {
   staticsFormFrom, staticsPayload, unsavedLengths, validateStaticsForm, workingCopy,
 } from "./postMeetingEmail";
 import type { PostMeetingWorkflow } from "./postMeeting";
+// Sources are compared as text below. A Windows checkout may hold them with CRLF line ends.
+const readFileSync = (path: URL | string, encoding: "utf8"): string => readFileFromDisk(path, encoding).replace(/\r\n/g, "\n");
 
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const presentation = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";

@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFileSync } from "node:fs";
+import { readFileSync as readFileFromDisk } from "node:fs";
 import {
   blockerText, confirmMeetingReview, excludedFromConfirmation, extractionIsCurrent, FINDING_SOURCE_LABEL, findingsState, isStaleReviewError,
   loadMeetingInputs, loadPostMeetingReview, loadPostMeetingWorkflow, MeetingNotesConflict, parseMeetingExtraction,
   parsePostMeetingReview, prepareMeetingEvidence, reviewHeadline, savePersonalNotesChecked, staleReasonText,
   validateTranscript, workflowCompleted, type MeetingExtraction, type PersonalNotes, type PostMeetingReview,
 } from "./postMeeting";
+// Sources are compared as text below. A Windows checkout may hold them with CRLF line ends.
+const readFileSync = (path: URL | string, encoding: "utf8"): string => readFileFromDisk(path, encoding).replace(/\r\n/g, "\n");
 
 const opportunityId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const extraction: MeetingExtraction = {
