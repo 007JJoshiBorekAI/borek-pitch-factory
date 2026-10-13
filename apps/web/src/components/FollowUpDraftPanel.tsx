@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { FollowUpAdvancedReview } from "@/components/FollowUpAdvancedReview";
+import { FollowUpReviewDialog } from "@/components/FollowUpReviewDialog";
 import { PostMeetingPhaseNav, usePostMeeting } from "@/components/PostMeetingShell";
 import { isMasterJourney } from "@/lib/discoveryFirst";
 import { loadPostMeetingWorkflow, postMeetingError } from "@/lib/postMeeting";
 import {
-  EMAIL_LENGTHS, EMAIL_LENGTH_LABEL, EMAIL_REVIEW_CHECKS, EMAIL_STATE_LABEL, canPreparePostMeetingEmail, clipboardText,
-  confirmPostMeetingEmail, contentWordCount, downloadEmailAttachment, emailError, emailExportable, emailFlagText, emailState,
+  EMAIL_LENGTHS, EMAIL_LENGTH_LABEL, EMAIL_REVIEW_CHECKS, EMAIL_STATE_LABEL, advancedReviewUi, approvalFor, attachmentMismatch, canPreparePostMeetingEmail, clipboardText,
+  confirmPostMeetingEmail, contentWordCount, downloadEmailAttachment, emailError, emailExportable, emailState,
   exportPostMeetingEmail, formatFileSize, generatePostMeetingEmail, isEmailConflict, isEmailHasEdits, isStaticsMissing,
   loadFollowupStatics, loadPostMeetingEmail, openReviewFlags, personLabel, saveFollowupStatics, savePostMeetingEmail, staticsFormFrom,
-  unsavedLengths, validateStaticsForm, workingCopy,
+  unsavedLengths, validateStaticsForm, workingCopy, writerLabel,
   type EmailAttachment, type EmailLength, type EmailWorkingCopy, type FollowupStaticsForm, type PostMeetingEmail,
 } from "@/lib/postMeetingEmail";
 import { downloadPostMeetingPresentation, loadExistingPostMeetingPresentation, type PostMeetingPresentation } from "@/lib/postMeetingPresentation";
@@ -61,6 +63,8 @@ function StandalonePresentationCard({ opportunityId, token, reviewHref }: { oppo
 }
 
 const dateTime = (value: string | null) => (value ? new Date(value).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "");
+// The original on-page review card instead of the Review & confirm dialog (docs/followup-email-review-ui.md).
+const ADVANCED_REVIEW = advancedReviewUi();
 
 export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string }) {
   const { accessToken, previewMode } = useAuth();
@@ -79,6 +83,9 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
   const [notice, setNotice] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
   const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+  // The Review & confirm dialog: closed, open for approval, or showing a confirmed draft again.
+  const [review, setReview] = useState<null | "approve" | "record">(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [checks, setChecks] = useState<string[]>([]);
   // The review flags the owner ticked, one by one. A new or changed draft starts with none.
   const [acknowledged, setAcknowledged] = useState<string[]>([]);
@@ -176,13 +183,37 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
   const toggleAttachment = (attachment: EmailAttachment) => run("saving", async (token) => {
     if (!draft) return;
     const saved = await savePostMeetingEmail(token, opportunityId, draft, { attachments: { [attachment.format]: !attachment.selected } });
-    if (alive.current) adopt(saved, dirty);
+    if (!alive.current) return;
+    // The API keeps generated text true to the selection; a text the owner edited is theirs and stays.
+    const rewritten = EMAIL_LENGTHS.filter((name) => saved.lengths[name].body !== draft.lengths[name].body);
+    const attached = saved.attachments.some((item) => item.selected);
+    adopt(saved, dirty);
+    if (rewritten.length) setNotice(`The sentence about the attached presentation was ${attached ? "added to" : "removed from"} the ${rewritten.map((name) => EMAIL_LENGTH_LABEL[name].toLowerCase()).join(", ")} ${rewritten.length === 1 ? "text" : "texts"}. Texts you edited were not changed.`);
   });
 
   const confirm = () => run("confirming", async (token) => {
     if (!draft) return;
     const confirmed = await confirmPostMeetingEmail(token, opportunityId, draft, length, checks, acknowledged);
     if (alive.current) { adopt(confirmed); setNotice("Draft confirmed. Nothing was sent."); }
+  });
+
+  /**
+   * The approval given in the review dialog. It is sent only from the dialog's own button and
+   * carries what the owner ticked there: each acknowledged flag, and the six checks if confirmed.
+   */
+  const approve = (acknowledgedFlags: string[], checksConfirmed: boolean) => run("confirming", async (token) => {
+    if (!draft) return;
+    setReviewError(null);
+    const approval = approvalFor(draft, acknowledgedFlags, checksConfirmed);
+    try {
+      const confirmed = await confirmPostMeetingEmail(token, opportunityId, draft, length, approval.checks, approval.acknowledgedFlags);
+      if (alive.current) { adopt(confirmed); setReview(null); setNotice("Email confirmed. Nothing was sent."); }
+    } catch (cause) {
+      if (!alive.current) return;
+      // Changed elsewhere: the decision is made on the page. Anything else is shown in the dialog.
+      if (isEmailConflict(cause)) { setReview(null); throw cause; }
+      setReviewError(emailError(cause));
+    }
   });
 
   const exportEmail = () => run("exporting", async (token) => {
@@ -234,6 +265,10 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
   const blockedFile = selectedFiles.find((item) => !item.available);
   const canConfirm = Boolean(draft) && !working && dirty.length === 0 && !overLimit && !conflict && draft!.sourceStatus !== "changed"
     && !blockedFile && (!needsReview || (allChecked && openFlags.length === 0)) && !exportable;
+  // The dialog reviews the saved text; what blocks the approval itself is shown inside it.
+  const canReview = Boolean(draft) && !working && dirty.length === 0 && !overLimit && !conflict && !exportable;
+  const reviewLength = exportable && draft?.selectedLength ? draft.selectedLength : length;
+  const mismatch = attachmentMismatch(draft);
   const set = (patch: Partial<FollowupStaticsForm>) => setForm((current) => (current ? { ...current, ...patch } : current));
   const pill = { none: "Not prepared", unsaved: "Unsaved", saved: "Editable", confirmed: "Confirmed" }[state];
 
@@ -327,11 +362,12 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
               </span>
             </div>
             <div className={styles.actions}>
-              <button className="btn btn-primary" data-testid="email-save" disabled={working || !dirty.length || overLimit || conflict} onClick={() => void save()}>{busy === "saving" ? "Saving..." : "Save changes"}</button>
+              <button className={dirty.length ? "btn btn-primary" : "btn btn-secondary"} data-testid="email-save" disabled={working || !dirty.length || overLimit || conflict} onClick={() => void save()}>{busy === "saving" ? "Saving..." : "Save changes"}</button>
               {dirty.length ? <button className="btn btn-secondary" disabled={working} onClick={() => setCopy(workingCopy(draft))}>Discard unsaved changes</button> : null}
               <button className="btn btn-secondary" data-testid="email-regenerate" disabled={working || !eligible} onClick={requestGenerate}>{busy === "generating" ? "Generating..." : "Regenerate from the finalized package"}</button>
             </div>
             <small>Draft revision {draft.revision} · saved {dateTime(draft.updatedAt)}{draft.status === "confirmed" ? ` · confirmed ${dateTime(draft.confirmedAt)}` : ""}</small>
+            {writerLabel(draft.writer) ? <small data-testid="email-writer" data-writer={draft.writer?.mode}>{writerLabel(draft.writer)}{draft.lengths[length].edited ? " This length has since been edited by you." : ""}</small> : null}
           </> : <div className={styles.emailEmpty}>
             <p>{busy === "loading" ? "Loading the saved email draft..." : eligible ? "No follow-up email has been prepared yet. It is written from the finalized presentation package: the confirmed meeting findings and your recipient and sender details." : "The follow-up email is written from the finalized presentation package."}</p>
             {eligible ? <div className={styles.actions}><button className="btn btn-primary" data-testid="email-generate" disabled={!live || !loaded || working || editStatics} onClick={() => void generate(false)}>{busy === "generating" ? "Generating..." : "Prepare email draft"}</button>
@@ -341,43 +377,9 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
           </div>}
         </article>
 
-        {draft ? <article className={styles.card} aria-labelledby="email-review-title" data-testid="email-review">
-          <span className={styles.eyebrow}>Owner review</span>
-          <h2 id="email-review-title">{exportable ? "Reviewed and confirmed" : "Review before confirming"}</h2>
-          <dl className={styles.emailFields}>
-            <div><dt>Length</dt><dd>{EMAIL_LENGTH_LABEL[exportable && draft.selectedLength ? draft.selectedLength : length]} · {draft.lengths[exportable && draft.selectedLength ? draft.selectedLength : length].wordCount} content words</dd></div>
-            <div><dt>Subject</dt><dd>{draft.lengths[exportable && draft.selectedLength ? draft.selectedLength : length].subject}</dd></div>
-            <div><dt>Source</dt><dd data-testid="email-source">{draft.source
-              ? `Master Presentation V2 · version ${draft.source.versionNumber} · finalized ${dateTime(draft.source.finalizedAt)} · ${draft.source.confirmedFindings ?? 0} confirmed findings, ${draft.source.excludedFindings ?? 0} excluded`
-              : "Meeting transcript (earlier document flow)"}{draft.sourceStatus === "changed" ? " — the finalized package changed; regenerate the email" : ""}</dd></div>
-            <div><dt>Attachments</dt><dd>{selectedFiles.length ? selectedFiles.map((item) => item.fileName).join(", ") : "None selected"}</dd></div>
-          </dl>
-          {draft.reviewFlags.length && exportable ? <><h3>Review flags you acknowledged</h3><ul className={styles.emailFlags} data-testid="email-flags">{draft.reviewFlags.map((flag) => <li key={flag}>{emailFlagText(flag)}</li>)}</ul></> : null}
-          {draft.reviewFlags.length && !exportable ? <fieldset className={styles.emailChecklist} disabled={working || dirty.length > 0} data-testid="email-flags">
-            <legend>Review flags — acknowledge each one</legend>
-            {draft.reviewFlags.map((flag) => <label key={flag} className={styles.check}>
-              <input type="checkbox" data-testid={`email-flag-${flag}`} checked={acknowledged.includes(flag)}
-                onChange={(event) => setAcknowledged(event.target.checked ? [...acknowledged, flag] : acknowledged.filter((item) => item !== flag))} />
-              <span>{emailFlagText(flag)}</span></label>)}
-            <small data-testid="email-flags-open">{openFlags.length ? `${openFlags.length} of ${draft.reviewFlags.length} still to acknowledge` : "All review flags acknowledged"}</small>
-          </fieldset> : null}
-          {exportable
-            ? <p className={styles.notice} role="status">Confirmed {dateTime(draft.confirmedAt)} for revision {draft.confirmedRevision}. Nothing has been sent. Editing the text or the attachments withdraws the confirmation.</p>
-            : <>
-              {needsReview ? <fieldset className={styles.emailChecklist} disabled={working || dirty.length > 0} data-testid="email-checklist">
-                <legend>Checklist</legend>
-                {EMAIL_REVIEW_CHECKS.map(([key, label]) => <label key={key} className={styles.check}>
-                  <input type="checkbox" checked={checks.includes(key)} onChange={(event) => setChecks(event.target.checked ? [...checks, key] : checks.filter((item) => item !== key))} />
-                  <span>{label}</span></label>)}
-              </fieldset> : null}
-              {dirty.length ? <p><small>Save your changes first: the review is of the saved text.</small></p> : null}
-              {blockedFile ? <p className={styles.error} role="alert">{blockedFile.fileName} is selected but not available. Deselect it or restore the approved file.</p> : null}
-              <div className={styles.actions}>
-                <button className="btn btn-primary" data-testid="email-confirm" disabled={!canConfirm} onClick={() => void confirm()}>{busy === "confirming" ? "Confirming..." : `Confirm the ${EMAIL_LENGTH_LABEL[length].toLowerCase()} draft`}</button>
-                <small>Confirming records your review of this saved revision. It does not send the email.</small>
-              </div>
-            </>}
-        </article> : null}
+        {draft && ADVANCED_REVIEW ? <FollowUpAdvancedReview draft={draft} length={length} exportable={exportable} working={working} confirming={busy === "confirming"} dirty={dirty}
+          checks={checks} setChecks={setChecks} acknowledged={acknowledged} setAcknowledged={setAcknowledged} openFlags={openFlags} needsReview={needsReview}
+          selectedFiles={selectedFiles} blockedFile={blockedFile} canConfirm={canConfirm} onConfirm={() => void confirm()} /> : null}
       </div>
 
       <aside className={`${styles.card} ${styles.packageSidebar}`} aria-label="Follow-up package">
@@ -388,7 +390,7 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
             <small>{draft?.source ? `Master Presentation V2 · version ${draft.source.versionNumber} · reviewed and finalized` : eligible ? "Finalized · prepare the email to pin this version" : "Not finalized yet"}</small>
             <div className={styles.packageDocumentActions}>
               <Link className="btn btn-secondary" href={`${root}/${master ? "post-meeting-presentation" : "review"}`}>Open in Deck Center</Link>
-              {draft?.attachments.map((item) => <button key={item.format} className="btn btn-primary" type="button" disabled={!item.available || working} onClick={() => void download(item)}>{item.format.toUpperCase()}</button>)}
+              {draft?.attachments.map((item) => <button key={item.format} className="btn btn-secondary" type="button" disabled={!item.available || working} onClick={() => void download(item)}>{item.format.toUpperCase()}</button>)}
             </div>
             {draft?.source ? <small>Downloads are the reviewed version {draft.source.versionNumber}, never a newer one.</small> : null}
           </div>}
@@ -408,18 +410,28 @@ export function FollowUpDraftPanel({ opportunityId }: { opportunityId: string })
             </li>)}
           </ul> : <p>{draft ? "This draft has no approved presentation version to attach." : "Available after the email draft is prepared."}</p>}
           {draft?.attachments.length ? <small>Selected files are packed into the exported email file. A file that is not selected is not attached.</small> : null}
+          {mismatch.length ? <p className={styles.error} role="status" data-testid="email-attachment-mismatch">No file is selected, but your edited {mismatch.map((name) => EMAIL_LENGTH_LABEL[name].toLowerCase()).join(", ")} {mismatch.length === 1 ? "text still says" : "texts still say"} that something is attached. Select a file or change that sentence: it cannot be approved like this.</p> : null}
         </section>
-        <footer className={styles.packageExport}>
-          <span className={styles.packageLabel}>Email export</span>
-          <h2 data-testid="email-export-title">{exportable ? "Ready to export" : "Not ready to export"}</h2>
+        <footer className={styles.packageExport} data-testid="email-next-action">
+          <span className={styles.packageLabel}>{exportable ? "Email ready" : ADVANCED_REVIEW ? "Email export" : "Next step"}</span>
+          <h2 data-testid="email-export-title">{exportable ? "Ready to export" : ADVANCED_REVIEW ? "Not ready to export" : !draft ? "Prepare the email" : dirty.length ? "Save your changes" : "Review & confirm"}</h2>
           <p>{exportable
             ? `The confirmed ${draft?.selectedLength ? EMAIL_LENGTH_LABEL[draft.selectedLength].toLowerCase() : ""} draft${selectedFiles.length ? ` with ${selectedFiles.length} attached file${selectedFiles.length > 1 ? "s" : ""}` : " without attachments"}, as an unsent email file for your mail program.`
-            : draft ? "Save, review and confirm the draft. Only a confirmed draft can be exported." : "Prepare, review and confirm the email first."}</p>
-          <button className="btn btn-primary" data-testid="email-export" disabled={!exportable || working} onClick={() => void exportEmail()}>{busy === "exporting" ? "Preparing..." : "Download email file (.eml)"}</button>
-          <button className="btn btn-secondary" data-testid="email-copy" disabled={!exportable || working} onClick={() => void copyText()}>Copy subject and message</button>
+            : ADVANCED_REVIEW ? (draft ? "Save, review and confirm the draft. Only a confirmed draft can be exported." : "Prepare, review and confirm the email first.")
+            : !draft ? "Prepare the email draft first. You review and confirm it here before it can be exported."
+            : dirty.length ? "The review is of the saved text. Save or discard your changes, then review."
+            : overLimit ? "This draft is over its word limit. Shorten it or use a longer draft."
+            : `Read the ${EMAIL_LENGTH_LABEL[length].toLowerCase()} email once more with its recipient, attachments and the points to check, then approve it. Only a confirmed email can be exported.`}</p>
+          {exportable || ADVANCED_REVIEW ? <>
+            <button className="btn btn-primary" data-testid="email-export" disabled={!exportable || working} onClick={() => void exportEmail()}>{busy === "exporting" ? "Preparing..." : "Download email file (.eml)"}</button>
+            <button className="btn btn-secondary" data-testid="email-copy" disabled={!exportable || working} onClick={() => void copyText()}>Copy subject and message</button>
+            {exportable && !ADVANCED_REVIEW ? <button type="button" className={styles.emailLink} data-testid="email-review-record" disabled={working} onClick={() => { setReviewError(null); setReview("record"); }}>View what you confirmed</button> : null}
+          </> : <button className="btn btn-primary" data-testid="email-review-open" disabled={!canReview} onClick={() => { setReviewError(null); setReview("approve"); }}>Review &amp; confirm</button>}
           <small id="email-export-note">Nothing is sent from this application. You send the email yourself after your own check.</small>
         </footer>
       </aside>
     </div>
+    {draft && review && !ADVANCED_REVIEW ? <FollowUpReviewDialog draft={draft} length={reviewLength} companyName={companyName} busy={busy === "confirming"}
+      readOnly={review === "record"} error={reviewError} onApprove={(acknowledgedFlags, checksConfirmed) => void approve(acknowledgedFlags, checksConfirmed)} onClose={() => setReview(null)} /> : null}
   </section>;
 }

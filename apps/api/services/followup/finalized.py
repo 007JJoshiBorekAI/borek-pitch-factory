@@ -18,6 +18,17 @@ What a finding's source does and does not establish:
 A draft never exceeds its word cap. Statements are left out whole, never shortened; when not
 even one statement fits a length, generation fails with ``ContentDoesNotFit``.
 
+The email reads as a letter, not as a report: a greeting, a word of thanks, the situation as it
+was understood, where BOREK sees its role, the attached presentation, the next steps and a
+closing. Confirmed statements are woven into sentences ("The core requirements, as we understood
+them: ...; ...") instead of being listed under headings. The wording around them is fixed, names
+the client only as the owner entered it, and claims nothing about the meeting: every fact in the
+email is a confirmed statement. A statement is used in its own words; inside a sentence it loses
+its final full stop and, when it starts with an ordinary word such as "The" or "Start", its
+capital letter - nothing else. Where it is not clear how a first word is written inside a
+sentence, the statements follow the lead-in unchanged. A sentence without a confirmed statement is not written, and the
+presentation is only called attached when a file is selected for the email.
+
 Pure functions: they read their arguments and return plain data.
 """
 
@@ -34,7 +45,7 @@ from services.followup.rendering import (
     greeting,
 )
 
-RENDERER_VERSION = "followup-finalized:v2"
+RENDERER_VERSION = "followup-finalized:v3"
 # Said in the meeting. Not: said by the client (see the module text).
 MEETING_SOURCES = frozenset({"transcript", "both"})
 OWNER_SOURCE = "personal_notes"
@@ -139,123 +150,263 @@ def _action_line(text: str) -> str:
     return line if has_deadline(text) else f"{line[:-1]} (date to be confirmed)."
 
 
-def _body(statics: dict[str, Any], blocks: list[tuple[str, list[str]]], *, intro: str) -> str:
-    lines = [greeting(statics), "", intro]
-    for title, items in blocks:
-        if items:
-            lines.extend(["", title, *[f"- {item}" for item in items]])
+# Words a statement may start with that are safe to write in lower case inside a sentence. A
+# name, an abbreviation or anything else keeps its capital.
+_LOWER_SAFE = frozenset(
+    "a an the every each all no any some our we it its this these that those there most many several both one two three "
+    "data start run send share arrange use keep begin focus provide prepare schedule".split()
+)
+
+
+def ordinary_words(statements: list[str]) -> frozenset[str]:
+    """Words the confirmed statements themselves write in lower case inside a sentence.
+
+    "motor" in "... a pilot with motor claims ..." shows that "Motor claims must ..." does not
+    start with a name.
+    """
+    words: set[str] = set()
+    for text in statements:
+        words.update(re.findall(r"\b[a-z][a-z'-]*\b", text.split(" ", 1)[1] if " " in text else ""))
+    return frozenset(words)
+
+
+def known_names(statements: list[str], statics: dict[str, Any]) -> frozenset[str]:
+    """Words that are written with a capital inside a sentence, and the names the owner entered."""
+    names: set[str] = {"Borek", "BOREK"}
+    for text in statements:
+        names.update(re.findall(r"\b[A-Z][A-Za-z]+\b", text.split(" ", 1)[1] if " " in text else ""))
+    people = [*(statics.get("standard_recipients") or []), statics.get("sender_profile") or {}]
+    entered = [statics.get("client_short"), *[item.get(key) for item in people if isinstance(item, dict) for key in ("first_name", "last_name", "name")]]
+    for value in entered:
+        names.update(re.findall(r"[A-Za-z]+", str(value or "")))
+    return frozenset(names)
+
+
+def _first_word(text: str) -> str:
+    return " ".join(text.split()).split(" ", 1)[0].split("'", 1)[0].rstrip(",:")
+
+
+def _starts_ordinary(text: str, vocabulary: frozenset[str]) -> bool:
+    first = _first_word(text)
+    return first.isalpha() and first[0].isupper() and (len(first) == 1 or first[1:].islower()) and (first.lower() in _LOWER_SAFE or first.lower() in vocabulary)
+
+
+def _starts_with_name(text: str, names: frozenset[str]) -> bool:
+    """A name, an abbreviation or a number: it keeps its form anywhere in a sentence."""
+    first = _first_word(text)
+    return first in names or not first.isalpha() or (len(first) > 1 and not first[1:].islower())
+
+
+def inline_form(text: str, vocabulary: frozenset[str] = frozenset()) -> str:
+    """A confirmed statement as part of a sentence: no final full stop, an ordinary first word in lower case."""
+    text = " ".join(text.split()).rstrip(".")
+    return text[0].lower() + text[1:] if _starts_ordinary(text, vocabulary) else text
+
+
+def _fits_a_sentence(text: str) -> bool:
+    """One clause or phrase. A statement of several sentences stays as it is."""
+    body = text.rstrip(".")
+    return not any(mark in body for mark in (". ", "? ", "! ", ";", "\n")) and not text.endswith(("?", "!"))
+
+
+# One sentence of the email: how it begins (for one statement, for several) and the confirmed
+# statements it holds. ``limit`` is how many statements this length shows at most. ``glue`` keeps
+# the sentence in the paragraph before it. Next steps are a short list when there are several,
+# because each one is something to do; everything else is running text.
+Block = dict[str, Any]
+
+
+def _block(lead: tuple[str, str], items: list[str], limit: int | None = None, *, glue: bool = False, steps: bool = False) -> Block:
+    return {"lead": lead, "items": list(items), "limit": limit, "glue": glue, "steps": steps}
+
+
+def _paragraph(block: Block, vocabulary: frozenset[str] = frozenset(), names: frozenset[str] = frozenset()) -> str:
+    items = block["items"]
+    lead = block["lead"][0 if len(items) == 1 else 1]
+    if block["steps"]:
+        return f"{lead} {items[0]}" if len(items) == 1 else "\n".join([lead, *[f"- {item}" for item in items]])
+    # Woven into one sentence only when every statement is one clause and it is clear how its
+    # first word is written there. Otherwise the statements follow the lead-in as they were confirmed.
+    if all(_fits_a_sentence(item) and (_starts_ordinary(item, vocabulary) or _starts_with_name(item, names)) for item in items):
+        return f"{lead} {'; '.join(inline_form(item, vocabulary) for item in items)}."
+    return " ".join([lead, *[_sentence(item) for item in items]])
+
+
+def _body(statics: dict[str, Any], blocks: list[Block], *, frame: dict[str, Any], attachment: bool) -> str:
+    paragraphs = [frame["opening"]]
+    vocabulary, names = frozenset(frame.get("vocabulary") or ()), frozenset(frame.get("names") or ())
+    glued = False
+    for block in [item for item in blocks if not item["steps"]]:
+        if not block["items"]:
+            continue
+        if block["glue"] and glued:
+            paragraphs[-1] = f"{paragraphs[-1]} {_paragraph(block, vocabulary, names)}"
+        else:
+            paragraphs.append(_paragraph(block, vocabulary, names))
+        glued = True
+    # What was understood, then the attached presentation, then what happens next.
+    if attachment:
+        paragraphs.append(frame["attachment"])
+    paragraphs.extend(_paragraph(block) for block in blocks if block["steps"] and block["items"])
+    paragraphs.append(frame["closing"])
+    return "\n\n".join([greeting(statics), *paragraphs, signature(statics)])
+
+
+def signature(statics: dict[str, Any]) -> str:
+    """Closing formula and the sender the owner entered."""
     sender = statics.get("sender_profile") or {}
-    lines.extend(
-        [
-            "",
-            "If anything here does not match your understanding, just let me know and I will correct it.",
-            "",
-            "Best regards",
-            str(sender.get("name") or "").strip(),
-            f"{sender.get('role') or ''} - BOREK".strip(),
-        ]
-    )
-    return "\n".join(lines)
+    return "\n".join(["Best regards", str(sender.get("name") or "").strip(), f"{sender.get('role') or ''} - BOREK".strip()])
 
 
-def _fit(
-    statics: dict[str, Any],
-    plan: list[tuple[str, list[str], int | None]],
-    *,
-    intro: str,
-    cap: int,
-    name: str,
-) -> tuple[str, bool]:
+_NO_ATTACHMENT = re.compile(r"\b(?:no|not|without|nothing|none|never)\b[^.!?\n]{0,30}?\battach\w*", re.IGNORECASE)
+_ATTACHMENT_CLAIM = re.compile(r"\b(?:attach\w*|enclos\w*)\b", re.IGNORECASE)
+
+
+def announces_attachment(body: str) -> bool:
+    """The text says that something is attached ("attached", "attachment", "enclosed").
+
+    "No attachment" and "not attached" say the opposite and do not count.
+    """
+    return bool(_ATTACHMENT_CLAIM.search(_NO_ATTACHMENT.sub(" ", body)))
+
+
+def _fit(statics: dict[str, Any], plan: list[Block], *, frame: dict[str, Any], attachment: bool, cap: int, name: str) -> tuple[str, bool]:
     """Leave out whole statements until the content fits the cap. Never shortens a statement.
 
-    ``plan`` lists (heading, statements, how many of them this length shows at most).
     A statement that could not fit this length even on its own is left out first, so that it does
-    not push shorter ones out. Then blocks with several statements give way, so every block keeps
-    its first statement as long as possible; after that the longest remaining statement goes,
+    not push shorter ones out. Then sentences with several statements give way, so every sentence
+    keeps its first statement as long as possible; after that the longest remaining statement goes,
     then the next, until the draft fits. If nothing is left, no statement fits this length.
     """
+    def render(blocks: list[Block]) -> str:
+        return _body(statics, blocks, frame=frame, attachment=attachment)
+
     trimmed = False
-    blocks: list[tuple[str, list[str]]] = []
-    for title, items, limit in plan:
-        alone = [item for item in items if followup_content_word_count(_body(statics, [(title, [item])], intro=intro)) <= cap]
-        trimmed = trimmed or len(alone) < len(items)
-        blocks.append((title, alone if limit is None else alone[:limit]))
+    blocks: list[Block] = []
+    for block in plan:
+        alone = [item for item in block["items"] if followup_content_word_count(render([{**block, "items": [item]}])) <= cap]
+        trimmed = trimmed or len(alone) < len(block["items"])
+        blocks.append({**block, "items": alone if block["limit"] is None else alone[: block["limit"]]})
 
-    def words() -> int:
-        return followup_content_word_count(_body(statics, blocks, intro=intro))
-
-    while words() > cap:
-        several = [index for index, (_title, items) in enumerate(blocks) if len(items) > 1]
+    while followup_content_word_count(render(blocks)) > cap:
+        several = [index for index, block in enumerate(blocks) if len(block["items"]) > 1]
         if several:
-            index = max(several, key=lambda position: (len(blocks[position][1]), position))
-            blocks[index][1].pop()
+            index = max(several, key=lambda position: (len(blocks[position]["items"]), position))
+            blocks[index]["items"].pop()
         else:
-            single = [index for index, (_title, items) in enumerate(blocks) if items]
+            single = [index for index, block in enumerate(blocks) if block["items"]]
             if not single:
                 break
-            index = max(single, key=lambda position: (len(blocks[position][1][0].split()), position))
-            blocks[index][1].clear()
+            index = max(single, key=lambda position: (len(blocks[position]["items"][0].split()), position))
+            blocks[index]["items"].clear()
         trimmed = True
-    if words() > cap or not any(items for _title, items in blocks):
+    if followup_content_word_count(render(blocks)) > cap or not any(block["items"] for block in blocks):
         raise ContentDoesNotFit(
             f"No confirmed statement fits the {name} draft ({cap} content words) without being shortened. "
             "A single confirmed finding is longer than this draft allows."
         )
-    return _body(statics, blocks, intro=intro), trimmed
+    return render(blocks), trimmed
 
 
-def render_finalized_lengths(content: dict[str, Any], statics: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], list[str]]:
-    """Three drafts from the same confirmed material: each longer one adds supported detail only.
+# The fixed wording. None of it states a fact about the meeting, names a person or a date, or says
+# who said or decided something: that is what the confirmed statements are for. "As we understood
+# them" says whose reading this is. Ideas are introduced as BOREK's view of its role and, in the
+# same sentence, as not decided.
+LEAD_BRIEF = ("In brief, the main point as we understood it:", "In brief, the main points as we understood them:")
+LEAD_REQUIREMENTS = ("The core requirement, as we understood it:", "The core requirements, as we understood them:")
+LEAD_CHALLENGES = ("What makes this difficult today:", "What makes this difficult today:")
+LEAD_PRIORITIES = ("As for priorities:", "As for priorities:")
+LEAD_DECISIONS = ("For the way forward, this is the direction that was discussed:", "For the way forward, this is the direction that was discussed:")
+LEAD_ROLE = (
+    "This is where we see our role. One idea we talked through, not decided yet:",
+    "This is where we see our role. Among the ideas we talked through, none of them decided yet:",
+)
+LEAD_AHEAD = ("Looking further ahead, this also came up:", "Looking further ahead, these points also came up:")
+LEAD_STEPS = ("As a next step:", "As next steps:")
+ATTACHMENT_SENTENCE = "Please find attached the presentation, which we updated after our meeting to reflect these points."
+SHORT_ATTACHMENT_SENTENCE = "The updated presentation is attached."
+CLOSING = (
+    "Should anything here differ from your understanding, just let me know and I will correct it. "
+    "Many thanks again for your time; I look forward to continuing the conversation."
+)
 
-    short      the first points and next steps
-    medium     the points from the meeting, the decisions noted, what was also discussed, all next steps
-    extensive  every confirmed statement under its own heading (requirements, challenges,
-               priorities), the decisions noted, discussed solutions and opportunities apart
 
-    Wording is neutral about who said what: the headings name the kind of statement, not a
-    speaker, and no sentence says that the client stated, required or agreed something.
+def _frames(statics: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """Opening, attachment sentence and closing per length. The client is named as the owner entered it."""
+    client = " ".join(str(statics.get("client_short") or "").split())
+    picture = f"a clear picture of the situation at {client}" if client else "a clear picture of the current situation"
+    return {
+        "short": {
+            "opening": f"Thank you for your time in our meeting. It gave us {picture}.",
+            "attachment": SHORT_ATTACHMENT_SENTENCE,
+            "closing": "Should anything differ from your understanding, just let me know.",
+        },
+        "medium": {
+            "opening": f"Thank you for taking the time to speak with us. The conversation gave us {picture}, and I would like to reflect it back briefly.",
+            "attachment": ATTACHMENT_SENTENCE,
+            "closing": CLOSING,
+        },
+        "extensive": {
+            "opening": f"Thank you for taking the time to speak with us. The conversation gave us {picture}, and I would like to reflect it back in some detail, so that we all work from the same picture.",
+            "attachment": ATTACHMENT_SENTENCE,
+            "closing": CLOSING,
+        },
+    }
+
+
+def render_finalized_lengths(content: dict[str, Any], statics: dict[str, Any], *, attachment: bool = True) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """Three emails from the same confirmed material: each longer one adds supported detail only.
+
+    short      the first points in one sentence, and the next steps
+    medium     requirements, challenges and priorities as one paragraph, the direction discussed,
+               the ideas talked through, all next steps
+    extensive  every confirmed statement, with opportunities apart from discussed solutions
+
+    ``attachment`` is whether a file is selected for the email. Without one, no sentence says
+    that anything is attached.
+
+    Wording is neutral about who said what: no sentence says that the client stated, required or
+    agreed something. The ideas that were discussed are introduced as where BOREK sees its role
+    and, in the same sentence, as not decided.
 
     The extensive draft is longer only where the package holds more confirmed statements than the
     medium draft shows. With little material the two stay close; nothing is added to fill space.
     """
     heard, decisions, discussed = content["heard"], content["decisions"], content["discussed"]
     actions = [_action_line(text) for text in content["actions"]]
-    plain = [_sentence(text) for text in heard]
-    noted = [_sentence(text) for text in decisions]
-    talked = [_sentence(text) for text in discussed]
-    grouped = {name: [_sentence(text) for text in items] for name, items in content["by_category"].items()}
+    grouped = {name: list(items) for name, items in content["by_category"].items()}
     seen: set[str] = set()
-    for name in (*HEARD_CATEGORIES, *DISCUSSED_CATEGORIES):  # a statement confirmed twice is listed once
+    for name in (*HEARD_CATEGORIES, *DISCUSSED_CATEGORIES):  # a statement confirmed twice is written once
         grouped[name] = [item for item in grouped[name] if not (item in seen or seen.add(item))]
     project = str(statics.get("project_name") or "").strip()
     subject = f"{project} — Follow-up to our meeting" if project else "Follow-up to our meeting"
     plans = {
-        "short": (
-            "thank you for your time in our meeting. Here is a short summary of the points we noted, so that we work from the same picture.",
-            [("Key points", plain + noted, 3), ("Next steps", actions, 5)],
-        ),
-        "medium": (
-            "thank you for your time in our meeting. Below is a summary of the points and next steps we noted, so that we all work from the same picture.",
-            [("Points from the meeting", plain, 5), ("Decisions noted", noted, None), ("Also discussed", talked, 3), ("Next steps", actions, None)],
-        ),
-        "extensive": (
-            "thank you for your time in our meeting. Below is the full summary of the points, decisions and next steps we noted, so that we all work from the same picture.",
-            [
-                ("Requirements", grouped["requirements"], None),
-                ("Challenges", grouped["challenges"], None),
-                ("Priorities", grouped["priorities"], None),
-                ("Decisions noted", noted, None),
-                ("Discussed, not yet decided", grouped["discussed_solutions"], None),
-                ("Opportunities mentioned", grouped["opportunities"], None),
-                ("Next steps", actions, None),
-            ],
-        ),
+        "short": [_block(LEAD_BRIEF, [*heard, *decisions], 3), _block(LEAD_STEPS, actions, 5, steps=True)],
+        "medium": [
+            _block(LEAD_REQUIREMENTS, grouped["requirements"], 2),
+            _block(LEAD_CHALLENGES, grouped["challenges"], 2, glue=True),
+            _block(LEAD_PRIORITIES, grouped["priorities"], 2, glue=True),
+            _block(LEAD_DECISIONS, decisions),
+            _block(LEAD_ROLE, discussed, 3),
+            _block(LEAD_STEPS, actions, steps=True),
+        ],
+        "extensive": [
+            _block(LEAD_REQUIREMENTS, grouped["requirements"]),
+            _block(LEAD_CHALLENGES, grouped["challenges"]),
+            _block(LEAD_PRIORITIES, grouped["priorities"], glue=True),
+            _block(LEAD_DECISIONS, decisions),
+            _block(LEAD_ROLE, grouped["discussed_solutions"]),
+            _block(LEAD_AHEAD, grouped["opportunities"], glue=True),
+            _block(LEAD_STEPS, actions, steps=True),
+        ],
     }
+    frames = _frames(statics)
+    confirmed = [*heard, *decisions, *discussed, *content["actions"]]
+    vocabulary, names = ordinary_words(confirmed), known_names(confirmed, statics)
     lengths: dict[str, dict[str, Any]] = {}
     flags = list(content["review_flags"])
     for name in LENGTHS:
-        intro, plan = plans[name]
-        body, trimmed = _fit(statics, plan, intro=intro, cap=WORD_CAPS[name], name=name)
+        body, trimmed = _fit(statics, plans[name], frame={**frames[name], "vocabulary": vocabulary, "names": names}, attachment=attachment, cap=WORD_CAPS[name], name=name)
         if trimmed and name == "extensive" and FLAG_CONTENT_TRIMMED not in flags:
             flags.append(FLAG_CONTENT_TRIMMED)
         lengths[name] = {"subject": subject, "body": body, "word_count": max(1, followup_content_word_count(body)), "edited": False}

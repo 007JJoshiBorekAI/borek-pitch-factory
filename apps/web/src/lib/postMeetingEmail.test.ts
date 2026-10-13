@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { ApiRequestError } from "./api";
 import {
-  EMAIL_REVIEW_CHECKS, canPreparePostMeetingEmail, clipboardText, confirmPostMeetingEmail, contentWordCount, downloadEmailAttachment,
+  EMAIL_REVIEW_CHECKS, canPreparePostMeetingEmail, clipboardText, advancedReviewUi, announcesAttachment, approvalFor, writerLabel, attachmentMismatch, confirmPostMeetingEmail, emailReviewWarnings, contentWordCount, downloadEmailAttachment,
   emailError, emailExportable, emailFlagText, emailState, exportPostMeetingEmail, formatFileSize, generatePostMeetingEmail,
   isEmailConflict, isEmailHasEdits, loadPostMeetingEmail, openReviewFlags, parsePostMeetingEmail, saveFollowupStatics, savePostMeetingEmail,
   staticsFormFrom, staticsPayload, unsavedLengths, validateStaticsForm, workingCopy,
@@ -188,6 +188,9 @@ test("review flags are explained in plain words, including that demo extraction 
 });
 
 const panel = readFileSync(new URL("../components/FollowUpDraftPanel.tsx", import.meta.url), "utf8");
+// The original on-page review, kept behind NEXT_PUBLIC_FOLLOWUP_ADVANCED_REVIEW_UI.
+const advanced = readFileSync(new URL("../components/FollowUpAdvancedReview.tsx", import.meta.url), "utf8");
+const dialog = readFileSync(new URL("../components/FollowUpReviewDialog.tsx", import.meta.url), "utf8");
 const css = readFileSync(new URL("../components/post-meeting.module.css", import.meta.url), "utf8");
 
 test("the email screen saves on the server, reviews the saved revision and never sends", () => {
@@ -206,7 +209,7 @@ test("the email screen saves on the server, reviews the saved revision and never
   assert.match(panel, /Regenerating replaces all three lengths/);
   // The review is of the saved text and needs every check.
   assert.match(panel, /const allChecked = EMAIL_REVIEW_CHECKS.every\(\(\[key\]\) => checks.includes\(key\)\)/);
-  assert.match(panel, /disabled=\{working \|\| dirty.length > 0\} data-testid="email-checklist"/);
+  assert.match(advanced, /disabled=\{working \|\| dirty.length > 0\} data-testid="email-checklist"/);
   assert.match(panel, /&& dirty.length === 0 && !overLimit && !conflict && draft!.sourceStatus !== "changed"/);
   assert.match(panel, /setChecks\(\[\]\)/, "a new revision needs a new review");
   // Export only of a confirmed draft; every statement about delivery says that nothing is sent.
@@ -221,7 +224,7 @@ test("the email screen saves on the server, reviews the saved revision and never
 test("the package sidebar shows the pinned V2 version and a real attachment selection", () => {
   const sidebar = panel.slice(panel.indexOf("<aside"), panel.indexOf("</aside>") + "</aside>".length);
   let previous = -1;
-  for (const heading of ["Updated presentation", "What the email is based on", "Email attachments", "Email export"]) {
+  for (const heading of ["Updated presentation", "What the email is based on", "Email attachments", "Next step"]) {
     const index = sidebar.indexOf(heading);
     assert.ok(index > previous, `${heading} follows the Figma section order`);
     previous = index;
@@ -303,12 +306,193 @@ test("only the review flags the owner ticked are sent; an unticked flag is never
   // The screen keeps one tick per flag, starts every draft revision with none, and gates the button on them.
   assert.ok(panel.includes("const [acknowledged, setAcknowledged] = useState<string[]>([]);"));
   assert.ok(panel.includes("setChecks([]);\n    setAcknowledged([]);"), "a new or changed draft needs new acknowledgements");
-  assert.ok(panel.includes("data-testid={`email-flag-${flag}`} checked={acknowledged.includes(flag)}"));
-  assert.ok(panel.includes("setAcknowledged(event.target.checked ? [...acknowledged, flag] : acknowledged.filter((item) => item !== flag))"));
+  assert.ok(advanced.includes("data-testid={`email-flag-${flag}`} checked={acknowledged.includes(flag)}"));
+  assert.ok(advanced.includes("setAcknowledged(event.target.checked ? [...acknowledged, flag] : acknowledged.filter((item) => item !== flag))"));
   assert.ok(panel.includes("confirmPostMeetingEmail(token, opportunityId, draft, length, checks, acknowledged)"));
   assert.ok(panel.includes("(!needsReview || (allChecked && openFlags.length === 0))"));
   const lib = readFileSync(new URL("./postMeetingEmail.ts", import.meta.url), "utf8");
   assert.ok(!lib.includes("acknowledged_flags: draft.reviewFlags }"), "the flags are no longer acknowledged wholesale");
   assert.match(emailFlagText("speaker_unverified"), /not who made them/);
   assert.match(emailError(new ApiRequestError("x", 400, "FOLLOWUP_CONTENT_TOO_LONG")), /never shortened automatically/);
+});
+
+test("the default screen has no review clutter: one Review & confirm action opens the dialog", () => {
+  // The two long blocks are not part of the default page; they live in the legacy component only.
+  for (const text of ["Review flags — acknowledge each one", "<legend>Checklist</legend>", 'data-testid="email-checklist"', "data-testid={`email-flag-${flag}`}"]) {
+    assert.ok(!panel.includes(text), text);
+    assert.ok(advanced.includes(text), `${text} is preserved in the legacy review`);
+  }
+  assert.ok(panel.includes("{draft && ADVANCED_REVIEW ? <FollowUpAdvancedReview "), "the legacy card renders only with the switch");
+  assert.ok(panel.includes('<button className="btn btn-primary" data-testid="email-review-open" disabled={!canReview} onClick={() => { setReviewError(null); setReview("approve"); }}>Review &amp; confirm</button>'));
+  assert.ok(panel.includes("const canReview = Boolean(draft) && !working && dirty.length === 0 && !overLimit && !conflict && !exportable;"), "the review is of the saved text");
+  assert.ok(panel.includes("{draft && review && !ADVANCED_REVIEW ? <FollowUpReviewDialog "));
+  // One next action in the sidebar: review until confirmed, export afterwards.
+  assert.ok(panel.includes("{exportable || ADVANCED_REVIEW ? <>"));
+  assert.ok(panel.includes('className={dirty.length ? "btn btn-primary" : "btn btn-secondary"} data-testid="email-save"'), "saving is the primary action only while there is something to save");
+  assert.doesNotMatch(panel + dialog, /Send email|>Send<|mailto:|\/send|smtp/i);
+});
+
+test("the legacy review is restored only by the exact switch value", () => {
+  assert.equal(advancedReviewUi(undefined), false);
+  for (const value of ["", "false", "1", "TRUE", "yes", "on"]) assert.equal(advancedReviewUi(value), false, value);
+  assert.equal(advancedReviewUi("true"), true);
+  assert.equal(advancedReviewUi(" true "), true);
+  const lib = readFileSync(new URL("./postMeetingEmail.ts", import.meta.url), "utf8");
+  assert.ok(lib.includes("process.env.NEXT_PUBLIC_FOLLOWUP_ADVANCED_REVIEW_UI"));
+  assert.ok(panel.includes("const ADVANCED_REVIEW = advancedReviewUi();"));
+  const dockerfile = readFileSync(new URL("../../../../docker/web/Dockerfile", import.meta.url), "utf8");
+  assert.match(dockerfile, /ARG NEXT_PUBLIC_FOLLOWUP_ADVANCED_REVIEW_UI=false/);
+  assert.match(dockerfile, /ENV NEXT_PUBLIC_FOLLOWUP_ADVANCED_REVIEW_UI=\$NEXT_PUBLIC_FOLLOWUP_ADVANCED_REVIEW_UI/);
+  assert.match(readFileSync(new URL("../../../../.env.example", import.meta.url), "utf8"), /NEXT_PUBLIC_FOLLOWUP_ADVANCED_REVIEW_UI=false/);
+  const doc = readFileSync(new URL("../../../../docs/followup-email-review-ui.md", import.meta.url), "utf8");
+  assert.match(doc, /NEXT_PUBLIC_FOLLOWUP_ADVANCED_REVIEW_UI=true/);
+  assert.match(doc, /FollowUpAdvancedReview\.tsx/);
+  // Both interfaces confirm through the same call.
+  assert.equal((panel.match(/confirmPostMeetingEmail\(/g) ?? []).length, 2);
+  assert.ok(!advanced.includes("apiFetch") && !dialog.includes("apiFetch") && !dialog.includes("confirmPostMeetingEmail"), "neither review component talks to the API itself");
+});
+
+test("the review dialog keeps every warning visible, including what the current selection adds", () => {
+  const draft = parsed();
+  const flags = emailReviewWarnings(draft, "medium");
+  assert.deepEqual(flags.filter((item) => item.flag).map((item) => item.key), draft.reviewFlags, "every stored review flag is listed");
+  assert.match(flags.find((item) => item.key === "fixture_extraction")!.text, /not from a live AI analysis/);
+  assert.ok(flags.every((item) => !item.blocking));
+
+  const noFile = { ...draft, attachments: draft.attachments.map((item) => ({ ...item, selected: false })) };
+  const announced = { ...noFile, lengths: { ...noFile.lengths, medium: { ...noFile.lengths.medium, body: "Hi Dana,\n\nPlease find attached the presentation.\n\nBest regards\nJ" } } };
+  const contradiction = emailReviewWarnings(announced, "medium");
+  assert.ok(!contradiction.some((item) => item.key === "no_attachment_selected"));
+  assert.deepEqual(contradiction.filter((item) => item.blocking).map((item) => item.key), ["attachment_contradiction"], "a contradiction is resolved, not ticked");
+  assert.match(contradiction.find((item) => item.key === "attachment_contradiction")!.text, /says that something is attached, but no file is selected/);
+  const silent = { ...noFile, lengths: { ...noFile.lengths, medium: { ...noFile.lengths.medium, body: "Hi Dana,\n\nThank you.\n\nBest regards\nJ" } } };
+  assert.match(emailReviewWarnings(silent, "medium").find((item) => item.key === "no_attachment_selected")!.text, /without an attachment/);
+  assert.ok(!emailReviewWarnings({ ...draft, attachments: [] }, "medium").some((item) => item.key === "no_attachment_selected"), "a draft without approved files has nothing to select");
+
+  const missing = { ...draft, attachments: draft.attachments.map((item) => ({ ...item, selected: true, available: item.format !== "pdf" })) };
+  const blocked = emailReviewWarnings(missing, "medium").filter((item) => item.blocking);
+  assert.deepEqual(blocked.map((item) => item.key), ["attachment_unavailable_pdf"]);
+  assert.match(blocked[0].text, /selected but not available/);
+  const changed = emailReviewWarnings({ ...draft, sourceStatus: "changed" }, "medium").find((item) => item.key === "source_changed")!;
+  assert.ok(changed.blocking && /Regenerate the email/.test(changed.text));
+
+  // The dialog lists them all, and a blocking one disables the approval.
+  assert.ok(dialog.includes("const warnings = emailReviewWarnings(draft, length);"));
+  assert.ok(dialog.includes("{warnings.map((item) => <li key={item.key} data-testid={`email-warning-${item.key}`}"));
+  assert.ok(dialog.includes("const canApprove = !busy && blocking.length === 0 && open.length === 0 && checksConfirmed;"));
+  assert.ok(dialog.includes('data-testid="email-approve" disabled={!canApprove} onClick={() => onApprove(acknowledgedFlags, checksConfirmed)}'));
+  // A blocking point has no tick: it cannot be accepted, only resolved.
+  assert.ok(dialog.includes("{item.blocking || readOnly\n              ? <span>{item.blocking ? <strong>Cannot be approved: </strong> : null}{item.text}</span>"));
+  for (const shown of ["recipients.to.map(personLabel)", "recipients.sender.name", "{text.subject}", "{text.body}", "files.map((item) =>", "EMAIL_REVIEW_CHECKS.map(([key, label]) => <li key={key}>{label}</li>)"]) {
+    assert.ok(dialog.includes(shown), shown);
+  }
+});
+
+test("the approval records exactly what the owner ticked: each flag, and the six checks only when confirmed", async () => {
+  const draft = parsed();
+  const six = EMAIL_REVIEW_CHECKS.map(([key]) => key);
+  // Nothing ticked: nothing is reported. One generic tick is never turned into six checks or into flags.
+  assert.deepEqual(approvalFor(draft, [], false), { checks: [], acknowledgedFlags: [] });
+  assert.deepEqual(approvalFor(draft, draft.reviewFlags, false).checks, [], "flags alone do not confirm the review checks");
+  assert.deepEqual(approvalFor(draft, [], true), { checks: six, acknowledgedFlags: [] }, "the checks alone acknowledge no flag");
+  assert.deepEqual(approvalFor(draft, ["fixture_extraction"], true).acknowledgedFlags, ["fixture_extraction"], "only the ticked flag");
+  assert.deepEqual(approvalFor(draft, ["fixture_extraction", "not_a_flag_of_this_draft"], true).acknowledgedFlags, ["fixture_extraction"]);
+  assert.deepEqual(approvalFor(draft, draft.reviewFlags, true), { checks: six, acknowledgedFlags: draft.reviewFlags });
+
+  // The dialog: one tick per point, none preset, and the six checks written out next to their own tick.
+  assert.ok(dialog.includes("const [acknowledged, setAcknowledged] = useState<string[]>([]);"));
+  assert.ok(dialog.includes("const [checksConfirmed, setChecksConfirmed] = useState(false);"));
+  assert.ok(dialog.includes("<input type=\"checkbox\" data-testid={`email-acknowledge-${item.key}`} checked={acknowledged.includes(item.key)} disabled={busy}"));
+  assert.ok(dialog.includes("setAcknowledged(event.target.checked ? [...acknowledged, item.key] : acknowledged.filter((key) => key !== item.key))"));
+  assert.ok(dialog.includes("const acknowledgedFlags = warnings.filter((item) => item.flag && acknowledged.includes(item.key)).map((item) => item.key);"), "only ticked flags are reported");
+  assert.ok(dialog.includes("<ol>{EMAIL_REVIEW_CHECKS.map(([key, label]) => <li key={key}>{label}</li>)}</ol>"), "all six requirements are shown");
+  assert.ok(dialog.includes('<input type="checkbox" data-testid="email-review-checks" checked={checksConfirmed} onChange={(event) => setChecksConfirmed(event.target.checked)} />'));
+  assert.ok(dialog.includes("I have checked all six points above and confirm each of them for this email."));
+  assert.doesNotMatch(dialog, /setAcknowledged\(warnings|setAcknowledged\(draft|setChecksConfirmed\(true\)|useState\(true\)|defaultChecked|reviewFlags\)/, "nothing is ticked for the owner");
+  assert.doesNotMatch(dialog, /I have read this email and checked the recipients/, "the single generic acknowledgement is gone");
+  assert.equal((panel.match(/approve\(/g) ?? []).length, 1, "the approval has one caller");
+  assert.ok(panel.includes("onApprove={(acknowledgedFlags, checksConfirmed) => void approve(acknowledgedFlags, checksConfirmed)}"));
+  assert.ok(panel.includes("const approval = approvalFor(draft, acknowledgedFlags, checksConfirmed);"));
+  assert.ok(panel.includes("confirmPostMeetingEmail(token, opportunityId, draft, length, approval.checks, approval.acknowledgedFlags)"));
+  assert.doesNotMatch(panel, /useEffect\([^)]*approve/);
+
+  // The request is the existing confirmation: saved revision, the confirmed checks, the ticked flags.
+  const original = globalThis.fetch;
+  const sent: Record<string, unknown>[] = [];
+  let url = "";
+  globalThis.fetch = async (input, init) => { url = String(input); sent.push(JSON.parse(String(init?.body))); return Response.json(envelope({ status: "confirmed", selected_length: "medium", confirmed_revision: 4, revision: 4, confirmed_at: "2026-10-12T09:00:00Z" })); };
+  try {
+    for (const approval of [approvalFor(draft, draft.reviewFlags, true), approvalFor(draft, ["fixture_extraction"], false)]) {
+      await confirmPostMeetingEmail("token", id, draft, "medium", approval.checks, approval.acknowledgedFlags);
+    }
+  } finally { globalThis.fetch = original; }
+  assert.match(url, /\/email-drafts\/draft-1\/confirm$/);
+  assert.deepEqual(sent[0], { selected_length: "medium", expected_revision: draft.revision, review_checks: ["recipients", "dates_and_owners", "supported_statements", "review_flags", "tone", "attachments"], acknowledged_flags: draft.reviewFlags });
+  assert.deepEqual(sent[1], { selected_length: "medium", expected_revision: draft.revision, review_checks: [], acknowledged_flags: ["fixture_extraction"] }, "an incomplete review is sent as incomplete; the API refuses it");
+
+  // A refusal by the API stays visible in the dialog; a conflict returns to the page decision.
+  assert.ok(panel.includes("if (isEmailConflict(cause)) { setReview(null); throw cause; }"));
+  assert.ok(panel.includes("setReviewError(emailError(cause));"));
+  assert.ok(dialog.includes('role="alert" data-testid="email-review-error"'));
+});
+
+test("the page keeps text and attachment selection consistent without rewriting the owner's text", () => {
+  const draft = parsed();
+  const none = { ...draft, attachments: draft.attachments.map((item) => ({ ...item, selected: false })) };
+  const says = (body: string) => ({ ...none.lengths.medium, body });
+  const mixed = { ...none, lengths: { short: says("Hi Dana,\n\nThank you.\n\nBest regards\nJ"), medium: says("Hi Dana,\n\nAs discussed, I have attached the presentation.\n\nBest regards\nJ"), extensive: says("Hi Dana,\n\nSee the attachment.\n\nBest regards\nJ") } };
+  assert.equal(announcesAttachment("Please find attached the presentation."), true);
+  assert.equal(announcesAttachment("Thank you for your time."), false);
+  assert.equal(announcesAttachment("The outline is enclosed."), true);
+  for (const opposite of ["There is no attachment this time.", "Nothing is attached to this message.", "I have not attached the deck yet."]) assert.equal(announcesAttachment(opposite), false, opposite);
+  assert.equal(announcesAttachment("No attachment last time. This time the deck is attached."), true);
+  assert.match(emailError(new ApiRequestError("x", 400, "EMAIL_ATTACHMENT_CONTRADICTION")), /Select the approved file or change that sentence/);
+  assert.deepEqual(attachmentMismatch(mixed), ["medium", "extensive"]);
+  assert.deepEqual(attachmentMismatch({ ...mixed, attachments: draft.attachments.map((item) => ({ ...item, selected: item.format === "pdf" })) }), [], "with a file selected the sentence is true");
+  assert.deepEqual(attachmentMismatch({ ...mixed, attachments: [] }), [], "a draft without approved files has no selection");
+  assert.deepEqual(attachmentMismatch(null), []);
+  // The page says which texts the API rewrote and that edited texts were left alone, and points at a remaining mismatch.
+  assert.ok(panel.includes("const rewritten = EMAIL_LENGTHS.filter((name) => saved.lengths[name].body !== draft.lengths[name].body);"));
+  assert.ok(panel.includes("Texts you edited were not changed."));
+  assert.ok(panel.includes('data-testid="email-attachment-mismatch"') && panel.includes("it cannot be approved like this"));
+  assert.doesNotMatch(panel, /setCopy\([^)]*replace\(|body\.replace\(/, "the page itself never edits the message text");
+});
+
+test("the review dialog is a modal dialog that works with the keyboard and on a phone", () => {
+  assert.ok(dialog.includes("<dialog ref={dialog} className={styles.reviewDialog} aria-labelledby=\"email-review-dialog-title\" aria-describedby=\"email-review-dialog-note\""));
+  assert.ok(dialog.includes("if (element && !element.open) element.showModal();"), "modal: focus stays inside, Escape closes, focus returns");
+  assert.ok(dialog.includes("onCancel={(event) => { if (busy) event.preventDefault(); }} onClose={onClose}"));
+  assert.ok(dialog.includes('<pre className={styles.reviewBody} tabIndex={0}'), "the message can be scrolled with the keyboard");
+  assert.ok(dialog.includes('<label className={styles.check}>'), "the acknowledgement has a visible label");
+  const css = readFileSync(new URL("../components/post-meeting.module.css", import.meta.url), "utf8");
+  assert.match(css, /\.reviewDialog \{ width: min\(760px, calc\(100vw - 32px\)\);[^}]*max-height: calc\(100dvh - 32px\)/);
+  assert.match(css, /\.reviewScroll \{[^}]*overflow-y: auto/);
+  assert.match(css, /\.reviewBody \{[^}]*white-space: pre-wrap; overflow-wrap: anywhere/);
+  assert.match(css, /\.reviewWarnings li\[data-blocking="true"\] \{ border-left-color: var\(--pitch-red\)/);
+  assert.match(css, /@media \(max-width: 640px\) \{\s*\.reviewDialog \{ width: calc\(100vw - 16px\)/);
+  // The legacy styles stay for the switch.
+  assert.match(css, /\.emailChecklist \.check \{ margin: 8px 0; \}/);
+});
+
+test("the page says who wrote the text and never words a fallback as AI-written", () => {
+  const writer = (value: unknown) => parsed({ writer: value }).writer;
+  const ai = writer({ mode: "ai", model: "claude-sonnet-4-5", prompt_version: "followup-email-writer:v1", verified: true, fallback_reason: null, checked_sentences: 15 });
+  assert.deepEqual(ai, { mode: "ai", model: "claude-sonnet-4-5", verified: true, fallbackReason: null, checkedSentences: 15 });
+  assert.equal(writerLabel(ai), "Written by the AI writer (claude-sonnet-4-5) from your confirmed findings · 15 sentences passed the grounding check.");
+  const fallback = writer({ mode: "fallback", model: "claude-sonnet-4-5", prompt_version: "followup-finalized:v3", verified: false, fallback_reason: { code: "AI_GROUNDING_REJECTED", message: "The AI draft failed 2 grounding or format checks." }, checked_sentences: null });
+  assert.equal(writerLabel(fallback), "Rule-based writer (fallback) — the AI draft was not used: The AI draft failed 2 grounding or format checks.");
+  assert.doesNotMatch(writerLabel(fallback)!, /Written by the AI/);
+  const rules = writer({ mode: "deterministic", model: null, prompt_version: "followup-finalized:v3", verified: false, fallback_reason: null, checked_sentences: null });
+  assert.equal(writerLabel(rules), "Rule-based writer — AI writing is not enabled in this environment.");
+  // A fallback that claims to be verified, an unverified "ai" draft, or an unknown mode is not labelled AI-written.
+  assert.equal(writer({ mode: "fallback", verified: true, fallback_reason: null })!.verified, false);
+  assert.match(writerLabel(writer({ mode: "fallback", verified: true, fallback_reason: null }))!, /^Rule-based writer \(fallback\)/);
+  assert.doesNotMatch(writerLabel(writer({ mode: "ai", verified: false, model: "m", fallback_reason: null })) ?? "", /Written by the AI/);
+  assert.equal(writer({ mode: "gpt" }), null);
+  assert.equal(parsed().writer, null, "a draft from before the writer was recorded has no label");
+  assert.equal(writerLabel(null), null);
+  assert.ok(panel.includes('{writerLabel(draft.writer) ? <small data-testid="email-writer" data-writer={draft.writer?.mode}>'));
+  // The flags of both modes are explained and acknowledged like every other flag.
+  assert.match(emailFlagText("ai_written"), /written by the AI writer.*read it against the findings yourself/);
+  assert.match(emailFlagText("ai_fallback"), /AI writing was not used.*rule-based writer/);
 });

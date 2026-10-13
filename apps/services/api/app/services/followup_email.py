@@ -16,11 +16,23 @@ PPT #2 keep the transcript-based draft unchanged.
 
 Every write names the draft revision it is based on and is refused when the draft has moved on,
 so two people cannot overwrite each other. Editing a confirmed draft withdraws the confirmation.
+
+Who wrote the text is recorded with the draft and shown to the owner:
+
+    ai             the configured model wrote it from the confirmed findings and every sentence
+                   passed the grounding checks (``services.followup.ai_writer``)
+    fallback       AI writing is enabled, but the model was unavailable or its draft was rejected;
+                   the rule-based writer was used, and the reason is kept
+    deterministic  AI writing is not enabled in this environment (it needs
+                   FOLLOWUP_AI_WRITER_ENABLED=true and AI_EXECUTION_MODE=live); the rule-based
+                   writer was used
 """
 
 from __future__ import annotations
 
 import hashlib
+import logging
+import os
 import re
 from datetime import UTC, datetime
 from email.message import EmailMessage
@@ -31,18 +43,23 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
+from app.config import settings
 from app.services import deck_center
 from app.services.api_errors import bad_request, conflict
+from llm.claude.client import ClaudeClientError, claude_credentials_problem, sonnet_model, structured_complete
+from services.followup import ai_writer
 from services.followup.finalized import (
     LENGTHS,
     RENDERER_VERSION,
     WORD_CAPS,
     ContentDoesNotFit,
     NoConfirmedContent,
+    announces_attachment,
     content_from_snapshot,
     render_finalized_lengths,
 )
 from services.followup.rendering import draft_has_placeholders, followup_content_word_count
+from services.observability.llm_logger import run_logged_llm_call
 from services.presentation.master_deck.plan import MANIFEST_KIND_V2, MASTER_MANIFEST_KINDS
 from services.presentation.master_deck.v2 import snapshot_hash
 
@@ -55,6 +72,16 @@ MEDIA_TYPES = {
 }
 MAX_SUBJECT_CHARS = 200
 MAX_BODY_CHARS = 20000
+WRITER_AI = "ai"
+WRITER_FALLBACK = "fallback"
+WRITER_RULES = "deterministic"
+FLAG_AI_WRITTEN = "ai_written"
+FLAG_AI_FALLBACK = "ai_fallback"
+FLAG_CONTENT_TRIMMED = "content_trimmed"
+AI_MAX_TOKENS = 8000
+VARIANTS = (("attached", True), ("plain", False))
+
+logger = logging.getLogger(__name__)
 
 
 def _now() -> str:
@@ -165,22 +192,203 @@ def require_complete_statics(statics: Any) -> dict[str, Any]:
     return statics
 
 
-def master_generation(store: Any, *, opportunity: dict[str, Any], opportunity_id: UUID, user_id: UUID) -> dict[str, Any] | None:
-    """Draft content from the finalized V2 package, or None for a standalone PPT #2 opportunity."""
+def ai_writing_enabled() -> bool:
+    """AI writing is switched on explicitly, and only where live AI calls are allowed at all.
+
+    Without FOLLOWUP_AI_WRITER_ENABLED the rule-based writer writes every draft, whatever the
+    environment's AI mode: a live environment does not start writing emails with a model by
+    itself. Fixture mode never calls a model, whatever the switch says.
+    """
+    return bool(settings.FOLLOWUP_AI_WRITER_ENABLED) and settings.AI_EXECUTION_MODE == "live"
+
+
+# Fingerprints of keys Anthropic has refused in this process. A refused key is not tried again:
+# it will be refused again, and every attempt is a request with client findings in it.
+_REFUSED_KEYS: set[str] = set()
+
+
+def _key_fingerprint() -> str:
+    return hashlib.sha256(os.environ.get("ANTHROPIC_API_KEY", "").strip().encode("utf-8")).hexdigest()
+
+
+def model_preflight() -> tuple[str, str] | None:
+    """Why no model request should be made right now, or None. Contacts nobody.
+
+    Missing, placeholder and malformed keys are recognised locally; a key the provider refused
+    earlier in this process is remembered until a different key is configured.
+    """
+    problem = claude_credentials_problem()
+    if problem:
+        return problem
+    if _key_fingerprint() in _REFUSED_KEYS:
+        return ("CLAUDE_AUTH", "The configured ANTHROPIC_API_KEY was rejected earlier, so no model was called. Configure a valid key.")
+    return None
+
+
+def _model_call(*, stage: str, prompt_version: str, tool_name: str, description: str, opportunity_id: UUID) -> ai_writer.Complete:
+    """One logged call through the shared Claude client (egress policy and generation log included).
+
+    Nothing is sent when the preflight already knows the request cannot succeed.
+    """
+
+    def complete(system: str, user: str, schema: dict[str, Any]) -> dict[str, Any]:
+        problem = model_preflight()
+        if problem:
+            raise ClaudeClientError(problem[1], code=problem[0], retryable=False)
+
+        def invoke() -> dict[str, Any]:
+            return structured_complete(system, user, schema, tool_name=tool_name, tool_description=description, max_tokens=AI_MAX_TOKENS)
+
+        try:
+            return run_logged_llm_call(
+                stage=stage, prompt_version=prompt_version, model=sonnet_model(), attempt=1, opportunity_id=str(opportunity_id), invoke=invoke
+            )
+        except ClaudeClientError as exc:
+            if getattr(exc, "code", "") == "CLAUDE_AUTH":
+                _REFUSED_KEYS.add(_key_fingerprint())
+            raise
+
+    return complete
+
+
+def write_variants(
+    content: dict[str, Any],
+    statics: dict[str, Any],
+    *,
+    live: bool,
+    opportunity_id: UUID,
+    writer: ai_writer.Complete | None = None,
+    verifier: ai_writer.Complete | None = None,
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    """Both texts of the email - with and without the attachment sentence - and who wrote them.
+
+    The rule-based drafts are always written first: they are what the owner gets when AI writing
+    is off, when the model cannot be reached and when its draft does not pass the grounding
+    checks. A draft that did not pass is never stored, shown or mixed into the fallback.
+    """
+    rules: dict[str, dict[str, Any]] = {}
+    for variant, attached in VARIANTS:
+        lengths, flags = render_finalized_lengths(content, statics, attachment=attached)
+        rules[variant] = {"lengths": lengths, "review_flags": list(flags)}
+    if not live:
+        return rules, {"mode": WRITER_RULES, "model": None, "prompt_version": RENDERER_VERSION, "verified": False, "fallback_reason": None, "verification": None}
+    model = sonnet_model()
+    try:
+        result = ai_writer.write_with_ai(
+            content,
+            statics,
+            writer=writer or _model_call(
+                stage=ai_writer.STAGE_WRITER, prompt_version=ai_writer.WRITER_PROMPT_VERSION, tool_name="submit_followup_email",
+                description="Submit the short, medium and extensive email bodies as paragraphs of sentences with the fact ids each sentence rests on.",
+                opportunity_id=opportunity_id,
+            ),
+            verifier=verifier or _model_call(
+                stage=ai_writer.STAGE_VERIFIER, prompt_version=ai_writer.VERIFIER_PROMPT_VERSION, tool_name="submit_grounding_verdicts",
+                description="Submit one verdict per sentence: supported by its cited facts or not.",
+                opportunity_id=opportunity_id,
+            ),
+        )
+    except ai_writer.AiWriterRejected as exc:
+        reason = {"code": exc.code, "message": str(exc)}
+        issues = [{key: str(item.get(key) or "")[:300] for key in ("length", "code", "sentence", "detail")} for item in exc.issues[:20]]
+    except ClaudeClientError as exc:
+        reason = {"code": str(getattr(exc, "code", "") or "AI_UNAVAILABLE"), "message": exc.user_message}
+        issues = []
+    except Exception:  # noqa: BLE001 - whatever goes wrong in the AI stage, the owner still gets a draft
+        logger.exception("Follow-up email AI writer failed for opportunity %s", opportunity_id)
+        reason = {"code": "AI_WRITER_FAILED", "message": "The AI writer failed unexpectedly."}
+        issues = []
+    else:
+        subject = rules["attached"]["lengths"]["short"]["subject"]
+        # What the rule-based writer left out says nothing about this text.
+        flags = [flag for flag in content["review_flags"] if flag != FLAG_CONTENT_TRIMMED] + [FLAG_AI_WRITTEN]
+        variants = {
+            variant: {
+                "lengths": {
+                    name: {"subject": subject, "body": body, "word_count": max(1, followup_content_word_count(body)), "edited": False}
+                    for name, body in result["variants"][variant].items()
+                },
+                "review_flags": list(flags),
+            }
+            for variant, _attached in VARIANTS
+        }
+        return variants, {
+            "mode": WRITER_AI, "model": model, "prompt_version": ai_writer.WRITER_PROMPT_VERSION, "verified": True, "fallback_reason": None,
+            "verification": result["verification"],
+        }
+    for variant in rules.values():
+        variant["review_flags"].append(FLAG_AI_FALLBACK)
+    return rules, {
+        "mode": WRITER_FALLBACK, "model": model, "prompt_version": RENDERER_VERSION, "verified": False, "fallback_reason": reason,
+        "verification": {"rejected": issues} if issues else None,
+    }
+
+
+def public_writer(stored: dict[str, Any]) -> dict[str, Any] | None:
+    """Who wrote the draft, for the owner. Sentence-level records stay with the stored draft."""
+    writer = stored.get("writer")
+    if not isinstance(writer, dict) or writer.get("mode") not in (WRITER_AI, WRITER_FALLBACK, WRITER_RULES):
+        return None
+    verification = writer.get("verification") if isinstance(writer.get("verification"), dict) else {}
+    reason = writer.get("fallback_reason") if isinstance(writer.get("fallback_reason"), dict) else None
+    return {
+        "mode": writer["mode"],
+        "model": writer.get("model"),
+        "prompt_version": str(writer.get("prompt_version") or ""),
+        "verified": bool(writer.get("verified")),
+        "fallback_reason": {"code": str(reason.get("code") or ""), "message": str(reason.get("message") or "")} if reason else None,
+        "checked_sentences": int(verification["sentence_count"]) if writer["mode"] == WRITER_AI and "sentence_count" in verification else None,
+    }
+
+
+DEFAULT_ATTACHMENT_SELECTION = {"pptx": False, "pdf": True}
+
+
+def attachment_selection(existing: dict[str, Any] | None, source: dict[str, Any]) -> dict[str, bool]:
+    """The owner's selection for this presentation version, or the default for a new one."""
+    previous = (existing or {}).get("source") or {}
+    if previous.get("presentation_version_id") == source["presentation_version_id"]:
+        return dict((existing or {}).get("attachment_selection") or {})
+    return dict(DEFAULT_ATTACHMENT_SELECTION)
+
+
+def master_generation(
+    store: Any,
+    *,
+    opportunity: dict[str, Any],
+    opportunity_id: UUID,
+    user_id: UUID,
+    journey_stage: str = "deepening",
+    attachment: bool | None = None,
+    live: bool | None = None,
+    writer: ai_writer.Complete | None = None,
+    verifier: ai_writer.Complete | None = None,
+) -> dict[str, Any] | None:
+    """Draft content from the finalized V2 package, or None for a standalone PPT #2 opportunity.
+
+    The text only says that the presentation is attached when a file is selected: ``attachment``,
+    or the selection the stored draft holds for this presentation version.
+    """
     resolved = resolve_finalized_source(store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id)
     if resolved is None:
         return None
     source, frozen = resolved
     statics = require_complete_statics(opportunity.get("followup_statics"))
+    if attachment is None:
+        existing = store.get_email_draft(opportunity_id=opportunity_id, user_id=user_id, journey_stage=journey_stage)
+        attachment = any(attachment_selection(existing, source).values())
     try:
         content = content_from_snapshot(frozen)
-        lengths, flags = render_finalized_lengths(content, statics)
+        variants, written_by = write_variants(
+            content, statics, live=ai_writing_enabled() if live is None else live, opportunity_id=opportunity_id, writer=writer, verifier=verifier
+        )
     except (NoConfirmedContent, ContentDoesNotFit) as exc:
         raise bad_request(exc.code, str(exc)) from exc
-    over = [name for name in LENGTHS if lengths[name]["word_count"] > WORD_CAPS[name]]
-    if over:  # the renderer guarantees this; a draft over its cap is never stored
+    over = [name for variant in variants.values() for name in LENGTHS if variant["lengths"][name]["word_count"] > WORD_CAPS[name]]
+    if over:  # both writers guarantee this; a draft over its cap is never stored
         raise bad_request("FOLLOWUP_CONTENT_TOO_LONG", f"The generated {over[0]} draft exceeds its word limit.")
-    return {"lengths": lengths, "review_flags": flags, "source": source}
+    chosen = variants["attached" if attachment else "plain"]
+    return {"lengths": chosen["lengths"], "review_flags": chosen["review_flags"], "source": source, "writer": written_by, "variants": variants}
 
 
 # ----------------------------------------------------------------------------- stored draft
@@ -280,6 +488,7 @@ def public_fields(store: Any, *, stored: dict[str, Any], opportunity: dict[str, 
         "recipients": (stored.get("recipients") if confirmed else None) or _recipients(opportunity.get("followup_statics")),
         "attachments": attachments,
         "word_limits": dict(WORD_CAPS),
+        "writer": public_writer(stored),
     }
 
 
@@ -304,6 +513,21 @@ def has_owner_work(stored: dict[str, Any] | None) -> bool:
     return edited or (stored.get("status") == "confirmed" and isinstance(stored.get("source"), dict))
 
 
+def existing_draft_for_generation(store: Any, *, opportunity_id: UUID, user_id: UUID, journey_stage: str, overwrite_edits: bool) -> dict[str, Any] | None:
+    """The stored draft a generation would replace. Refused while it holds the owner's work.
+
+    Checked before anything is generated, so that no model is called for a draft that will not
+    be stored.
+    """
+    existing = store.get_email_draft(opportunity_id=opportunity_id, user_id=user_id, journey_stage=journey_stage)
+    if has_owner_work(existing) and not overwrite_edits:
+        raise conflict(
+            "EMAIL_DRAFT_HAS_EDITS",
+            "This draft contains saved edits or a confirmation. Regenerating replaces all three lengths.",
+        )
+    return existing
+
+
 def store_generated(
     store: Any,
     *,
@@ -315,18 +539,11 @@ def store_generated(
     source: dict[str, Any] | None,
     review_flags: list[str],
     overwrite_edits: bool,
+    writer: dict[str, Any] | None = None,
+    variants: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    existing = store.get_email_draft(opportunity_id=opportunity_id, user_id=user_id, journey_stage=journey_stage)
-    if has_owner_work(existing) and not overwrite_edits:
-        raise conflict(
-            "EMAIL_DRAFT_HAS_EDITS",
-            "This draft contains saved edits or a confirmation. Regenerating replaces all three lengths.",
-        )
-    selection = {}
-    if source is not None:
-        previous = (existing or {}).get("source") or {}
-        same_version = previous.get("presentation_version_id") == source["presentation_version_id"]
-        selection = dict((existing or {}).get("attachment_selection") or {}) if same_version else {"pptx": False, "pdf": True}
+    existing = existing_draft_for_generation(store, opportunity_id=opportunity_id, user_id=user_id, journey_stage=journey_stage, overwrite_edits=overwrite_edits)
+    selection = attachment_selection(existing, source) if source is not None else {}
     stored = store.save_email_draft(
         opportunity_id=opportunity_id,
         user_id=user_id,
@@ -343,6 +560,10 @@ def store_generated(
             "attachment_selection": selection,
             "review": None,
             "recipients": None,
+            # Who wrote the text, and both generated texts (with and without the attachment
+            # sentence), so that a change of the selection needs no new generation.
+            "writer": writer,
+            "writer_variants": variants,
         },
         expected_revision=None if existing is None else revision_of(existing),
     )
@@ -377,7 +598,10 @@ def _require_revision(stored: dict[str, Any], expected_revision: int) -> None:
 
 
 def _carry(stored: dict[str, Any]) -> dict[str, Any]:
-    keys = ("status", "selected_length", "lengths", "confirmed_at", "confirmed_revision", "confirmed_by", "source", "review_flags", "attachment_selection", "review", "recipients")
+    keys = (
+        "status", "selected_length", "lengths", "confirmed_at", "confirmed_revision", "confirmed_by", "source", "review_flags", "attachment_selection",
+        "review", "recipients", "writer", "writer_variants",
+    )
     return {key: stored.get(key) for key in keys}
 
 
@@ -416,8 +640,11 @@ def update_draft(
             raise bad_request("EMAIL_ATTACHMENT_UNAVAILABLE", "This draft has no approved presentation version to attach.")
         selection = {kind: bool(attachments.get(kind, (stored.get("attachment_selection") or {}).get(kind))) for kind in ATTACHMENT_FORMATS} if master else {}
         if selection != (stored.get("attachment_selection") or {}):
+            was_attached = any((stored.get("attachment_selection") or {}).values())
             draft["attachment_selection"] = selection
             changed = True
+            if master and any(selection.values()) != was_attached:
+                _follow_attachment_selection(store, draft=draft, stored=stored, opportunity_id=opportunity_id, user_id=user_id, attached=any(selection.values()))
     if not changed:
         return envelope(store, opportunity_id=opportunity_id, user_id=user_id, journey_stage=journey_stage, stored=stored)
     # What was reviewed no longer exists in this form: the confirmation is withdrawn.
@@ -426,6 +653,41 @@ def update_draft(
         opportunity_id=opportunity_id, user_id=user_id, journey_stage=journey_stage, draft=draft, expected_revision=expected_revision
     )
     return envelope(store, opportunity_id=opportunity_id, user_id=user_id, journey_stage=journey_stage, stored=saved)
+
+
+def _follow_attachment_selection(store: Any, *, draft: dict[str, Any], stored: dict[str, Any], opportunity_id: UUID, user_id: UUID, attached: bool) -> None:
+    """Keep the generated text true to the selection: it only says "attached" when a file is.
+
+    Lengths the owner has not edited take the text that was generated for this selection, with
+    or without the attachment sentence. An edited length is the owner's text and is never changed
+    here; a message that still announces a file that is not selected cannot be confirmed until
+    the owner resolves it.
+    """
+    variants = stored.get("writer_variants")
+    if isinstance(variants, dict) and isinstance(variants.get("attached" if attached else "plain"), dict):
+        # The text generated for this selection, kept since the draft was written. No model is called.
+        chosen = variants["attached" if attached else "plain"]
+        fresh = {"lengths": chosen["lengths"], "review_flags": chosen["review_flags"]}
+    else:
+        # A draft from before both texts were kept: it was written by the rule-based writer.
+        opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        if source_status(store, stored=stored, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id) != "valid":
+            return
+        try:
+            fresh = master_generation(
+                store, opportunity=opportunity, opportunity_id=opportunity_id, user_id=user_id, journey_stage=stored["journey_stage"], attachment=attached, live=False
+            )
+        except HTTPException:
+            return
+        if fresh is None:
+            return
+    for name in LENGTHS:
+        if not draft["lengths"][name].get("edited"):
+            draft["lengths"][name] = {**fresh["lengths"][name], "edited": False}
+    # Whether confirmed points were left out can change with the room the sentence takes. The
+    # flag describes the generated extensive draft; an edited one keeps the flag it had.
+    if not draft["lengths"]["extensive"].get("edited"):
+        draft["review_flags"] = list(fresh["review_flags"])
 
 
 # ----------------------------------------------------------------------------- confirm
@@ -469,9 +731,16 @@ def confirm_draft(
         require_complete_statics(opportunity.get("followup_statics"))
         text = stored["lengths"][selected_length]
         _checked_text(selected_length, text["subject"], text["body"])
-        missing_files = [item["file_name"] for item in attachments_for(store, stored=stored, user_id=user_id) if item["selected"] and not item["available"]]
+        files = attachments_for(store, stored=stored, user_id=user_id)
+        missing_files = [item["file_name"] for item in files if item["selected"] and not item["available"]]
         if missing_files:
             raise conflict("EMAIL_ATTACHMENT_UNAVAILABLE", f"A selected attachment is not available: {', '.join(missing_files)}.")
+        # An email that announces a file it does not carry is wrong whoever wrote the sentence.
+        if not any(item["selected"] for item in files) and announces_attachment(str(text["body"])):
+            raise bad_request(
+                "EMAIL_ATTACHMENT_CONTRADICTION",
+                "The message says that something is attached, but no file is selected. Select the approved file or change that sentence, then save and review again.",
+            )
         review = {"checks": list(REVIEW_CHECKS), "acknowledged_flags": list(stored.get("review_flags") or [])}
     draft = _carry(stored)
     draft.update(
